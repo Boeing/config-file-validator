@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
-	"git.web.boeing.com/vle-oss/config-file-validator/pkg/filetype"
-	"git.web.boeing.com/vle-oss/config-file-validator/pkg/finder"
-	"git.web.boeing.com/vle-oss/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/finder"
+	"github.com/Boeing/config-file-validator/pkg/reporter"
 	"io/ioutil"
 )
 

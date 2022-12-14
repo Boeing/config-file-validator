@@ -1,4 +1,4 @@
-module git.web.boeing.com/vle-oss/config-file-validator
+module github.com/Boeing/config-file-validator
 
 go 1.18
 
