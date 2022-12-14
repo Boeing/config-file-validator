@@ -22,7 +22,7 @@ jobs:
         go vet ./...
 
     - name: Check Formatting
-      run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
+      run: if [ "$(gofmt -s -l -e ./... | wc -l)" -gt 0 ]; then exit 1; fi
 
     - name: Build
       run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s -extldflags "-static"' -tags netgo -o validator cmd/validator/validator.go
