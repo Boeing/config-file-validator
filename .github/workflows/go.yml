@@ -17,15 +17,9 @@ jobs:
       with:
         go-version: 1.19
         
-    - name: Install dependencies
-      run: |
-        go version
-        go get -u golang.org/x/lint/golint
-        
     - name: Static Analysis
       run: |
         go vet ./...
-        golint .
 
     - name: Check Formatting
       run: if [ "$(gofmt -s -l ./src | wc -l)" -gt 0 ]; then exit 1; fi
