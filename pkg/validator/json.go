@@ -2,17 +2,16 @@ package validator
 
 import (
 	"encoding/json"
-	"strings"
 	"fmt"
-
+	"strings"
 )
 
 type JsonValidator struct{}
 
-// Returns a custom error message that contains the unmarshal 
+// Returns a custom error message that contains the unmarshal
 // error message along with the line and character
 // number where the error occurred when parsing the JSON
-func getCustomErr(input []byte, err error) (error) {
+func getCustomErr(input []byte, err error) error {
 	jsonError := err.(*json.SyntaxError)
 	offset := int(jsonError.Offset)
 	line := 1 + strings.Count(string(input)[:offset], "\n")
