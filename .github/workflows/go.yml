@@ -7,7 +7,7 @@ on: push
 
 jobs:
 
-  build and test:
+  lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -23,8 +23,30 @@ jobs:
     - name: Check Formatting
       run: if [ "$(gofmt -s -l -e . | wc -l)" -gt 0 ]; then exit 1; fi
 
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+
     - name: Build
       run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags='-w -s -extldflags "-static"' -tags netgo -o validator cmd/validator/validator.go
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+        
     - name: Test
       run: go test -v ./...
+
+
