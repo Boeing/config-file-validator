@@ -1,7 +1,7 @@
 package finder
 
 import (
-	"git.web.boeing.com/vle-oss/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/filetype"
 )
 
 // The File Metadata object stores the

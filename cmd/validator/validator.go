@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"git.web.boeing.com/vle-oss/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/cli"
 	"log"
 	"os"
 	"strings"
