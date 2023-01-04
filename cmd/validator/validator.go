@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"log"
 	"os"
@@ -21,7 +22,7 @@ func getFlags() (*string, *string, int) {
 	exit := 0
 
 	if *searchPathPtr == "" {
-		log.Println("Missing required Parameter. Showing help: ")
+		fmt.Println("Missing required Parameter. Showing help: ")
 		flag.PrintDefaults()
 		exit = 1
 		return nil, nil, exit
