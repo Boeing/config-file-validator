@@ -25,7 +25,6 @@ func (fsf FileSystemFinder) Find(pathRoot string, fileTypes []filetype.FileType,
 		// determine if directory is in the excludeDirs list
 		for _, dir := range excludeDirs {
 			if dirEntry.IsDir() && dirEntry.Name() == dir {
-				//log.Info("Skipping directory")
 				err := filepath.SkipDir
 				if err != nil {
 					return err
