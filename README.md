@@ -13,9 +13,10 @@
   <img src="https://goreportcard.com/badge/github.com/Boeing/config-file-validator" alt="Go Report Card">
   </a>
 
-  <a href='https://coveralls.io/github/kehoecj/config-file-validator?branch=main'>
-  <img src='https://coveralls.io/repos/github/kehoecj/config-file-validator/badge.svg?branch=main' alt='Coverage Status' />
+  <a href='https://coveralls.io/github/kehoecj/config-file-validator?branch=readme_updates'>
+  <img src='https://coveralls.io/repos/github/kehoecj/config-file-validator/badge.svg?branch=readme_updates' alt='Coverage Status' />
   </a>
+
 
 </p>
 
