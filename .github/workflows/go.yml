@@ -47,6 +47,13 @@ jobs:
         go-version: 1.19
         
     - name: Test
-      run: go test -v ./...
+      run: |
+        go get golang.org/x/tools/cmd/cover
+        go test -v -covermode=count -coverprofile=coverage.out ./... 
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
 
