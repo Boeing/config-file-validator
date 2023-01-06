@@ -1,8 +1,6 @@
 FROM golang:1.19 as go-builder
 COPY . /build/
 WORKDIR /build
-ENV http_proxy=http://10.127.8.142:8888 \
-  https_proxy=http://10.127.8.142:8888
 RUN CGO_ENABLED=0 \
   GOOS=linux \
   GOARCH=amd64 \
