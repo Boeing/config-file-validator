@@ -25,7 +25,7 @@ var JsonFileType = FileType{
 // Instance of the FileType object to
 // represent a YAML file
 var YamlFileType = FileType{
-	"json",
+	"yaml",
 	[]string{"yml", "yaml"},
 	validator.YamlValidator{},
 }
@@ -38,10 +38,19 @@ var XmlFileType = FileType{
 	validator.XmlValidator{},
 }
 
+// Instance of FileType object to
+// represent a Toml file
+var TomlFileType = FileType{
+	"toml",
+	[]string{"toml"},
+	validator.TomlValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
 	JsonFileType,
 	YamlFileType,
 	XmlFileType,
+	TomlFileType,
 }

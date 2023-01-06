@@ -16,6 +16,8 @@ var testData = []struct {
 	{"invalidYaml", []byte("a: b\nc: d:::::::::::::::"), false, YamlValidator{}},
 	{"validXml", []byte("<test>\n</test>"), true, XmlValidator{}},
 	{"invalidXml", []byte("<xml\n"), false, XmlValidator{}},
+	{"invalidToml", []byte("name = 123__456"), false, TomlValidator{}},
+	{"validToml", []byte("name = 123"), true, TomlValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
