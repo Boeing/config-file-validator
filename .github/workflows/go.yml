@@ -49,12 +49,13 @@ jobs:
     - name: Test
       run: |
         go get golang.org/x/tools/cmd/cover
-        go test -v -covermode=count -coverprofile=coverage.out ./... 
+        go install github.com/jandelgado/gcov2lcov@latest
+        go test -v -covermode=count -coverprofile=coverage.out ./... && gcov2lcov -infile=coverage.out -outfile=coverage.lcov
 
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
-        path-to-lcov: ./coverage.out
+        path-to-lcov: ./coverage.lcov
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
 
