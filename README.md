@@ -1,5 +1,20 @@
 # Config File Validator
 
+<p align="center">
+  <a href="https://opensource.org/licenses/Apache-2.0">
+  <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License>
+  </a>
+
+  <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator">
+  <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator.svg" alt="Go Reference">
+  </a>
+
+  <a href="https://goreportcard.com/report/github.com/Boeing/config-file-validator">
+  <img src="https://goreportcard.com/badge/github.com/Boeing/config-file-validator" alt="Go Report Card">
+  </a>
+
+</p>
+
 ## About
 How many deployments have you done that needed to be rolled back due to a missing character in a configuration file in your repo? If you're like most teams that number is greater than zero. The config file validator was created to solve this problem by searching through your project and validating the syntax of all configuation files. 
 
