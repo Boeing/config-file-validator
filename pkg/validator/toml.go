@@ -1,9 +1,9 @@
 package validator
 
 import (
-	"github.com/pelletier/go-toml/v2"
 	"errors"
 	"fmt"
+	"github.com/pelletier/go-toml/v2"
 )
 
 type TomlValidator struct{}
