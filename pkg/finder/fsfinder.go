@@ -21,11 +21,10 @@ func (fsf FileSystemFinder) Find(pathRoot string, fileTypes []filetype.FileType,
 		return nil, err
 	}
 
-	err := filepath.Walk(pathRoot, func(path string, fileInfo fs.FileInfo, err error) error {
+	err := filepath.WalkDir(pathRoot, func(path string, dirEntry fs.DirEntry, err error) error {
 		// determine if directory is in the excludeDirs list
 		for _, dir := range excludeDirs {
-			if fileInfo.IsDir() && fileInfo.Name() == dir {
-				//log.Info("Skipping directory")
+			if dirEntry.IsDir() && dirEntry.Name() == dir {
 				err := filepath.SkipDir
 				if err != nil {
 					return err
@@ -33,7 +32,7 @@ func (fsf FileSystemFinder) Find(pathRoot string, fileTypes []filetype.FileType,
 			}
 		}
 
-		if !fileInfo.IsDir() {
+		if !dirEntry.IsDir() {
 			walkFileExtension := filepath.Ext(path)
 
 			for _, fileType := range fileTypes {
@@ -42,7 +41,7 @@ func (fsf FileSystemFinder) Find(pathRoot string, fileTypes []filetype.FileType,
 					// so it needs to be prepended to the FileType extension
 					// in order to match
 					if ("." + extension) == walkFileExtension {
-						fileMetadata := FileMetadata{fileInfo.Name(), path, fileType}
+						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
 						matchingFiles = append(matchingFiles, fileMetadata)
 					}
 				}
