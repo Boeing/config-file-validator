@@ -3,7 +3,7 @@
 <h1>Config File Validator</h1>
 </div>
 
-<p>
+<p align="center">
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
   </a>
@@ -20,9 +20,7 @@
   <img src="https://github.com/boeing/config-file-validator/actions/workflows/go.yml/badge.svg" alt="Pipeline Status">
   </a>
 
-  <a href='https://coveralls.io/github/kehoecj/config-file-validator?branch=readme_updates'>
-  <img src='https://coveralls.io/repos/github/kehoecj/config-file-validator/badge.svg?branch=readme_updates' alt='Coverage Status' />
-  </a>
+<a href='https://coveralls.io/github/kehoecj/config-file-validator?branch=readme_updates'><img src='https://coveralls.io/repos/github/kehoecj/config-file-validator/badge.svg?branch=readme_updates' alt='Coverage Status' /></a>
 </p>
 
 ## About
