@@ -1,5 +1,9 @@
-<h1 align="center"> Config File Validator </h1>
-<p align="center">
+<div align="center">
+<img src="./img/logo.png" width="200" height="200"/>
+<h1>Config File Validator</h1>
+</div>
+
+<p>
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
   </a>
