@@ -19,8 +19,10 @@
   <a href="https://github.com/boeing/config-file-validator/actions/workflows/go.yml">
   <img src="https://github.com/boeing/config-file-validator/actions/workflows/go.yml/badge.svg" alt="Pipeline Status">
   </a>
-
-<a href='https://coveralls.io/github/kehoecj/config-file-validator?branch=readme_updates'><img src='https://coveralls.io/repos/github/kehoecj/config-file-validator/badge.svg?branch=readme_updates' alt='Coverage Status' /></a>
+  
+  <a href='https://coveralls.io/github/kehoecj/config-file-validator?branch=readme_updates'>
+    <img src='https://coveralls.io/repos/github/kehoecj/config-file-validator/badge.svg?branch=readme_updates' alt='Coverage Status' />
+  </a>
 </p>
 
 ## About
