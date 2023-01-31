@@ -1,3 +1,20 @@
+/*
+Validator recusively scans a directory to search for configuration files and
+validates them using the go package for each configuration type.
+
+Currently json, yaml, toml, and xml configuration file types are supported.
+
+Usage:
+
+    validator [flags]
+
+The flags are:
+    -search-path string
+		The search path for configuration files
+    -exclude-dirs string
+    	Subdirectories to exclude when searching for configuration files
+*/
+
 package main
 
 import (
