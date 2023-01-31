@@ -32,12 +32,13 @@ How many deployments have you done that needed to be rolled back due to a missin
 ### Where can you use this tool?
 * In a CI/CD pipeline as a quality gate
 * On your desktop to validate configuration files as you write them
-* As a library in your existing go tools
+* As a library within your existing go code
 
 ### What types of files are supported?
 * XML
 * JSON
 * YAML
+* TOML
 
 ## Getting Started
 Binaries and a container on Dockerhub will eventually be available but for now the project must be built on an environment that has golang 1.17+ installed.
