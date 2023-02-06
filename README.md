@@ -38,7 +38,7 @@ How many deployments have you done that needed to be rolled back due to a missin
 ## Installing
 There are several ways to install the config file validator tool
 
-## Using `go install`
+### Using `go install`
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```
@@ -46,7 +46,7 @@ go install github.com/Boeing/config-file-validator/cmd/validator
 ```
 
 
-## Executables
+### Executables
 Executables are available for Linux and Windows (macOS coming soon!). Navigate to the [releases](https://github.com/Boeing/config-file-validator/releases) page to download the latest version. Once the executable has been downloaded it needs to be installed by moving the downloaded file to a location on your OS PATH.
 
 ## Using
