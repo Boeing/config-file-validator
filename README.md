@@ -56,6 +56,8 @@ Usage of /validator:
     	Subdirectories to exclude when searching for configuration files
   -search-path string
     	The search path for configuration files
+  -reporter string
+		Format of printed report. Currently supports standard (default) and json.
 ```
 
 ### Examples

@@ -7,26 +7,26 @@ import (
 
 type JsonReporter struct{}
 
-type FileStatus struct {
+type fileStatus struct {
 	Path   string `json:"path"`
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
 }
 
-type Summary struct {
+type summary struct {
 	Passed int `json:"passed"`
 	Failed int `json:"failed"`
 }
 
-type ReportJSON struct {
-	Files   []FileStatus `json:"files"`
-	Summary Summary      `json:"summary"`
+type reportJSON struct {
+	Files   []fileStatus `json:"files"`
+	Summary summary      `json:"summary"`
 }
 
 // Print implements the Reporter interface by outputting
 // the report content to stdout as JSON
 func (jr JsonReporter) Print(reports []Report) error {
-	var reportJSON ReportJSON
+	var reportJSON reportJSON
 
 	for _, r := range reports {
 		status := "passed"
@@ -36,7 +36,7 @@ func (jr JsonReporter) Print(reports []Report) error {
 			errorStr = r.ValidationError.Error()
 		}
 
-		reportJSON.Files = append(reportJSON.Files, FileStatus{
+		reportJSON.Files = append(reportJSON.Files, fileStatus{
 			Path:   r.FilePath,
 			Status: status,
 			Error:  errorStr,

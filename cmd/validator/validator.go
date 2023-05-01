@@ -13,6 +13,8 @@ The flags are:
 		The search path for configuration files
     -exclude-dirs string
     	Subdirectories to exclude when searching for configuration files
+	-reporter string
+		Format of printed report. Currently supports standard, JSON.
 */
 
 package main
@@ -20,10 +22,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/Boeing/config-file-validator/pkg/cli"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/Boeing/config-file-validator/pkg/cli"
 )
 
 // Parses, validates, and returns the flags
@@ -31,9 +34,10 @@ import (
 // If a required parameter is missing the help
 // output will be displayed and the function
 // will return with exit = 1
-func getFlags() (*string, *string, int) {
+func getFlags() (*string, *string, *string, int) {
 	searchPathPtr := flag.String("search-path", "", "The search path for configuration files")
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
+	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report")
 	flag.Parse()
 
 	exit := 0
@@ -42,10 +46,10 @@ func getFlags() (*string, *string, int) {
 		fmt.Println("Missing required Parameter. Showing help: ")
 		flag.PrintDefaults()
 		exit = 1
-		return nil, nil, exit
+		return nil, nil, nil, exit
 	}
 
-	return searchPathPtr, excludeDirsPtr, exit
+	return searchPathPtr, excludeDirsPtr, reportTypePtr, exit
 }
 
 // Takes the flag values as function arguments and
@@ -55,27 +59,28 @@ func getFlags() (*string, *string, int) {
 // requires a non-pointer value
 // excludeDirsPtr is changed from a comma separated list
 // of directories to an array of strings
-func getCLIValues(searchPathPtr, excludeDirsPtr *string) (string, []string) {
+func getCLIValues(searchPathPtr, excludeDirsPtr, reportTypePtr *string) (string, []string, string) {
 	searchPath := *searchPathPtr
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*excludeDirsPtr, ",")
+	reportType := *reportTypePtr
 
-	return searchPath, excludeDirs
+	return searchPath, excludeDirs, reportType
 }
 
 func mainInit() int {
-	searchPathPtr, excludeDirsPtr, exit := getFlags()
+	searchPathPtr, excludeDirsPtr, reporterTypePtr, exit := getFlags()
 	if exit != 0 {
 		return exit
 	}
 
-	searchPath, excludeDirs := getCLIValues(searchPathPtr, excludeDirsPtr)
+	searchPath, excludeDirs, reportType := getCLIValues(searchPathPtr, excludeDirsPtr, reporterTypePtr)
 
 	// Create an instance of the CLI using the
 	// searchPath and excludeDirs values provided
 	// by the command line arguments
-	cli := cli.Init(searchPath, excludeDirs)
+	cli := cli.Init(searchPath, excludeDirs, reportType)
 	exitStatus, err := cli.Run()
 	if err != nil {
 		log.Printf("An error occured during CLI execution: %v", err)

@@ -6,7 +6,7 @@ import (
 
 func Test_CLI(t *testing.T) {
 	cli := Init(
-		"../../test", []string{"subdir", "subdir2"})
+		"../../test", []string{"subdir", "subdir2"}, "standard")
 	exitStatus, err := cli.Run()
 
 	if err != nil {
@@ -20,7 +20,7 @@ func Test_CLI(t *testing.T) {
 
 func Test_CLIWithFailedValidation(t *testing.T) {
 	cli := Init(
-		"../../test", []string{"subdir"})
+		"../../test", []string{"subdir"}, "standard")
 	exitStatus, err := cli.Run()
 
 	if err != nil {
@@ -34,7 +34,7 @@ func Test_CLIWithFailedValidation(t *testing.T) {
 
 func Test_CLIBadPath(t *testing.T) {
 	cli := Init(
-		"/bad/path", nil)
+		"/bad/path", nil, "standard")
 	exitStatus, err := cli.Run()
 
 	if err == nil {
