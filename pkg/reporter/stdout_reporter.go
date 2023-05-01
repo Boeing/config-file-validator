@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"fmt"
+
 	"github.com/fatih/color"
 )
 
@@ -15,12 +16,12 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	for _, report := range reports {
 		if !report.IsValid {
 			color.Set(color.FgRed)
-			fmt.Println("    × " + report.FilePath)
-			fmt.Printf("        error: %v\n", report.ValidationError)
+			fmt.Println("\t× " + report.FilePath)
+			fmt.Printf("\t\terror: %v\n", report.ValidationError)
 			color.Unset()
 			failureCount = failureCount + 1
 		} else {
-			color.Green("    ✓ " + report.FilePath)
+			color.Green("\t✓ " + report.FilePath)
 			successCount = successCount + 1
 		}
 	}
