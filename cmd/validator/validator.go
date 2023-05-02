@@ -49,6 +49,13 @@ func getFlags() (*string, *string, *string, int) {
 		return nil, nil, nil, exit
 	}
 
+	if *reportTypePtr != "standard" && *reportTypePtr != "json" {
+		fmt.Println("Wrong parameter value for reporter, only supports standard or json")
+		flag.PrintDefaults()
+		exit = 1
+		return nil, nil, nil, exit
+	}
+
 	return searchPathPtr, excludeDirsPtr, reportTypePtr, exit
 }
 

@@ -109,3 +109,20 @@ func Test_mainInitBadSearchPath(t *testing.T) {
 		t.Errorf("Main init returned zero")
 	}
 }
+
+func Test_mainInitBadReporter(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	// this call is required because otherwise flags panics,
+	// if args are set between flag.Parse call
+	flag.CommandLine = flag.NewFlagSet("test2", flag.ExitOnError)
+	// we need a value to set Args[0] to cause flag begins parsing at Args[1]
+	os.Args = append(
+		[]string{"test2"},
+		[]string{"--search-path=../../test", "--reporter=yaml"}...,
+	)
+	exitCode := mainInit()
+	if exitCode == 0 {
+		t.Errorf("Main init returned zero")
+	}
+}
