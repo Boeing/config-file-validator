@@ -37,6 +37,13 @@ func Test_jsonReport(t *testing.T) {
 		nil,
 	}
 
+	reportWithBackslashPath := Report{
+		"good.xml",
+		"\\fake\\path\\good.xml",
+		true,
+		nil,
+	}
+
 	reportWithValidationError := Report{
 		"bad.xml",
 		"/fake/path/bad.xml",
@@ -44,7 +51,7 @@ func Test_jsonReport(t *testing.T) {
 		errors.New("Unable to parse bad.xml file"),
 	}
 
-	reports := []Report{reportNoValidationError, reportWithValidationError}
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithBackslashPath}
 
 	jsonReporter := JsonReporter{}
 	err := jsonReporter.Print(reports)

@@ -16,6 +16,17 @@ func Test_CLI(t *testing.T) {
 	if exitStatus != 0 {
 		t.Errorf("Exit status was not 0")
 	}
+
+	cli = Init("../../test", []string{"subdir", "subdir2"}, "json")
+	exitStatus, err = cli.Run()
+
+	if err != nil {
+		t.Errorf("An error was returned: %v", err)
+	}
+
+	if exitStatus != 0 {
+		t.Errorf("Exit status was not 0")
+	}
 }
 
 func Test_CLIWithFailedValidation(t *testing.T) {

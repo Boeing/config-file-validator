@@ -3,6 +3,7 @@ package reporter
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type JsonReporter struct{}
@@ -34,6 +35,10 @@ func (jr JsonReporter) Print(reports []Report) error {
 		if !r.IsValid {
 			status = "failed"
 			errorStr = r.ValidationError.Error()
+		}
+
+		if strings.Contains(r.FilePath, "\\") {
+			r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
 		}
 
 		reportJSON.Files = append(reportJSON.Files, fileStatus{
