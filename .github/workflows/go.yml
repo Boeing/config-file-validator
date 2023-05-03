@@ -3,8 +3,12 @@
 
 name: Go Pipeline
 
+# Enable this workflow to run for pull requests and
+# pushes to the main branch
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 jobs:
