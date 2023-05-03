@@ -27,7 +27,7 @@ type reportJSON struct {
 // Print implements the Reporter interface by outputting
 // the report content to stdout as JSON
 func (jr JsonReporter) Print(reports []Report) error {
-	var reportJSON reportJSON
+	var report reportJSON
 
 	for _, r := range reports {
 		status := "passed"
@@ -37,28 +37,29 @@ func (jr JsonReporter) Print(reports []Report) error {
 			errorStr = r.ValidationError.Error()
 		}
 
+		// Convert Windows-style file paths.
 		if strings.Contains(r.FilePath, "\\") {
 			r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
 		}
 
-		reportJSON.Files = append(reportJSON.Files, fileStatus{
+		report.Files = append(report.Files, fileStatus{
 			Path:   r.FilePath,
 			Status: status,
 			Error:  errorStr,
 		})
 	}
 
-	reportJSON.Summary.Passed = 0
-	reportJSON.Summary.Failed = 0
-	for _, f := range reportJSON.Files {
+	report.Summary.Passed = 0
+	report.Summary.Failed = 0
+	for _, f := range report.Files {
 		if f.Status == "passed" {
-			reportJSON.Summary.Passed++
+			report.Summary.Passed++
 		} else {
-			reportJSON.Summary.Failed++
+			report.Summary.Failed++
 		}
 	}
 
-	jsonBytes, err := json.MarshalIndent(reportJSON, "", "  ")
+	jsonBytes, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return err
 	}

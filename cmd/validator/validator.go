@@ -37,7 +37,7 @@ import (
 func getFlags() (*string, *string, *string, int) {
 	searchPathPtr := flag.String("search-path", "", "The search path for configuration files")
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report")
+	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	flag.Parse()
 
 	exit := 0
