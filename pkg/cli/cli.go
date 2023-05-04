@@ -2,10 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"io/ioutil"
+
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
-	"io/ioutil"
 )
 
 type CLI struct {
@@ -30,7 +31,7 @@ func getFileTypes() []filetype.FileType {
 }
 
 // Initialize the CLI object with default values
-func Init(searchPath string, excludeDirs []string) CLI {
+func Init(searchPath string, excludeDirs []string, reportType string) CLI {
 	// future releases could add support for searchPath to be a url
 	// that would require creating a URLFileFinder that implements
 	// the Finder interface and passing that as the finder argument
@@ -39,13 +40,20 @@ func Init(searchPath string, excludeDirs []string) CLI {
 
 	fileTypes := getFileTypes()
 
-	stdoutReporter := reporter.StdoutReporter{}
+	var reporterType reporter.Reporter
+
+	if reportType == "json" {
+		reporterType = reporter.JsonReporter{}
+	} else {
+		reporterType = reporter.StdoutReporter{}
+	}
+
 	return CLI{
 		fsFinder,
 		searchPath,
 		excludeDirs,
 		fileTypes,
-		stdoutReporter,
+		reporterType,
 	}
 }
 
