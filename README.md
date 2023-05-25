@@ -34,6 +34,7 @@ How many deployments have you done that needed to be rolled back due to a missin
 * JSON
 * YAML
 * TOML
+* INI
 
 ## Installing
 There are several ways to install the config file validator tool

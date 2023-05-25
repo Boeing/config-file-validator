@@ -18,6 +18,8 @@ var testData = []struct {
 	{"invalidXml", []byte("<xml\n"), false, XmlValidator{}},
 	{"invalidToml", []byte("name = 123__456"), false, TomlValidator{}},
 	{"validToml", []byte("name = 123"), true, TomlValidator{}},
+	{"validIni", []byte(`{[Version]\nCatalog=hidden\n}`), true, IniValidator{}},
+	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {

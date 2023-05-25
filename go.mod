@@ -8,5 +8,6 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

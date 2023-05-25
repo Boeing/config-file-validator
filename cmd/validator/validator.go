@@ -2,7 +2,7 @@
 Validator recusively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
-Currently json, yaml, toml, and xml configuration file types are supported.
+Currently json, yaml, toml, xml and ini configuration file types are supported.
 
 Usage:
 

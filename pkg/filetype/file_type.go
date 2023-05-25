@@ -46,6 +46,14 @@ var TomlFileType = FileType{
 	validator.TomlValidator{},
 }
 
+// Instance of FileType object to
+// represent a Ini file
+var IniFileType = FileType{
+	"ini",
+	[]string{"ini"},
+	validator.IniValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
