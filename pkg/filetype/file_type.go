@@ -61,4 +61,5 @@ var FileTypes = []FileType{
 	YamlFileType,
 	XmlFileType,
 	TomlFileType,
+	IniFileType,
 }
