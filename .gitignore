@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+cmd/validator/validator
 
 # Test binary, built with `go test -c`
 *.test
