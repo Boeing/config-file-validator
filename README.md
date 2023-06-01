@@ -46,9 +46,8 @@ If you have a go environment on your desktop you can use [go install](https://go
 go install github.com/Boeing/config-file-validator/cmd/validator
 ```
 
-
-### Executables
-Executables are available for Linux and Windows (macOS coming soon!). Navigate to the [releases](https://github.com/Boeing/config-file-validator/releases) page to download the latest version. Once the executable has been downloaded it needs to be installed by moving the downloaded file to a location on your OS PATH.
+### Binaries
+Binary downloads are available for Linux, Windows, and MacOS. Navigate to the [releases](https://github.com/Boeing/config-file-validator/releases) page to download the latest version. Once the binary has been downloaded it needs to be installed by moving the downloaded file to a location on your OS PATH.
 
 ## Using
 ```
@@ -77,6 +76,13 @@ validator -search-path /path/to/search -exclude-dirs=/path/to/search/tests
 ```
 
 ![Exclude Dirs Run](./img/exclude_dirs.png)
+
+#### JSON Output
+Output the results in JSON
+
+```
+validator -search-path /path/to/search -reporter json
+```
 
 #### Container Run
 ```
