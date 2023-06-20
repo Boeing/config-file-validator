@@ -1,6 +1,19 @@
 <div align="center">
-<img src="./img/logo.png" width="200" height="200"/>
-<h1>Config File Validator</h1>
+    <div style="width: 100%; text-align: center; position: relative;">
+        <div style="display: inline-block;">
+            <img src="./img/logo.png" width="200" height="200"/>
+        </div>
+        <div style="position: absolute; right: 0; top: 0">
+            <a href="https://github.com/Boeing/config-file-validator">
+                <img decoding="async" loading="lazy" width="149" height="149" 
+                src="https://github.blog/wp-content/uploads/2008/12/forkme_right_red_aa0000.png?resize=149%2C149" 
+                class="attachment-full size-full" alt="Fork me on GitHub" data-recalc-dims="1">
+            </a>
+        </div>
+    </div>
+    <div>
+        <h1>Config File Validator</h1>
+    </div>
 </div>
 
 <p align="center">
