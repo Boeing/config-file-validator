@@ -12,8 +12,6 @@ type CLI struct {
 	// FileFinder interface to search for the files
 	// in the SearchPath
 	Finder finder.FileFinder
-	// The root directory to begin searching for files
-	SearchPath string
 	// Reporter interface for outputting the results of the
 	// the CLI run
 	Reporter reporter.Reporter
@@ -23,13 +21,6 @@ type CLI struct {
 // set options to the CLI struct using functional
 // programming
 type CLIOption func(*CLI)
-
-// Set the CLI SearchPath
-func WithSearchPath(path string) CLIOption {
-	return func(c *CLI) {
-		c.SearchPath = path
-	}
-}
 
 // Set the CLI Finder
 func WithFinder(finder finder.FileFinder) CLIOption {
@@ -47,13 +38,11 @@ func WithReporter(reporter reporter.Reporter) CLIOption {
 
 // Initialize the CLI object
 func Init(opts ...CLIOption) *CLI {
-	defaultSearchPath := "."
-	defaultFsFinder := finder.FileSystemFinder{}
+	defaultFsFinder := finder.FileSystemFinderInit()
 	defaultReporter := reporter.StdoutReporter{}
 
 	cli := &CLI{
 		defaultFsFinder,
-		defaultSearchPath,
 		defaultReporter,
 	}
 

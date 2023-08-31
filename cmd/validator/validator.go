@@ -26,7 +26,6 @@ import (
 	"strings"
 
 	"github.com/Boeing/config-file-validator/pkg/cli"
-	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
@@ -46,12 +45,6 @@ func validatorUsage() {
 			"Defaults to the current working directory if no search_path provided\n\n")
 	fmt.Printf("optional flags:\n")
 	flag.PrintDefaults()
-}
-
-// Returns the list of supported file types, i.e.
-// file types that have a validator
-func getFileTypes() []filetype.FileType {
-	return filetype.FileTypes
 }
 
 // Parses, validates, and returns the flags
@@ -98,8 +91,6 @@ func getReporter(reportType *string) reporter.Reporter {
 	switch *reportType {
 	case "json":
 		return reporter.JsonReporter{}
-	case "standard":
-		return reporter.StdoutReporter{}
 	default:
 		return reporter.StdoutReporter{}
 	}

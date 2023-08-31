@@ -1,24 +1,25 @@
 package cli
 
 import (
+	"github.com/Boeing/config-file-validator/pkg/finder"
+	"github.com/Boeing/config-file-validator/pkg/reporter"
 	"testing"
 )
 
 func Test_CLI(t *testing.T) {
+	searchPath := "../../test"
+	excludeDirs := []string{"subdir", "subdir2"}
+	stdoutReporter := reporter.StdoutReporter{}
+	
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoot(searchPath),
+		finder.WithExcludeDirs(excludeDirs),
+	)
 	cli := Init(
-		"../../test", []string{"subdir", "subdir2"}, "standard")
+		WithFinder(fsFinder),
+		WithReporter(stdoutReporter),
+	)
 	exitStatus, err := cli.Run()
-
-	if err != nil {
-		t.Errorf("An error was returned: %v", err)
-	}
-
-	if exitStatus != 0 {
-		t.Errorf("Exit status was not 0")
-	}
-
-	cli = Init("../../test", []string{"subdir", "subdir2"}, "json")
-	exitStatus, err = cli.Run()
 
 	if err != nil {
 		t.Errorf("An error was returned: %v", err)
@@ -30,8 +31,15 @@ func Test_CLI(t *testing.T) {
 }
 
 func Test_CLIWithFailedValidation(t *testing.T) {
+	searchPath := "../../test"
+	excludeDirs := []string{"subdir"}
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoot(searchPath),
+		finder.WithExcludeDirs(excludeDirs),
+	)
 	cli := Init(
-		"../../test", []string{"subdir"}, "standard")
+		WithFinder(fsFinder),
+	)
 	exitStatus, err := cli.Run()
 
 	if err != nil {
@@ -44,8 +52,13 @@ func Test_CLIWithFailedValidation(t *testing.T) {
 }
 
 func Test_CLIBadPath(t *testing.T) {
+	searchPath := "/bad/path"
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoot(searchPath),
+	)
 	cli := Init(
-		"/bad/path", nil, "standard")
+		WithFinder(fsFinder),
+	)
 	exitStatus, err := cli.Run()
 
 	if err == nil {
