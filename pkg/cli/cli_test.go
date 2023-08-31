@@ -10,7 +10,7 @@ func Test_CLI(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
 	stdoutReporter := reporter.StdoutReporter{}
-	
+
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoot(searchPath),
 		finder.WithExcludeDirs(excludeDirs),

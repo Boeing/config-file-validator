@@ -1,8 +1,8 @@
 package finder
 
 import (
-	"github.com/Boeing/config-file-validator/pkg/validator"
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/validator"
 	"testing"
 )
 

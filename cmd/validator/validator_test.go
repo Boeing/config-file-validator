@@ -17,8 +17,8 @@ func Test_flags(t *testing.T) {
 		Args         []string
 		ExpectedExit int
 	}{
-		{"flags set", []string{"--exclude-dirs=subdir","--reporter=json","."}, 0},
-		{"flags set", []string{"--exclude-dirs=subdir","--reporter=junit","."}, 1},
+		{"flags set", []string{"--exclude-dirs=subdir", "--reporter=json", "."}, 0},
+		{"flags set", []string{"--exclude-dirs=subdir", "--reporter=junit", "."}, 1},
 		{"flags set", []string{"/path/does/not/exit"}, 1},
 		{"blank", []string{}, 0},
 	}
