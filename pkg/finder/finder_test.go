@@ -6,12 +6,12 @@ import (
 )
 
 func Test_fsFinder(t *testing.T) {
-	fsFinder := FileSystemFinder{}
-	files, err := fsFinder.Find(
-		"../../test/fixtures",
-		filetype.FileTypes,
-		nil,
-	)
+	fsFinder := FileSystemFinder{
+		PathRoot: "../../test/fixtures",
+		FileTypes: filetype.FileTypes,
+		ExcludeDirs: nil,
+	}
+	files, err := fsFinder.Find()
 
 	if len(files) < 1 {
 		t.Errorf("Unable to find files")
@@ -24,12 +24,12 @@ func Test_fsFinder(t *testing.T) {
 }
 
 func Test_fsFinderExcludeDirs(t *testing.T) {
-	fsFinder := FileSystemFinder{}
-	files, err := fsFinder.Find(
-		"../../test/fixtures",
-		filetype.FileTypes,
-		[]string{"subdir"},
-	)
+	fsFinder := FileSystemFinder{
+		PathRoot: "../../test/fixtures",
+		FileTypes: filetype.FileTypes,
+		ExcludeDirs: []string{"subdir"},
+	}
+	files, err := fsFinder.Find()
 
 	if len(files) < 1 {
 		t.Errorf("Unable to find files")
@@ -41,12 +41,12 @@ func Test_fsFinderExcludeDirs(t *testing.T) {
 }
 
 func Test_fsFinderPathNoExist(t *testing.T) {
-	fsFinder := FileSystemFinder{}
-	_, err := fsFinder.Find(
+	fsFinder := FileSystemFinder{
 		"/bad/path",
 		filetype.FileTypes,
 		nil,
-	)
+	}
+	_, err := fsFinder.Find()
 
 	if err == nil {
 		t.Errorf("Error not returned")

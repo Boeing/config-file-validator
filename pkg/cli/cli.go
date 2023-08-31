@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
@@ -15,46 +14,55 @@ type CLI struct {
 	Finder finder.FileFinder
 	// The root directory to begin searching for files
 	SearchPath string
-	// An array of subdirectories to exclude when searching
-	ExcludeDir []string
-	// An array of file types that are supported by the validator
-	FileTypes []filetype.FileType
 	// Reporter interface for outputting the results of the
 	// the CLI run
 	Reporter reporter.Reporter
 }
 
-// Returns the list of supported file types, i.e.
-// file types that have a validator
-func getFileTypes() []filetype.FileType {
-	return filetype.FileTypes
+
+// Implement the go options pattern to be able to 
+// set options to the CLI struct using functional
+// programming
+type CLIOption func(*CLI)
+
+// Set the CLI SearchPath
+func WithSearchPath(path string) CLIOption {
+	return func(c *CLI) {
+		c.SearchPath = path
+	}
 }
 
-// Initialize the CLI object with default values
-func Init(searchPath string, excludeDirs []string, reportType string) CLI {
-	// future releases could add support for searchPath to be a url
-	// that would require creating a URLFileFinder that implements
-	// the Finder interface and passing that as the finder argument
-	// when instantiating the CLI
-	fsFinder := finder.FileSystemFinder{}
+// Set the CLI Finder
+func WithFinder(finder finder.FileFinder) CLIOption {
+	return func(c *CLI) {
+		c.Finder = finder
+	}
+}
 
-	fileTypes := getFileTypes()
+// Set the reporter type
+func WithReporter(reporter reporter.Reporter) CLIOption {
+	return func(c *CLI) {
+		c.Reporter = reporter
+	}
+}
 
-	var reporterType reporter.Reporter
+// Initialize the CLI object
+func Init(opts ...CLIOption) *CLI {
+	defaultSearchPath := "."
+	defaultFsFinder := finder.FileSystemFinder{}
+	defaultReporter := reporter.StdoutReporter{}
 
-	if reportType == "json" {
-		reporterType = reporter.JsonReporter{}
-	} else {
-		reporterType = reporter.StdoutReporter{}
+	cli := &CLI{
+		defaultFsFinder,
+		defaultSearchPath,
+		defaultReporter,
 	}
 
-	return CLI{
-		fsFinder,
-		searchPath,
-		excludeDirs,
-		fileTypes,
-		reporterType,
+	for _, opt := range opts {
+		opt(cli)
 	}
+
+	return cli
 }
 
 // The Run method performs the following actions:
@@ -66,7 +74,7 @@ func Init(searchPath string, excludeDirs []string, reportType string) CLI {
 func (c CLI) Run() (int, error) {
 	errorFound := false
 	var reports []reporter.Report
-	foundFiles, err := c.Finder.Find(c.SearchPath, c.FileTypes, c.ExcludeDir)
+	foundFiles, err := c.Finder.Find()
 
 	if err != nil {
 		return 1, fmt.Errorf("Unable to find files: %v", err)

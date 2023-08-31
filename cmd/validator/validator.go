@@ -6,11 +6,9 @@ Currently json, yaml, toml, xml and ini configuration file types are supported.
 
 Usage:
 
-    validator [flags]
+    validator [OPTIONS] [search_path]
 
 The flags are:
-    -search-path string
-		The search path for configuration files
     -exclude-dirs string
     	Subdirectories to exclude when searching for configuration files
 	-reporter string
@@ -20,74 +18,119 @@ The flags are:
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 
+	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
 
+type validatorConfig struct {
+	searchPath string
+	excludeDirs *string
+	reportType *string
+}
+
+// Custom Usage function to cover
+func validatorUsage() {
+	fmt.Printf("Usage: validator [OPTIONS] [search_path]\n\n")
+	fmt.Printf("positional arguments:\n")
+	fmt.Printf(
+		"    search_path: The search path on the filesystem for configuration files. " +
+		"Defaults to the current working directory if no search_path provided\n\n")
+	fmt.Printf("optional flags:\n")
+	flag.PrintDefaults()
+}
+
+// Returns the list of supported file types, i.e.
+// file types that have a validator
+func getFileTypes() []filetype.FileType {
+	return filetype.FileTypes
+}
+	
 // Parses, validates, and returns the flags
 // flag.String returns a pointer
 // If a required parameter is missing the help
 // output will be displayed and the function
 // will return with exit = 1
-func getFlags() (*string, *string, *string, int) {
-	searchPathPtr := flag.String("search-path", "", "The search path for configuration files")
+func getFlags() (validatorConfig, error) {
+	flag.Usage = validatorUsage
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	flag.Parse()
 
-	exit := 0
+	var searchPath string
 
-	if *searchPathPtr == "" {
-		fmt.Println("Missing required Parameter. Showing help: ")
-		flag.PrintDefaults()
-		exit = 1
-		return nil, nil, nil, exit
+	// If search path arg is empty set it to the cwd
+	// if not set it to the arg. Only support one search path
+	// for now but in the future it could be expanded to support
+	// n number of paths
+	if flag.NArg() == 0 {
+		searchPath = "."
+	} else {
+		searchPath = flag.Arg(0)
 	}
 
 	if *reportTypePtr != "standard" && *reportTypePtr != "json" {
 		fmt.Println("Wrong parameter value for reporter, only supports standard or json")
-		flag.PrintDefaults()
-		exit = 1
-		return nil, nil, nil, exit
+		flag.Usage()
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard or json")
 	}
 
-	return searchPathPtr, excludeDirsPtr, reportTypePtr, exit
+	config := validatorConfig{
+		searchPath,
+		excludeDirsPtr,
+		reportTypePtr,
+	}
+
+	return config, nil
 }
 
-// Takes the flag values as function arguments and
-// transforms them to appropriate types for initializing
-// the CLI.
-// searchPathPtr is changed from a pointer since CLI.init()
-// requires a non-pointer value
-// excludeDirsPtr is changed from a comma separated list
-// of directories to an array of strings
-func getCLIValues(searchPathPtr, excludeDirsPtr, reportTypePtr *string) (string, []string, string) {
-	searchPath := *searchPathPtr
-	// since the exclude dirs are a comma separated string
-	// it needs to be split into a slice of strings
-	excludeDirs := strings.Split(*excludeDirsPtr, ",")
-	reportType := *reportTypePtr
 
-	return searchPath, excludeDirs, reportType
+// Return the reporter associated with the
+// reportType string
+func getReporter(reportType *string) reporter.Reporter {
+	switch *reportType {
+	case "json":
+		return reporter.JsonReporter{}
+	case "standard":
+		return reporter.StdoutReporter{}
+	default:
+		return reporter.StdoutReporter{}
+	}
 }
 
 func mainInit() int {
-	searchPathPtr, excludeDirsPtr, reporterTypePtr, exit := getFlags()
-	if exit != 0 {
-		return exit
+	validatorConfig, err := getFlags()
+	if err != nil {
+		return 1
 	}
 
-	searchPath, excludeDirs, reportType := getCLIValues(searchPathPtr, excludeDirsPtr, reporterTypePtr)
+	searchPath := validatorConfig.searchPath
+	// since the exclude dirs are a comma separated string
+	// it needs to be split into a slice of strings
+	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
+	reporter := getReporter(validatorConfig.reportType)
 
-	// Create an instance of the CLI using the
-	// searchPath and excludeDirs values provided
-	// by the command line arguments
-	cli := cli.Init(searchPath, excludeDirs, reportType)
+	// Initialize a file system finder
+	fileSystemFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoot(searchPath),
+		finder.WithExcludeDirs(excludeDirs),
+	)
+	
+	// Initialize the CLI
+	cli := cli.Init(
+		cli.WithReporter(reporter),
+		cli.WithFinder(fileSystemFinder),
+	)
+	
+	// Run the config file validation
 	exitStatus, err := cli.Run()
 	if err != nil {
 		log.Printf("An error occured during CLI execution: %v", err)
