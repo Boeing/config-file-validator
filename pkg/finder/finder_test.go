@@ -42,9 +42,9 @@ func Test_fsFinderExcludeDirs(t *testing.T) {
 
 func Test_fsFinderCustomTypes(t *testing.T) {
 	jsonFileType := filetype.FileType{
-		"json",
-		[]string{"json"},
-		validator.JsonValidator{},
+		Name:       "json",
+		Extensions: []string{"json"},
+		Validator:  validator.JsonValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
 		WithPathRoot("../../test/fixtures"),
