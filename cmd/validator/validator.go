@@ -25,16 +25,16 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
-	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
 
 type validatorConfig struct {
-	searchPath string
+	searchPath  string
 	excludeDirs *string
-	reportType *string
+	reportType  *string
 }
 
 // Custom Usage function to cover
@@ -43,7 +43,7 @@ func validatorUsage() {
 	fmt.Printf("positional arguments:\n")
 	fmt.Printf(
 		"    search_path: The search path on the filesystem for configuration files. " +
-		"Defaults to the current working directory if no search_path provided\n\n")
+			"Defaults to the current working directory if no search_path provided\n\n")
 	fmt.Printf("optional flags:\n")
 	flag.PrintDefaults()
 }
@@ -53,7 +53,7 @@ func validatorUsage() {
 func getFileTypes() []filetype.FileType {
 	return filetype.FileTypes
 }
-	
+
 // Parses, validates, and returns the flags
 // flag.String returns a pointer
 // If a required parameter is missing the help
@@ -92,7 +92,6 @@ func getFlags() (validatorConfig, error) {
 	return config, nil
 }
 
-
 // Return the reporter associated with the
 // reportType string
 func getReporter(reportType *string) reporter.Reporter {
@@ -123,13 +122,13 @@ func mainInit() int {
 		finder.WithPathRoot(searchPath),
 		finder.WithExcludeDirs(excludeDirs),
 	)
-	
+
 	// Initialize the CLI
 	cli := cli.Init(
 		cli.WithReporter(reporter),
 		cli.WithFinder(fileSystemFinder),
 	)
-	
+
 	// Run the config file validation
 	exitStatus, err := cli.Run()
 	if err != nil {

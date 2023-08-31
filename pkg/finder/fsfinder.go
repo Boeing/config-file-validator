@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 )
 
-type FileSystemFinder struct{
-	PathRoot string
-	FileTypes []filetype.FileType
+type FileSystemFinder struct {
+	PathRoot    string
+	FileTypes   []filetype.FileType
 	ExcludeDirs []string
 }
 
@@ -41,8 +41,8 @@ func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	defaultPathRoot := "."
 
 	fsfinder := &FileSystemFinder{
-		PathRoot: defaultPathRoot,
-		FileTypes: filetype.FileTypes,
+		PathRoot:    defaultPathRoot,
+		FileTypes:   filetype.FileTypes,
 		ExcludeDirs: defaultExludeDirs,
 	}
 
@@ -67,34 +67,34 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 
 	err := filepath.WalkDir(fsf.PathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
-		// determine if directory is in the excludeDirs list
-		for _, dir := range fsf.ExcludeDirs {
-			if dirEntry.IsDir() && dirEntry.Name() == dir {
-				err := filepath.SkipDir
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		if !dirEntry.IsDir() {
-			walkFileExtension := filepath.Ext(path)
-
-			for _, fileType := range fsf.FileTypes {
-				for _, extension := range fileType.Extensions {
-					// filepath.Ext() returns the extension name with a dot
-					// so it needs to be prepended to the FileType extension
-					// in order to match
-					if ("." + extension) == walkFileExtension {
-						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
-						matchingFiles = append(matchingFiles, fileMetadata)
+			// determine if directory is in the excludeDirs list
+			for _, dir := range fsf.ExcludeDirs {
+				if dirEntry.IsDir() && dirEntry.Name() == dir {
+					err := filepath.SkipDir
+					if err != nil {
+						return err
 					}
 				}
 			}
-		}
 
-		return nil
-	})
+			if !dirEntry.IsDir() {
+				walkFileExtension := filepath.Ext(path)
+
+				for _, fileType := range fsf.FileTypes {
+					for _, extension := range fileType.Extensions {
+						// filepath.Ext() returns the extension name with a dot
+						// so it needs to be prepended to the FileType extension
+						// in order to match
+						if ("." + extension) == walkFileExtension {
+							fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
+							matchingFiles = append(matchingFiles, fileMetadata)
+						}
+					}
+				}
+			}
+
+			return nil
+		})
 
 	if err != nil {
 		return nil, err

@@ -7,8 +7,8 @@ import (
 
 func Test_fsFinder(t *testing.T) {
 	fsFinder := FileSystemFinder{
-		PathRoot: "../../test/fixtures",
-		FileTypes: filetype.FileTypes,
+		PathRoot:    "../../test/fixtures",
+		FileTypes:   filetype.FileTypes,
 		ExcludeDirs: nil,
 	}
 	files, err := fsFinder.Find()
@@ -25,8 +25,8 @@ func Test_fsFinder(t *testing.T) {
 
 func Test_fsFinderExcludeDirs(t *testing.T) {
 	fsFinder := FileSystemFinder{
-		PathRoot: "../../test/fixtures",
-		FileTypes: filetype.FileTypes,
+		PathRoot:    "../../test/fixtures",
+		FileTypes:   filetype.FileTypes,
 		ExcludeDirs: []string{"subdir"},
 	}
 	files, err := fsFinder.Find()

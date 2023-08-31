@@ -19,8 +19,7 @@ type CLI struct {
 	Reporter reporter.Reporter
 }
 
-
-// Implement the go options pattern to be able to 
+// Implement the go options pattern to be able to
 // set options to the CLI struct using functional
 // programming
 type CLIOption func(*CLI)
