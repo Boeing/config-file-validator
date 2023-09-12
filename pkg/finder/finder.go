@@ -19,5 +19,5 @@ type FileMetadata struct {
 // a provided path and array of FileTypes. Any files in
 // subdirectories defined in excludeDirs will not be returned
 type FileFinder interface {
-	Find(pathRoot string, fileTypes []filetype.FileType, excludeDirs []string) ([]FileMetadata, error)
+	Find() ([]FileMetadata, error)
 }

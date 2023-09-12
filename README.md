@@ -46,24 +46,29 @@ If you have a go environment on your desktop you can use [go install](https://go
 go install github.com/Boeing/config-file-validator/cmd/validator
 ```
 
-### Binaries
-Binary downloads are available for Linux, Windows, and MacOS. Navigate to the [releases](https://github.com/Boeing/config-file-validator/releases) page to download the latest version. Once the binary has been downloaded it needs to be installed by moving the downloaded file to a location on your OS PATH.
+
+### Executables
+The config-file-validator is built as a statically linked binary which can be downloaded and executed on your target system. Binaries are available for Linux, Windows, and MacOS. Navigate to the [releases](https://github.com/Boeing/config-file-validator/releases) page to download the latest version. Once the binary has been downloaded it needs to be installed by moving the downloaded file to a location on your operating system's PATH.
 
 ## Using
 ```
-Usage of /validator:
+Usage: validator [OPTIONS] [search_path]
+
+positional arguments:
+    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
+
+optional flags:
   -exclude-dirs string
     	Subdirectories to exclude when searching for configuration files
-  -search-path string
-    	The search path for configuration files
   -reporter string
-		Format of printed report. Currently supports standard (default) and json.
+    	Format of the printed report. Options are standard and json (default "standard")
 ```
 
 ### Examples
 #### Standard Run
+If the search path is omitted it will search the current directory
 ```
-validator -search-path /path/to/search
+validator /path/to/search
 ```
 
 ![Standard Run](./img/standard_run.png)
@@ -72,21 +77,14 @@ validator -search-path /path/to/search
 Exclude subdirectories in the search path
 
 ```
-validator -search-path /path/to/search -exclude-dirs=/path/to/search/tests
+validator -exclude-dirs=/path/to/search/tests /path/to/search 
 ```
 
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
-#### JSON Output
-Output the results in JSON
-
-```
-validator -search-path /path/to/search -reporter json
-```
-
 #### Container Run
 ```
-docker run -it --rm -v /path/to/config/file/location:/test -search-path=/test
+docker run -it --rm -v /path/to/config/file/location:/test /test
 ```
 
 ![Standard Run](./img/docker_run.png)
