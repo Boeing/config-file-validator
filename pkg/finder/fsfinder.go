@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 )
@@ -87,14 +88,16 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 			}
 
 			if !dirEntry.IsDir() {
-				walkFileExtension := filepath.Ext(path)
+				// filepath.Ext() returns the extension name with a dot so it
+				// needs to be removed.
+				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
+				if fsf.isExtensionExcluded(walkFileExtension) {
+					return nil
+				}
 
 				for _, fileType := range fsf.FileTypes {
 					for _, extension := range fileType.Extensions {
-						// filepath.Ext() returns the extension name with a dot
-						// so it needs to be prepended to the FileType extension
-						// in order to match
-						if ("." + extension) == walkFileExtension {
+						if extension == walkFileExtension {
 							fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
 							matchingFiles = append(matchingFiles, fileMetadata)
 						}
@@ -110,4 +113,16 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 	}
 
 	return matchingFiles, nil
+}
+
+// isExtensionExcluded returns true extension exists in exclude list.
+// TODO: refactor to slices.Contains when project will be updated to go 1.21.
+func (fsf FileSystemFinder) isExtensionExcluded(ext string) bool {
+	for _, typ := range fsf.ExcludeFileTypes {
+		if typ == ext {
+			return true
+		}
+	}
+
+	return false
 }
