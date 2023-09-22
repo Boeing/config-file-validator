@@ -10,11 +10,11 @@ Usage:
 
 The flags are:
     -exclude-dirs string
-    	Subdirectories to exclude when searching for configuration files.
-	-reporter string
-		Format of printed report. Currently supports standard, JSON.
-	-exclude-file-types string
-		A comma separated list of file types to ignore.
+        Subdirectories to exclude when searching for configuration files.
+    -reporter string
+        Format of printed report. Currently supports standard, JSON.
+    -exclude-file-types string
+        A comma separated list of file types to ignore.
 */
 
 package main
