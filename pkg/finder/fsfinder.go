@@ -115,7 +115,7 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 	return matchingFiles, nil
 }
 
-// isExtensionExcluded returns true extension exists in exclude list.
+// isExtensionExcluded returns true if extension exists in exclude list.
 // TODO: refactor to slices.Contains when project will be updated to go 1.21.
 func (fsf FileSystemFinder) isExtensionExcluded(ext string) bool {
 	for _, typ := range fsf.ExcludeFileTypes {
