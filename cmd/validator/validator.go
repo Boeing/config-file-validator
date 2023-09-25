@@ -10,9 +10,11 @@ Usage:
 
 The flags are:
     -exclude-dirs string
-    	Subdirectories to exclude when searching for configuration files
-	-reporter string
-		Format of printed report. Currently supports standard, JSON.
+        Subdirectories to exclude when searching for configuration files.
+    -reporter string
+        Format of printed report. Currently supports standard, JSON.
+    -exclude-file-types string
+        A comma separated list of file types to ignore.
 */
 
 package main
@@ -31,9 +33,10 @@ import (
 )
 
 type validatorConfig struct {
-	searchPath  string
-	excludeDirs *string
-	reportType  *string
+	searchPath       string
+	excludeDirs      *string
+	excludeFileTypes *string
+	reportType       *string
 }
 
 // Custom Usage function to cover
@@ -56,6 +59,7 @@ func getFlags() (validatorConfig, error) {
 	flag.Usage = validatorUsage
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
+	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	flag.Parse()
 
 	var searchPath string
@@ -79,6 +83,7 @@ func getFlags() (validatorConfig, error) {
 	config := validatorConfig{
 		searchPath,
 		excludeDirsPtr,
+		excludeFileTypesPtr,
 		reportTypePtr,
 	}
 
@@ -107,11 +112,13 @@ func mainInit() int {
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
 	reporter := getReporter(validatorConfig.reportType)
+	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 
 	// Initialize a file system finder
 	fileSystemFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoot(searchPath),
 		finder.WithExcludeDirs(excludeDirs),
+		finder.WithExcludeFileTypes(excludeFileTypes),
 	)
 
 	// Initialize the CLI
