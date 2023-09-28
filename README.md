@@ -60,6 +60,8 @@ positional arguments:
 optional flags:
   -exclude-dirs string
     	Subdirectories to exclude when searching for configuration files
+  -exclude-file-types string
+    	A comma separated list of file types to ignore
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
 ```
@@ -77,17 +79,36 @@ validator /path/to/search
 Exclude subdirectories in the search path
 
 ```
-validator -exclude-dirs=/path/to/search/tests /path/to/search 
+validator --exclude-dirs=/path/to/search/tests /path/to/search 
 ```
 
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
-#### Container Run
+#### Exclude file types
+Exclude file types in the search path. Available file types are `ini`, `json`, `yaml`, `yml`, `toml`, and `xml`
+
 ```
-docker run -it --rm -v /path/to/config/file/location:/test /test
+validator --exclude-file-types=json /path/to/search
 ```
 
-![Standard Run](./img/docker_run.png)
+![Exclude File Types Run](./img/exclude_file_types.png)
+
+#### Customize report output
+Customize the report output. Available options are `standard` and `json`
+
+```
+validator --reporter=json /path/to/search
+```
+
+![Exclude File Types Run](./img/custom_reporter.png)
+
+
+#### Container Run
+```
+docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.4.0 /test
+```
+
+![Docker Standard Run](./img/docker_run.png)
 
 ## Building from source
 The project can be downloaded and built from source using an environment with golang 1.17+ installed. After successful build, the statically-linked binary can be moved to a location on your operating system PATH.
