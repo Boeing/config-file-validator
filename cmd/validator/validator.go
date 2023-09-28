@@ -130,7 +130,7 @@ func mainInit() int {
 	// Run the config file validation
 	exitStatus, err := cli.Run()
 	if err != nil {
-		log.Printf("An error occured during CLI execution: %v", err)
+		log.Printf("An error occurred during CLI execution: %v", err)
 	}
 
 	return exitStatus
