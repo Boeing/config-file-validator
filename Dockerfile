@@ -1,4 +1,4 @@
-FROM golang:1.19 as go-builder
+FROM golang:1.21 as go-builder
 COPY . /build/
 WORKDIR /build
 RUN CGO_ENABLED=0 \
@@ -10,6 +10,6 @@ RUN CGO_ENABLED=0 \
   -o validator \
   cmd/validator/validator.go
 
-FROM alpine:3.15
+FROM alpine:3.18
 COPY --from=go-builder /build/validator /
 ENTRYPOINT [ "/validator" ]

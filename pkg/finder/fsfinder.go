@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"golang.org/x/exp/slices"
 )
 
 type FileSystemFinder struct {
@@ -91,7 +92,7 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
-				if fsf.isExtensionExcluded(walkFileExtension) {
+				if slices.Contains[[]string](fsf.ExcludeFileTypes, walkFileExtension) {
 					return nil
 				}
 
@@ -113,16 +114,4 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 	}
 
 	return matchingFiles, nil
-}
-
-// isExtensionExcluded returns true if extension exists in exclude list.
-// TODO: refactor to slices.Contains when project will be updated to go 1.21.
-func (fsf FileSystemFinder) isExtensionExcluded(ext string) bool {
-	for _, typ := range fsf.ExcludeFileTypes {
-		if typ == ext {
-			return true
-		}
-	}
-
-	return false
 }
