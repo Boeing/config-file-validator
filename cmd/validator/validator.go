@@ -64,10 +64,9 @@ func getFlags() (validatorConfig, error) {
 
 	searchPaths := make([]string, 0)
 
-	// If search path arg is empty set it to the cwd
-	// if not set it to the arg. Only support one search path
-	// for now but in the future it could be expanded to support
-	// n number of paths
+	// If search path arg is empty, set it to the cwd
+	// if not, set it to the arg. Supports n number of
+	// paths
 	if flag.NArg() == 0 {
 		searchPaths = append(searchPaths, ".")
 	} else {
