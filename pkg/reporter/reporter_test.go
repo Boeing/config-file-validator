@@ -20,7 +20,14 @@ func Test_stdoutReport(t *testing.T) {
 		errors.New("Unable to parse bad.xml file"),
 	}
 
-	reports := []Report{reportNoValidationError, reportWithValidationError}
+	reportWithMultiLineValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse keys:\nkey1\nkey2"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
 	stdoutReporter := StdoutReporter{}
 	err := stdoutReporter.Print(reports)
