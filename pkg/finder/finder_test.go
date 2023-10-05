@@ -94,3 +94,56 @@ func Test_fsFinderPathNoExist(t *testing.T) {
 		t.Errorf("Error not returned")
 	}
 }
+
+func Test_compositeFileFinderMultipleFinder(t *testing.T) {
+	f1 := FileSystemFinderInit(
+		WithPathRoot("../../test/fixtures/subdir/good.json"),
+	)
+	f2 := FileSystemFinderInit(
+		WithPathRoot("../../test/fixtures/good.json"),
+	)
+	compFinder := NewCompositeFileFinder([]FileFinder{f1, f2})
+
+	files, err := compFinder.Find()
+
+	if len(files) != 2 {
+		t.Errorf("Unable to find files")
+	}
+
+	if err != nil {
+		t.Errorf("Unable to find files")
+	}
+}
+
+func Test_compositeFileFinderSingleFinder(t *testing.T) {
+	f1 := FileSystemFinderInit(
+		WithPathRoot("../../test/fixtures/subdir"),
+	)
+	compFinder := NewCompositeFileFinder([]FileFinder{f1})
+
+	files, err := compFinder.Find()
+
+	if len(files) < 1 {
+		t.Errorf("Unable to find files")
+	}
+
+	if err != nil {
+		t.Errorf("Unable to find files")
+	}
+}
+
+func Test_compositeFileFinderBadPath(t *testing.T) {
+	f1 := FileSystemFinderInit(
+		WithPathRoot("../../test/fixtures/subdir"),
+	)
+	f2 := FileSystemFinderInit(
+		WithPathRoot("/bad/path"),
+	)
+	compFinder := NewCompositeFileFinder([]FileFinder{f1, f2})
+
+	_, err := compFinder.Find()
+
+	if err == nil {
+		t.Errorf("Error should be thrown for bad path")
+	}
+}
