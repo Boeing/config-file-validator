@@ -20,6 +20,8 @@ var testData = []struct {
 	{"validToml", []byte("name = 123"), true, TomlValidator{}},
 	{"validIni", []byte(`{[Version]\nCatalog=hidden\n}`), true, IniValidator{}},
 	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
+	{"validProperites", []byte("key=value\nkey2=${key}"), true, PropValidator{}},
+	{"invalidProperites", []byte("key=${key}"), false, PropValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
