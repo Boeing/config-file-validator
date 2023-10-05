@@ -31,6 +31,9 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	return nil
 }
 
+// padErrorString adds padding to every newline in the error
+// string, except the first line and removes any trailing newlines
+// or spaces
 func (sr StdoutReporter) padErrorString(errS string) string {
 	errS = strings.TrimSpace(errS)
 	lines := strings.Split(errS, "\n")
