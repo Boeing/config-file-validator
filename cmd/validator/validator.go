@@ -37,6 +37,7 @@ type validatorConfig struct {
 	excludeDirs      *string
 	excludeFileTypes *string
 	reportType       *string
+	depth            *int
 }
 
 // Custom Usage function to cover
@@ -60,6 +61,7 @@ func getFlags() (validatorConfig, error) {
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	depthPtr := flag.Int("depth", 0, "Depth of recursion. 0 means it is disabled")
 	flag.Parse()
 
 	var searchPath string
@@ -85,6 +87,7 @@ func getFlags() (validatorConfig, error) {
 		excludeDirsPtr,
 		excludeFileTypesPtr,
 		reportTypePtr,
+		depthPtr,
 	}
 
 	return config, nil
@@ -119,6 +122,7 @@ func mainInit() int {
 		finder.WithPathRoot(searchPath),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes),
+		finder.WithDepth(*validatorConfig.depth),
 	)
 
 	// Initialize the CLI
