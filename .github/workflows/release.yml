@@ -29,7 +29,7 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         goos: ${{ matrix.goos }}
         goarch: ${{ matrix.goarch }}
-        go_version: 1.18
+        go_version: 1.21
         binary_name: "validator"
         ld_flags: -w -s -extldflags "-static"
         build_tags: -tags netgo
