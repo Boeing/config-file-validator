@@ -61,7 +61,7 @@ func getFlags() (validatorConfig, error) {
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
-	depthPtr := flag.Int("depth", 0, "Depth of recursion. 0 means it is disabled")
+	depthPtr := flag.Int("depth", 0, "Depth of recursion. Set depth to 0 to disable recursive traversal.")
 	flag.Parse()
 
 	var searchPath string
@@ -82,6 +82,12 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard or json")
 	}
 
+	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
+		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
+		flag.Usage()
+		return validatorConfig{}, errors.New("Wrong parameer value for depth, value cannot be negative")
+	}
+
 	config := validatorConfig{
 		searchPath,
 		excludeDirsPtr,
@@ -91,6 +97,19 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	return config, nil
+}
+
+// isFlagSet verifies if a given flag has been set or not
+func isFlagSet(flagName string) bool {
+	var isSet bool
+
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == flagName {
+			isSet = true
+		}
+	})
+
+	return isSet
 }
 
 // Return the reporter associated with the
@@ -117,13 +136,16 @@ func mainInit() int {
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 
-	// Initialize a file system finder
-	fileSystemFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoot(searchPath),
+	fsOpts := []finder.FSFinderOptions{finder.WithPathRoot(searchPath),
 		finder.WithExcludeDirs(excludeDirs),
-		finder.WithExcludeFileTypes(excludeFileTypes),
-		finder.WithDepth(*validatorConfig.depth),
-	)
+		finder.WithExcludeFileTypes(excludeFileTypes)}
+
+	if validatorConfig.depth != nil && isFlagSet("depth") {
+		fsOpts = append(fsOpts, finder.WithDepth(*validatorConfig.depth))
+	}
+
+	// Initialize a file system finder
+	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
 	// Initialize the CLI
 	cli := cli.Init(
