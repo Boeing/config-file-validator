@@ -1,3 +1,5 @@
+ARG BASE_IMAGE=alpine:3.18
+
 FROM golang:1.21 as go-builder
 COPY . /build/
 WORKDIR /build
@@ -10,6 +12,6 @@ RUN CGO_ENABLED=0 \
   -o validator \
   cmd/validator/validator.go
 
-FROM alpine:3.18
+FROM $BASE_IMAGE
 COPY --from=go-builder /build/validator /
 ENTRYPOINT [ "/validator" ]
