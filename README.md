@@ -52,6 +52,10 @@ go install github.com/Boeing/config-file-validator/cmd/validator
 The config-file-validator is built as a statically linked binary which can be downloaded and executed on your target system. Binaries are available for Linux, Windows, and MacOS. Navigate to the [releases](https://github.com/Boeing/config-file-validator/releases) page to download the latest version. Once the binary has been downloaded it needs to be installed by moving the downloaded file to a location on your operating system's PATH.
 
 ## Using
+
+> [!IMPORTANT]
+> For now, the config-file-validator is a tool that specializes in syntax validation. It does **not** perform schema validation.
+
 ```
 Usage: validator [OPTIONS] [search_path]
 
