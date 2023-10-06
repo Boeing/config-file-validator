@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        base: [alpine:3.18, scratch, ubuntu:20.04]
+        base: ["alpine:3.18", scratch, "ubuntu:20.04"]
 
     steps:
     - uses: actions/checkout@v3
