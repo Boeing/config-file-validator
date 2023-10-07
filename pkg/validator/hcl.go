@@ -3,22 +3,9 @@ package validator
 import (
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsimple"
 )
-
-type IncidentRule struct {
-	RuleName string  `json:"rule"`
-	Category string  `json:"category"`
-	Incident int     `json:"incident"`
-	Options  Options `json:"options"`
-	Server   string  `json:"server"`
-	Message  string  `json:"message"`
-}
-
-type Options struct {
-	Priority string `json:"priority"`
-	Color    string `json:"color"`
-}
 
 // HclValidator is used to validate a byte slice that is indented to represent a
 // HashiCorp Configuration Language (HCL) file.
@@ -38,8 +25,10 @@ type HclValidator struct{}
 // If the parsing error does not produce an hcl.Diagnostics slice, a generic
 // error will be returned, wrapping the input file.
 func (hclv HclValidator) Validate(b []byte) (bool, error) {
-	_, diags := hclparse.NewParser().ParseHCL(b, "")
-	if diags != nil {
+	//_, diags := hclparse.NewParser().ParseHCL(b, "")
+	err := hclsimple.Decode(".hcl", b, nil, &map[interface{}]interface{}{})
+	if err != nil {
+		diags := err.(hcl.Diagnostics)
 		if len(diags) == 0 {
 			return false, fmt.Errorf("error validating .hcl file: %w", diags)
 		}
