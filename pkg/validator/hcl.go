@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsimple"
 )
 
-// HclValidator is used to validate a byte slice that is indented to represent a
+// HclValidator is used to validate a byte slice that is intended to represent a
 // HashiCorp Configuration Language (HCL) file.
 type HclValidator struct{}
 
