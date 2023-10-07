@@ -3,8 +3,7 @@ package validator
 import (
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsimple"
+	"github.com/hashicorp/hcl/v2/hclparse"
 )
 
 // HclValidator is used to validate a byte slice that is intended to represent a
@@ -25,21 +24,19 @@ type HclValidator struct{}
 // If the parsing error does not produce an hcl.Diagnostics slice, a generic
 // error will be returned, wrapping the input file.
 func (hclv HclValidator) Validate(b []byte) (bool, error) {
-	//_, diags := hclparse.NewParser().ParseHCL(b, "")
-	err := hclsimple.Decode(".hcl", b, nil, &map[interface{}]interface{}{})
-	if err != nil {
-		diags := err.(hcl.Diagnostics)
-		if len(diags) == 0 {
-			return false, fmt.Errorf("error validating .hcl file: %w", diags)
-		}
-
-		subject := diags[0].Subject
-
-		row := subject.Start.Line
-		col := subject.Start.Column
-
-		return false, fmt.Errorf("error at line %v column %v: %w", row, col, diags)
+	_, diags := hclparse.NewParser().ParseHCL(b, "")
+	if diags == nil {
+		return true, nil
 	}
 
-	return true, nil
+	if len(diags) == 0 {
+		return false, fmt.Errorf("error validating .hcl file: %w", diags)
+	}
+
+	subject := diags[0].Subject
+
+	row := subject.Start.Line
+	col := subject.Start.Column
+
+	return false, fmt.Errorf("error at line %v column %v: %w", row, col, diags)
 }
