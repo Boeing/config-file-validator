@@ -1,16 +1,13 @@
-default_address = "127.0.0.1"
-default_message = upper("Incident: ${incident}")
-default_options = {
-  priority: "High",
-  color: "Red"
-}
+io_mode = "async"
 
-incident_rules {
-    # Rule number 1
-    rule "down_server" "infrastructure" {
-        incident = 100
-        options  = var.override_options ? var.override_options : var.default_options
-        server   = default_address
-        message  = default_message
-    }
+service "http" "web_proxy" {
+  listen_addr = "127.0.0.1:8080"
+  
+  process "main" {
+    command = ["/usr/local/bin/awesome-app", "server"]
+  }
+
+  process "mgmt" {
+    command = ["/usr/local/bin/awesome-app", "mgmt"]
+  }
 }
