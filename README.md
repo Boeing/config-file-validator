@@ -25,7 +25,7 @@
 How many deployments have you done that needed to be rolled back due to a missing character in a configuration file in your repo? If you're like most teams that number is greater than zero. The config file validator was created to solve this problem by searching through your project and validating the syntax of all configuration files. 
 
 > [!NOTE]
-> For now, the config-file-validator is a tool that specializes in syntax validation. It does **not** perform schema validation.
+> The config-file-validator only performs syntax validation. We are working toward adding support for schema validation in future releases
 
 ### Where can you use this tool?
 * In a CI/CD pipeline as a quality gate
