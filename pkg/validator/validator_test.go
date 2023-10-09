@@ -22,8 +22,9 @@ var testData = []struct {
 	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
 	{"validProperties", []byte("key=value\nkey2=${key}"), true, PropValidator{}},
 	{"invalidProperties", []byte("key=${key}"), false, PropValidator{}},
-	{"validHcl", []byte(`foo = "bar"`), true, HclValidator{}},
-	{"invalidHcl", []byte(`"foo" = "bar"`), false, HclValidator{}},
+	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
+	{"invalidHcl", []byte(`"key" = "value"`), false, HclValidator{}},
+	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {

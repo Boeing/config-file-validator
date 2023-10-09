@@ -1,1 +1,1 @@
-"foo" = "bar"
+"key" = "value"

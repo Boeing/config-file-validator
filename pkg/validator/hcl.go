@@ -20,17 +20,10 @@ type HclValidator struct{}
 // If the hcl.Diagnostics slice contains more than one error, the wrapped
 // error returned by this function will include them as "and {count} other
 // diagnostic(s)" in the error message.
-//
-// If the parsing error does not produce an hcl.Diagnostics slice, a generic
-// error will be returned, wrapping the input file.
 func (hclv HclValidator) Validate(b []byte) (bool, error) {
 	_, diags := hclparse.NewParser().ParseHCL(b, "")
 	if diags == nil {
 		return true, nil
-	}
-
-	if len(diags) == 0 {
-		return false, fmt.Errorf("error validating .hcl file: %w", diags)
 	}
 
 	subject := diags[0].Subject
