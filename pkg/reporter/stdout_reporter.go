@@ -2,6 +2,8 @@ package reporter
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/fatih/color"
 )
 
@@ -16,7 +18,8 @@ func (sr StdoutReporter) Print(reports []Report) error {
 		if !report.IsValid {
 			color.Set(color.FgRed)
 			fmt.Println("    × " + report.FilePath)
-			fmt.Printf("        error: %v\n", report.ValidationError)
+			paddedString := sr.padErrorString(report.ValidationError.Error())
+			fmt.Printf("        error: %v\n", paddedString)
 			color.Unset()
 			failureCount = failureCount + 1
 		} else {
@@ -26,4 +29,17 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	}
 	fmt.Printf("Summary: %d succeeded, %d failed\n", successCount, failureCount)
 	return nil
+}
+
+// padErrorString adds padding to every newline in the error
+// string, except the first line and removes any trailing newlines
+// or spaces
+func (sr StdoutReporter) padErrorString(errS string) string {
+	errS = strings.TrimSpace(errS)
+	lines := strings.Split(errS, "\n")
+	for idx := 1; idx < len(lines); idx++ {
+		lines[idx] = "               " + lines[idx]
+	}
+	paddedErr := strings.Join(lines, "\n")
+	return paddedErr
 }

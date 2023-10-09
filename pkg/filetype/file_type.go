@@ -54,6 +54,14 @@ var IniFileType = FileType{
 	validator.IniValidator{},
 }
 
+// Instance of FileType object to
+// represent a Properties file
+var PropFileType = FileType{
+	"properties",
+	[]string{"properties"},
+	validator.PropValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -62,4 +70,5 @@ var FileTypes = []FileType{
 	XmlFileType,
 	TomlFileType,
 	IniFileType,
+	PropFileType,
 }
