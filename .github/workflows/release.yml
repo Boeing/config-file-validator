@@ -40,7 +40,7 @@ jobs:
         project_path: cmd/validator
         extra_files: LICENSE README.md
 
-  registery-matrix:
+  registry-matrix:
     name: Push Docker images to Container Registry
     runs-on: ubuntu-latest
     strategy:
