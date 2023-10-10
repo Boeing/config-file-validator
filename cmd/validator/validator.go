@@ -106,31 +106,23 @@ func mainInit() int {
 		return 1
 	}
 
-	searchPaths := validatorConfig.searchPaths
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 
-	// Initialize a file system finder for each searchPath
-	finders := make([]finder.FileFinder, len(searchPaths))
-	for idx, searchPath := range searchPaths {
-		fileSystemFinder := finder.FileSystemFinderInit(
-			finder.WithPathRoot(searchPath),
-			finder.WithExcludeDirs(excludeDirs),
-			finder.WithExcludeFileTypes(excludeFileTypes),
-		)
-		finders[idx] = fileSystemFinder
-	}
-
-	// Initialize a composite file finder with all the file system finders
-	compositeFinder := finder.NewCompositeFileFinder(finders)
+	// Initialize a file system finder
+	fileSystemFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(validatorConfig.searchPaths...),
+		finder.WithExcludeDirs(excludeDirs),
+		finder.WithExcludeFileTypes(excludeFileTypes),
+	)
 
 	// Initialize the CLI
 	cli := cli.Init(
 		cli.WithReporter(reporter),
-		cli.WithFinder(compositeFinder),
+		cli.WithFinder(fileSystemFinder),
 	)
 
 	// Run the config file validation
