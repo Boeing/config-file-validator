@@ -62,6 +62,14 @@ var PropFileType = FileType{
 	validator.PropValidator{},
 }
 
+// Instance of the FileType object to
+// represent a HCL file
+var HclFileType = FileType{
+	"hcl",
+	[]string{"hcl"},
+	validator.HclValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -71,4 +79,5 @@ var FileTypes = []FileType{
 	TomlFileType,
 	IniFileType,
 	PropFileType,
+	HclFileType,
 }

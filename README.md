@@ -39,6 +39,7 @@ How many deployments have you done that needed to be rolled back due to a missin
 * TOML
 * INI
 * Properties
+* HCL
 
 ## Installing
 There are several ways to install the config file validator tool
