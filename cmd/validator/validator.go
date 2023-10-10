@@ -85,7 +85,7 @@ func getFlags() (validatorConfig, error) {
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
 		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
 		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameer value for depth, value cannot be negative")
+		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
 	}
 
 	config := validatorConfig{
