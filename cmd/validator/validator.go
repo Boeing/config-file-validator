@@ -61,7 +61,7 @@ func getFlags() (validatorConfig, error) {
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
-	depthPtr := flag.Int("depth", 0, "Depth of recursion. Set depth to 0 to disable recursive traversal.")
+	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	flag.Parse()
 
 	var searchPath string
