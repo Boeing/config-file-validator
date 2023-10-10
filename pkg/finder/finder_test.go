@@ -2,6 +2,7 @@ package finder
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
@@ -10,7 +11,7 @@ import (
 
 func Test_fsFinder(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoot("../../test/fixtures"),
+		WithPathRoots("../../test/fixtures"),
 	)
 
 	files, err := fsFinder.Find()
@@ -27,7 +28,7 @@ func Test_fsFinder(t *testing.T) {
 
 func Test_fsFinderExcludeDirs(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoot("../../test/fixtures"),
+		WithPathRoots("../../test/fixtures"),
 		WithExcludeDirs([]string{"subdir"}),
 	)
 
@@ -44,7 +45,7 @@ func Test_fsFinderExcludeDirs(t *testing.T) {
 
 func Test_fsFinderExcludeFileTypes(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoot("../../test/fixtures/exclude-file-types"),
+		WithPathRoots("../../test/fixtures/exclude-file-types"),
 		WithExcludeFileTypes([]string{"json"}),
 	)
 
@@ -67,7 +68,7 @@ func Test_fsFinderCustomTypes(t *testing.T) {
 		Validator:  validator.JsonValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
-		WithPathRoot("../../test/fixtures"),
+		WithPathRoots("../../test/fixtures"),
 		WithExcludeDirs([]string{"subdir"}),
 		WithFileTypes([]filetype.FileType{jsonFileType}),
 	)
@@ -85,7 +86,7 @@ func Test_fsFinderCustomTypes(t *testing.T) {
 
 func Test_fsFinderPathNoExist(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoot("/bad/path"),
+		WithPathRoots("/bad/path"),
 	)
 
 	_, err := fsFinder.Find()
@@ -95,19 +96,19 @@ func Test_fsFinderPathNoExist(t *testing.T) {
 	}
 }
 
-func Test_compositeFileFinderMultipleFinder(t *testing.T) {
-	f1 := FileSystemFinderInit(
-		WithPathRoot("../../test/fixtures/subdir/good.json"),
+func Test_FileSystemFinderMultipleFinder(t *testing.T) {
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(
+			"../../test/fixtures/subdir/good.json",
+			"../../test/fixtures/good.json",
+			"./",
+		),
 	)
-	f2 := FileSystemFinderInit(
-		WithPathRoot("../../test/fixtures/good.json"),
-	)
-	compFinder := NewCompositeFileFinder([]FileFinder{f1, f2})
 
-	files, err := compFinder.Find()
+	files, err := fsFinder.Find()
 
 	if len(files) != 2 {
-		t.Errorf("Unable to find files")
+		t.Errorf("No. files found don't match got:%v, want:%v", len(files), 2)
 	}
 
 	if err != nil {
@@ -115,16 +116,19 @@ func Test_compositeFileFinderMultipleFinder(t *testing.T) {
 	}
 }
 
-func Test_compositeFileFinderSingleFinder(t *testing.T) {
-	f1 := FileSystemFinderInit(
-		WithPathRoot("../../test/fixtures/subdir"),
+func Test_FileSystemFinderDuplicateFiles(t *testing.T) {
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(
+			"../../test/fixtures/subdir/good.json",
+			"../../test/fixtures/subdir/",
+			"../../test/fixtures/subdir/../subdir/good.json",
+		),
 	)
-	compFinder := NewCompositeFileFinder([]FileFinder{f1})
 
-	files, err := compFinder.Find()
+	files, err := fsFinder.Find()
 
-	if len(files) < 1 {
-		t.Errorf("Unable to find files")
+	if len(files) != 4 {
+		t.Errorf("No. files found don't match got:%v, want:%v", len(files), 4)
 	}
 
 	if err != nil {
@@ -132,16 +136,36 @@ func Test_compositeFileFinderSingleFinder(t *testing.T) {
 	}
 }
 
-func Test_compositeFileFinderBadPath(t *testing.T) {
-	f1 := FileSystemFinderInit(
-		WithPathRoot("../../test/fixtures/subdir"),
+func Test_FileSystemFinderAbsPath(t *testing.T) {
+	path := "../../test/fixtures/subdir/good.json"
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		t.Fatal("Cannot form absolute path")
+	}
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(path, absPath),
 	)
-	f2 := FileSystemFinderInit(
-		WithPathRoot("/bad/path"),
-	)
-	compFinder := NewCompositeFileFinder([]FileFinder{f1, f2})
 
-	_, err := compFinder.Find()
+	files, err := fsFinder.Find()
+
+	if len(files) != 1 {
+		t.Errorf("No. files found don't match got:%v, want:%v", len(files), 1)
+	}
+
+	if err != nil {
+		t.Errorf("Unable to find files")
+	}
+}
+
+func Test_FileFinderBadPath(t *testing.T) {
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(
+			"../../test/fixtures/subdir",
+			"/bad/path",
+		),
+	)
+
+	_, err := fsFinder.Find()
 
 	if err == nil {
 		t.Errorf("Error should be thrown for bad path")
