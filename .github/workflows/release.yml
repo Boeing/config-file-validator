@@ -35,7 +35,7 @@ jobs:
         goarch: ${{ matrix.goarch }}
         go_version: 1.21
         binary_name: "validator"
-        ld_flags: -w -s -extldflags "-static" -X github.com/Boeing/config-file-validator.version=${{ github.event.release.tag_name }}
+        ldflags: -w -s -extldflags "-static" -X github.com/Boeing/config-file-validator.version=${{ github.event.release.tag_name }}
         build_tags: -tags netgo
         project_path: cmd/validator
         extra_files: LICENSE README.md
