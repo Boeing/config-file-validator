@@ -28,6 +28,7 @@ import (
 	"os"
 	"strings"
 
+	configfilevalidator "github.com/Boeing/config-file-validator"
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
@@ -38,6 +39,7 @@ type validatorConfig struct {
 	excludeDirs      *string
 	excludeFileTypes *string
 	reportType       *string
+	versionQuery     *bool
 }
 
 // Custom Usage function to cover
@@ -61,6 +63,7 @@ func getFlags() (validatorConfig, error) {
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	flag.Parse()
 
 	var searchPath string
@@ -86,6 +89,7 @@ func getFlags() (validatorConfig, error) {
 		excludeDirsPtr,
 		excludeFileTypesPtr,
 		reportTypePtr,
+		versionPtr,
 	}
 
 	return config, nil
@@ -106,6 +110,11 @@ func mainInit() int {
 	validatorConfig, err := getFlags()
 	if err != nil {
 		return 1
+	}
+
+	if *validatorConfig.versionQuery {
+		fmt.Println(configfilevalidator.GetVersion())
+		return 0
 	}
 
 	searchPath := validatorConfig.searchPath
