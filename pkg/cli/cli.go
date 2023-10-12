@@ -2,7 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
@@ -70,7 +70,7 @@ func (c CLI) Run() (int, error) {
 
 	for _, fileToValidate := range foundFiles {
 		// read it
-		fileContent, err := ioutil.ReadFile(fileToValidate.Path)
+		fileContent, err := os.ReadFile(fileToValidate.Path)
 		if err != nil {
 			return 1, fmt.Errorf("unable to read file: %v", err)
 		}
