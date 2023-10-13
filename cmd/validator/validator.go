@@ -2,7 +2,8 @@
 Validator recusively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
-Currently json, yaml, toml, xml and ini configuration file types are supported.
+Currently json, yaml, toml, xml, ini, properties, and hcl configuration file
+types are supported.
 
 Usage:
 
@@ -27,6 +28,7 @@ import (
 	"os"
 	"strings"
 
+	configfilevalidator "github.com/Boeing/config-file-validator"
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
@@ -38,6 +40,7 @@ type validatorConfig struct {
 	excludeFileTypes *string
 	reportType       *string
 	depth            *int
+	versionQuery     *bool
 }
 
 // Custom Usage function to cover
@@ -62,6 +65,7 @@ func getFlags() (validatorConfig, error) {
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
+	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	flag.Parse()
 
 	var searchPath string
@@ -94,6 +98,7 @@ func getFlags() (validatorConfig, error) {
 		excludeFileTypesPtr,
 		reportTypePtr,
 		depthPtr,
+		versionPtr,
 	}
 
 	return config, nil
@@ -127,6 +132,11 @@ func mainInit() int {
 	validatorConfig, err := getFlags()
 	if err != nil {
 		return 1
+	}
+
+	if *validatorConfig.versionQuery {
+		fmt.Println(configfilevalidator.GetVersion())
+		return 0
 	}
 
 	searchPath := validatorConfig.searchPath

@@ -24,6 +24,9 @@
 ## About
 How many deployments have you done that needed to be rolled back due to a missing character in a configuration file in your repo? If you're like most teams that number is greater than zero. The config file validator was created to solve this problem by searching through your project and validating the syntax of all configuration files. 
 
+> [!NOTE]
+> The config-file-validator only performs syntax validation. We are working toward adding support for schema validation in future releases
+
 ### Where can you use this tool?
 * In a CI/CD pipeline as a quality gate
 * On your desktop to validate configuration files as you write them
@@ -35,6 +38,8 @@ How many deployments have you done that needed to be rolled back due to a missin
 * YAML
 * TOML
 * INI
+* Properties
+* HCL
 
 ## Installing
 There are several ways to install the config file validator tool
@@ -46,6 +51,12 @@ If you have a go environment on your desktop you can use [go install](https://go
 go install github.com/Boeing/config-file-validator/cmd/validator
 ```
 
+### Using aqua
+You can install the validator using [aqua](https://aquaproj.github.io/).
+
+```
+aqua g -i Boeing/config-file-validator
+```
 
 ### Executables
 The config-file-validator is built as a statically linked binary which can be downloaded and executed on your target system. Binaries are available for Linux, Windows, and MacOS. Navigate to the [releases](https://github.com/Boeing/config-file-validator/releases) page to download the latest version. Once the binary has been downloaded it needs to be installed by moving the downloaded file to a location on your operating system's PATH.
