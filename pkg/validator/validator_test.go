@@ -25,6 +25,34 @@ var testData = []struct {
 	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
 	{"invalidHcl", []byte(`"key" = "value"`), false, HclValidator{}},
 	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
+	{"validPlist", []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+	<plist version="1.0">
+	<dict>
+		<key>CFBundleShortVersionString</key>
+		<string>1.0</string>
+		<key>CFBundleVersion</key>
+		<string>1</string>
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsArbitraryLoads</key>
+			<true/>
+		</dict>
+	</dict>
+	</plist>`), true, PlistValidator{}},
+	{"invalidPlist", []byte(`<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+	<plist version="1.0">
+	<dict>
+		<key>CFBundleShortVersionString</key>
+		<string>1.0</string>
+		<key>CFBundleVersion</key>
+		<string>1</string>
+		<key>NSAppTransporT-Security</key> <!-- The hyphen in the key name here is invalid -->
+		<dict>
+			<key>NSAllowsArbitraryLoads</key>
+		</dict> <!-- Missing value for the key 'NSAllowsArbitraryLoads' -->
+	</dict>
+	</plist>`), false, PlistValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {

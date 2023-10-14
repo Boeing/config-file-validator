@@ -70,6 +70,14 @@ var HclFileType = FileType{
 	validator.HclValidator{},
 }
 
+// Instance of the FileType object to
+// represent a Plist file
+var PlistFileType = FileType{
+	"plist",
+	[]string{"plist"},
+	validator.PlistValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -80,4 +88,5 @@ var FileTypes = []FileType{
 	IniFileType,
 	PropFileType,
 	HclFileType,
+	PlistFileType,
 }
