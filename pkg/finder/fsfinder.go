@@ -113,13 +113,6 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
-			// fix file path not having ./ while walking
-			if strings.HasPrefix(pathRoot, "./") &&
-				!strings.HasPrefix(path, "./") &&
-				!strings.HasPrefix(path, "/") {
-				path = "./" + path
-			}
-
 			// determine if directory is in the excludeDirs list
 			if dirEntry.IsDir() && fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > *fsf.Depth {
 				// Skip processing the directory
