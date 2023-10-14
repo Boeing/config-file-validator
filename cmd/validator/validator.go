@@ -144,7 +144,6 @@ func mainInit() int {
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 
-
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes)}
