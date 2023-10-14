@@ -93,7 +93,7 @@ func Test_fsFinderWithDepth(t *testing.T) {
 
 	for _, tt := range tests {
 		fsFinder := FileSystemFinderInit(
-			WithPathRoot(tt.inputPathRoot),
+			WithPathRoots(tt.inputPathRoot),
 			WithDepth(tt.inputDepth),
 		)
 
