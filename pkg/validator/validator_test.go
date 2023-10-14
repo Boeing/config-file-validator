@@ -22,21 +22,32 @@ var testData = []struct {
 	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
 	{"validProperties", []byte("key=value\nkey2=${key}"), true, PropValidator{}},
 	{"invalidProperties", []byte("key=${key}"), false, PropValidator{}},
+	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
+	{"invalidHcl", []byte(`"key" = "value"`), false, HclValidator{}},
+	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
-	for _, d := range testData {
-		valid, err := d.validator.Validate(d.testInput)
-		if valid != d.expectedResult {
-			t.Errorf("incorrect result: expected %v, got %v", d.expectedResult, valid)
-		}
+	t.Parallel()
 
-		if valid && err != nil {
-			t.Error("incorrect result: err was not nil", err)
-		}
+	for _, tcase := range testData {
+		tcase := tcase // Capture the range variable
 
-		if !valid && err == nil {
-			t.Error("incorrect result: function returned a nil error")
-		}
+		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
+			valid, err := tcase.validator.Validate(tcase.testInput)
+			if valid != tcase.expectedResult {
+				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
+			}
+
+			if valid && err != nil {
+				t.Error("incorrect result: err was not nil", err)
+			}
+
+			if !valid && err == nil {
+				t.Error("incorrect result: function returned a nil error")
+			}
+		})
 	}
 }

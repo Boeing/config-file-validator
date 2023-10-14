@@ -16,6 +16,7 @@ type FileSystemFinder struct {
 	FileTypes        []filetype.FileType
 	ExcludeDirs      []string
 	ExcludeFileTypes []string
+	Depth            *int
 }
 
 type FSFinderOptions func(*FileSystemFinder)
@@ -45,6 +46,13 @@ func WithExcludeDirs(excludeDirs []string) FSFinderOptions {
 func WithExcludeFileTypes(types []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
 		fsf.ExcludeFileTypes = types
+	}
+}
+
+// WithDepth adds the depth for search recursion to FSFinder
+func WithDepth(depthVal int) FSFinderOptions {
+	return func(fsf *FileSystemFinder) {
+		fsf.Depth = &depthVal
 	}
 }
 
@@ -113,6 +121,11 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 			}
 
 			// determine if directory is in the excludeDirs list
+			if dirEntry.IsDir() && fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > *fsf.Depth {
+				// Skip processing the directory
+				return fs.SkipDir // This is not reported as an error by filepath.WalkDir
+			}
+
 			for _, dir := range fsf.ExcludeDirs {
 				if dirEntry.IsDir() && dirEntry.Name() == dir {
 					err := filepath.SkipDir
