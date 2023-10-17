@@ -67,18 +67,18 @@ The config-file-validator is built as a statically linked binary which can be do
 
 ## Using
 ```
-Usage: validator [OPTIONS] [search_path]
+Usage: validator [OPTIONS] [<search_path>...]
 
 positional arguments:
     search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
 
 optional flags:
   -exclude-dirs string
-    	Subdirectories to exclude when searching for configuration files
+        Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
-    	A comma separated list of file types to ignore
+        A comma separated list of file types to ignore
   -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
+        Format of the printed report. Options are standard and json (default "standard")
 ```
 
 ### Examples

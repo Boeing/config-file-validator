@@ -35,7 +35,7 @@ import (
 )
 
 type validatorConfig struct {
-	searchPath       string
+	searchPaths      []string
 	excludeDirs      *string
 	excludeFileTypes *string
 	reportType       *string
@@ -45,7 +45,7 @@ type validatorConfig struct {
 
 // Custom Usage function to cover
 func validatorUsage() {
-	fmt.Printf("Usage: validator [OPTIONS] [search_path]\n\n")
+	fmt.Printf("Usage: validator [OPTIONS] [<search_path>...]\n\n")
 	fmt.Printf("positional arguments:\n")
 	fmt.Printf(
 		"    search_path: The search path on the filesystem for configuration files. " +
@@ -68,16 +68,15 @@ func getFlags() (validatorConfig, error) {
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	flag.Parse()
 
-	var searchPath string
+	searchPaths := make([]string, 0)
 
-	// If search path arg is empty set it to the cwd
-	// if not set it to the arg. Only support one search path
-	// for now but in the future it could be expanded to support
-	// n number of paths
+	// If search path arg is empty, set it to the cwd
+	// if not, set it to the arg. Supports n number of
+	// paths
 	if flag.NArg() == 0 {
-		searchPath = "."
+		searchPaths = append(searchPaths, ".")
 	} else {
-		searchPath = flag.Arg(0)
+		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
 	if *reportTypePtr != "standard" && *reportTypePtr != "json" {
@@ -93,7 +92,7 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	config := validatorConfig{
-		searchPath,
+		searchPaths,
 		excludeDirsPtr,
 		excludeFileTypesPtr,
 		reportTypePtr,
@@ -139,14 +138,13 @@ func mainInit() int {
 		return 0
 	}
 
-	searchPath := validatorConfig.searchPath
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 
-	fsOpts := []finder.FSFinderOptions{finder.WithPathRoot(searchPath),
+	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes)}
 

@@ -12,7 +12,7 @@ import (
 )
 
 type FileSystemFinder struct {
-	PathRoot         string
+	PathRoots        []string
 	FileTypes        []filetype.FileType
 	ExcludeDirs      []string
 	ExcludeFileTypes []string
@@ -22,9 +22,9 @@ type FileSystemFinder struct {
 type FSFinderOptions func(*FileSystemFinder)
 
 // Set the CLI SearchPath
-func WithPathRoot(path string) FSFinderOptions {
+func WithPathRoots(paths ...string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.PathRoot = path
+		fsf.PathRoots = paths
 	}
 }
 
@@ -58,10 +58,10 @@ func WithDepth(depthVal int) FSFinderOptions {
 
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	var defaultExludeDirs []string
-	defaultPathRoot := "."
+	defaultPathRoots := []string{"."}
 
 	fsfinder := &FileSystemFinder{
-		PathRoot:    defaultPathRoot,
+		PathRoots:   defaultPathRoots,
 		FileTypes:   filetype.FileTypes,
 		ExcludeDirs: defaultExludeDirs,
 	}
@@ -73,19 +73,45 @@ func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	return fsfinder
 }
 
-// Find implements the FileFinder interface by recursively
-// walking through all subdirectories (excluding the excluded subdirectories)
-// and identifying if the file matches a type defined in the fileTypes array.
+// Find implements the FileFinder interface by calling findOne on
+// all the PathRoots and providing the aggregated FileMetadata after
+// ignoring all the duplicate files
 func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
+	seen := make(map[string]struct{}, 0)
+	uniqueMatches := make([]FileMetadata, 0)
+	for _, pathRoot := range fsf.PathRoots {
+		matches, err := fsf.findOne(pathRoot)
+		if err != nil {
+			return nil, err
+		}
+		for _, match := range matches {
+			absPath, err := filepath.Abs(match.Path)
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := seen[absPath]; ok {
+				continue
+			}
+			uniqueMatches = append(uniqueMatches, match)
+			seen[absPath] = struct{}{}
+		}
+	}
+	return uniqueMatches, nil
+}
+
+// findOne recursively walks through all subdirectories (excluding the excluded subdirectories)
+// and identifying if the file matches a type defined in the fileTypes array for a
+// single path and returns the file metadata.
+func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 	var matchingFiles []FileMetadata
 
 	// check that the path exists before walking it or the error returned
 	// from filepath.Walk will be very confusing and undescriptive
-	if _, err := os.Stat(fsf.PathRoot); os.IsNotExist(err) {
+	if _, err := os.Stat(pathRoot); os.IsNotExist(err) {
 		return nil, err
 	}
 
-	err := filepath.WalkDir(fsf.PathRoot,
+	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
 			// determine if directory is in the excludeDirs list
 			if dirEntry.IsDir() && fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > *fsf.Depth {
