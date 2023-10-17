@@ -25,6 +25,8 @@ var testData = []struct {
 	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
 	{"invalidHcl", []byte(`"key" = "value"`), false, HclValidator{}},
 	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
+	{"validCSV", []byte(`first_name,last_name,username\nRob,Pike,rob\n`), true, CsvValidator{}},
+	{"invalidCSV", []byte(`This string has a \" in it`), false, CsvValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
