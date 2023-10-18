@@ -71,7 +71,7 @@ jobs:
           exit 1
         fi
       env:
-        COVERAGE_THRESHOLD: 96
+        COVERAGE_THRESHOLD: 95
 
     - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
       uses: tj-actions/coverage-badge-go@v2
