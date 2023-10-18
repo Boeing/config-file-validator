@@ -58,6 +58,7 @@ jobs:
       run: go test -cover -coverprofile coverage.out ./...
 
     - name: Check coverage
+      id: check-coverage
       run: |
         # Validate that the coverage is above or at the required threshold
         echo "Checking if test coverage is above threshold ..."
@@ -71,8 +72,7 @@ jobs:
           exit 1
         fi
 
-        # Package coverage for Badge
-        go tool cover -func=coverage.out -o=coverage_summary.out
+        echo "total_coverage=$totalCoverage" >> "$GITHUB_OUTPUT"
       env:
         COVERAGE_THRESHOLD: 95
     
@@ -82,6 +82,7 @@ jobs:
         # Create Badge URL
         # Badge will always be green because of coverage threshold check
         # so we just have to populate the total coverage
+        totalCoverage=${{ steps.check-coverage.outputs.total_coverage }}
         BADGE_URL=https://img.shields.io/badge/Coverage-$totalCoverage%25-brightgreen
         BADGE_IMG_TAG="<img id=\"cov\" src=\"$BADGE_URL\" alt=\"Code Coverage\" />"
 
