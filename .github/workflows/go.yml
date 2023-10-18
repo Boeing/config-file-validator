@@ -70,13 +70,16 @@ jobs:
           echo "Current test coverage is below threshold"
           exit 1
         fi
+
+        # Package coverage for Badge
+        go tool cover -func=coverage.out -o=coverage_summary.out
       env:
         COVERAGE_THRESHOLD: 95
 
     - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
       uses: tj-actions/coverage-badge-go@v2
       with:
-        filename: coverage.out
+        filename: coverage_summary.out
 
     - name: Verify Changed files
       uses: tj-actions/verify-changed-files@v12
