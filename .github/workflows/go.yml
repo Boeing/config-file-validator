@@ -55,7 +55,7 @@ jobs:
         go-version: 1.21
 
     - name: Unit test
-      run: ./coverage.sh
+      run: bash ./coverage.sh
       env:
         COVERAGE_THRESHOLD: 96
 
