@@ -78,6 +78,14 @@ var PlistFileType = FileType{
 	validator.PlistValidator{},
 }
 
+// Instance of the FileType object to
+// represent a CSV file
+var CsvFileType = FileType{
+	"csv",
+	[]string{"csv"},
+	validator.CsvValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -88,5 +96,9 @@ var FileTypes = []FileType{
 	IniFileType,
 	PropFileType,
 	HclFileType,
+<<<<<<< HEAD
 	PlistFileType,
+=======
+	CsvFileType,
+>>>>>>> main
 }

@@ -25,6 +25,8 @@ var testData = []struct {
 	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
 	{"invalidHcl", []byte(`"key" = "value"`), false, HclValidator{}},
 	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
+	{"validCSV", []byte(`first_name,last_name,username\nRob,Pike,rob\n`), true, CsvValidator{}},
+	{"invalidCSV", []byte(`This string has a \" in it`), false, CsvValidator{}},
 	{"validPlist", []byte(`<?xml version="1.0" encoding="UTF-8"?>
 	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 	<plist version="1.0">

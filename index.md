@@ -50,7 +50,11 @@ How many deployments have you done that needed to be rolled back due to a missin
 * INI
 * Properties
 * HCL
+<<<<<<< HEAD
 * PLIST
+=======
+* CSV
+>>>>>>> main
 
 ## Installing
 There are several ways to install the config file validator tool
@@ -68,18 +72,18 @@ The config-file-validator is built as a statically linked binary which can be do
 
 ## Using
 ```
-Usage: validator [OPTIONS] [search_path]
+Usage: validator [OPTIONS] [<search_path>...]
 
 positional arguments:
     search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
 
 optional flags:
   -exclude-dirs string
-    	Subdirectories to exclude when searching for configuration files
+        Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
-    	A comma separated list of file types to ignore
+        A comma separated list of file types to ignore
   -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
+        Format of the printed report. Options are standard and json (default "standard")
 ```
 
 ### Examples
@@ -101,7 +105,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `ini`, `json`, `yaml`, `yml`, `toml`, `xml`, `properties`, `hcl` and `plist`
+Exclude file types in the search path. Available file types are `ini`, `json`, `yaml`, `yml`, `toml`, `xml`, `properties`, `hcl`, `csv` and `plist`
 
 ```
 validator --exclude-file-types=json /path/to/search

@@ -1,9 +1,10 @@
 package cli
 
 import (
+	"testing"
+
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
-	"testing"
 )
 
 func Test_CLI(t *testing.T) {
@@ -12,7 +13,7 @@ func Test_CLI(t *testing.T) {
 	stdoutReporter := reporter.StdoutReporter{}
 
 	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoot(searchPath),
+		finder.WithPathRoots(searchPath),
 		finder.WithExcludeDirs(excludeDirs),
 	)
 	cli := Init(
@@ -34,7 +35,7 @@ func Test_CLIWithFailedValidation(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir"}
 	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoot(searchPath),
+		finder.WithPathRoots(searchPath),
 		finder.WithExcludeDirs(excludeDirs),
 	)
 	cli := Init(
@@ -54,7 +55,7 @@ func Test_CLIWithFailedValidation(t *testing.T) {
 func Test_CLIBadPath(t *testing.T) {
 	searchPath := "/bad/path"
 	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoot(searchPath),
+		finder.WithPathRoots(searchPath),
 	)
 	cli := Init(
 		WithFinder(fsFinder),

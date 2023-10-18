@@ -2,7 +2,7 @@
 Validator recusively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
-Currently json, yaml, toml, xml, ini, properties, hcl and plist configuration file
+Currently json, yaml, toml, xml, ini, properties, hcl, csv and plist configuration file
 types are supported.
 
 Usage:
@@ -35,16 +35,17 @@ import (
 )
 
 type validatorConfig struct {
-	searchPath       string
+	searchPaths      []string
 	excludeDirs      *string
 	excludeFileTypes *string
 	reportType       *string
+	depth            *int
 	versionQuery     *bool
 }
 
 // Custom Usage function to cover
 func validatorUsage() {
-	fmt.Printf("Usage: validator [OPTIONS] [search_path]\n\n")
+	fmt.Printf("Usage: validator [OPTIONS] [<search_path>...]\n\n")
 	fmt.Printf("positional arguments:\n")
 	fmt.Printf(
 		"    search_path: The search path on the filesystem for configuration files. " +
@@ -63,19 +64,19 @@ func getFlags() (validatorConfig, error) {
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	flag.Parse()
 
-	var searchPath string
+	searchPaths := make([]string, 0)
 
-	// If search path arg is empty set it to the cwd
-	// if not set it to the arg. Only support one search path
-	// for now but in the future it could be expanded to support
-	// n number of paths
+	// If search path arg is empty, set it to the cwd
+	// if not, set it to the arg. Supports n number of
+	// paths
 	if flag.NArg() == 0 {
-		searchPath = "."
+		searchPaths = append(searchPaths, ".")
 	} else {
-		searchPath = flag.Arg(0)
+		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
 	if *reportTypePtr != "standard" && *reportTypePtr != "json" {
@@ -84,15 +85,35 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard or json")
 	}
 
+	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
+		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
+		flag.Usage()
+		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
+	}
+
 	config := validatorConfig{
-		searchPath,
+		searchPaths,
 		excludeDirsPtr,
 		excludeFileTypesPtr,
 		reportTypePtr,
+		depthPtr,
 		versionPtr,
 	}
 
 	return config, nil
+}
+
+// isFlagSet verifies if a given flag has been set or not
+func isFlagSet(flagName string) bool {
+	var isSet bool
+
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == flagName {
+			isSet = true
+		}
+	})
+
+	return isSet
 }
 
 // Return the reporter associated with the
@@ -117,19 +138,22 @@ func mainInit() int {
 		return 0
 	}
 
-	searchPath := validatorConfig.searchPath
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 
-	// Initialize a file system finder
-	fileSystemFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoot(searchPath),
+	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
-		finder.WithExcludeFileTypes(excludeFileTypes),
-	)
+		finder.WithExcludeFileTypes(excludeFileTypes)}
+
+	if validatorConfig.depth != nil && isFlagSet("depth") {
+		fsOpts = append(fsOpts, finder.WithDepth(*validatorConfig.depth))
+	}
+
+	// Initialize a file system finder
+	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
 	// Initialize the CLI
 	cli := cli.Init(
