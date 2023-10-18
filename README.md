@@ -1,5 +1,5 @@
 <div align="center">
-![Coverage](https://img.shields.io/badge/Coverage-1-red)
+![Coverage](https://img.shields.io/badge/Coverage-95.7%25-brightgreen)
 <img src="./img/logo.png" width="200" height="200"/>
 <h1>Config File Validator</h1>
 </div>
