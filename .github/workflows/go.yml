@@ -55,10 +55,10 @@ jobs:
         go-version: 1.21
 
     - name: Unit test
-      run: |
-        # Run unit tests and produce a coverage report
-        go test -cover -coverprofile coverage.out ./...
+      run: go test -cover -coverprofile coverage.out ./...
 
+    - name: Check coverage
+      run: |
         # Validate that the coverage is above or at the required threshold
         echo "Checking if test coverage is above threshold ..."
         echo "Coverage threshold: $COVERAGE_THRESHOLD %"
@@ -75,20 +75,28 @@ jobs:
         go tool cover -func=coverage.out -o=coverage_summary.out
       env:
         COVERAGE_THRESHOLD: 95
+    
+    - name: Create badge img tag and apply to README files
+      id: generate-badge
+      run: |
+        # Create Badge URL
+        # Badge will always be green because of coverage threshold check
+        # so we just have to populate the total coverage
+        BADGE_URL=https://img.shields.io/badge/Coverage-$totalCoverage%25-brightgreen
+        BADGE_IMG_TAG="<img id=\"cov\" src=\"$BADGE_URL\" alt=\"Code Coverage\" />"
 
-    - name: Go Coverage Badge  # Pass the `coverage.out` output to this action
-      uses: tj-actions/coverage-badge-go@v2
-      with:
-        filename: coverage_summary.out
+        # Update README.md and index.md
+        for markdown_file in README.md index.md; do
+          sed -i "/id=\"cov\"/c\\${BADGE_IMG_TAG}" $markdown_file
+        done
 
-    - name: Verify Changed files
-      uses: tj-actions/verify-changed-files@v12
-      id: verify-changed-files
-      with:
-        files: README.md
+        # Check to see if files were updated
+        if [[ `git status --porcelain` ]]; then
+          echo "badge_updates=true" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Commit changes
-      if: steps.verify-changed-files.outputs.files_changed == 'true'
+      if: steps.generate-badge.outputs.badge_updates == 'true'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -96,7 +104,7 @@ jobs:
         git commit -m "chore: Updated coverage badge."
 
     - name: Push changes
-      if: steps.verify-changed-files.outputs.files_changed == 'true'
+      if: steps.generate-badge.outputs.badge_updates == 'true'
       uses: ad-m/github-push-action@master
       with:
         github_token: ${{ github.token }}
