@@ -96,9 +96,6 @@ var FileTypes = []FileType{
 	IniFileType,
 	PropFileType,
 	HclFileType,
-<<<<<<< HEAD
 	PlistFileType,
-=======
 	CsvFileType,
->>>>>>> main
 }
