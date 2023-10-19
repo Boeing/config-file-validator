@@ -56,7 +56,7 @@ jobs:
         go-version: 1.21
 
     - name: Unit test
-      run: go test -cover -coverprofile coverage.out ./...
+      run: go test -v -cover -coverprofile coverage.out ./...
 
     - name: Check coverage
       id: check-coverage
