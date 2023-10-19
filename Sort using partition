@@ -1,0 +1,57 @@
+int partition(int a[], int low, int high)
+{
+	int x,i,j,temp;
+	x=a[low];
+	i=low;
+	j=high;
+	while(i<j)
+	{
+		while(a[i]<=x)
+		   i++;
+		while(a[j]>x)
+		   j--;
+		if(i<j)
+		{
+			temp=a[i];
+			a[i]=a[j];
+			a[j]=temp;
+		}
+	}
+	temp=a[low];
+	a[low]=a[j];
+	a[j]=temp;
+	return j;
+}
+
+void quicksort(int a[10], int low, int high)
+{
+	int j;
+	if(low<high)
+	{
+		j=partition(a,low,high);
+		quicksort(a,low,j-1);
+		quicksort(a,j+1,high);
+	}
+}
+
+void display(int a[], int n)
+{
+	int i;
+	for(i=0;i<n;i++)
+	printf("%d\t",a[i]);
+}
+
+void main()
+{
+	int a[10],n,i;
+	printf("Enter the number of elements in array:");
+	scanf("%d",&n);
+	printf("Enter %d elements:",n);
+	for(i=0;i<n;i++)
+	    scanf("%d",&a[i]);
+	printf("Array elements are:");
+	display(a,n);
+	quicksort(a,0,n-1);
+	printf("\nSorted array:");
+	display(a,n);
+}
