@@ -50,11 +50,8 @@ How many deployments have you done that needed to be rolled back due to a missin
 * INI
 * Properties
 * HCL
-<<<<<<< HEAD
 * PLIST
-=======
 * CSV
->>>>>>> main
 
 ## Installing
 There are several ways to install the config file validator tool
