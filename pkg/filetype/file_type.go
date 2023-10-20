@@ -71,6 +71,14 @@ var HclFileType = FileType{
 }
 
 // Instance of the FileType object to
+// represent a Plist file
+var PlistFileType = FileType{
+	"plist",
+	[]string{"plist"},
+	validator.PlistValidator{},
+}
+
+// Instance of the FileType object to
 // represent a CSV file
 var CsvFileType = FileType{
 	"csv",
@@ -88,5 +96,6 @@ var FileTypes = []FileType{
 	IniFileType,
 	PropFileType,
 	HclFileType,
+	PlistFileType,
 	CsvFileType,
 }
