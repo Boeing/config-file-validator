@@ -52,6 +52,7 @@ How many deployments have you done that needed to be rolled back due to a missin
 * INI
 * Properties
 * HCL
+* PLIST
 * CSV
 
 ## Installing
@@ -103,7 +104,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `ini`, `json`, `yaml`, `yml`, `toml`, `xml`, `properties`, `hcl` and `csv`
+Exclude file types in the search path. Available file types are `ini`, `json`, `yaml`, `yml`, `toml`, `xml`, `properties`, `hcl`, `csv` and `plist`
 
 ```
 validator --exclude-file-types=json /path/to/search

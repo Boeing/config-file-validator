@@ -22,4 +22,5 @@ require (
 	github.com/zclconf/go-cty v1.13.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
+	howett.net/plist v1.0.0 // indirect
 )
