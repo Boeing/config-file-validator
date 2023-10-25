@@ -12,7 +12,6 @@ on:
   pull_request:
 
 jobs:
-
   download:
     runs-on: ubuntu-latest
     steps:
@@ -60,13 +59,73 @@ jobs:
   test:
     needs: download
     runs-on: ubuntu-latest
+    name: Update coverage badge
     steps:
     - uses: actions/checkout@v3
+      with:
+        persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+        fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
         go-version: 1.21
 
-    - name: Test
-      run: go test -v ./...
+    - name: Unit test
+      run: go test -v -cover -coverprofile coverage.out ./...
+
+    - name: Check coverage
+      id: check-coverage
+      run: |
+        # Validate that the coverage is above or at the required threshold
+        echo "Checking if test coverage is above threshold ..."
+        echo "Coverage threshold: $COVERAGE_THRESHOLD %"
+        totalCoverage=`go tool cover -func coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+'`
+        echo "Current test coverage : $totalCoverage %"
+        if (( $(echo "$COVERAGE_THRESHOLD <= $totalCoverage" | bc -l) )); then
+            echo "Coverage OK"
+        else
+          echo "Current test coverage is below threshold"
+          exit 1
+        fi
+
+        echo "total_coverage=$totalCoverage" >> "$GITHUB_OUTPUT"
+      env:
+        COVERAGE_THRESHOLD: 95
+    
+    - name: Create badge img tag and apply to README files
+      id: generate-badge
+      run: |
+        # Create Badge URL
+        # Badge will always be green because of coverage threshold check
+        # so we just have to populate the total coverage
+        totalCoverage=${{ steps.check-coverage.outputs.total_coverage }}
+        BADGE_URL=https://img.shields.io/badge/Coverage-$totalCoverage%25-brightgreen
+        BADGE_IMG_TAG="<img id=\"cov\" src=\"$BADGE_URL\" alt=\"Code Coverage\" />"
+
+        # Update README.md and index.md
+        for markdown_file in README.md index.md; do
+          sed -i "/id=\"cov\"/c\\${BADGE_IMG_TAG}" $markdown_file
+        done
+
+        # Check to see if files were updated
+        if [[ `git status --porcelain` ]]; then
+          echo "badge_updates=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "badge_updates=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Commit changes
+      if: steps.generate-badge.outputs.badge_updates == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md index.md
+        git commit -m "chore: Updated coverage badge."
+
+    - name: Push changes
+      if: steps.generate-badge.outputs.badge_updates == 'true'
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ github.token }}
+        branch: ${{ github.ref }}
