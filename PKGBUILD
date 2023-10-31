@@ -20,11 +20,11 @@ build() {
   go build \
   -ldflags='-w -s -extldflags "-static"' \
   -tags netgo \
-  -o config-file-validator \
+  -o validator \
   cmd/validator/validator.go
 }
 
 package() {
   cd "$pkgname-$pkgver"
-  install -Dm755 config-file-validator "$pkgdir/usr/bin/config-file-validator"
+  install -Dm755 validator "$pkgdir/usr/bin/validator"
 }
