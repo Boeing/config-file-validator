@@ -13,11 +13,13 @@
     </div>
     <div>
         <h1>Config File Validator</h1>
+        <p>Single cross-platform CLI tool to validate different configuration file types</p>
     </div>
+    <br />
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-95.8%25-brightgreen" alt="Code Coverage" />
+  <img id="cov" src="https://img.shields.io/badge/Coverage-95.8%25-brightgreen" alt="Code Coverage" />
 
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
@@ -36,53 +38,89 @@
   </a>
 </p>
 
-## About
-How many deployments have you done that needed to be rolled back due to a missing character in a configuration file in your repo? If you're like most teams that number is greater than zero. The config file validator was created to solve this problem by searching through your project and validating the syntax of all configuration files. 
-
-### Where can you use this tool?
-* In a CI/CD pipeline as a quality gate
-* On your desktop to validate configuration files as you write them
-* As a library within your existing go code
-
-### What types of files are supported?
+## Supported config files formats:
 * XML
 * JSON
 * YAML
 * TOML
 * INI
-* Properties
 * HCL
-* PLIST
 * CSV
+* Properties
+* Apple PList XML
 
-## Installing
+## Demo
+
+<img src="./img/demo.gif" alt="demo" />
+
+## Installation
 There are several ways to install the config file validator tool
 
-### Using `go install`
+### Docker
+
+We offer alpine, ubuntu, and scratch containers
+
+#### Apline 
+
+```
+docker pull config-file-validator:1.5.0
+```
+
+#### Ubuntu
+
+```
+docker pull config-file-validator-ubuntu:1.5.0
+```
+
+#### Scratch
+
+```
+docker pull config-file-validator-scratch:1.5.0
+```
+
+### Binary Releases
+Download and unpack from https://github.com/Boeing/config-file-validator/releases
+
+### Aqua
+You can install the validator using [aqua](https://aquaproj.github.io/).
+
+```
+aqua g -i Boeing/config-file-validator
+```
+
+### Arch Linux
+We release a [PKGBUILD](https://github.com/Boeing/config-file-validator/blob/main/PKGBUILD) file for Arch Linux
+
+```
+cd config-file-validator
+makepkg -si
+```
+
+### `go install`
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```
-go install github.com/Boeing/config-file-validator/cmd/validator
+go install github.com/Boeing/config-file-validator/cmd/validator@v1.5.0
 ```
 
-
-### Executables
-The config-file-validator is built as a statically linked binary which can be downloaded and executed on your target system. Binaries are available for Linux, Windows, and MacOS. Navigate to the [releases](https://github.com/Boeing/config-file-validator/releases) page to download the latest version. Once the binary has been downloaded it needs to be installed by moving the downloaded file to a location on your operating system's PATH.
-
-## Using
+## Usage
 ```
 Usage: validator [OPTIONS] [<search_path>...]
 
 positional arguments:
-    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
+    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided. Multiple search paths can be declared separated by a space.
 
 optional flags:
+  -depth int
+    	Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
   -exclude-dirs string
-        Subdirectories to exclude when searching for configuration files
+    	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
-        A comma separated list of file types to ignore
+    	A comma separated list of file types to ignore
   -reporter string
-        Format of the printed report. Options are standard and json (default "standard")
+    	Format of the printed report. Options are standard and json (default "standard")
+  -version
+    	Version prints the release version of validator
 ```
 
 ### Examples
@@ -94,7 +132,15 @@ validator /path/to/search
 
 ![Standard Run](./img/standard_run.png)
 
-#### Exclude dirs
+#### Multiple search paths
+Multiple search paths are supported and the results will be merged into a single report
+```
+validator /path/to/search /another/path/to/search
+```
+
+![Multiple Search Paths Run](./img/multiple_paths.png)
+
+#### Exclude directories
 Exclude subdirectories in the search path
 
 ```
@@ -112,6 +158,15 @@ validator --exclude-file-types=json /path/to/search
 
 ![Exclude File Types Run](./img/exclude_file_types.png)
 
+#### Customize recursion depth
+By default there is no recursion limt. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated. 
+
+```
+validator --depth=0 /path/to/search
+```
+
+![Custom Recursion Run](./img/custom_recursion.png)
+
 #### Customize report output
 Customize the report output. Available options are `standard` and `json`
 
@@ -124,13 +179,32 @@ validator --reporter=json /path/to/search
 
 #### Container Run
 ```
-docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.4.0 /test
+docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.5.0 /test
 ```
 
 ![Docker Standard Run](./img/docker_run.png)
 
-## Building from source
-The project can be downloaded and built from source using an environment with golang 1.17+ installed. After successful build, the statically-linked binary can be moved to a location on your operating system PATH.
+## Build
+The project can be downloaded and built from source using an environment with golang 1.21 installed. After successful build, the binary can be moved to a location on your operating system PATH.
+
+### MacOS
+#### Build
+```
+CGO_ENABLED=0 \
+GOOS=darwin \
+GOARCH=amd64 \ # for Apple Silicon use arm64
+go build \
+-ldflags='-w -s -extldflags "-static"' \
+-tags netgo \
+-o validator \
+cmd/validator/validator.go
+```
+
+#### Install
+```
+cp ./validator /usr/local/bin/
+chmod +x /usr/local/bin/validator
+```
 
 ### Linux
 #### Build
@@ -172,10 +246,10 @@ cp .\validator.exe 'C:\Program Files\validator'
 ```
 
 ### Docker
-You can also use the provided Dockerfile to build the config file validator tool in a container
+You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```
-docker build . -t config-file-validator
+docker build . -t config-file-validator:v1.5.0
 ```
 
 ## Contributing

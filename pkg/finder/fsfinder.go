@@ -111,10 +111,17 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 		return nil, err
 	}
 
+	var depth int
+	if fsf.Depth != nil {
+		depth = *fsf.Depth
+	}
+
+	maxDepth := strings.Count(pathRoot, string(os.PathSeparator)) + depth
+
 	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
 			// determine if directory is in the excludeDirs list
-			if dirEntry.IsDir() && fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > *fsf.Depth {
+			if dirEntry.IsDir() && fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth {
 				// Skip processing the directory
 				return fs.SkipDir // This is not reported as an error by filepath.WalkDir
 			}
