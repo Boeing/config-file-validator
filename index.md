@@ -63,19 +63,19 @@ We offer alpine, ubuntu, and scratch containers
 #### Apline 
 
 ```
-docker pull config-file-validator:1.5.0
+docker pull ghcr.io/boeing/config-file-validator:v1.5.0
 ```
 
 #### Ubuntu
 
 ```
-docker pull config-file-validator-ubuntu:1.5.0
+docker pull ghcr.io/boeing/config-file-validator-ubuntu:v1.5.0
 ```
 
 #### Scratch
 
 ```
-docker pull config-file-validator-scratch:1.5.0
+docker pull ghcr.io/boeing/config-file-validator-scratch:v1.5.0
 ```
 
 ### Binary Releases
