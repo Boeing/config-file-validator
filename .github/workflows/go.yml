@@ -116,7 +116,7 @@ jobs:
         fi
 
     - name: Commit changes
-      if: steps.generate-badge.outputs.badge_updates == 'true'
+      if: steps.generate-badge.outputs.badge_updates == 'true' && github.event_name != 'pull_request'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -124,7 +124,7 @@ jobs:
         git commit -m "chore: Updated coverage badge."
 
     - name: Push changes
-      if: steps.generate-badge.outputs.badge_updates == 'true'
+      if: steps.generate-badge.outputs.badge_updates == 'true' && github.event_name != 'pull_request'
       uses: ad-m/github-push-action@master
       with:
         github_token: ${{ github.token }}
