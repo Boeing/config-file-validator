@@ -159,7 +159,7 @@ validator --exclude-file-types=json /path/to/search
 ![Exclude File Types Run](./img/exclude_file_types.png)
 
 #### Customize recursion depth
-By default there is no recursion limt. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated. 
+By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated. 
 
 ```
 validator --depth=0 /path/to/search
