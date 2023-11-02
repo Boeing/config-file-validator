@@ -39,15 +39,15 @@
 </p>
 
 ## Supported config files formats:
-* XML
-* JSON
-* YAML
-* TOML
-* INI
-* HCL
-* CSV
-* Properties
 * Apple PList XML
+* CSV
+* HCL
+* INI
+* JSON
+* Properties
+* TOML
+* XML
+* YAML
 
 ## Demo
 
@@ -150,7 +150,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `ini`, `json`, `yaml`, `yml`, `toml`, `xml`, `properties`, `hcl`, `csv` and `plist`
+Exclude file types in the search path. Available file types are `csv`, `hcl`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`
 
 ```
 validator --exclude-file-types=json /path/to/search

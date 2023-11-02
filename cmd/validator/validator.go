@@ -2,20 +2,25 @@
 Validator recusively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
-Currently json, yaml, toml, xml, ini, properties, hcl, csv and plist configuration file
-types are supported.
+Currently Apple PList XML, CSV, HCL, INI, JSON, Properties, TOML, XML, and YAML
+configuration file types are supported.
 
-Usage:
+Usage: validator [OPTIONS] [<search_path>...]
 
-    validator [OPTIONS] [search_path]
+positional arguments:
+    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided. Multiple search paths can be declared separated by a space.
 
-The flags are:
-    -exclude-dirs string
-        Subdirectories to exclude when searching for configuration files.
-    -reporter string
-        Format of printed report. Currently supports standard, JSON.
-    -exclude-file-types string
-        A comma separated list of file types to ignore.
+optional flags:
+  -depth int
+    	Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
+  -exclude-dirs string
+    	Subdirectories to exclude when searching for configuration files
+  -exclude-file-types string
+    	A comma separated list of file types to ignore
+  -reporter string
+    	Format of the printed report. Options are standard and json (default "standard")
+  -version
+    	Version prints the release version of validator
 */
 
 package main
