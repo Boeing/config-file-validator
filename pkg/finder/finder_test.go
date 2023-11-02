@@ -81,7 +81,7 @@ func Test_fsFinderWithDepth(t *testing.T) {
 			name:               "recursion enabled",
 			inputDepth:         4,
 			inputPathRoot:      "../../test/fixtures/with-depth",
-			expectedFilesCount: 1,
+			expectedFilesCount: 2,
 		},
 		{
 			name:               "recursion enabled with lesser depth in the folder structure",
