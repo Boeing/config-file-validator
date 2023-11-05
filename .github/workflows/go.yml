@@ -72,7 +72,9 @@ jobs:
         go-version: 1.21
 
     - name: Unit test
-      run: go test -v -cover -coverprofile coverage.out ./...
+      run: |
+        go test -v -cover -coverprofile coverage.out ./...
+        go tool cover -html=coverage.out -o gocoverage.html
 
     - name: Check coverage
       id: check-coverage
@@ -92,7 +94,13 @@ jobs:
         echo "total_coverage=$totalCoverage" >> "$GITHUB_OUTPUT"
       env:
         COVERAGE_THRESHOLD: 95
-    
+
+    - name: Create coverage pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: .
+
     - name: Create badge img tag and apply to README files
       id: generate-badge
       run: |
