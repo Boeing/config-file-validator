@@ -60,6 +60,8 @@ jobs:
     needs: download
     runs-on: ubuntu-latest
     name: Update coverage badge
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v3
       with:
@@ -122,10 +124,4 @@ jobs:
         git config --local user.name "GitHub Action"
         git add README.md index.md
         git commit -m "chore: Updated coverage badge."
-
-    - name: Push changes
-      if: steps.generate-badge.outputs.badge_updates == 'true' && github.event_name != 'pull_request'
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ github.token }}
-        branch: ${{ github.ref }}
+        git push
