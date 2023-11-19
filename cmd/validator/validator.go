@@ -175,6 +175,9 @@ func mainInit() int {
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
+
+    // since the group output is a comma separated string
+    // it needs to be split into a slice of strings
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),

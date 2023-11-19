@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
@@ -69,4 +70,30 @@ func Test_CLIBadPath(t *testing.T) {
 	if exitStatus == 0 {
 		t.Errorf("Exit status was not 1")
 	}
+}
+
+func Test_AllGroupedCLI(t *testing.T) {
+    searchPath := "../../test"
+    excludeDirs := []string{"subdir", "subdir2"}
+    groupOutput := []string{"pass/fail", "directory", "file"}
+    stdoutReporter := reporter.StdoutReporter{}
+
+    fsFinder := finder.FileSystemFinderInit(
+        finder.WithPathRoots(searchPath),
+        finder.WithExcludeDirs(excludeDirs),
+    )
+    cli := Init(
+        WithFinder(fsFinder),
+        WithReporter(stdoutReporter),
+        WithGroupOutput(groupOutput),
+    )
+    exitStatus, err := cli.Run()
+
+    if err != nil {
+        t.Errorf("An error was returned: %v", err)
+    }
+
+    if exitStatus != 0 {
+        t.Errorf("Exit status was not 0")
+    }
 }
