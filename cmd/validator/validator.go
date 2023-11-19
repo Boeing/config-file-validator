@@ -46,6 +46,7 @@ type validatorConfig struct {
 	reportType       *string
 	depth            *int
 	versionQuery     *bool
+	groupOutput    *string
 }
 
 // Custom Usage function to cover
@@ -71,6 +72,7 @@ func getFlags() (validatorConfig, error) {
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
+	groupOutputPtr := flag.String("groupby", "", "Group output by file type, directory, pass/fail, or none ")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
@@ -103,6 +105,7 @@ func getFlags() (validatorConfig, error) {
 		reportTypePtr,
 		depthPtr,
 		versionPtr,
+        groupOutputPtr,
 	}
 
 	return config, nil
@@ -148,6 +151,7 @@ func mainInit() int {
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
+    groupOutput := *validatorConfig.groupOutput
 
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
@@ -164,6 +168,7 @@ func mainInit() int {
 	cli := cli.Init(
 		cli.WithReporter(reporter),
 		cli.WithFinder(fileSystemFinder),
+        cli.WithGroupOutput(groupOutput),
 	)
 
 	// Run the config file validation

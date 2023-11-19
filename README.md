@@ -46,7 +46,7 @@ There are several ways to install the config file validator tool
 
 We offer alpine, ubuntu, and scratch containers
 
-#### Apline 
+#### Apline
 
 ```
 docker pull ghcr.io/boeing/config-file-validator:v1.5.0
@@ -107,6 +107,9 @@ optional flags:
     	Format of the printed report. Options are standard and json (default "standard")
   -version
     	Version prints the release version of validator
+  -groupby string
+        Group the output by file type, pass/fail, or directory
+
 ```
 
 ### Examples
@@ -130,7 +133,7 @@ validator /path/to/search /another/path/to/search
 Exclude subdirectories in the search path
 
 ```
-validator --exclude-dirs=/path/to/search/tests /path/to/search 
+validator --exclude-dirs=/path/to/search/tests /path/to/search
 ```
 
 ![Exclude Dirs Run](./img/exclude_dirs.png)
@@ -145,7 +148,7 @@ validator --exclude-file-types=json /path/to/search
 ![Exclude File Types Run](./img/exclude_file_types.png)
 
 #### Customize recursion depth
-By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated. 
+By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated.
 
 ```
 validator --depth=0 /path/to/search
