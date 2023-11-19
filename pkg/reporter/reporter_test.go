@@ -66,3 +66,34 @@ func Test_jsonReport(t *testing.T) {
 		t.Errorf("Reporting failed")
 	}
 }
+
+func Test_junitReport(t *testing.T) {
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+	}
+
+	reportWithBackslashPath := Report{
+		"good.xml",
+		"\\fake\\path\\good.xml",
+		true,
+		nil,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithBackslashPath, reportWithValidationError}
+
+	junitReporter := JunitReporter{}
+	err := junitReporter.Print(reports)
+	if err != nil {
+		t.Errorf("Reporting failed")
+	}
+}

@@ -154,9 +154,7 @@ func (jr JunitReporter) Print(reports []Report) error {
 			testErrors++
 			tc.TestcaseFailure = &TestcaseFailure{Message: r.ValidationError.Error()}
 		}
-
 		testcases = append(testcases, tc)
-		// fmt.Println(r.FilePath, r.FileName, r.IsValid, r.ValidationError)
 	}
 	testsuite := Testsuite{Name: "config-file-validator", Testcases: &testcases, Errors: testErrors}
 	testsuiteBatch := []Testsuite{testsuite}
