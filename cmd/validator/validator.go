@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 
 	configfilevalidator "github.com/Boeing/config-file-validator"
@@ -46,7 +47,7 @@ type validatorConfig struct {
 	reportType       *string
 	depth            *int
 	versionQuery     *bool
-	groupOutput    *string
+	groupOutput      *string
 }
 
 // Custom Usage function to cover
@@ -72,10 +73,23 @@ func getFlags() (validatorConfig, error) {
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
-	groupOutputPtr := flag.String("groupby", "", "Group output by file type, directory, pass/fail, or none ")
+	groupOutputPtr := flag.String("groupby", "", "Group output by file type, directory, pass/fail")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
+
+    // groupByOptions is a slice of strings that contains the valid options for the groupby flag
+	groupByOptions := []string{"filetype", "directory", "pass/fail"}
+
+    // groupByPassed is a string that contains the value passed to the groupby flag
+    // We need to convert it to lowercase and remove any whitespace to give users more flexibility
+	groupByPassed := flag.Lookup("groupby").Value.String()
+	groupByPassed = strings.ToLower(groupByPassed)
+	groupByPassed = strings.TrimSpace(groupByPassed)
+
+    // groupByStrings is a slice of strings that contains the groupby options passed to the flag
+    // This will be used to validate that the options the user passed are valid
+	groupByStrings := strings.Split(groupByPassed, ",")
 
 	// If search path arg is empty, set it to the cwd
 	// if not, set it to the arg. Supports n number of
@@ -98,6 +112,16 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
 	}
 
+	if groupOutputPtr != nil && isFlagSet("groupby") {
+		for _, groupBy := range groupByStrings {
+			if !slices.Contains(groupByOptions, groupBy) {
+				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass/fail")
+				flag.Usage()
+				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass/fail, or none")
+			}
+		}
+	}
+
 	config := validatorConfig{
 		searchPaths,
 		excludeDirsPtr,
@@ -105,7 +129,7 @@ func getFlags() (validatorConfig, error) {
 		reportTypePtr,
 		depthPtr,
 		versionPtr,
-        groupOutputPtr,
+		groupOutputPtr,
 	}
 
 	return config, nil
@@ -151,7 +175,7 @@ func mainInit() int {
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
-    groupOutput := *validatorConfig.groupOutput
+	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
@@ -168,7 +192,7 @@ func mainInit() int {
 	cli := cli.Init(
 		cli.WithReporter(reporter),
 		cli.WithFinder(fileSystemFinder),
-        cli.WithGroupOutput(groupOutput),
+		cli.WithGroupOutput(groupOutput),
 	)
 
 	// Run the config file validation
