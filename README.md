@@ -46,7 +46,7 @@ There are several ways to install the config file validator tool
 
 We offer alpine, ubuntu, and scratch containers
 
-#### Apline
+#### Alpine
 
 ```
 docker pull ghcr.io/boeing/config-file-validator:v1.5.0
