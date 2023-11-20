@@ -73,7 +73,7 @@ func getFlags() (validatorConfig, error) {
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
-	groupOutputPtr := flag.String("groupby", "", "Group output by file type, directory, pass/fail")
+	groupOutputPtr := flag.String("groupby", "", "Group output by file type, directory, pass-fail")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
