@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
@@ -11,6 +10,7 @@ import (
 func Test_CLI(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
+    groupBy := []string{}
 	stdoutReporter := reporter.StdoutReporter{}
 
 	fsFinder := finder.FileSystemFinderInit(
@@ -20,6 +20,7 @@ func Test_CLI(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporter(stdoutReporter),
+        WithGroupOutput(groupBy),
 	)
 	exitStatus, err := cli.Run()
 
@@ -72,10 +73,10 @@ func Test_CLIBadPath(t *testing.T) {
 	}
 }
 
-func Test_AllGroupedCLI(t *testing.T) {
+func Test_CLIWithGroup(t *testing.T) {
     searchPath := "../../test"
     excludeDirs := []string{"subdir", "subdir2"}
-    groupOutput := []string{"pass/fail", "directory", "file"}
+    groupOutput := []string{"pass/fail", "directory", "filetype"}
     stdoutReporter := reporter.StdoutReporter{}
 
     fsFinder := finder.FileSystemFinderInit(
