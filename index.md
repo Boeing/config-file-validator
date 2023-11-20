@@ -6,7 +6,7 @@
         <div style="position: absolute; right: 0; top: 0">
             <a href="https://github.com/Boeing/config-file-validator">
                 <img decoding="async" loading="lazy" width="149" height="149" 
-                src="https://github.blog/wp-content/uploads/2008/12/forkme_right_red_aa0000.png?resize=149%2C149" 
+                src="./img/fork-me-on-github.png" 
                 class="attachment-full size-full" alt="Fork me on GitHub" data-recalc-dims="1">
             </a>
         </div>
