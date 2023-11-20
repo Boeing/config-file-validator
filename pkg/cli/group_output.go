@@ -27,7 +27,7 @@ func GroupByFile(reports []reporter.Report) []reporter.Report {
 	return reportByFile
 }
 
-// Group Files by Pass/Fail
+// Group Files by Pass-Fail
 func GroupByPassFail(reports []reporter.Report) []reporter.Report {
 	mapFiles := make(map[string][]reporter.Report)
 	reportByPassOrFail := []reporter.Report{}
