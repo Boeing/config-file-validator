@@ -77,8 +77,10 @@ func GroupByDirectory(reports []reporter.Report) []reporter.Report {
 }
 
 func GroupBy(reports []reporter.Report, groupBy []string) []reporter.Report {
-	for _, group := range groupBy {
-		switch group {
+    // Iterate through groupBy in reverse order
+    // This will make the first command the primary grouping
+    for i := len(groupBy)-1; i >= 0; i--  {
+		switch groupBy[i] {
 		case "pass/fail":
 			reports = GroupByPassFail(reports)
 		case "filetype":
