@@ -62,7 +62,7 @@ func GroupByDirectory(reports []reporter.Report) []reporter.Report {
 
 	for _, report := range reports {
 		directoryPaths := strings.Split(report.FilePath, "/")
-        directory := directoryPaths[len(directoryPaths)-2]
+        	directory := directoryPaths[len(directoryPaths)-2]
 		if mapFiles[directory] == nil {
 			mapFiles[directory] = []reporter.Report{report}
 		} else {
@@ -78,9 +78,9 @@ func GroupByDirectory(reports []reporter.Report) []reporter.Report {
 }
 
 func GroupBy(reports []reporter.Report, groupBy []string) []reporter.Report {
-    // Iterate through groupBy in reverse order
-    // This will make the first command the primary grouping
-    for i := len(groupBy)-1; i >= 0; i--  {
+    	// Iterate through groupBy in reverse order
+    	// This will make the first command the primary grouping
+	for i := len(groupBy)-1; i >= 0; i--  {
 		switch groupBy[i] {
 		case "pass-fail":
 			reports = GroupByPassFail(reports)
@@ -89,6 +89,6 @@ func GroupBy(reports []reporter.Report, groupBy []string) []reporter.Report {
 		case "directory":
 			reports = GroupByDirectory(reports)
 		}
-	}
+    	}
 	return reports
 }
