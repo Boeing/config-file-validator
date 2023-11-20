@@ -10,7 +10,7 @@ import (
 func Test_CLI(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
-    groupBy := []string{}
+    	groupBy := []string{}
 	stdoutReporter := reporter.StdoutReporter{}
 
 	fsFinder := finder.FileSystemFinderInit(
@@ -20,7 +20,7 @@ func Test_CLI(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporter(stdoutReporter),
-        WithGroupOutput(groupBy),
+        	WithGroupOutput(groupBy),
 	)
 	exitStatus, err := cli.Run()
 
