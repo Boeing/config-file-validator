@@ -151,7 +151,7 @@ func getReporter(reportType *string) reporter.Reporter {
 }
 
 // cleanString takes a command string and a split string
-// and returns a slice of strings
+// and returns a cleaned string
 func cleanString(command string) string {
 	cleanedString := flag.Lookup(command).Value.String()
 	cleanedString = strings.ToLower(cleanedString)
