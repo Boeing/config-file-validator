@@ -104,7 +104,7 @@ optional flags:
   -exclude-file-types string
     	A comma separated list of file types to ignore
   -groupby string
-        Group the output by filetype, pass/fail, or directory
+        Group the output by filetype, pass-fail, or directory
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
@@ -166,11 +166,11 @@ validator --reporter=json /path/to/search
 ![Exclude File Types Run](./img/custom_reporter.png)
 
 ### Group report output
-Group the report output by file type, directory, or pass/fail. Supports one or more groupings.
+Group the report output by file type, directory, or pass-fail. Supports one or more groupings.
 
 ```
 validator -groupby filetype
-validator -groupby directory,pass/fail
+validator -groupby directory,pass-fail
 ```
 
 
