@@ -78,19 +78,6 @@ func getFlags() (validatorConfig, error) {
 
 	searchPaths := make([]string, 0)
 
-    // groupByOptions is a slice of strings that contains the valid options for the groupby flag
-	groupByOptions := []string{"filetype", "directory", "pass/fail"}
-
-    // groupByPassed is a string that contains the value passed to the groupby flag
-    // We need to convert it to lowercase and remove any whitespace to give users more flexibility
-	groupByPassed := flag.Lookup("groupby").Value.String()
-	groupByPassed = strings.ToLower(groupByPassed)
-	groupByPassed = strings.TrimSpace(groupByPassed)
-
-    // groupByStrings is a slice of strings that contains the groupby options passed to the flag
-    // This will be used to validate that the options the user passed are valid
-	groupByStrings := strings.Split(groupByPassed, ",")
-
 	// If search path arg is empty, set it to the cwd
 	// if not, set it to the arg. Supports n number of
 	// paths
@@ -112,9 +99,12 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
 	}
 
+    groupByAllowedValues := []string{"filetype", "directory", "pass/fail"}
+    groupByUserInput := cleanMultiInputCommandString("groupby",",")
+
 	if groupOutputPtr != nil && isFlagSet("groupby") {
-		for _, groupBy := range groupByStrings {
-			if !slices.Contains(groupByOptions, groupBy) {
+		for _, groupBy := range groupByUserInput {
+			if !slices.Contains(groupByAllowedValues, groupBy) {
 				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass/fail")
 				flag.Usage()
 				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass/fail, or none")
@@ -159,6 +149,17 @@ func getReporter(reportType *string) reporter.Reporter {
 	}
 }
 
+// cleanMultiInputCommandString takes a command string and a split string
+// and returns a slice of strings
+func cleanMultiInputCommandString(command, split string) []string {
+	commandValue := flag.Lookup(command).Value.String()
+	commandValue = strings.ToLower(commandValue)
+	commandValue = strings.TrimSpace(commandValue)
+	cleanedString := strings.Split(commandValue, split)
+
+	return cleanedString
+}
+
 func mainInit() int {
 	validatorConfig, err := getFlags()
 	if err != nil {
@@ -176,8 +177,8 @@ func mainInit() int {
 	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 
-    // since the group output is a comma separated string
-    // it needs to be split into a slice of strings
+	// since the group output is a comma separated string
+	// it needs to be split into a slice of strings
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),

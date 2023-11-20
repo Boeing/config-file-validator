@@ -96,19 +96,11 @@ func (c CLI) Run() (int, error) {
 		reports = append(reports, report)
 	}
 
+	// Group the output if the user specified a group by option
 	if len(GroupOutput) > 0 {
-		for _, group := range GroupOutput {
-			switch group {
-			case "filetype":
-				reports = GroupByFile(reports)
-			case "pass/fail":
-				reports = GroupByPassFail(reports)
-			case "directory":
-				reports = GroupByDirectory(reports)
-			}
-		}
-		c.Reporter.Print(reports)
+		reports = GroupBy(reports, GroupOutput)
 	}
+	c.Reporter.Print(reports)
 
 	if errorFound {
 		return 1, nil
