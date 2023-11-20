@@ -76,7 +76,7 @@ func Test_CLIBadPath(t *testing.T) {
 func Test_CLIWithGroup(t *testing.T) {
     searchPath := "../../test"
     excludeDirs := []string{"subdir", "subdir2"}
-    groupOutput := []string{"pass/fail", "directory", "filetype"}
+    groupOutput := []string{"pass-fail", "directory", "filetype"}
     stdoutReporter := reporter.StdoutReporter{}
 
     fsFinder := finder.FileSystemFinderInit(
