@@ -82,7 +82,7 @@ func GroupBy(reports []reporter.Report, groupBy []string) []reporter.Report {
     // This will make the first command the primary grouping
     for i := len(groupBy)-1; i >= 0; i--  {
 		switch groupBy[i] {
-		case "pass/fail":
+		case "pass-fail":
 			reports = GroupByPassFail(reports)
 		case "filetype":
 			reports = GroupByFile(reports)
