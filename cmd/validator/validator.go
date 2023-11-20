@@ -101,14 +101,14 @@ func getFlags() (validatorConfig, error) {
 
     groupByCleanString := cleanString("groupby")
     groupByUserInput := strings.Split(groupByCleanString, ",")
-    groupByAllowedValues := []string{"filetype", "directory", "pass/fail"}
+    groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
 
 	if groupOutputPtr != nil && isFlagSet("groupby") {
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
-				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass/fail")
+				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
 				flag.Usage()
-				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass/fail")
+				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
 			}
 		}
 	}
