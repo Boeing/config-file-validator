@@ -61,7 +61,8 @@ func GroupByDirectory(reports []reporter.Report) []reporter.Report {
 	reportByDirectory := []reporter.Report{}
 
 	for _, report := range reports {
-		directory := strings.Split(report.FilePath, "/")[1]
+		directoryPaths := strings.Split(report.FilePath, "/")
+        directory := directoryPaths[len(directoryPaths)-2]
 		if mapFiles[directory] == nil {
 			mapFiles[directory] = []reporter.Report{report}
 		} else {

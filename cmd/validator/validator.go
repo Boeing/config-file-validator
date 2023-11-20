@@ -99,15 +99,16 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
 	}
 
+    groupByCleanString := cleanString("groupby")
+    groupByUserInput := strings.Split(groupByCleanString, ",")
     groupByAllowedValues := []string{"filetype", "directory", "pass/fail"}
-    groupByUserInput := cleanMultiInputCommandString("groupby",",")
 
 	if groupOutputPtr != nil && isFlagSet("groupby") {
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
 				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass/fail")
 				flag.Usage()
-				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass/fail, or none")
+				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass/fail")
 			}
 		}
 	}
@@ -149,13 +150,12 @@ func getReporter(reportType *string) reporter.Reporter {
 	}
 }
 
-// cleanMultiInputCommandString takes a command string and a split string
+// cleanString takes a command string and a split string
 // and returns a slice of strings
-func cleanMultiInputCommandString(command, split string) []string {
-	commandValue := flag.Lookup(command).Value.String()
-	commandValue = strings.ToLower(commandValue)
-	commandValue = strings.TrimSpace(commandValue)
-	cleanedString := strings.Split(commandValue, split)
+func cleanString(command string) string {
+	cleanedString := flag.Lookup(command).Value.String()
+	cleanedString = strings.ToLower(cleanedString)
+	cleanedString = strings.TrimSpace(cleanedString)
 
 	return cleanedString
 }
