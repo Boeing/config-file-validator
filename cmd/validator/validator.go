@@ -99,9 +99,9 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
 	}
 
-    	groupByCleanString := cleanString("groupby")
-    	groupByUserInput := strings.Split(groupByCleanString, ",")
-    	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
+	groupByCleanString := cleanString("groupby")
+	groupByUserInput := strings.Split(groupByCleanString, ",")
+	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
 
 	if groupOutputPtr != nil && isFlagSet("groupby") {
 		for _, groupBy := range groupByUserInput {

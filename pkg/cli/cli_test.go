@@ -10,7 +10,7 @@ import (
 func Test_CLI(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
-    	groupBy := []string{}
+	groupBy := []string{}
 	stdoutReporter := reporter.StdoutReporter{}
 
 	fsFinder := finder.FileSystemFinderInit(
@@ -20,7 +20,7 @@ func Test_CLI(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporter(stdoutReporter),
-        	WithGroupOutput(groupBy),
+		WithGroupOutput(groupBy),
 	)
 	exitStatus, err := cli.Run()
 
@@ -74,27 +74,27 @@ func Test_CLIBadPath(t *testing.T) {
 }
 
 func Test_CLIWithGroup(t *testing.T) {
-    searchPath := "../../test"
-    excludeDirs := []string{"subdir", "subdir2"}
-    groupOutput := []string{"pass-fail", "directory", "filetype"}
-    stdoutReporter := reporter.StdoutReporter{}
+	searchPath := "../../test"
+	excludeDirs := []string{"subdir", "subdir2"}
+	groupOutput := []string{"pass-fail", "directory", "filetype"}
+	stdoutReporter := reporter.StdoutReporter{}
 
-    fsFinder := finder.FileSystemFinderInit(
-        finder.WithPathRoots(searchPath),
-        finder.WithExcludeDirs(excludeDirs),
-    )
-    cli := Init(
-        WithFinder(fsFinder),
-        WithReporter(stdoutReporter),
-        WithGroupOutput(groupOutput),
-    )
-    exitStatus, err := cli.Run()
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(searchPath),
+		finder.WithExcludeDirs(excludeDirs),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithReporter(stdoutReporter),
+		WithGroupOutput(groupOutput),
+	)
+	exitStatus, err := cli.Run()
 
-    if err != nil {
-        t.Errorf("An error was returned: %v", err)
-    }
+	if err != nil {
+		t.Errorf("An error was returned: %v", err)
+	}
 
-    if exitStatus != 0 {
-        t.Errorf("Exit status was not 0")
-    }
+	if exitStatus != 0 {
+		t.Errorf("Exit status was not 0")
+	}
 }
