@@ -7,88 +7,77 @@ import (
 )
 
 // Group Files by File Type
-func GroupByFile(reports []reporter.Report) []reporter.Report {
-	mapFiles := make(map[string][]reporter.Report)
-	reportByFile := []reporter.Report{}
+func GroupByFile(reports []reporter.Report) map[string][]reporter.Report {
+	reportByFile := make(map[string][]reporter.Report)
 
 	for _, report := range reports {
 		fileType := strings.Split(report.FileName, ".")[1]
-		if mapFiles[fileType] == nil {
-			mapFiles[fileType] = []reporter.Report{report}
+		if fileType == "yml" && reportByFile["yaml"] == nil {
+			reportByFile["yaml"] = []reporter.Report{report}
+		} else if fileType == "yml" && reportByFile["yaml"] != nil {
+			reportByFile["yaml"] = append(reportByFile["yaml"], report)
+		} else if reportByFile[fileType] == nil {
+			reportByFile[fileType] = []reporter.Report{report}
 		} else {
-			mapFiles[fileType] = append(mapFiles[fileType], report)
+			reportByFile[fileType] = append(reportByFile[fileType], report)
 		}
-	}
-
-	for _, reports := range mapFiles {
-		reportByFile = append(reportByFile, reports...)
 	}
 
 	return reportByFile
 }
 
 // Group Files by Pass-Fail
-func GroupByPassFail(reports []reporter.Report) []reporter.Report {
-	mapFiles := make(map[string][]reporter.Report)
-	reportByPassOrFail := []reporter.Report{}
+func GroupByPassFail(reports []reporter.Report) map[string][]reporter.Report {
+	reportByPassOrFail := make(map[string][]reporter.Report)
 
 	for _, report := range reports {
 		if report.IsValid {
-			if mapFiles["pass"] == nil {
-				mapFiles["pass"] = []reporter.Report{report}
+			if reportByPassOrFail["Passed"] == nil {
+				reportByPassOrFail["Passed"] = []reporter.Report{report}
 			} else {
-				mapFiles["pass"] = append(mapFiles["pass"], report)
+				reportByPassOrFail["Passed"] = append(reportByPassOrFail["Passed"], report)
 			}
+		} else if reportByPassOrFail["Failed"] == nil {
+			reportByPassOrFail["Failed"] = []reporter.Report{report}
 		} else {
-			if mapFiles["fail"] == nil {
-				mapFiles["fail"] = []reporter.Report{report}
-			} else {
-				mapFiles["fail"] = append(mapFiles["fail"], report)
-			}
+			reportByPassOrFail["Failed"] = append(reportByPassOrFail["Failed"], report)
 		}
-	}
 
-	for _, reports := range mapFiles {
-		reportByPassOrFail = append(reportByPassOrFail, reports...)
 	}
 
 	return reportByPassOrFail
 }
 
 // Group Files by Directory
-func GroupByDirectory(reports []reporter.Report) []reporter.Report {
-	mapFiles := make(map[string][]reporter.Report)
-	reportByDirectory := []reporter.Report{}
-
+func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
+	reportByDirectory := make(map[string][]reporter.Report)
 	for _, report := range reports {
 		directoryPaths := strings.Split(report.FilePath, "/")
 		directory := directoryPaths[len(directoryPaths)-2]
-		if mapFiles[directory] == nil {
-			mapFiles[directory] = []reporter.Report{report}
+		if reportByDirectory[directory] == nil {
+			reportByDirectory[directory] = []reporter.Report{report}
 		} else {
-			mapFiles[directory] = append(mapFiles[directory], report)
+			reportByDirectory[directory] = append(reportByDirectory[directory], report)
 		}
-	}
-
-	for _, reports := range mapFiles {
-		reportByDirectory = append(reportByDirectory, reports...)
 	}
 
 	return reportByDirectory
 }
 
-func GroupBy(reports []reporter.Report, groupBy []string) []reporter.Report {
+func GroupBy(reports []reporter.Report, groupBy []string) map[string][]reporter.Report {
 	// Iterate through groupBy in reverse order
 	// This will make the first command the primary grouping
+	groupReports := make(map[string][]reporter.Report)
+
 	for i := len(groupBy) - 1; i >= 0; i-- {
 		switch groupBy[i] {
 		case "pass-fail":
-			reports = GroupByPassFail(reports)
+			groupReports = GroupByPassFail(reports)
 		case "filetype":
-			reports = GroupByFile(reports)
+			groupReports = GroupByFile(reports)
 		case "directory":
-			reports = GroupByDirectory(reports)
+			groupReports = GroupByDirectory(reports)
 		}
 	}
-	return reports
+	return groupReports
 }

@@ -67,3 +67,8 @@ func (jr JsonReporter) Print(reports []Report) error {
 	fmt.Println(string(jsonBytes))
 	return nil
 }
+
+func (jr JsonReporter) PrintGroup(reports map[string][]Report) error {
+    //TODO
+    return nil
+}

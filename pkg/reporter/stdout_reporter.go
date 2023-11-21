@@ -31,6 +31,24 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	return nil
 }
 
+func (sr StdoutReporter) PrintGroup(groupReports map[string][]Report) error {
+	for key, reports := range groupReports {
+		fmt.Println(key)
+		for _, report := range reports {
+			if !report.IsValid {
+				color.Set(color.FgRed)
+				fmt.Println("    × " + report.FilePath)
+				paddedString := sr.padErrorString(report.ValidationError.Error())
+				fmt.Printf("        error: %v\n", paddedString)
+				color.Unset()
+			} else {
+				color.Green("    ✓ " + report.FilePath)
+			}
+		}
+	}
+	return nil
+}
+
 // padErrorString adds padding to every newline in the error
 // string, except the first line and removes any trailing newlines
 // or spaces

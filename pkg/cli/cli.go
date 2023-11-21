@@ -97,10 +97,12 @@ func (c CLI) Run() (int, error) {
 	}
 
 	// Group the output if the user specified a group by option
-	if len(GroupOutput) > 0 {
-		reports = GroupBy(reports, GroupOutput)
-	}
-	c.Reporter.Print(reports)
+	if GroupOutput[0] != "" {
+        groupReports := GroupBy(reports, GroupOutput)
+        c.Reporter.PrintGroup(groupReports)
+	} else {
+        c.Reporter.Print(reports)
+    }
 
 	if errorFound {
 		return 1, nil
