@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Boeing/config-file-validator/pkg/reporter"
@@ -65,7 +66,7 @@ func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 	return reportByDirectory
 }
 
-func GroupBySingle(reports []reporter.Report, groupBy []string) map[string][]reporter.Report {
+func GroupBySingle(reports []reporter.Report, groupBy []string) (map[string][]reporter.Report, error) {
 
 	var groupReport map[string][]reporter.Report
 
@@ -77,7 +78,9 @@ func GroupBySingle(reports []reporter.Report, groupBy []string) map[string][]rep
 			groupReport = GroupByFile(reports)
 		case "directory":
 			groupReport = GroupByDirectory(reports)
+        default:
+            return nil, fmt.Errorf("unable to group by %s", groupBy[i])
 		}
 	}
-	return groupReport
+	return groupReport, nil
 }

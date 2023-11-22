@@ -48,7 +48,8 @@ func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report, group
 	}
 	return nil
 }
-func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Report) error {
+
+func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Report, groupOutput []string) error {
 	for group, subGroup := range groupReport {
 		fmt.Printf("%s\n", group)
 		for subGroup, reports := range subGroup {

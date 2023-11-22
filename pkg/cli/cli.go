@@ -97,17 +97,22 @@ func (c CLI) Run() (int, error) {
 	}
 
 	// Group the output if the user specified a group by option
-    // The length of GroupOutput is 1 even when empty.
-    // Need to review this but it works for now.
+    // TODO: The length of GroupOutput is 1 even when empty.
+	// Need to review this but it works for now.
 	if GroupOutput[0] != "" {
 		if len(GroupOutput) == 1 {
-            reportGroup := GroupBySingle(reports, GroupOutput)
+			reportGroup, err := GroupBySingle(reports, GroupOutput)
+			if err != nil {
+				return 1, fmt.Errorf("unable to group by single: %v", err)
+			}
 			c.Reporter.PrintSingleGroup(reportGroup, GroupOutput[0])
 		} else if len(GroupOutput) == 2 {
-            reportGroup := GroupByDouble(reports, GroupOutput)
-            c.Reporter.PrintDoubleGroup(reportGroup)
+			reportGroup, err := GroupByDouble(reports, GroupOutput)
+			if err != nil {
+				return 1, fmt.Errorf("unable to group by double: %v", err)
+			}
+			c.Reporter.PrintDoubleGroup(reportGroup, GroupOutput)
 		}
-
 	} else {
 		c.Reporter.Print(reports)
 	}
