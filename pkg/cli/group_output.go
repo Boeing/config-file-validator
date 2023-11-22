@@ -66,12 +66,12 @@ func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 	return reportByDirectory
 }
 
-func GroupBySingle(reports []reporter.Report, groupBy []string) (map[string][]reporter.Report, error) {
+func GroupBySingle(reports []reporter.Report, groupBy string) (map[string][]reporter.Report, error) {
 
 	var groupReport map[string][]reporter.Report
 
 	for i := len(groupBy) - 1; i >= 0; i-- {
-		switch groupBy[i] {
+		switch groupBy {
 		case "pass-fail":
 			groupReport = GroupByPassFail(reports)
 		case "filetype":

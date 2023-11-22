@@ -101,7 +101,7 @@ func (c CLI) Run() (int, error) {
 	// Need to review this but it works for now.
 	if GroupOutput[0] != "" {
 		if len(GroupOutput) == 1 {
-			reportGroup, err := GroupBySingle(reports, GroupOutput)
+			reportGroup, err := GroupBySingle(reports, GroupOutput[0])
 			if err != nil {
 				return 1, fmt.Errorf("unable to group by single: %v", err)
 			}
