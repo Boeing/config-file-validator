@@ -19,7 +19,7 @@ func Test_flags(t *testing.T) {
 	}{
 		{"blank", []string{}, 0},
 		{"flags set, json reporter", []string{"--exclude-dirs=subdir", "--reporter=json", "."}, 0},
-		{"flags set, junit reported", []string{"--exclude-dirs=subdir", "--reporter=junit", "."}, 1},
+		{"flags set, junit reported", []string{"--exclude-dirs=subdir", "--reporter=junit", "."}, 0},
 		{"bad path", []string{"/path/does/not/exit"}, 1},
 		{"exclude file types set", []string{"--exclude-file-types=json", "."}, 0},
 		{"multiple paths", []string{"../../test/fixtures/subdir/good.json", "../../test/fixtures/good.json"}, 0},

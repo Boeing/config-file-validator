@@ -97,29 +97,28 @@ type Property struct {
 func (ts Testsuites) checkPropertyValidity() error {
 	for tsidx := range ts.Testsuites {
 		testsuite := ts.Testsuites[tsidx]
-		if testsuite.Properties == nil {
-			continue
-		}
-		for pridx := range *testsuite.Properties {
-			property := (*testsuite.Properties)[pridx]
-			if property.Value != "" && property.TextValue != "" {
-				return fmt.Errorf("property %s in testsuite %s should contain value or a text value, not both",
-					property.Name, testsuite.Name)
-			}
-		}
-		if testsuite.Testcases == nil {
-			continue
-		}
-		for tcidx := range *testsuite.Testcases {
-			testcase := (*testsuite.Testcases)[tcidx]
-			if testcase.Properties == nil {
-				continue
-			}
-			for propidx := range *testcase.Properties {
-				property := (*testcase.Properties)[propidx]
+		if testsuite.Properties != nil {
+			for pridx := range *testsuite.Properties {
+				property := (*testsuite.Properties)[pridx]
 				if property.Value != "" && property.TextValue != "" {
-					return fmt.Errorf("property %s in testcase %s should contain value or a text value, not both",
-						property.Name, testcase.Name)
+					return fmt.Errorf("property %s in testsuite %s should contain value or a text value, not both",
+						property.Name, testsuite.Name)
+				}
+			}
+		}
+
+		if testsuite.Testcases != nil {
+			for tcidx := range *testsuite.Testcases {
+				testcase := (*testsuite.Testcases)[tcidx]
+				if testcase.Properties == nil {
+					continue
+				}
+				for propidx := range *testcase.Properties {
+					property := (*testcase.Properties)[propidx]
+					if property.Value != "" && property.TextValue != "" {
+						return fmt.Errorf("property %s in testcase %s should contain value or a text value, not both",
+							property.Name, testcase.Name)
+					}
 				}
 			}
 		}
