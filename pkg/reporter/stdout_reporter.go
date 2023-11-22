@@ -32,8 +32,14 @@ func (sr StdoutReporter) Print(reports []Report) error {
 }
 
 func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report, groupOutput string) error {
+	var successCount = 0
+	var failureCount = 0
+	var totalSuccessCount = 0
+	var totalFailureCount = 0
 	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
+		successCount = 0
+		failureCount = 0
 		for _, report := range reports {
 			if !report.IsValid {
 				color.Set(color.FgRed)
@@ -41,32 +47,54 @@ func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report, group
 				paddedString := sr.padErrorString(report.ValidationError.Error())
 				fmt.Printf("        error: %v\n", paddedString)
 				color.Unset()
+				failureCount = failureCount + 1
+				totalFailureCount = totalFailureCount + 1
 			} else {
 				color.Green("    ✓ " + report.FilePath)
+				successCount = successCount + 1
+				totalSuccessCount = totalSuccessCount + 1
 			}
 		}
+		fmt.Printf("Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 	}
+
+	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
 	return nil
 }
 
 func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Report, groupOutput []string) error {
-	for group, subGroup := range groupReport {
+	var successCount = 0
+	var failureCount = 0
+	var totalSuccessCount = 0
+	var totalFailureCount = 0
+
+	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
-		for subGroup, reports := range subGroup {
-			fmt.Printf("    %s\n", subGroup)
-			for _, report := range reports {
+		for group2, reports2 := range reports {
+			fmt.Printf("    %s\n", group2)
+			successCount = 0
+			failureCount = 0
+			for _, report := range reports2 {
 				if !report.IsValid {
 					color.Set(color.FgRed)
 					fmt.Println("        × " + report.FilePath)
 					paddedString := sr.padErrorString(report.ValidationError.Error())
 					fmt.Printf("            error: %v\n", paddedString)
 					color.Unset()
+					failureCount = failureCount + 1
+					totalFailureCount = totalFailureCount + 1
 				} else {
 					color.Green("        ✓ " + report.FilePath)
+					successCount = successCount + 1
+					totalSuccessCount = totalSuccessCount + 1
 				}
 			}
+			fmt.Printf("    Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 		}
 	}
+
+	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
+
 	return nil
 }
 

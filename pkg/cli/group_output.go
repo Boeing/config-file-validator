@@ -67,7 +67,6 @@ func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 }
 
 func GroupBySingle(reports []reporter.Report, groupBy string) (map[string][]reporter.Report, error) {
-
 	var groupReport map[string][]reporter.Report
 
 	for i := len(groupBy) - 1; i >= 0; i-- {
@@ -78,9 +77,45 @@ func GroupBySingle(reports []reporter.Report, groupBy string) (map[string][]repo
 			groupReport = GroupByFile(reports)
 		case "directory":
 			groupReport = GroupByDirectory(reports)
-        default:
-            return nil, fmt.Errorf("unable to group by %s", groupBy[i])
+		default:
+			return nil, fmt.Errorf("unable to group by %s", groupBy)
 		}
 	}
+	return groupReport, nil
+}
+
+func GroupByDouble(reports []reporter.Report, groupBy []string) (map[string]map[string][]reporter.Report, error) {
+	groupReport := make(map[string]map[string][]reporter.Report)
+
+	firstGroup, err := GroupBySingle(reports, groupBy[0])
+	if err != nil {
+		return nil, err
+	}
+	for key := range firstGroup {
+		groupReport[key] = make(map[string][]reporter.Report)
+		groupReport[key], err = GroupBySingle(firstGroup[key], groupBy[1])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return groupReport, nil
+}
+
+func GroupByTriple(reports []reporter.Report, groupBy []string) (map[string]map[string]map[string][]reporter.Report, error) {
+	groupReport := make(map[string]map[string]map[string][]reporter.Report)
+
+	firstGroup, err := GroupBySingle(reports, groupBy[0])
+	if err != nil {
+		return nil, err
+	}
+	for key := range firstGroup {
+		groupReport[key] = make(map[string]map[string][]reporter.Report)
+		groupReport[key], err = GroupByDouble(firstGroup[key], groupBy[1:])
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return groupReport, nil
 }
