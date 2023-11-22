@@ -97,13 +97,20 @@ func (c CLI) Run() (int, error) {
 	}
 
 	// Group the output if the user specified a group by option
+    // The length of GroupOutput is 1 even when empty.
+    // Need to review this but it works for now.
 	if GroupOutput[0] != "" {
-        groupReports := GroupBy(reports, GroupOutput)
-        c.Reporter.PrintGroup(groupReports)
-	} else {
-        c.Reporter.Print(reports)
-    }
+		if len(GroupOutput) == 1 {
+            reportGroup := GroupBySingle(reports, GroupOutput)
+			c.Reporter.PrintSingleGroup(reportGroup, GroupOutput[0])
+		} else if len(GroupOutput) == 2 {
+            reportGroup := GroupByDouble(reports, GroupOutput)
+            c.Reporter.PrintDoubleGroup(reportGroup)
+		}
 
+	} else {
+		c.Reporter.Print(reports)
+	}
 	if errorFound {
 		return 1, nil
 	} else {

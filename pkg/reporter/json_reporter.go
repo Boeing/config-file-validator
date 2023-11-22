@@ -24,6 +24,11 @@ type reportJSON struct {
 	Summary summary      `json:"summary"`
 }
 
+type groupReportJSON struct {
+	Files   map[string][]reportJSON `json:"files"`
+	Summary summary                 `json:"summary"`
+}
+
 // Print implements the Reporter interface by outputting
 // the report content to stdout as JSON
 func (jr JsonReporter) Print(reports []Report) error {
@@ -68,7 +73,58 @@ func (jr JsonReporter) Print(reports []Report) error {
 	return nil
 }
 
-func (jr JsonReporter) PrintGroup(reports map[string][]Report) error {
-    //TODO
-    return nil
+func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report, groupOutput string) error {
+	groupReport := make(map[string][]fileStatus)
+
+	for _, reports := range groupReports {
+		for _, r := range reports {
+			status := "passed"
+			errorStr := ""
+			if !r.IsValid {
+				status = "failed"
+				errorStr = r.ValidationError.Error()
+			}
+
+			// Convert Windows-style file paths.
+			if strings.Contains(r.FilePath, "\\") {
+				r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
+			}
+
+			fileStatus := fileStatus{
+				Path:   r.FilePath,
+				Status: status,
+				Error:  errorStr,
+			}
+
+			switch groupOutput {
+			case "filetype":
+				fileExtension := strings.Split(r.FileName, ".")[1]
+				if fileExtension == "yml" {
+					fileExtension = "yaml"
+				}
+				groupReport[fileExtension] = append(groupReport[fileExtension], fileStatus)
+			case "pass-fail":
+				groupReport[status] = append(groupReport[status], fileStatus)
+			case "directory":
+				directoryPath := strings.Split(r.FilePath, "/")
+				directory := strings.Join(directoryPath[:len(directoryPath)-1], "/")
+				directory = directory + "/"
+				groupReport[directory] = append(groupReport[directory], fileStatus)
+				groupReport[directory] = append(groupReport[directory], fileStatus)
+			}
+		}
+	}
+
+	jsonBytes, err := json.MarshalIndent(groupReport, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(jsonBytes))
+
+	return nil
+}
+
+func (jr JsonReporter) PrintDoubleGroup(reports map[string]map[string][]Report) error {
+	//TODO
+	return nil
 }

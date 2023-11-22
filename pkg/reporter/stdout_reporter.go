@@ -31,9 +31,9 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	return nil
 }
 
-func (sr StdoutReporter) PrintGroup(groupReports map[string][]Report) error {
-	for key, reports := range groupReports {
-		fmt.Println(key)
+func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report, groupOutput string) error {
+	for group, reports := range groupReport {
+		fmt.Printf("%s\n", group)
 		for _, report := range reports {
 			if !report.IsValid {
 				color.Set(color.FgRed)
@@ -43,6 +43,26 @@ func (sr StdoutReporter) PrintGroup(groupReports map[string][]Report) error {
 				color.Unset()
 			} else {
 				color.Green("    ✓ " + report.FilePath)
+			}
+		}
+	}
+	return nil
+}
+func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Report) error {
+	for group, subGroup := range groupReport {
+		fmt.Printf("%s\n", group)
+		for subGroup, reports := range subGroup {
+			fmt.Printf("    %s\n", subGroup)
+			for _, report := range reports {
+				if !report.IsValid {
+					color.Set(color.FgRed)
+					fmt.Println("        × " + report.FilePath)
+					paddedString := sr.padErrorString(report.ValidationError.Error())
+					fmt.Printf("            error: %v\n", paddedString)
+					color.Unset()
+				} else {
+					color.Green("        ✓ " + report.FilePath)
+				}
 			}
 		}
 	}
