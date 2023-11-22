@@ -25,7 +25,7 @@ type reportJSON struct {
 }
 
 type groupReportJSON struct {
-	Files   map[string][]reportJSON `json:"files"`
+	Files   map[string][]fileStatus `json:"files"`
 	Summary summary                 `json:"summary"`
 }
 
@@ -74,7 +74,7 @@ func (jr JsonReporter) Print(reports []Report) error {
 }
 
 func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report, groupOutput string) error {
-	groupReport := make(map[string][]fileStatus)
+	var groupReport groupReportJSON
 
 	for _, reports := range groupReports {
 		for _, r := range reports {
@@ -90,7 +90,7 @@ func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report, groupO
 				r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
 			}
 
-			fileStatus := fileStatus{
+			file := fileStatus{
 				Path:   r.FilePath,
 				Status: status,
 				Error:  errorStr,
@@ -102,15 +102,40 @@ func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report, groupO
 				if fileExtension == "yml" {
 					fileExtension = "yaml"
 				}
-				groupReport[fileExtension] = append(groupReport[fileExtension], fileStatus)
+				if groupReport.Files == nil {
+					groupReport.Files = make(map[string][]fileStatus)
+					groupReport.Files[fileExtension] = []fileStatus{file}
+				} else {
+					groupReport.Files[fileExtension] = append(groupReport.Files[fileExtension], file)
+				}
 			case "pass-fail":
-				groupReport[status] = append(groupReport[status], fileStatus)
+				if groupReport.Files == nil {
+					groupReport.Files = make(map[string][]fileStatus)
+					groupReport.Files[status] = []fileStatus{file}
+				} else {
+					groupReport.Files[status] = append(groupReport.Files[status], file)
+				}
 			case "directory":
 				directoryPath := strings.Split(r.FilePath, "/")
 				directory := strings.Join(directoryPath[:len(directoryPath)-1], "/")
 				directory = directory + "/"
-				groupReport[directory] = append(groupReport[directory], fileStatus)
-				groupReport[directory] = append(groupReport[directory], fileStatus)
+				if groupReport.Files == nil {
+					groupReport.Files = make(map[string][]fileStatus)
+					groupReport.Files[directory] = []fileStatus{file}
+				} else {
+					groupReport.Files[directory] = append(groupReport.Files[directory], file)
+				}
+			}
+		}
+	}
+	groupReport.Summary.Passed = 0
+	groupReport.Summary.Failed = 0
+	for _, files := range groupReport.Files {
+		for _, f := range files {
+			if f.Status == "passed" {
+				groupReport.Summary.Passed++
+			} else {
+				groupReport.Summary.Failed++
 			}
 		}
 	}
