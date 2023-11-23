@@ -7,8 +7,6 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
 
-// TODO: Add tests
-
 func Test_NoGroupOutput(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}

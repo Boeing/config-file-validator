@@ -66,9 +66,12 @@ func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 	return reportByDirectory
 }
 
+// Group Reports by single grouping
 func GroupBySingle(reports []reporter.Report, groupBy string) (map[string][]reporter.Report, error) {
 	var groupReport map[string][]reporter.Report
 
+	// Group by the groupings in reverse order
+	// This allows for the first grouping to be the outermost grouping
 	for i := len(groupBy) - 1; i >= 0; i-- {
 		switch groupBy {
 		case "pass-fail":
@@ -84,6 +87,7 @@ func GroupBySingle(reports []reporter.Report, groupBy string) (map[string][]repo
 	return groupReport, nil
 }
 
+// Group Reports for two groupings
 func GroupByDouble(reports []reporter.Report, groupBy []string) (map[string]map[string][]reporter.Report, error) {
 	groupReport := make(map[string]map[string][]reporter.Report)
 
@@ -102,6 +106,7 @@ func GroupByDouble(reports []reporter.Report, groupBy []string) (map[string]map[
 	return groupReport, nil
 }
 
+// Group Reports for three groupings
 func GroupByTriple(reports []reporter.Report, groupBy []string) (map[string]map[string]map[string][]reporter.Report, error) {
 	groupReport := make(map[string]map[string]map[string][]reporter.Report)
 

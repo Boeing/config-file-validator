@@ -91,7 +91,9 @@ func (jr JsonReporter) Print(reports []Report) error {
 
 // Tried to pass the Print function to this function but it didn't work
 // We lose the group output when we do that
-// TODO: Fix this
+// Possible solution: create functions to handle each grouping
+// and pass the Print function to those functions
+// Similiar to how the group_output.go file is structured
 func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report, groupOutput string) error {
 	var report groupReportJSON
 	currentPassed := 0
