@@ -57,7 +57,7 @@ func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report, group
 				totalSuccessCount = totalSuccessCount + 1
 			}
 		}
-		fmt.Printf("    Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
+		fmt.Printf("Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 	}
 
 	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
@@ -91,7 +91,7 @@ func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Re
 					totalSuccessCount = totalSuccessCount + 1
 				}
 			}
-			fmt.Printf("        Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
+			fmt.Printf("    Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 		}
 	}
 
@@ -129,7 +129,7 @@ func (sr StdoutReporter) PrintTripleGroup(groupReport map[string]map[string]map[
 						totalSuccessCount = totalSuccessCount + 1
 					}
 				}
-				fmt.Printf("            Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
+				fmt.Printf("        Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 			}
 		}
 	}
