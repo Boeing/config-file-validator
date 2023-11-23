@@ -18,5 +18,5 @@ type Reporter interface {
 	Print(reports []Report) error
 	PrintSingleGroup(map[string][]Report, string) error
 	PrintDoubleGroup(map[string]map[string][]Report, []string) error
-    PrintTripleGroup(map[string]map[string]map[string][]Report, []string) error
+	PrintTripleGroup(map[string]map[string]map[string][]Report, []string) error
 }

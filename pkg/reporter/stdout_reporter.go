@@ -102,7 +102,7 @@ func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Re
 }
 
 func (sr StdoutReporter) PrintTripleGroup(groupReport map[string]map[string]map[string][]Report, groupOutput []string) error {
-    return nil
+	return nil
 }
 
 // padErrorString adds padding to every newline in the error

@@ -10,35 +10,35 @@ import (
 // TODO: Add tests
 
 func Test_NoGroupOutput(t *testing.T) {
-    searchPath := "../../test"
+	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
-    groupOutput := map[string][]string{
-        "test":  {},
-        "test2": {},
-        "test3": {},
-    }
-    stdoutReporter := reporter.StdoutReporter{}
+	groupOutput := map[string][]string{
+		"test":  {},
+		"test2": {},
+		"test3": {},
+	}
+	stdoutReporter := reporter.StdoutReporter{}
 
-    for i := range groupOutput {
-        fsFinder := finder.FileSystemFinderInit(
-            finder.WithPathRoots(searchPath),
-            finder.WithExcludeDirs(excludeDirs),
-        )
-        cli := Init(
-            WithFinder(fsFinder),
-            WithReporter(stdoutReporter),
-            WithGroupOutput(groupOutput[i]),
-        )
-        exitStatus, err := cli.Run()
+	for i := range groupOutput {
+		fsFinder := finder.FileSystemFinderInit(
+			finder.WithPathRoots(searchPath),
+			finder.WithExcludeDirs(excludeDirs),
+		)
+		cli := Init(
+			WithFinder(fsFinder),
+			WithReporter(stdoutReporter),
+			WithGroupOutput(groupOutput[i]),
+		)
+		exitStatus, err := cli.Run()
 
-        if err != nil {
-            t.Errorf("An error was returned: %v", err)
-        }
+		if err != nil {
+			t.Errorf("An error was returned: %v", err)
+		}
 
-        if exitStatus != 0 {
-            t.Errorf("Exit status was not 0")
-        }
-    }
+		if exitStatus != 0 {
+			t.Errorf("Exit status was not 0")
+		}
+	}
 }
 
 func Test_SingleGroupOutput(t *testing.T) {

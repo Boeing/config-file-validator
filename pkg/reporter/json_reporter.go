@@ -159,8 +159,8 @@ func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Rep
 		report.Files[group] = make(map[string][]fileStatus, 0)
 		report.Summary[group] = make(map[string][]summary, 0)
 		for group2, reports := range group2 {
-            currentPassed = 0
-            currentFailed = 0
+			currentPassed = 0
+			currentFailed = 0
 			report.Files[group][group2] = make([]fileStatus, 0)
 			report.Summary[group][group2] = make([]summary, 0)
 			for _, r := range reports {
@@ -183,19 +183,19 @@ func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Rep
 				})
 			}
 
-            for _, f := range report.Files[group][group2] {
-                if f.Status == "passed" {
-                    currentPassed++
-                    totalPassed++
-                } else {
-                    currentFailed++
-                    totalFailed++
-                }
-            }
-            report.Summary[group][group2] = append(report.Summary[group][group2], summary{
-                Passed: currentPassed,
-                Failed: currentFailed,
-            })
+			for _, f := range report.Files[group][group2] {
+				if f.Status == "passed" {
+					currentPassed++
+					totalPassed++
+				} else {
+					currentFailed++
+					totalFailed++
+				}
+			}
+			report.Summary[group][group2] = append(report.Summary[group][group2], summary{
+				Passed: currentPassed,
+				Failed: currentFailed,
+			})
 		}
 	}
 
@@ -211,5 +211,5 @@ func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Rep
 }
 
 func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[string][]Report, groupOutput []string) error {
-    return nil
+	return nil
 }
