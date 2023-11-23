@@ -102,7 +102,9 @@ func getFlags() (validatorConfig, error) {
 	groupByCleanString := cleanString("groupby")
 	groupByUserInput := strings.Split(groupByCleanString, ",")
 	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
+	seenValues := make(map[string]bool)
 
+	// Check that the groupby values are valid and not duplicates
 	if groupOutputPtr != nil && isFlagSet("groupby") {
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
@@ -110,6 +112,12 @@ func getFlags() (validatorConfig, error) {
 				flag.Usage()
 				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
 			}
+			if _, ok := seenValues[groupBy]; ok {
+				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
+				flag.Usage()
+				return validatorConfig{}, errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
+			}
+			seenValues[groupBy] = true
 		}
 	}
 

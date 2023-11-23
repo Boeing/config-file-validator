@@ -38,6 +38,13 @@ type doubleGroupReportJSON struct {
 	TotalFailed int                                `json:"totalFailed"`
 }
 
+type tripleGroupReportJSON struct {
+	Files       map[string]map[string]map[string][]fileStatus `json:"files"`
+	Summary     map[string]map[string]map[string][]summary    `json:"summary"`
+	TotalPassed int                                           `json:"totalPassed"`
+	TotalFailed int                                           `json:"totalFailed"`
+}
+
 // Print implements the Reporter interface by outputting
 // the report content to stdout as JSON
 func (jr JsonReporter) Print(reports []Report) error {
@@ -83,8 +90,8 @@ func (jr JsonReporter) Print(reports []Report) error {
 }
 
 // Tried to pass the Print function to this function but it didn't work
-// Header of JSON would be generic and not specific to the group
-// I.e it would be "files" instead of listing the file extensions
+// We lose the group output when we do that
+// TODO: Fix this
 func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report, groupOutput string) error {
 	var report groupReportJSON
 	currentPassed := 0
@@ -211,5 +218,74 @@ func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Rep
 }
 
 func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[string][]Report, groupOutput []string) error {
+	var report tripleGroupReportJSON
+	currentPassed := 0
+	currentFailed := 0
+	totalPassed := 0
+	totalFailed := 0
+	report.Files = make(map[string]map[string]map[string][]fileStatus)
+	report.Summary = make(map[string]map[string]map[string][]summary)
+
+	for group, group2 := range groupReports {
+		report.Files[group] = make(map[string]map[string][]fileStatus, 0)
+		report.Summary[group] = make(map[string]map[string][]summary, 0)
+
+		for group2, group3 := range group2 {
+			report.Files[group][group2] = make(map[string][]fileStatus, 0)
+			report.Summary[group][group2] = make(map[string][]summary, 0)
+
+			for group3, reports := range group3 {
+				currentPassed = 0
+				currentFailed = 0
+				report.Files[group][group2][group3] = make([]fileStatus, 0)
+				report.Summary[group][group2][group3] = make([]summary, 0)
+
+				for _, r := range reports {
+					status := "passed"
+					errorStr := ""
+					if !r.IsValid {
+						status = "failed"
+						errorStr = r.ValidationError.Error()
+					}
+
+					// Convert Windows-style file paths.
+					if strings.Contains(r.FilePath, "\\") {
+						r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
+					}
+
+					report.Files[group][group2][group3] = append(report.Files[group][group2][group3], fileStatus{
+						Path:   r.FilePath,
+						Status: status,
+						Error:  errorStr,
+					})
+
+				}
+
+				for _, f := range report.Files[group][group2][group3] {
+					if f.Status == "passed" {
+						currentPassed++
+						totalPassed++
+					} else {
+						currentFailed++
+						totalFailed++
+					}
+				}
+				report.Summary[group][group2][group3] = append(report.Summary[group][group2][group3], summary{
+					Passed: currentPassed,
+					Failed: currentFailed,
+				})
+			}
+		}
+	}
+
+	report.TotalPassed = totalPassed
+	report.TotalFailed = totalFailed
+
+	jsonBytes, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(jsonBytes))
 	return nil
 }

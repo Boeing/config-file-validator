@@ -102,6 +102,40 @@ func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Re
 }
 
 func (sr StdoutReporter) PrintTripleGroup(groupReport map[string]map[string]map[string][]Report, groupOutput []string) error {
+	var successCount = 0
+	var failureCount = 0
+	var totalSuccessCount = 0
+	var totalFailureCount = 0
+
+	for groupOne, header := range groupReport {
+		fmt.Printf("%s\n", groupOne)
+		for groupTwo, subheader := range header {
+			fmt.Printf("    %s\n", groupTwo)
+			for groupThree, reports := range subheader {
+				fmt.Printf("        %s\n", groupThree)
+				successCount = 0
+				failureCount = 0
+				for _, report := range reports {
+					if !report.IsValid {
+						color.Set(color.FgRed)
+						fmt.Println("            × " + report.FilePath)
+						paddedString := sr.padErrorString(report.ValidationError.Error())
+						fmt.Printf("                error: %v\n", paddedString)
+						color.Unset()
+						failureCount = failureCount + 1
+						totalFailureCount = totalFailureCount + 1
+					} else {
+						color.Green("            ✓ " + report.FilePath)
+						successCount = successCount + 1
+						totalSuccessCount = totalSuccessCount + 1
+					}
+				}
+				fmt.Printf("            Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
+			}
+		}
+	}
+
+	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
 	return nil
 }
 
