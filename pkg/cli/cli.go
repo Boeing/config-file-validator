@@ -8,6 +8,8 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
 
+// GroupOutput is a global variable that is used to
+// store the group by options that the user specifies
 var GroupOutput []string
 
 type CLI struct {
@@ -97,8 +99,8 @@ func (c CLI) Run() (int, error) {
 	}
 
 	// Group the output if the user specified a group by option
-    // TODO: The length of GroupOutput is 1 even when empty.
-	// Need to review this but it works for now.
+	// Causing panic during tests
+
 	if GroupOutput[0] != "" {
 		if len(GroupOutput) == 1 {
 			reportGroup, err := GroupBySingle(reports, GroupOutput[0])

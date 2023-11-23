@@ -31,6 +31,9 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	return nil
 }
 
+// There is repeated code in the following two functions. Trying to consolidate
+// the code into one function is difficult because of the output format
+// Need to investigate further
 func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report, groupOutput string) error {
 	var successCount = 0
 	var failureCount = 0
@@ -55,7 +58,7 @@ func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report, group
 				totalSuccessCount = totalSuccessCount + 1
 			}
 		}
-		fmt.Printf("Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
+		fmt.Printf("    Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 	}
 
 	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
@@ -89,7 +92,7 @@ func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Re
 					totalSuccessCount = totalSuccessCount + 1
 				}
 			}
-			fmt.Printf("    Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
+			fmt.Printf("        Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 		}
 	}
 
