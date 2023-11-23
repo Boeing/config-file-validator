@@ -99,25 +99,29 @@ func (c CLI) Run() (int, error) {
 	}
 
 	// Group the output if the user specified a group by option
-	// Causing panic during tests
-
-	if GroupOutput[0] != "" {
-		if len(GroupOutput) == 1 {
-			reportGroup, err := GroupBySingle(reports, GroupOutput[0])
-			if err != nil {
-				return 1, fmt.Errorf("unable to group by single: %v", err)
-			}
-			c.Reporter.PrintSingleGroup(reportGroup, GroupOutput[0])
-		} else if len(GroupOutput) == 2 {
-			reportGroup, err := GroupByDouble(reports, GroupOutput)
-			if err != nil {
-				return 1, fmt.Errorf("unable to group by double: %v", err)
-			}
-			c.Reporter.PrintDoubleGroup(reportGroup, GroupOutput)
+	// Length is equal to one when empty as it contains an empty string
+	if len(GroupOutput) == 1 && GroupOutput[0] != "" {
+		reportGroup, err := GroupBySingle(reports, GroupOutput[0])
+		if err != nil {
+			return 1, fmt.Errorf("unable to group by single value: %v", err)
 		}
+		c.Reporter.PrintSingleGroup(reportGroup, GroupOutput[0])
+	} else if len(GroupOutput) == 2 {
+		reportGroup, err := GroupByDouble(reports, GroupOutput)
+		if err != nil {
+			return 1, fmt.Errorf("unable to group by double value: %v", err)
+		}
+		c.Reporter.PrintDoubleGroup(reportGroup, GroupOutput)
+	} else if len(GroupOutput) == 3 {
+		reportGroup, err := GroupByTriple(reports, GroupOutput)
+		if err != nil {
+			return 1, fmt.Errorf("unable to group by triple value: %v", err)
+		}
+		c.Reporter.PrintTripleGroup(reportGroup, GroupOutput)
 	} else {
 		c.Reporter.Print(reports)
 	}
+
 	if errorFound {
 		return 1, nil
 	} else {

@@ -31,6 +31,13 @@ type groupReportJSON struct {
 	TotalFailed int                     `json:"totalFailed"`
 }
 
+type doubleGroupReportJSON struct {
+	Files       map[string]map[string][]fileStatus `json:"files"`
+	Summary     map[string]map[string][]summary    `json:"summary"`
+	TotalPassed int                                `json:"totalPassed"`
+	TotalFailed int                                `json:"totalFailed"`
+}
+
 // Print implements the Reporter interface by outputting
 // the report content to stdout as JSON
 func (jr JsonReporter) Print(reports []Report) error {
@@ -139,12 +146,70 @@ func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report, groupO
 	return nil
 }
 
-func (jr JsonReporter) PrintDoubleGroup(reports map[string]map[string][]Report, groupOutput []string) error {
+func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Report, groupOutput []string) error {
+	var report doubleGroupReportJSON
+	currentPassed := 0
+	currentFailed := 0
+	totalPassed := 0
+	totalFailed := 0
+	report.Files = make(map[string]map[string][]fileStatus)
+	report.Summary = make(map[string]map[string][]summary)
 
+	for group, group2 := range groupReports {
+		report.Files[group] = make(map[string][]fileStatus, 0)
+		report.Summary[group] = make(map[string][]summary, 0)
+		for group2, reports := range group2 {
+            currentPassed = 0
+            currentFailed = 0
+			report.Files[group][group2] = make([]fileStatus, 0)
+			report.Summary[group][group2] = make([]summary, 0)
+			for _, r := range reports {
+				status := "passed"
+				errorStr := ""
+				if !r.IsValid {
+					status = "failed"
+					errorStr = r.ValidationError.Error()
+				}
+
+				// Convert Windows-style file paths.
+				if strings.Contains(r.FilePath, "\\") {
+					r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
+				}
+
+				report.Files[group][group2] = append(report.Files[group][group2], fileStatus{
+					Path:   r.FilePath,
+					Status: status,
+					Error:  errorStr,
+				})
+			}
+
+            for _, f := range report.Files[group][group2] {
+                if f.Status == "passed" {
+                    currentPassed++
+                    totalPassed++
+                } else {
+                    currentFailed++
+                    totalFailed++
+                }
+            }
+            report.Summary[group][group2] = append(report.Summary[group][group2], summary{
+                Passed: currentPassed,
+                Failed: currentFailed,
+            })
+		}
+	}
+
+	report.TotalPassed = totalPassed
+	report.TotalFailed = totalFailed
+
+	jsonBytes, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(jsonBytes))
 	return nil
 }
 
-// Need to create a map of file status groups
-func createFileStatusGroups(reports map[string]Report, groupOutput string) map[string][]reportJSON {
-	return nil
+func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[string][]Report, groupOutput []string) error {
+    return nil
 }
