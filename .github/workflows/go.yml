@@ -62,10 +62,11 @@ jobs:
     needs: download
     runs-on: ubuntu-latest
     name: Update coverage badge
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v3
       with:
-        persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
         fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
     - name: Set up Go
@@ -111,9 +112,9 @@ jobs:
 
         # Check to see if files were updated
         if git diff --quiet; then
-          echo "badge_updates=true" >> "${GITHUB_OUTPUT}"
-        else
           echo "badge_updates=false" >> "${GITHUB_OUTPUT}"
+        else
+          echo "badge_updates=true" >> "${GITHUB_OUTPUT}"
         fi
 
     - name: Commit changes
@@ -123,10 +124,4 @@ jobs:
         git config --local user.name "GitHub Action"
         git add -- README.md index.md
         git commit -m "chore: Updated coverage badge."
-
-    - name: Push changes
-      if: steps.generate-badge.outputs.badge_updates == 'true' && github.event_name == 'push'
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ github.token }}
-        branch: ${{ github.ref }}
+        git push

@@ -57,13 +57,13 @@ func WithDepth(depthVal int) FSFinderOptions {
 }
 
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
-	var defaultExludeDirs []string
+	var defaultExcludeDirs []string
 	defaultPathRoots := []string{"."}
 
 	fsfinder := &FileSystemFinder{
 		PathRoots:   defaultPathRoots,
 		FileTypes:   filetype.FileTypes,
-		ExcludeDirs: defaultExludeDirs,
+		ExcludeDirs: defaultExcludeDirs,
 	}
 
 	for _, opt := range opts {
