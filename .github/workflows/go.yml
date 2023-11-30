@@ -111,7 +111,7 @@ jobs:
         done
 
         # Check to see if files were updated
-        if git diff --quiet; then
+        if git status --porcelain; then
           echo "badge_updates=true" >> "${GITHUB_OUTPUT}"
         else
           echo "badge_updates=false" >> "${GITHUB_OUTPUT}"
