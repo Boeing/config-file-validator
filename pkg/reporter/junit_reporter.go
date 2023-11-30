@@ -13,6 +13,10 @@ const (
 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
 )
 
+type Message struct {
+	InnerXML string `xml:",innerxml"`
+}
+
 // https://github.com/testmoapp/junitxml#basic-junit-xml-structure
 type Testsuites struct {
 	XMLName    xml.Name    `xml:"testsuites"`
@@ -65,16 +69,17 @@ type Skipped struct {
 
 type TestcaseError struct {
 	XMLName   xml.Name `xml:"error"`
-	Message   string   `xml:"message,omitempty"`
-	Type      string   `xml:"type,omitempty"`
-	TextValue string   `xml:",chardata"`
+	Message   Message
+	Type      string `xml:"type,omitempty"`
+	TextValue string `xml:",chardata"`
 }
 
 type TestcaseFailure struct {
-	XMLName   xml.Name `xml:"failure"`
-	Message   string   `xml:"message,omitempty"`
-	Type      string   `xml:"type,omitempty"`
-	TextValue string   `xml:",chardata"`
+	XMLName xml.Name `xml:"failure"`
+	// Message   string   `xml:"message,omitempty"`
+	Message   Message
+	Type      string `xml:"type,omitempty"`
+	TextValue string `xml:",chardata"`
 }
 
 type SystemOut struct {
@@ -94,33 +99,52 @@ type Property struct {
 	Value     string   `xml:"value,attr,omitempty"`
 }
 
-func (ts Testsuites) checkPropertyValidity() error {
-	for tsidx := range ts.Testsuites {
-		testsuite := ts.Testsuites[tsidx]
-		if testsuite.Properties != nil {
-			for pridx := range *testsuite.Properties {
-				property := (*testsuite.Properties)[pridx]
-				if property.Value != "" && property.TextValue != "" {
-					return fmt.Errorf("property %s in testsuite %s should contain value or a text value, not both",
-						property.Name, testsuite.Name)
-				}
+func checkProperty(property Property, xmlElementName string, name string) error {
+	if property.Value != "" && property.TextValue != "" {
+		return fmt.Errorf("property %s in %s %s should contain value or a text value, not both",
+			property.Name, xmlElementName, name)
+	}
+	return nil
+}
+
+func checkTestCase(testcase Testcase) (err error) {
+	if testcase.Properties != nil {
+		for propidx := range *testcase.Properties {
+			property := (*testcase.Properties)[propidx]
+			if err = checkProperty(property, "testcase", testcase.Name); err != nil {
+				return err
 			}
 		}
+	}
+	return nil
+}
 
-		if testsuite.Testcases != nil {
-			for tcidx := range *testsuite.Testcases {
-				testcase := (*testsuite.Testcases)[tcidx]
-				if testcase.Properties == nil {
-					continue
-				}
-				for propidx := range *testcase.Properties {
-					property := (*testcase.Properties)[propidx]
-					if property.Value != "" && property.TextValue != "" {
-						return fmt.Errorf("property %s in testcase %s should contain value or a text value, not both",
-							property.Name, testcase.Name)
-					}
-				}
+func checkTestSuite(testsuite Testsuite) (err error) {
+	if testsuite.Properties != nil {
+		for pridx := range *testsuite.Properties {
+			property := (*testsuite.Properties)[pridx]
+			if err = checkProperty(property, "testsuite", testsuite.Name); err != nil {
+				return err
 			}
+		}
+	}
+
+	if testsuite.Testcases != nil {
+		for tcidx := range *testsuite.Testcases {
+			testcase := (*testsuite.Testcases)[tcidx]
+			if err = checkTestCase(testcase); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (ts Testsuites) checkPropertyValidity() (err error) {
+	for tsidx := range ts.Testsuites {
+		testsuite := ts.Testsuites[tsidx]
+		if err = checkTestSuite(testsuite); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -151,7 +175,7 @@ func (jr JunitReporter) Print(reports []Report) error {
 		tc := Testcase{Name: fmt.Sprintf("%s validation", r.FilePath), File: r.FilePath, ClassName: "config-file-validator"}
 		if !r.IsValid {
 			testErrors++
-			tc.TestcaseFailure = &TestcaseFailure{Message: r.ValidationError.Error()}
+			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: r.ValidationError.Error()}}
 		}
 		testcases = append(testcases, tc)
 	}
