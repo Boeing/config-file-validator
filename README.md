@@ -109,7 +109,6 @@ optional flags:
     	Format of the printed report. Options are standard and json (default "standard")
   -version
     	Version prints the release version of validator
-
 ```
 
 ### Examples
