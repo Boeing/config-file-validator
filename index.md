@@ -5,9 +5,9 @@
         </div>
         <div style="position: absolute; right: 0; top: 0">
             <a href="https://github.com/Boeing/config-file-validator">
-                <img decoding="async" loading="lazy" width="149" height="149" 
+                <img decoding="async" loading="lazy" width="149" height="149"
                 src="./img/fork-me-on-github.png" 
-                class="attachment-full size-full" alt="Fork me on GitHub" data-recalc-dims="1">
+                class="attachment-full size-full" alt="Fork me on GitHub" data-recalc-dims="1" style="background: transparent !important;">
             </a>
         </div>
     </div>
