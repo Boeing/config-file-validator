@@ -205,6 +205,38 @@ func Test_FileSystemFinderAbsPath(t *testing.T) {
 	}
 }
 
+func Test_FileSystemFinderUpperCaseExtention(t *testing.T) {
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots("../../test/fixtures/uppercase-extention"),
+	)
+
+	files, err := fsFinder.Find()
+
+	if len(files) < 1 {
+		t.Errorf("Unable to find files")
+	}
+
+	if err != nil {
+		t.Errorf("Unable to find files")
+	}
+}
+
+func Test_FileSystemFinderMixedCaseExtention(t *testing.T) {
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots("../../test/fixtures/mixedcase-extention"),
+	)
+
+	files, err := fsFinder.Find()
+
+	if len(files) < 1 {
+		t.Errorf("Unable to find files")
+	}
+
+	if err != nil {
+		t.Errorf("Unable to find files")
+	}
+}
+
 func Test_FileFinderBadPath(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots(
