@@ -6,7 +6,15 @@ import (
 	"strings"
 )
 
-type JsonReporter struct{}
+type JsonReporter struct {
+	outputDest string
+}
+
+func NewJsonReporter(outputDest string) *JsonReporter {
+	return &JsonReporter{
+		outputDest: outputDest,
+	}
+}
 
 type fileStatus struct {
 	Path   string `json:"path"`
@@ -26,6 +34,7 @@ type reportJSON struct {
 
 // Print implements the Reporter interface by outputting
 // the report content to stdout as JSON
+// if outputDest flag is provided, output results to a file.
 func (jr JsonReporter) Print(reports []Report) error {
 	var report reportJSON
 
@@ -64,6 +73,12 @@ func (jr JsonReporter) Print(reports []Report) error {
 		return err
 	}
 
-	fmt.Println(string(jsonBytes))
+	jsonBytes = append(jsonBytes, '\n')
+	fmt.Print(string(jsonBytes))
+
+	if jr.outputDest != "" {
+		return outputResultsToFile(jr.outputDest, "json", jsonBytes)
+	}
+
 	return nil
 }

@@ -17,6 +17,8 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -output
+  		Destination of a file to outputting results
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
@@ -46,6 +48,7 @@ type validatorConfig struct {
 	reportType       *string
 	depth            *int
 	versionQuery     *bool
+	output           *string
 }
 
 // Custom Usage function to cover
@@ -66,10 +69,11 @@ func validatorUsage() {
 // will return with exit = 1
 func getFlags() (validatorConfig, error) {
 	flag.Usage = validatorUsage
-	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
-	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
+	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
+	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	outputPtr := flag.String("output", "", "Destination to a file to output results")
+	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	flag.Parse()
 
@@ -103,6 +107,7 @@ func getFlags() (validatorConfig, error) {
 		reportTypePtr,
 		depthPtr,
 		versionPtr,
+		outputPtr,
 	}
 
 	return config, nil
@@ -123,10 +128,10 @@ func isFlagSet(flagName string) bool {
 
 // Return the reporter associated with the
 // reportType string
-func getReporter(reportType *string) reporter.Reporter {
+func getReporter(reportType, outputDest *string) reporter.Reporter {
 	switch *reportType {
 	case "json":
-		return reporter.JsonReporter{}
+		return reporter.NewJsonReporter(*outputDest)
 	default:
 		return reporter.StdoutReporter{}
 	}
@@ -146,7 +151,7 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	reporter := getReporter(validatorConfig.reportType)
+	reporter := getReporter(validatorConfig.reportType, validatorConfig.output)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
