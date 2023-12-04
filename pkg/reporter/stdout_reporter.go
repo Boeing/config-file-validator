@@ -64,6 +64,7 @@ func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report, group
 	return nil
 }
 
+// Prints the report for when two groups are passed in the groupby flag
 func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Report, groupOutput []string) error {
 	var successCount = 0
 	var failureCount = 0
@@ -100,6 +101,7 @@ func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Re
 	return nil
 }
 
+// Prints the report for when three groups are passed in the groupby flag
 func (sr StdoutReporter) PrintTripleGroup(groupReport map[string]map[string]map[string][]Report, groupOutput []string) error {
 	var successCount = 0
 	var failureCount = 0
