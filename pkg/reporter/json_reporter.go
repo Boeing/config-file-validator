@@ -238,11 +238,11 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 			report.Files[group][group2] = make(map[string][]fileStatus, 0)
 			report.Summary[group][group2] = make(map[string][]summary, 0)
 
-			for group3, reports := range group3 {
+			for group4, reports := range group3 {
 				currentPassed = 0
 				currentFailed = 0
-				report.Files[group][group2][group3] = make([]fileStatus, 0)
-				report.Summary[group][group2][group3] = make([]summary, 0)
+				report.Files[group][group2][group4] = make([]fileStatus, 0)
+				report.Summary[group][group2][group4] = make([]summary, 0)
 
 				for _, r := range reports {
 					status := "passed"
@@ -257,7 +257,7 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 						r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
 					}
 
-					report.Files[group][group2][group3] = append(report.Files[group][group2][group3], fileStatus{
+					report.Files[group][group2][group4] = append(report.Files[group][group2][group4], fileStatus{
 						Path:   r.FilePath,
 						Status: status,
 						Error:  errorStr,
@@ -265,7 +265,7 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 
 				}
 
-				for _, f := range report.Files[group][group2][group3] {
+				for _, f := range report.Files[group][group2][group4] {
 					if f.Status == "passed" {
 						currentPassed++
 						totalPassed++
@@ -274,7 +274,7 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 						totalFailed++
 					}
 				}
-				report.Summary[group][group2][group3] = append(report.Summary[group][group2][group3], summary{
+				report.Summary[group][group2][group4] = append(report.Summary[group][group2][group4], summary{
 					Passed: currentPassed,
 					Failed: currentFailed,
 				})
@@ -293,3 +293,4 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 	fmt.Println(string(jsonBytes))
 	return nil
 }
+
