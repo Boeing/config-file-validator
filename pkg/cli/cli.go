@@ -105,19 +105,19 @@ func (c CLI) Run() (int, error) {
 		if err != nil {
 			return 1, fmt.Errorf("unable to group by single value: %v", err)
 		}
-		c.Reporter.PrintSingleGroup(reportGroup, GroupOutput[0])
+		c.Reporter.PrintSingleGroup(reportGroup)
 	} else if len(GroupOutput) == 2 {
 		reportGroup, err := GroupByDouble(reports, GroupOutput)
 		if err != nil {
 			return 1, fmt.Errorf("unable to group by double value: %v", err)
 		}
-		c.Reporter.PrintDoubleGroup(reportGroup, GroupOutput)
+		c.Reporter.PrintDoubleGroup(reportGroup)
 	} else if len(GroupOutput) == 3 {
 		reportGroup, err := GroupByTriple(reports, GroupOutput)
 		if err != nil {
 			return 1, fmt.Errorf("unable to group by triple value: %v", err)
 		}
-		c.Reporter.PrintTripleGroup(reportGroup, GroupOutput)
+		c.Reporter.PrintTripleGroup(reportGroup)
 	} else {
 		c.Reporter.Print(reports)
 	}

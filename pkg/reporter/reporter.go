@@ -16,7 +16,7 @@ type Report struct {
 // files, etc
 type Reporter interface {
 	Print(reports []Report) error
-	PrintSingleGroup(map[string][]Report, string) error
-	PrintDoubleGroup(map[string]map[string][]Report, []string) error
-	PrintTripleGroup(map[string]map[string]map[string][]Report, []string) error
+	PrintSingleGroup(map[string][]Report) error
+	PrintDoubleGroup(map[string]map[string][]Report) error
+	PrintTripleGroup(map[string]map[string]map[string][]Report) error
 }
