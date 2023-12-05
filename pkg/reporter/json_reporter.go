@@ -48,37 +48,7 @@ type tripleGroupReportJSON struct {
 // Print implements the Reporter interface by outputting
 // the report content to stdout as JSON
 func (jr JsonReporter) Print(reports []Report) error {
-	var report reportJSON
-
-	for _, r := range reports {
-		status := "passed"
-		errorStr := ""
-		if !r.IsValid {
-			status = "failed"
-			errorStr = r.ValidationError.Error()
-		}
-
-		// Convert Windows-style file paths.
-		if strings.Contains(r.FilePath, "\\") {
-			r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
-		}
-
-		report.Files = append(report.Files, fileStatus{
-			Path:   r.FilePath,
-			Status: status,
-			Error:  errorStr,
-		})
-	}
-
-	report.Summary.Passed = 0
-	report.Summary.Failed = 0
-	for _, f := range report.Files {
-		if f.Status == "passed" {
-			report.Summary.Passed++
-		} else {
-			report.Summary.Failed++
-		}
-	}
+	report, err := createJsonReport(reports)
 
 	jsonBytes, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
@@ -98,7 +68,7 @@ func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report) error 
 	jsonReport.Summary = make(map[string][]summary)
 
 	for group, reports := range groupReports {
-		report, err := createJsonReport(reports, group)
+		report, err := createJsonReport(reports)
 		if err != nil {
 			return err
 		}
@@ -135,7 +105,7 @@ func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Rep
 		jsonReport.Files[group] = make(map[string][]fileStatus, 0)
 		jsonReport.Summary[group] = make(map[string][]summary, 0)
 		for group2, reports := range group2 {
-			report, err := createJsonReport(reports, group)
+			report, err := createJsonReport(reports)
 			if err != nil {
 				return err
 			}
@@ -177,7 +147,7 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 			jsonReport.Summary[group][group2] = make(map[string][]summary, 0)
 
 			for group3, reports := range group3 {
-				report, err := createJsonReport(reports, group)
+				report, err := createJsonReport(reports)
 				if err != nil {
 					return err
 				}
@@ -206,7 +176,7 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 }
 
 // Creates the json report
-func createJsonReport(reports []Report, groupOutput string) (reportJSON, error) {
+func createJsonReport(reports []Report) (reportJSON, error) {
 	var jsonReport reportJSON
 
 	for _, report := range reports {
