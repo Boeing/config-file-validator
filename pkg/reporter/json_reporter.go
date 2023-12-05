@@ -205,7 +205,8 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 	return nil
 }
 
-func createSingleGroupJson(reports []Report, groupOutput string) (reportJSON, error) {
+// Creates the json report
+func createJsonReport(reports []Report, groupOutput string) (reportJSON, error) {
 	var jsonReport reportJSON
 
 	for _, report := range reports {
