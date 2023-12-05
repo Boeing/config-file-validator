@@ -98,7 +98,7 @@ func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report) error 
 	jsonReport.Summary = make(map[string][]summary)
 
 	for group, reports := range groupReports {
-		report, err := createSingleGroupJson(reports, group)
+		report, err := createJsonReport(reports, group)
 		if err != nil {
 			return err
 		}
@@ -135,7 +135,7 @@ func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Rep
 		jsonReport.Files[group] = make(map[string][]fileStatus, 0)
 		jsonReport.Summary[group] = make(map[string][]summary, 0)
 		for group2, reports := range group2 {
-			report, err := createSingleGroupJson(reports, group)
+			report, err := createJsonReport(reports, group)
 			if err != nil {
 				return err
 			}
@@ -177,7 +177,7 @@ func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[s
 			jsonReport.Summary[group][group2] = make(map[string][]summary, 0)
 
 			for group3, reports := range group3 {
-				report, err := createSingleGroupJson(reports, group)
+				report, err := createJsonReport(reports, group)
 				if err != nil {
 					return err
 				}
