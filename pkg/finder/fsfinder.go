@@ -151,6 +151,19 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 						}
 					}
 				}
+			} else {
+				for _, fileType := range fsf.FileTypes {
+					for _, fileMask := range fileType.FileMasks {
+						pattern := filepath.Join(filepath.Dir(path), filepath.Base(path), fileMask)
+						foundFiles, _ := filepath.Glob(pattern)
+						for _, matchedFilePath := range foundFiles {
+							ss := strings.Split(matchedFilePath, string(os.PathSeparator))
+							matchedFileName := ss[len(ss)-1]
+							fileMetadata := FileMetadata{matchedFileName, matchedFilePath, fileType}
+							matchingFiles = append(matchingFiles, fileMetadata)
+						}
+					}
+				}
 			}
 
 			return nil

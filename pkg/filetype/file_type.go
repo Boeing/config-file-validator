@@ -11,6 +11,7 @@ import (
 type FileType struct {
 	Name       string
 	Extensions []string
+	FileMasks  []string
 	Validator  validator.Validator
 }
 
@@ -19,6 +20,7 @@ type FileType struct {
 var JsonFileType = FileType{
 	"json",
 	[]string{"json"},
+	[]string{},
 	validator.JsonValidator{},
 }
 
@@ -27,6 +29,7 @@ var JsonFileType = FileType{
 var YamlFileType = FileType{
 	"yaml",
 	[]string{"yml", "yaml"},
+	[]string{},
 	validator.YamlValidator{},
 }
 
@@ -35,6 +38,7 @@ var YamlFileType = FileType{
 var XmlFileType = FileType{
 	"xml",
 	[]string{"xml"},
+	[]string{},
 	validator.XmlValidator{},
 }
 
@@ -43,6 +47,7 @@ var XmlFileType = FileType{
 var TomlFileType = FileType{
 	"toml",
 	[]string{"toml"},
+	[]string{},
 	validator.TomlValidator{},
 }
 
@@ -51,6 +56,7 @@ var TomlFileType = FileType{
 var IniFileType = FileType{
 	"ini",
 	[]string{"ini"},
+	[]string{},
 	validator.IniValidator{},
 }
 
@@ -59,6 +65,7 @@ var IniFileType = FileType{
 var PropFileType = FileType{
 	"properties",
 	[]string{"properties"},
+	[]string{},
 	validator.PropValidator{},
 }
 
@@ -67,6 +74,7 @@ var PropFileType = FileType{
 var HclFileType = FileType{
 	"hcl",
 	[]string{"hcl"},
+	[]string{},
 	validator.HclValidator{},
 }
 
@@ -75,6 +83,7 @@ var HclFileType = FileType{
 var PlistFileType = FileType{
 	"plist",
 	[]string{"plist"},
+	[]string{},
 	validator.PlistValidator{},
 }
 
@@ -83,7 +92,15 @@ var PlistFileType = FileType{
 var CsvFileType = FileType{
 	"csv",
 	[]string{"csv"},
+	[]string{},
 	validator.CsvValidator{},
+}
+
+var NginxFileType = FileType{
+	"nginx",
+	[]string{},
+	[]string{"nginx*.conf"},
+	validator.NginxValidator{},
 }
 
 // An array of files types that are supported
@@ -98,4 +115,5 @@ var FileTypes = []FileType{
 	HclFileType,
 	PlistFileType,
 	CsvFileType,
+	NginxFileType,
 }
