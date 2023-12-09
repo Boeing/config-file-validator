@@ -88,10 +88,10 @@ func getFlags() (validatorConfig, error) {
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
-	if *reportTypePtr != "standard" && *reportTypePtr != "json" {
-		fmt.Println("Wrong parameter value for reporter, only supports standard or json")
+	if *reportTypePtr != "standard" && *reportTypePtr != "json" && *reportTypePtr != "junit" {
+		fmt.Println("Wrong parameter value for reporter, only supports standard, json or junit")
 		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard or json")
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
@@ -130,6 +130,8 @@ func isFlagSet(flagName string) bool {
 // reportType string
 func getReporter(reportType, outputDest *string) reporter.Reporter {
 	switch *reportType {
+	case "junit":
+		return reporter.JunitReporter{}
 	case "json":
 		return reporter.NewJsonReporter(*outputDest)
 	default:
