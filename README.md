@@ -103,6 +103,8 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -output string
+        Destination to a file to output results
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
@@ -162,6 +164,11 @@ validator --reporter=json /path/to/search
 
 ![Exclude File Types Run](./img/custom_reporter.png)
 
+#### Output results to a file
+Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format (Available option is `json`). If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
+```
+validator --reporter=json --output=/path/to/dir
+```
 
 #### Container Run
 ```
