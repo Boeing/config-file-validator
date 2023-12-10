@@ -7,8 +7,7 @@ import (
 	"github.com/fatih/color"
 )
 
-type StdoutReporter struct {
-}
+type StdoutReporter struct{}
 
 // Print implements the Reporter interface by outputting
 // the report content to stdout
