@@ -5,9 +5,9 @@
         </div>
         <div style="position: absolute; right: 0; top: 0">
             <a href="https://github.com/Boeing/config-file-validator">
-                <img decoding="async" loading="lazy" width="149" height="149" 
-                src="https://github.blog/wp-content/uploads/2008/12/forkme_right_red_aa0000.png?resize=149%2C149" 
-                class="attachment-full size-full" alt="Fork me on GitHub" data-recalc-dims="1">
+                <img decoding="async" loading="lazy" width="149" height="149"
+                src="./img/fork-me-on-github.png" 
+                class="attachment-full size-full" alt="Fork me on GitHub" data-recalc-dims="1" style="background: transparent !important;">
             </a>
         </div>
     </div>
@@ -19,7 +19,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-95.4%25-brightgreen" alt="Code Coverage" />
+<img id="cov" src="https://img.shields.io/badge/Coverage-97.3%25-brightgreen" alt="Code Coverage">
 
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">

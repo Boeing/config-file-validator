@@ -67,6 +67,70 @@ func Test_jsonReport(t *testing.T) {
 	}
 }
 
+func Test_junitReport(t *testing.T) {
+	prop1 := Property{Name: "property1", Value: "value", TextValue: "text value"}
+	properties := []Property{prop1}
+	testsuite := Testsuite{Name: "config-file-validator", Errors: 0, Properties: &properties}
+	testsuiteBatch := []Testsuite{testsuite}
+	ts := Testsuites{Name: "config-file-validator", Tests: 1, Testsuites: testsuiteBatch}
+
+	_, err := ts.getReport()
+	if err == nil {
+		t.Errorf("Reporting failed on getReport")
+	}
+
+	prop2 := Property{Name: "property2", Value: "value"}
+	properties2 := []Property{prop2}
+	testsuite = Testsuite{Name: "config-file-validator", Errors: 0, Properties: &properties2}
+	testsuiteBatch = []Testsuite{testsuite}
+	ts = Testsuites{Name: "config-file-validator", Tests: 1, Testsuites: testsuiteBatch}
+
+	_, err = ts.getReport()
+	if err != nil {
+		t.Errorf("Reporting failed on getReport")
+	}
+
+	tc1 := Testcase{Name: "testcase2", ClassName: "config-file-validator", Properties: &properties}
+	testCasesBatch := []Testcase{tc1}
+	testsuite = Testsuite{Name: "config-file-validator", Errors: 0, Testcases: &testCasesBatch}
+	testsuiteBatch = []Testsuite{testsuite}
+	ts3 := Testsuites{Name: "config-file-validator", Tests: 1, Testsuites: testsuiteBatch}
+
+	_, err = ts3.getReport()
+	if err == nil {
+		t.Errorf("Reporting failed on getReport")
+	}
+
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+	}
+
+	reportWithBackslashPath := Report{
+		"good.xml",
+		"\\fake\\path\\good.xml",
+		true,
+		nil,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithBackslashPath, reportWithValidationError}
+
+	junitReporter := JunitReporter{}
+	err = junitReporter.Print(reports)
+	if err != nil {
+		t.Errorf("Reporting failed")
+	}
+}
+
 func Test_stdoutReportSingleGroup(t *testing.T) {
 	reportNoValidationError := Report{
 		"good.xml",
@@ -90,7 +154,6 @@ func Test_stdoutReportSingleGroup(t *testing.T) {
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
-
 
 	groupReports := map[string][]Report{"pass-fail": reports}
 
@@ -125,7 +188,6 @@ func Test_stdoutReportDoubleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-
 	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
 
 	stdoutReporter := StdoutReporter{}
@@ -158,7 +220,6 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
-
 
 	groupReports := map[string]map[string]map[string][]Report{
 		"pass-fail": {"directory": {"filetype": reports}},
@@ -196,11 +257,10 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-
 	groupReports := map[string][]Report{"pass-fail": reports}
 
-	stdoutReporter := JsonReporter{}
-	err := stdoutReporter.PrintSingleGroup(groupReports)
+	jsonReporter := JsonReporter{}
+	err := jsonReporter.PrintSingleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -230,11 +290,10 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-
 	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
 
-	stdoutReporter := JsonReporter{}
-	err := stdoutReporter.PrintDoubleGroup(groupReports)
+	jsonReporter := JsonReporter{}
+	err := jsonReporter.PrintDoubleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -264,14 +323,13 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-
 	groupReports := map[string]map[string]map[string][]Report{
 		"pass-fail": {"directory": {"filetype": reports}},
 		"filetype":  {"directory": {"pass-fail": reports}},
 		"directory": {"filetype": {"pass-fail": reports}}}
 
-	stdoutReporter := JsonReporter{}
-	err := stdoutReporter.PrintTripleGroup(groupReports)
+	jsonReporter := JsonReporter{}
+	err := jsonReporter.PrintTripleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}

@@ -69,7 +69,7 @@ func validatorUsage() {
 func getFlags() (validatorConfig, error) {
 	flag.Usage = validatorUsage
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
+	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard, json and junit")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
@@ -87,10 +87,10 @@ func getFlags() (validatorConfig, error) {
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
-	if *reportTypePtr != "standard" && *reportTypePtr != "json" {
-		fmt.Println("Wrong parameter value for reporter, only supports standard or json")
+	if *reportTypePtr != "standard" && *reportTypePtr != "json" && *reportTypePtr != "junit" {
+		fmt.Println("Wrong parameter value for reporter, only supports standard, json or junit")
 		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard or json")
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
@@ -151,6 +151,8 @@ func isFlagSet(flagName string) bool {
 // reportType string
 func getReporter(reportType *string) reporter.Reporter {
 	switch *reportType {
+	case "junit":
+		return reporter.JunitReporter{}
 	case "json":
 		return reporter.JsonReporter{}
 	default:
