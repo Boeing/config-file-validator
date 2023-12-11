@@ -86,6 +86,14 @@ var CsvFileType = FileType{
 	validator.CsvValidator{},
 }
 
+// Instance of the FileType object to
+// represent a HOCON file
+var HoconFileType = FileType{
+	"hocon",
+	[]string{"hocon"},
+	validator.HoconValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -98,4 +106,5 @@ var FileTypes = []FileType{
 	HclFileType,
 	PlistFileType,
 	CsvFileType,
+	HoconFileType,
 }
