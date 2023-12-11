@@ -91,12 +91,11 @@ func Test_stdoutReportSingleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-	groupOutput := "pass-fail"
 
 	groupReports := map[string][]Report{"pass-fail": reports}
 
 	stdoutReporter := StdoutReporter{}
-	err := stdoutReporter.PrintSingleGroup(groupReports, groupOutput)
+	err := stdoutReporter.PrintSingleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -126,12 +125,11 @@ func Test_stdoutReportDoubleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-	groupOutput := []string{"pass-fail", "filetype"}
 
 	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
 
 	stdoutReporter := StdoutReporter{}
-	err := stdoutReporter.PrintDoubleGroup(groupReports, groupOutput)
+	err := stdoutReporter.PrintDoubleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -161,7 +159,6 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-	groupOutput := []string{"pass-fail", "filetype", "directory"}
 
 	groupReports := map[string]map[string]map[string][]Report{
 		"pass-fail": {"directory": {"filetype": reports}},
@@ -169,7 +166,7 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 		"directory": {"filetype": {"pass-fail": reports}}}
 
 	stdoutReporter := StdoutReporter{}
-	err := stdoutReporter.PrintTripleGroup(groupReports, groupOutput)
+	err := stdoutReporter.PrintTripleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -199,12 +196,11 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-	groupOutput := "pass-fail"
 
 	groupReports := map[string][]Report{"pass-fail": reports}
 
 	stdoutReporter := JsonReporter{}
-	err := stdoutReporter.PrintSingleGroup(groupReports, groupOutput)
+	err := stdoutReporter.PrintSingleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -234,12 +230,11 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-	groupOutput := []string{"pass-fail", "filetype"}
 
 	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
 
 	stdoutReporter := JsonReporter{}
-	err := stdoutReporter.PrintDoubleGroup(groupReports, groupOutput)
+	err := stdoutReporter.PrintDoubleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -269,7 +264,6 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-	groupOutput := []string{"pass-fail", "filetype", "directory"}
 
 	groupReports := map[string]map[string]map[string][]Report{
 		"pass-fail": {"directory": {"filetype": reports}},
@@ -277,7 +271,7 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 		"directory": {"filetype": {"pass-fail": reports}}}
 
 	stdoutReporter := JsonReporter{}
-	err := stdoutReporter.PrintTripleGroup(groupReports, groupOutput)
+	err := stdoutReporter.PrintTripleGroup(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
