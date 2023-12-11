@@ -104,7 +104,7 @@ optional flags:
   -exclude-file-types string
     	A comma separated list of file types to ignore
   -groupby string
-        Group the output by filetype, pass-fail, or directory
+        Group the output by filetype, pass-fail, or directory. Supported Reporters are Standard and JSON
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version

@@ -105,19 +105,33 @@ func (c CLI) Run() (int, error) {
 		if err != nil {
 			return 1, fmt.Errorf("unable to group by single value: %v", err)
 		}
-		c.Reporter.PrintSingleGroup(reportGroup)
+		// Check reporter type to determine how to print
+		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
+			reporter.PrintSingleGroupJson(reportGroup)
+		} else {
+			reporter.PrintSingleGroupStdout(reportGroup)
+		}
 	} else if len(GroupOutput) == 2 {
 		reportGroup, err := GroupByDouble(reports, GroupOutput)
 		if err != nil {
 			return 1, fmt.Errorf("unable to group by double value: %v", err)
 		}
-		c.Reporter.PrintDoubleGroup(reportGroup)
+		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
+			reporter.PrintDoubleGroupJson(reportGroup)
+		} else {
+			reporter.PrintDoubleGroupStdout(reportGroup)
+		}
+
 	} else if len(GroupOutput) == 3 {
 		reportGroup, err := GroupByTriple(reports, GroupOutput)
 		if err != nil {
 			return 1, fmt.Errorf("unable to group by triple value: %v", err)
 		}
-		c.Reporter.PrintTripleGroup(reportGroup)
+		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
+			reporter.PrintTripleGroupJson(reportGroup)
+		} else {
+			reporter.PrintTripleGroupStdout(reportGroup)
+		}
 	} else {
 		c.Reporter.Print(reports)
 	}

@@ -157,8 +157,7 @@ func Test_stdoutReportSingleGroup(t *testing.T) {
 
 	groupReports := map[string][]Report{"pass-fail": reports}
 
-	stdoutReporter := StdoutReporter{}
-	err := stdoutReporter.PrintSingleGroup(groupReports)
+	err := PrintSingleGroupStdout(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -190,8 +189,7 @@ func Test_stdoutReportDoubleGroup(t *testing.T) {
 
 	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
 
-	stdoutReporter := StdoutReporter{}
-	err := stdoutReporter.PrintDoubleGroup(groupReports)
+	err := PrintDoubleGroupStdout(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -226,8 +224,7 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 		"filetype":  {"directory": {"pass-fail": reports}},
 		"directory": {"filetype": {"pass-fail": reports}}}
 
-	stdoutReporter := StdoutReporter{}
-	err := stdoutReporter.PrintTripleGroup(groupReports)
+	err := PrintTripleGroupStdout(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -259,8 +256,7 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 
 	groupReports := map[string][]Report{"pass-fail": reports}
 
-	jsonReporter := JsonReporter{}
-	err := jsonReporter.PrintSingleGroup(groupReports)
+	err := PrintSingleGroupJson(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -292,8 +288,7 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 
 	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
 
-	jsonReporter := JsonReporter{}
-	err := jsonReporter.PrintDoubleGroup(groupReports)
+	err := PrintDoubleGroupJson(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -328,8 +323,7 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 		"filetype":  {"directory": {"pass-fail": reports}},
 		"directory": {"filetype": {"pass-fail": reports}}}
 
-	jsonReporter := JsonReporter{}
-	err := jsonReporter.PrintTripleGroup(groupReports)
+	err := PrintTripleGroupJson(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}

@@ -33,11 +33,12 @@ func (sr StdoutReporter) Print(reports []Report) error {
 
 // There is repeated code in the following two functions. Trying to consolidate
 // the code into one function is difficult because of the output format
-func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report) error {
+func PrintSingleGroupStdout(groupReport map[string][]Report) error {
 	var successCount = 0
 	var failureCount = 0
 	var totalSuccessCount = 0
 	var totalFailureCount = 0
+	sr := StdoutReporter{}
 	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
 		successCount = 0
@@ -65,11 +66,12 @@ func (sr StdoutReporter) PrintSingleGroup(groupReport map[string][]Report) error
 }
 
 // Prints the report for when two groups are passed in the groupby flag
-func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Report) error {
+func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 	var successCount = 0
 	var failureCount = 0
 	var totalSuccessCount = 0
 	var totalFailureCount = 0
+	sr := StdoutReporter{}
 
 	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
@@ -102,11 +104,12 @@ func (sr StdoutReporter) PrintDoubleGroup(groupReport map[string]map[string][]Re
 }
 
 // Prints the report for when three groups are passed in the groupby flag
-func (sr StdoutReporter) PrintTripleGroup(groupReport map[string]map[string]map[string][]Report) error {
+func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Report) error {
 	var successCount = 0
 	var failureCount = 0
 	var totalSuccessCount = 0
 	var totalFailureCount = 0
+	sr := StdoutReporter{}
 
 	for groupOne, header := range groupReport {
 		fmt.Printf("%s\n", groupOne)

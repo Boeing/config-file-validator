@@ -73,7 +73,7 @@ func getFlags() (validatorConfig, error) {
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
-	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail")
+	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
@@ -91,6 +91,12 @@ func getFlags() (validatorConfig, error) {
 		fmt.Println("Wrong parameter value for reporter, only supports standard, json or junit")
 		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
+	}
+
+	if *reportTypePtr == "junit" && *groupOutputPtr != "" {
+		fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+		flag.Usage()
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
@@ -184,12 +190,10 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	reporter := getReporter(validatorConfig.reportType)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
-
-	// since the group output is a comma separated string
-	// it needs to be split into a slice of strings
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
+
+	reporter := getReporter(validatorConfig.reportType)
 
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),

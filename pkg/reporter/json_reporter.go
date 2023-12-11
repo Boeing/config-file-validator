@@ -60,7 +60,7 @@ func (jr JsonReporter) Print(reports []Report) error {
 }
 
 // Prints the report for when one group is passed in the groupby flag
-func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report) error {
+func PrintSingleGroupJson(groupReports map[string][]Report) error {
 	var jsonReport groupReportJSON
 	totalPassed := 0
 	totalFailed := 0
@@ -94,7 +94,7 @@ func (jr JsonReporter) PrintSingleGroup(groupReports map[string][]Report) error 
 }
 
 // Prints the report for when two groups are passed in the groupby flag
-func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Report) error {
+func PrintDoubleGroupJson(groupReports map[string]map[string][]Report) error {
 	var jsonReport doubleGroupReportJSON
 	totalPassed := 0
 	totalFailed := 0
@@ -131,7 +131,7 @@ func (jr JsonReporter) PrintDoubleGroup(groupReports map[string]map[string][]Rep
 }
 
 // Prinnts the report for when three groups are passed in the groupby flag
-func (jr JsonReporter) PrintTripleGroup(groupReports map[string]map[string]map[string][]Report) error {
+func PrintTripleGroupJson(groupReports map[string]map[string]map[string][]Report) error {
 	var jsonReport tripleGroupReportJSON
 	totalPassed := 0
 	totalFailed := 0
