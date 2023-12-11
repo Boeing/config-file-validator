@@ -9,7 +9,7 @@ url="https://github.com/Boeing/config-file-validator"
 license=('Apache 2.0')
 depends=('glibc')
 makedepends=('go')
-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
@@ -18,7 +18,8 @@ build() {
   GOOS=linux \
   GOARCH=amd64 \
   go build \
-  -ldflags='-w -s -extldflags "-static"' \
+  -ldflags="-w -s -extldflags '-static' \
+  -X github.com/Boeing/config-file-validator.version=$pkgver" \
   -tags netgo \
   -o validator \
   cmd/validator/validator.go
