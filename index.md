@@ -42,6 +42,7 @@
 * Apple PList XML
 * CSV
 * HCL
+* HOCON
 * INI
 * JSON
 * Properties
@@ -150,7 +151,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `csv`, `hcl`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. Available file types are `csv`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`.
 
 ```
 validator --exclude-file-types=json /path/to/search
