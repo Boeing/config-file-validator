@@ -30,8 +30,7 @@ func (sr StdoutReporter) Print(reports []Report) error {
 			successCount = successCount + 1
 		}
 	}
-	results += fmt.Sprintf("Summary: %d succeeded, %d failed\n", successCount, failureCount)
-	fmt.Printf(results)
+	fmt.Printf("Summary: %d succeeded, %d failed\n", successCount, failureCount)
 
 	return nil
 }

@@ -2,7 +2,6 @@ package reporter
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -240,6 +239,7 @@ func assertRegexpError(regexp interface{}) assert.ErrorAssertionFunc {
 	}
 }
 
+// deleteFiles deletes all files for tests under the 'test/output' directory, except those under 'test/output/example'.
 func deleteFiles(t *testing.T) {
 	t.Helper()
 	directoryPath := "../../test/output"
@@ -259,5 +259,4 @@ func deleteFiles(t *testing.T) {
 		err := os.Remove(file)
 		require.NoError(t, err)
 	}
-	fmt.Println("deleted all files in test/output for tests of output.")
 }
