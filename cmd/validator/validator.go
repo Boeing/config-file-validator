@@ -18,7 +18,7 @@ optional flags:
   -exclude-file-types string
     	A comma separated list of file types to ignore
   -output
-  		Destination of a file to outputting results
+     	Destination of a file to outputting results
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
