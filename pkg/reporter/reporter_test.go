@@ -155,15 +155,16 @@ func Test_jsonReporterWriter(t *testing.T) {
 		outputDest string
 	}
 	type want struct {
-		data []byte
-		err  assert.ErrorAssertionFunc
+		fileName string
+		data     []byte
+		err      assert.ErrorAssertionFunc
 	}
 
 	tests := map[string]struct {
 		args args
 		want want
 	}{
-		"Normal/Output results to a file named 'result.json' (default name)": {
+		"normal/existing dir/default name": {
 			args: args{
 				reports: []Report{
 					report,
@@ -171,11 +172,12 @@ func Test_jsonReporterWriter(t *testing.T) {
 				outputDest: "../../test/output",
 			},
 			want: want{
-				data: bytes,
-				err:  assert.NoError,
+				fileName: "result.json",
+				data:     bytes,
+				err:      assert.NoError,
 			},
 		},
-		"Normal/Output results to a file with a given name": {
+		"normal/file name is given": {
 			args: args{
 				reports: []Report{
 					report,
@@ -183,11 +185,25 @@ func Test_jsonReporterWriter(t *testing.T) {
 				outputDest: "../../test/output/validator_result.json",
 			},
 			want: want{
-				data: bytes,
-				err:  assert.NoError,
+				fileName: "validator_result.json",
+				data:     bytes,
+				err:      assert.NoError,
 			},
 		},
-		"Abnormal/a non-existing dir for output is specified": {
+		"quash normal/empty string": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "",
+			},
+			want: want{
+				fileName: "",
+				data:     nil,
+				err:      assert.NoError,
+			},
+		},
+		"abnormal/non-existing dir": {
 			args: args{
 				reports: []Report{
 					report,
@@ -195,8 +211,9 @@ func Test_jsonReporterWriter(t *testing.T) {
 				outputDest: "../../test/wrong/output",
 			},
 			want: want{
-				data: nil,
-				err:  assertRegexpError("failed to create a file: "),
+				fileName: "",
+				data:     nil,
+				err:      assertRegexpError("failed to create a file: "),
 			},
 		},
 	}
@@ -206,14 +223,19 @@ func Test_jsonReporterWriter(t *testing.T) {
 			err := sut.Print(tt.args.reports)
 			tt.want.err(t, err)
 			if tt.want.data != nil {
-				fileName := ""
-				if info, _ := os.Stat(tt.args.outputDest); info.IsDir() {
-					fileName = "/result.json"
+				info, err := os.Stat(tt.args.outputDest)
+				require.NoError(t, err)
+				var filePath string
+				if info.IsDir() {
+					filePath = tt.args.outputDest + "/result.json"
+				} else { // if file was named with outputDest value
+					assert.Equal(t, tt.want.fileName, info.Name())
+					filePath = tt.args.outputDest
 				}
-				bytes, err := os.ReadFile(tt.args.outputDest + fileName)
+				bytes, err := os.ReadFile(filePath)
 				require.NoError(t, err)
 				assert.Equal(t, tt.want.data, bytes)
-				err = os.Remove(tt.args.outputDest + fileName)
+				err = os.Remove(filePath)
 				require.NoError(t, err)
 			}
 		},
