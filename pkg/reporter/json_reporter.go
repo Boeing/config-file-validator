@@ -77,7 +77,7 @@ func (jr JsonReporter) Print(reports []Report) error {
 	fmt.Print(string(jsonBytes))
 
 	if jr.outputDest != "" {
-		return outputResultsToFile(jr.outputDest, "json", jsonBytes)
+		return outputBytesToFile(jr.outputDest, "result", "json", jsonBytes)
 	}
 
 	return nil
