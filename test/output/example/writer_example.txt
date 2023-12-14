@@ -1,2 +1,2 @@
 this is an example file.
-this is for outputResultsToFile function.
+this is for outputBytesToFile function.

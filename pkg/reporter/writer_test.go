@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_outputResultsToFile(t *testing.T) {
+func Test_outputBytesToFile(t *testing.T) {
 	deleteFiles(t)
 
 	bytes, err := os.ReadFile("../../test/output/example/writer_example.txt")
@@ -32,7 +32,7 @@ func Test_outputResultsToFile(t *testing.T) {
 	}{
 		"normal/existing dir": {
 			args: args{
-				results:     []byte("this is an example file.\nthis is for outputResultsToFile function.\n"),
+				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
 				outputDest:  "../../test/output",
 				defaultName: "default",
 				extension:   "txt",
@@ -45,7 +45,7 @@ func Test_outputResultsToFile(t *testing.T) {
 		},
 		"normal/file name is provided to outputDest": {
 			args: args{
-				results:     []byte("this is an example file.\nthis is for outputResultsToFile function.\n"),
+				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
 				outputDest:  "../../test/output/validator_result.json",
 				defaultName: "default",
 				extension:   "json",
@@ -58,7 +58,7 @@ func Test_outputResultsToFile(t *testing.T) {
 		},
 		"normal/existing dir without extension": {
 			args: args{
-				results:     []byte("this is an example file.\nthis is for outputResultsToFile function.\n"),
+				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
 				outputDest:  "../../test/output",
 				defaultName: "default",
 				extension:   "",
@@ -71,7 +71,7 @@ func Test_outputResultsToFile(t *testing.T) {
 		},
 		"abnormal/empty string outputDest": {
 			args: args{
-				results:     []byte("this is an example file.\nthis is for outputResultsToFile function.\n"),
+				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
 				outputDest:  "",
 				defaultName: "default",
 				extension:   ".txt",
@@ -83,7 +83,7 @@ func Test_outputResultsToFile(t *testing.T) {
 		},
 		"abnormal/non-existing dir": {
 			args: args{
-				results:     []byte("this is an example file.\nthis is for outputResultsToFile function.\n"),
+				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
 				outputDest:  "../../test/wrong/output",
 				defaultName: "result",
 				extension:   "",
