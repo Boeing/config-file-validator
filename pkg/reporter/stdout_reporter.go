@@ -17,9 +17,8 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	var failureCount = 0
 	for _, report := range reports {
 		if !report.IsValid {
-			tmp := ""
 			color.Set(color.FgRed)
-			tmp += fmt.Sprintln("    × " + report.FilePath)
+			tmp := fmt.Sprintln("    × " + report.FilePath)
 			paddedString := sr.padErrorString(report.ValidationError.Error())
 			tmp += fmt.Sprintf("        error: %v\n", paddedString)
 			fmt.Printf(tmp)
