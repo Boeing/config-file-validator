@@ -17,11 +17,14 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	var failureCount = 0
 	for _, report := range reports {
 		if !report.IsValid {
+			tmp := ""
 			color.Set(color.FgRed)
-			results += fmt.Sprintln("    × " + report.FilePath)
+			tmp += fmt.Sprintln("    × " + report.FilePath)
 			paddedString := sr.padErrorString(report.ValidationError.Error())
-			results += fmt.Sprintf("        error: %v\n", paddedString)
+			tmp += fmt.Sprintf("        error: %v\n", paddedString)
+			fmt.Printf(tmp)
 			color.Unset()
+			results += tmp
 			failureCount = failureCount + 1
 		} else {
 			tmp := fmt.Sprintln("    ✓ " + report.FilePath)
