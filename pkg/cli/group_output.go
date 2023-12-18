@@ -8,7 +8,7 @@ import (
 )
 
 // Group Reports by File Type
-func GroupByFile(reports []reporter.Report) map[string][]reporter.Report {
+func GroupByFileType(reports []reporter.Report) map[string][]reporter.Report {
 	reportByFile := make(map[string][]reporter.Report)
 
 	for _, report := range reports {
@@ -86,7 +86,7 @@ func GroupBySingle(reports []reporter.Report, groupBy string) (map[string][]repo
 		case "pass-fail":
 			groupReport = GroupByPassFail(reports)
 		case "filetype":
-			groupReport = GroupByFile(reports)
+			groupReport = GroupByFileType(reports)
 		case "directory":
 			groupReport = GroupByDirectory(reports)
 		default:

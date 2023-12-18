@@ -71,6 +71,45 @@ func Test_SingleGroupOutput(t *testing.T) {
 	}
 }
 
+func Test_WindowsDirectoryGroupBy(t *testing.T) {
+	reports := []reporter.Report{
+		{
+			FileName: "test",
+			FilePath: "test\\test\\test",
+		},
+		{
+			FileName: "test2",
+			FilePath: "test2\\test2\\test2",
+		},
+	}
+
+	groupDirectory := GroupByDirectory(reports)
+
+	if len(groupDirectory) != 2 {
+		t.Errorf("GroupByDirectory did not group correctly")
+	}
+
+}
+
+func Test_DirectoryGroupBy(t *testing.T) {
+	reports := []reporter.Report{
+		{
+			FileName: "test",
+			FilePath: "test/test/test",
+		},
+		{
+			FileName: "test2",
+			FilePath: "test2/test2/test2",
+		},
+	}
+
+	groupDirectory := GroupByDirectory(reports)
+
+	if len(groupDirectory) != 2 {
+		t.Errorf("GroupByDirectory did not group correctly")
+	}
+
+}
 func Test_DoubleGroupOutput(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
