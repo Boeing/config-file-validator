@@ -53,9 +53,17 @@ func GroupByPassFail(reports []reporter.Report) map[string][]reporter.Report {
 func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 	reportByDirectory := make(map[string][]reporter.Report)
 	for _, report := range reports {
-		directoryPath := strings.Split(report.FilePath, "/")
-		directory := strings.Join(directoryPath[:len(directoryPath)-1], "/")
-		directory = directory + "/"
+		directory := ""
+		// Check if the filepath is in Windows format
+		if strings.Contains(report.FilePath, "\\") {
+			directoryPath := strings.Split(report.FilePath, "\\")
+			directory = strings.Join(directoryPath[:len(directoryPath)-1], "\\")
+			directory = directory + "\\"
+		} else {
+			directoryPath := strings.Split(report.FilePath, "/")
+			directory = strings.Join(directoryPath[:len(directoryPath)-1], "/")
+			directory = directory + "/"
+		}
 
 		if reportByDirectory[directory] == nil {
 			reportByDirectory[directory] = []reporter.Report{report}
