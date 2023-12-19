@@ -138,7 +138,6 @@ func (c CLI) Run() (int, error) {
 			fmt.Println("failed to report:", err)
 			errorFound = true
 		}
-
 	}
 	if errorFound {
 		return 1, nil
