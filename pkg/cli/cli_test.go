@@ -10,6 +10,7 @@ import (
 func Test_CLI(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
+	groupOutput := []string{""}
 	stdoutReporter := reporter.StdoutReporter{}
 
 	fsFinder := finder.FileSystemFinderInit(
@@ -19,6 +20,7 @@ func Test_CLI(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporter(stdoutReporter),
+		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
 
@@ -68,5 +70,31 @@ func Test_CLIBadPath(t *testing.T) {
 
 	if exitStatus == 0 {
 		t.Errorf("Exit status was not 1")
+	}
+}
+
+func Test_CLIWithGroup(t *testing.T) {
+	searchPath := "../../test"
+	excludeDirs := []string{"subdir", "subdir2"}
+	groupOutput := []string{"pass-fail", "directory"}
+	stdoutReporter := reporter.StdoutReporter{}
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(searchPath),
+		finder.WithExcludeDirs(excludeDirs),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithReporter(stdoutReporter),
+		WithGroupOutput(groupOutput),
+	)
+	exitStatus, err := cli.Run()
+
+	if err != nil {
+		t.Errorf("An error was returned: %v", err)
+	}
+
+	if exitStatus != 0 {
+		t.Errorf("Exit status was not 0")
 	}
 }

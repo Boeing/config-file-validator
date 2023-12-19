@@ -136,6 +136,7 @@ func Test_junitReport(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 func Test_jsonReporterWriter(t *testing.T) {
 	var (
 		report = Report{
@@ -280,5 +281,203 @@ func deleteFiles(t *testing.T) {
 	for _, file := range filteredFiles {
 		err := os.Remove(file)
 		require.NoError(t, err)
+	}
+}
+
+func Test_stdoutReportSingleGroup(t *testing.T) {
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+	}
+
+	reportWithMultiLineValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse keys:\nkey1\nkey2"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
+
+	groupReports := map[string][]Report{"pass-fail": reports}
+
+	err := PrintSingleGroupStdout(groupReports)
+	if err != nil {
+		t.Errorf("Reporting failed")
+	}
+}
+
+func Test_stdoutReportDoubleGroup(t *testing.T) {
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+	}
+
+	reportWithMultiLineValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse keys:\nkey1\nkey2"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
+
+	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
+
+	err := PrintDoubleGroupStdout(groupReports)
+	if err != nil {
+		t.Errorf("Reporting failed")
+	}
+}
+
+func Test_stdoutReportTripleGroup(t *testing.T) {
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+	}
+
+	reportWithMultiLineValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse keys:\nkey1\nkey2"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
+
+	groupReports := map[string]map[string]map[string][]Report{
+		"pass-fail": {"directory": {"filetype": reports}},
+		"filetype":  {"directory": {"pass-fail": reports}},
+		"directory": {"filetype": {"pass-fail": reports}}}
+
+	err := PrintTripleGroupStdout(groupReports)
+	if err != nil {
+		t.Errorf("Reporting failed")
+	}
+}
+
+func Test_jsonReportSingleGroup(t *testing.T) {
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+	}
+
+	reportWithMultiLineValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse keys:\nkey1\nkey2"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
+
+	groupReports := map[string][]Report{"pass-fail": reports}
+
+	err := PrintSingleGroupJson(groupReports)
+	if err != nil {
+		t.Errorf("Reporting failed")
+	}
+}
+
+func Test_jsonReportDoubleGroup(t *testing.T) {
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+	}
+
+	reportWithMultiLineValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse keys:\nkey1\nkey2"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
+
+	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
+
+	err := PrintDoubleGroupJson(groupReports)
+	if err != nil {
+		t.Errorf("Reporting failed")
+	}
+}
+
+func Test_jsonReportTripleGroup(t *testing.T) {
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+	}
+
+	reportWithMultiLineValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse keys:\nkey1\nkey2"),
+	}
+
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
+
+	groupReports := map[string]map[string]map[string][]Report{
+		"pass-fail": {"directory": {"filetype": reports}},
+		"filetype":  {"directory": {"pass-fail": reports}},
+		"directory": {"filetype": {"pass-fail": reports}}}
+
+	err := PrintTripleGroupJson(groupReports)
+	if err != nil {
+		t.Errorf("Reporting failed")
 	}
 }

@@ -30,6 +30,8 @@ func Test_flags(t *testing.T) {
 		{"output set", []string{"--output=../../test/output", "--reporter=json", "."}, 0},
 		{"empty string output set", []string{"--output", "", "--reporter", "json", "."}, 0},
 		{"wrong output set", []string{"--output", "/path/not/exist", "--reporter", "json", "."}, 1},
+		{"incorrect group", []string{"-groupby=badgroup", "."}, 1},
+		{"correct group", []string{"-groupby=directory", "."}, 0},
 	}
 	for _, tc := range cases {
 		// this call is required because otherwise flags panics,

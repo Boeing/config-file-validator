@@ -55,7 +55,6 @@ func WithDepth(depthVal int) FSFinderOptions {
 		fsf.Depth = &depthVal
 	}
 }
-
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	var defaultExcludeDirs []string
 	defaultPathRoots := []string{"."}
