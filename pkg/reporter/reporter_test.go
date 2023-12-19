@@ -136,7 +136,6 @@ func Test_junitReport(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
 func Test_jsonReporterWriter(t *testing.T) {
 	var (
 		report = Report{
@@ -229,6 +228,115 @@ func Test_jsonReporterWriter(t *testing.T) {
 				var filePath string
 				if info.IsDir() {
 					filePath = tt.args.outputDest + "/result.json"
+				} else { // if file was named with outputDest value
+					assert.Equal(t, tt.want.fileName, info.Name())
+					filePath = tt.args.outputDest
+				}
+				bytes, err := os.ReadFile(filePath)
+				require.NoError(t, err)
+				assert.Equal(t, tt.want.data, bytes)
+				err = os.Remove(filePath)
+				require.NoError(t, err)
+			}
+		},
+		)
+	}
+}
+
+func Test_JunitReporter_OutputBytesToFile(t *testing.T) {
+	var (
+		report = Report{
+			"good.json",
+			"test/output/example/good.json",
+			true,
+			nil,
+		}
+	)
+	deleteFiles(t)
+
+	// this "bytes" is data to check if the file generated is correct
+	bytes, err := os.ReadFile("../../test/output/example/result.xml")
+	require.NoError(t, err)
+
+	type args struct {
+		reports    []Report
+		outputDest string
+	}
+	type want struct {
+		fileName string
+		data     []byte
+		err      assert.ErrorAssertionFunc
+	}
+
+	tests := map[string]struct {
+		args args
+		want want
+	}{
+		"normal/existing dir/default name": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "../../test/output",
+			},
+			want: want{
+				fileName: "result.xml",
+				data:     bytes,
+				err:      assert.NoError,
+			},
+		},
+		"normal/file name is given": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "../../test/output/validator_result.xml",
+			},
+			want: want{
+				fileName: "validator_result.xml",
+				data:     bytes,
+				err:      assert.NoError,
+			},
+		},
+		"quash normal/empty string": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "",
+			},
+			want: want{
+				fileName: "",
+				data:     nil,
+				err:      assert.NoError,
+			},
+		},
+		"abnormal/non-existing dir": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "../../test/wrong/output",
+			},
+			want: want{
+				fileName: "",
+				data:     nil,
+				err:      assertRegexpError("failed to create a file: "),
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			sut := NewJunitReporter(tt.args.outputDest)
+			err := sut.Print(tt.args.reports)
+			tt.want.err(t, err)
+			if tt.want.data != nil {
+				info, err := os.Stat(tt.args.outputDest)
+				require.NoError(t, err)
+				var filePath string
+				if info.IsDir() {
+					// for default name
+					filePath = tt.args.outputDest + "/result.xml"
 				} else { // if file was named with outputDest value
 					assert.Equal(t, tt.want.fileName, info.Name())
 					filePath = tt.args.outputDest

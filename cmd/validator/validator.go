@@ -163,7 +163,7 @@ func isFlagSet(flagName string) bool {
 func getReporter(reportType, outputDest *string) reporter.Reporter {
 	switch *reportType {
 	case "junit":
-		return reporter.JunitReporter{}
+		return reporter.NewJunitReporter(*outputDest)
 	case "json":
 		return reporter.NewJsonReporter(*outputDest)
 	default:
