@@ -42,8 +42,9 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
-github.com/tufanbarisyildirim/gonginx v0.0.0-20231116154738-5dd06bb2938b h1:RBedKep0bACMIX35bTac14nNTrdxP1orDe6UsLnXyws=
 github.com/tufanbarisyildirim/gonginx v0.0.0-20231116154738-5dd06bb2938b/go.mod h1:4fTjBxMoWGOIVnGFSTS9GAZ0yMyiGzTdATQS0krQv18=
+github.com/tufanbarisyildirim/gonginx v0.0.0-20231222202608-ba16e88a9436 h1:i9TLbw23bUawnhimf5SghqkLrDRdpa65vw0hUqYhCB0=
+github.com/tufanbarisyildirim/gonginx v0.0.0-20231222202608-ba16e88a9436/go.mod h1:4fTjBxMoWGOIVnGFSTS9GAZ0yMyiGzTdATQS0krQv18=
 github.com/zclconf/go-cty v1.13.0 h1:It5dfKTTZHe9aeppbNOda3mN7Ag7sg6QkBNm6TkyFa0=
 github.com/zclconf/go-cty v1.13.0/go.mod h1:YKQzy/7pZ7iq2jNFzy5go57xdxdWoLLpaEp4u238AE0=
 golang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
