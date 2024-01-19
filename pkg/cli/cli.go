@@ -133,9 +133,12 @@ func (c CLI) Run() (int, error) {
 			reporter.PrintTripleGroupStdout(reportGroup)
 		}
 	} else {
-		c.Reporter.Print(reports)
+		err = c.Reporter.Print(reports)
+		if err != nil {
+			fmt.Println("failed to report:", err)
+			errorFound = true
+		}
 	}
-
 	if errorFound {
 		return 1, nil
 	} else {

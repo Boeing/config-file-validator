@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-95.1%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-97.3%25-brightgreen" alt="Code Coverage">
 
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
@@ -103,6 +103,8 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -output string
+        Destination to a file to output results
   -groupby string
         Group the output by filetype, pass-fail, or directory. Supported Reporters are Standard and JSON
   -reporter string
@@ -164,6 +166,12 @@ validator --reporter=json /path/to/search
 
 ![Exclude File Types Run](./img/custom_reporter.png)
 
+#### Output results to a file
+Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format (Available option is `json`). If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
+```
+validator --reporter=json --output=/path/to/dir
+```
+
 ### Group report output
 Group the report output by file type, directory, or pass-fail. Supports one or more groupings.
 
@@ -171,7 +179,6 @@ Group the report output by file type, directory, or pass-fail. Supports one or m
 validator -groupby filetype
 validator -groupby directory,pass-fail
 ```
-
 
 #### Container Run
 ```

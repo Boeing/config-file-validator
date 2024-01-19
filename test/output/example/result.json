@@ -1,0 +1,12 @@
+{
+  "files": [
+    {
+      "path": "test/output/example/good.json",
+      "status": "passed"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 0
+  }
+}

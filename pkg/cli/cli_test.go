@@ -98,3 +98,30 @@ func Test_CLIWithGroup(t *testing.T) {
 		t.Errorf("Exit status was not 0")
 	}
 }
+
+func Test_CLIRepoertErr(t *testing.T) {
+	searchPath := "../../test"
+	excludeDirs := []string{"subdir", "subdir2"}
+	groupOutput := []string{""}
+	output := "./wrong/path"
+	reporter := reporter.NewJsonReporter(output)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(searchPath),
+		finder.WithExcludeDirs(excludeDirs),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithReporter(reporter),
+		WithGroupOutput(groupOutput),
+	)
+	exitStatus, err := cli.Run()
+
+	if err != nil {
+		t.Errorf("An error was returned: %v", err)
+	}
+
+	if exitStatus == 0 {
+		t.Errorf("should return err status code: %d", exitStatus)
+	}
+}

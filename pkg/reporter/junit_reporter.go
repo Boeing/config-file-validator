@@ -7,7 +7,15 @@ import (
 	"time"
 )
 
-type JunitReporter struct{}
+type JunitReporter struct {
+	outputDest string
+}
+
+func NewJunitReporter(outputDest string) *JunitReporter {
+	return &JunitReporter{
+		outputDest: outputDest,
+	}
+}
 
 const (
 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
@@ -161,6 +169,7 @@ func (ts Testsuites) getReport() ([]byte, error) {
 		return []byte{}, err
 	}
 
+	data = append(data, '\n')
 	return data, nil
 }
 
@@ -187,6 +196,12 @@ func (jr JunitReporter) Print(reports []Report) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(Header + string(data))
+
+	results := Header + string(data)
+	fmt.Println(results)
+
+	if jr.outputDest != "" {
+		return outputBytesToFile(jr.outputDest, "result", "xml", []byte(results))
+	}
 	return nil
 }
