@@ -62,6 +62,8 @@ var testData = []struct {
 	{"invalidCSV", []byte(`This string has a \" in it`), false, CsvValidator{}},
 	{"validPlist", validPlistBytes, true, PlistValidator{}},
 	{"invalidPlist", invalidPlistBytes, false, PlistValidator{}},
+	{"validNginx", []byte(`http { server { listen 80; server_name localhost; }}`), true, NginxValidator{}},
+	{"invalidNginx", []byte(`invalid_key {}`), false, NginxValidator{}},
 	{"validHocon", []byte(`test = [1, 2, 3]`), true, HoconValidator{}},
 	{"invalidHocon", []byte(`test = [1, 2,, 3]`), false, HoconValidator{}},
 }
