@@ -55,7 +55,6 @@ func WithDepth(depthVal int) FSFinderOptions {
 		fsf.Depth = &depthVal
 	}
 }
-
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	var defaultExcludeDirs []string
 	defaultPathRoots := []string{"."}
@@ -145,7 +144,7 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 				for _, fileType := range fsf.FileTypes {
 					for _, extension := range fileType.Extensions {
-						if extension == walkFileExtension {
+						if strings.EqualFold(extension, walkFileExtension) {
 							fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
 							matchingFiles = append(matchingFiles, fileMetadata)
 						}

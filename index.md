@@ -19,7 +19,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-97.3%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-95.3%25-brightgreen" alt="Code Coverage">
 
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
@@ -42,6 +42,7 @@
 * Apple PList XML
 * CSV
 * HCL
+* HOCON
 * INI
 * JSON
 * Properties
@@ -150,7 +151,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `csv`, `hcl`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. Available file types are `csv`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`.
 
 ```
 validator --exclude-file-types=json /path/to/search

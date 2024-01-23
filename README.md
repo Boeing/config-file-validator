@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-97.3%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-95.3%25-brightgreen" alt="Code Coverage">
 
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
@@ -46,7 +46,7 @@ There are several ways to install the config file validator tool
 
 We offer alpine, ubuntu, and scratch containers
 
-#### Apline 
+#### Alpine
 
 ```
 docker pull ghcr.io/boeing/config-file-validator:v1.5.0
@@ -103,6 +103,10 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -output string
+        Destination to a file to output results
+  -groupby string
+        Group the output by filetype, pass-fail, or directory. Supported Reporters are Standard and JSON
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
@@ -130,7 +134,7 @@ validator /path/to/search /another/path/to/search
 Exclude subdirectories in the search path
 
 ```
-validator --exclude-dirs=/path/to/search/tests /path/to/search 
+validator --exclude-dirs=/path/to/search/tests /path/to/search
 ```
 
 ![Exclude Dirs Run](./img/exclude_dirs.png)
@@ -145,7 +149,7 @@ validator --exclude-file-types=json /path/to/search
 ![Exclude File Types Run](./img/exclude_file_types.png)
 
 #### Customize recursion depth
-By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated. 
+By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated.
 
 ```
 validator --depth=0 /path/to/search
@@ -162,6 +166,19 @@ validator --reporter=json /path/to/search
 
 ![Exclude File Types Run](./img/custom_reporter.png)
 
+#### Output results to a file
+Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format (Available option is `json`). If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
+```
+validator --reporter=json --output=/path/to/dir
+```
+
+### Group report output
+Group the report output by file type, directory, or pass-fail. Supports one or more groupings.
+
+```
+validator -groupby filetype
+validator -groupby directory,pass-fail
+```
 
 #### Container Run
 ```

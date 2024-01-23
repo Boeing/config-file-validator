@@ -62,6 +62,8 @@ var testData = []struct {
 	{"invalidCSV", []byte(`This string has a \" in it`), false, CsvValidator{}},
 	{"validPlist", validPlistBytes, true, PlistValidator{}},
 	{"invalidPlist", invalidPlistBytes, false, PlistValidator{}},
+	{"validHocon", []byte(`test = [1, 2, 3]`), true, HoconValidator{}},
+	{"invalidHocon", []byte(`test = [1, 2,, 3]`), false, HoconValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {

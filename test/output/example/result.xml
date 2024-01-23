@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ <testsuites name="config-file-validator" tests="1">
+   <testsuite name="config-file-validator">
+     <testcase name="test/output/example/good.json validation" classname="config-file-validator" file="test/output/example/good.json"></testcase>
+   </testsuite>
+ </testsuites>

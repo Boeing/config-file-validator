@@ -2,7 +2,7 @@
 Validator recusively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
-Currently Apple PList XML, CSV, HCL, INI, JSON, Properties, TOML, XML, and YAML
+Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, TOML, XML, and YAML.
 configuration file types are supported.
 
 Usage: validator [OPTIONS] [<search_path>...]
@@ -17,6 +17,8 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -output
+     	Destination of a file to outputting results
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
@@ -31,6 +33,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 
 	configfilevalidator "github.com/Boeing/config-file-validator"
@@ -46,6 +49,8 @@ type validatorConfig struct {
 	reportType       *string
 	depth            *int
 	versionQuery     *bool
+	output           *string
+	groupOutput      *string
 }
 
 // Custom Usage function to cover
@@ -66,11 +71,13 @@ func validatorUsage() {
 // will return with exit = 1
 func getFlags() (validatorConfig, error) {
 	flag.Usage = validatorUsage
-	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard, json and junit")
-	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
+	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
+	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	outputPtr := flag.String("output", "", "Destination to a file to output results")
+	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
+	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
@@ -90,10 +97,38 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
 	}
 
+	if *reportTypePtr == "junit" && *groupOutputPtr != "" {
+		fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+		flag.Usage()
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+	}
+
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
 		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
 		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
+	}
+
+	groupByCleanString := cleanString("groupby")
+	groupByUserInput := strings.Split(groupByCleanString, ",")
+	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
+	seenValues := make(map[string]bool)
+
+	// Check that the groupby values are valid and not duplicates
+	if groupOutputPtr != nil && isFlagSet("groupby") {
+		for _, groupBy := range groupByUserInput {
+			if !slices.Contains(groupByAllowedValues, groupBy) {
+				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+				flag.Usage()
+				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+			}
+			if _, ok := seenValues[groupBy]; ok {
+				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
+				flag.Usage()
+				return validatorConfig{}, errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
+			}
+			seenValues[groupBy] = true
+		}
 	}
 
 	config := validatorConfig{
@@ -103,6 +138,8 @@ func getFlags() (validatorConfig, error) {
 		reportTypePtr,
 		depthPtr,
 		versionPtr,
+		outputPtr,
+		groupOutputPtr,
 	}
 
 	return config, nil
@@ -123,15 +160,25 @@ func isFlagSet(flagName string) bool {
 
 // Return the reporter associated with the
 // reportType string
-func getReporter(reportType *string) reporter.Reporter {
+func getReporter(reportType, outputDest *string) reporter.Reporter {
 	switch *reportType {
 	case "junit":
-		return reporter.JunitReporter{}
+		return reporter.NewJunitReporter(*outputDest)
 	case "json":
-		return reporter.JsonReporter{}
+		return reporter.NewJsonReporter(*outputDest)
 	default:
 		return reporter.StdoutReporter{}
 	}
+}
+
+// cleanString takes a command string and a split string
+// and returns a cleaned string
+func cleanString(command string) string {
+	cleanedString := flag.Lookup(command).Value.String()
+	cleanedString = strings.ToLower(cleanedString)
+	cleanedString = strings.TrimSpace(cleanedString)
+
+	return cleanedString
 }
 
 func mainInit() int {
@@ -148,9 +195,9 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	reporter := getReporter(validatorConfig.reportType)
+	reporter := getReporter(validatorConfig.reportType, validatorConfig.output)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
-
+	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes)}
@@ -166,6 +213,7 @@ func mainInit() int {
 	cli := cli.Init(
 		cli.WithReporter(reporter),
 		cli.WithFinder(fileSystemFinder),
+		cli.WithGroupOutput(groupOutput),
 	)
 
 	// Run the config file validation

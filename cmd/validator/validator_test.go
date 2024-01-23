@@ -27,6 +27,11 @@ func Test_flags(t *testing.T) {
 		{"exclude file types set", []string{"--exclude-file-types=json", "."}, 0},
 		{"multiple paths", []string{"../../test/fixtures/subdir/good.json", "../../test/fixtures/good.json"}, 0},
 		{"version", []string{"--version"}, 0},
+		{"output set", []string{"--output=../../test/output", "--reporter=json", "."}, 0},
+		{"empty string output set", []string{"--output", "", "--reporter", "json", "."}, 0},
+		{"wrong output set", []string{"--output", "/path/not/exist", "--reporter", "json", "."}, 1},
+		{"incorrect group", []string{"-groupby=badgroup", "."}, 1},
+		{"correct group", []string{"-groupby=directory", "."}, 0},
 	}
 	for _, tc := range cases {
 		// this call is required because otherwise flags panics,
