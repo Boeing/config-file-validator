@@ -23,6 +23,7 @@ func Test_flags(t *testing.T) {
 		{"flags set, wrong reporter", []string{"--exclude-dirs=subdir", "--reporter=wrong", "."}, 1},
 		{"flags set, json reporter", []string{"--exclude-dirs=subdir", "--reporter=json", "."}, 0},
 		{"flags set, junit reported", []string{"--exclude-dirs=subdir", "--reporter=junit", "."}, 0},
+		{"junit reported, wrong groupby", []string{"-groupby=directory", "--reporter=junit", "."}, 1},
 		{"bad path", []string{"/path/does/not/exit"}, 1},
 		{"exclude file types set", []string{"--exclude-file-types=json", "."}, 0},
 		{"multiple paths", []string{"../../test/fixtures/subdir/good.json", "../../test/fixtures/good.json"}, 0},
@@ -32,6 +33,7 @@ func Test_flags(t *testing.T) {
 		{"wrong output set", []string{"--output", "/path/not/exist", "--reporter", "json", "."}, 1},
 		{"incorrect group", []string{"-groupby=badgroup", "."}, 1},
 		{"correct group", []string{"-groupby=directory", "."}, 0},
+		{"duplicate groupby", []string{"-groupby=directory -groupby=directory", "."}, 1},
 	}
 	for _, tc := range cases {
 		// this call is required because otherwise flags panics,
