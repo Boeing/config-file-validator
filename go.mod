@@ -9,6 +9,7 @@ require (
 	github.com/magiconair/properties v1.8.7
 	github.com/pelletier/go-toml/v2 v2.0.6
 	github.com/stretchr/testify v1.8.1
+	github.com/tufanbarisyildirim/gonginx v0.0.0-20231222202608-ba16e88a9436
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.0
@@ -23,7 +24,6 @@ require (
 	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
-	github.com/tufanbarisyildirim/gonginx v0.0.0-20231222202608-ba16e88a9436 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/zclconf/go-cty v1.13.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
