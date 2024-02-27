@@ -30,14 +30,15 @@ func GetVersion() Version {
 }
 
 func init() {
-  rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
+// versionCmd command configuration and setup
 var versionCmd = &cobra.Command{
-  Use:   "version",
-  Short: "Version prints the release version of validator",
-  Long:  ``,
-  Run: func(cmd *cobra.Command, args []string) {
-    fmt.Println(GetVersion())
-  },
+	Use:   "version",
+	Short: "Version prints the release version of validator",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(GetVersion())
+	},
 }

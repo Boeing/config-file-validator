@@ -9,6 +9,7 @@ package cmd
 //var versionPtr = flag.Bool("version", false, "Version prints the release version of validator")
 //var groupOutputPtr = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 
+// ValidatorConfig holds all flag possible to be setted
 type ValidatorConfig struct {
 	SearchPaths      []string
 	Depth            int

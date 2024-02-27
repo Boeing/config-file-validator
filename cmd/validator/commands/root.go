@@ -178,6 +178,7 @@ func execRoot(cmd *cobra.Command) int {
 	return exitStatus
 }
 
+// rootCmd command configuration and setup
 var rootCmd = &cobra.Command{
 	Use:   "validator",
 	Short: "Cross Platform tool to validate configuration files",
