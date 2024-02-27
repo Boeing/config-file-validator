@@ -11,19 +11,19 @@ package cmd
 
 type ValidatorConfig struct {
 	SearchPaths      []string
-	Depth int
-	ExcludeDirs string
+	Depth            int
+	ExcludeDirs      string
 	ExcludeFileTypes string
-	Output string
-	ReportType string
-	GroupOutput string
-	SearchPath string
+	Output           string
+	ReportType       string
+	GroupOutput      string
+	SearchPath       string
 }
 
 var Flags ValidatorConfig
 
-func init () {
-	rootCmd.PersistentFlags().IntVar(&Flags.Depth, "depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal. (default 0)")
+func init() {
+	rootCmd.PersistentFlags().IntVar(&Flags.Depth, "depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal.")
 	rootCmd.PersistentFlags().StringVar(&Flags.ExcludeDirs, "exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	rootCmd.PersistentFlags().StringVar(&Flags.ExcludeFileTypes, "exclude-file-types", "", "A comma separated list of file types to ignore")
 	rootCmd.PersistentFlags().StringVar(&Flags.Output, "output", "", "Destination to a file to output results")
