@@ -1,6 +1,10 @@
-package configfilevalidator
+package cmd
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
 
 // Version information set by link flags during build. We fall back to these sane
 // default values when not provided
@@ -23,4 +27,17 @@ func GetVersion() Version {
 	return Version{
 		Version: version,
 	}
+}
+
+func init() {
+  rootCmd.AddCommand(versionCmd)
+}
+
+var versionCmd = &cobra.Command{
+  Use:   "version",
+  Short: "Version prints the release version of validator",
+  Long:  ``,
+  Run: func(cmd *cobra.Command, args []string) {
+    fmt.Println(GetVersion())
+  },
 }
