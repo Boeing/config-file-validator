@@ -37,14 +37,14 @@ func WithFileTypes(fileTypes []filetype.FileType) FSFinderOptions {
 // Add a custom list of file types to the FSFinder
 func WithExcludeDirs(excludeDirs []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeDirs = misc.ArrToMap(excludeDirs)
+		fsf.ExcludeDirs = misc.ArrToMap(excludeDirs...)
 	}
 }
 
 // WithExcludeFileTypes adds excluded file types to FSFinder.
 func WithExcludeFileTypes(types []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeFileTypes = misc.ArrToMap(types)
+		fsf.ExcludeFileTypes = misc.ArrToMap(types...)
 	}
 }
 
@@ -138,11 +138,11 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 				}
 
 				for _, fileType := range fsf.FileTypes {
-					for _, extension := range fileType.Extensions {
-						if strings.EqualFold(extension, walkFileExtension) {
-							fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
-							matchingFiles = append(matchingFiles, fileMetadata)
-						}
+					tmp := strings.ToLower(walkFileExtension)
+					if _, ok := fileType.Extensions[tmp]; ok {
+						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
+						matchingFiles = append(matchingFiles, fileMetadata)
+						break
 					}
 				}
 			}
