@@ -22,6 +22,11 @@ func (v Version) String() string {
 	return fmt.Sprintf("validator version %v", v.Version)
 }
 
+// SetVersion set the version
+func SetVersion(v string) {
+	version = v
+}
+
 // GetVersion returns the version information
 func GetVersion() Version {
 	return Version{
