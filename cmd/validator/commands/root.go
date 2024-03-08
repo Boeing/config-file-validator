@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+
 	validator "github.com/Boeing/config-file-validator/cmd/validator"
 	"github.com/spf13/cobra"
 )

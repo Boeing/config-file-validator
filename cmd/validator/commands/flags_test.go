@@ -52,7 +52,8 @@ func Test_flags(t *testing.T) {
 			Use: "root",
 			Run: func(c *cobra.Command, args []string) {
 				exitStatus = cmd.ExecRoot(c)
-			}}
+			},
+		}
 		CmdFlags(root)
 
 		_, err := ExecuteTestHelper(t, root, tc.Args...)
@@ -65,4 +66,3 @@ func Test_flags(t *testing.T) {
 		}
 	}
 }
-
