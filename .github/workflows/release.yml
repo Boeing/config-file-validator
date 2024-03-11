@@ -33,7 +33,7 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         goos: ${{ matrix.goos }}
         goarch: ${{ matrix.goarch }}
-        go_version: 1.21
+        go_version: 1.22
         binary_name: "validator"
         ldflags: -w -s -extldflags "-static" -X github.com/Boeing/config-file-validator.version=${{ github.event.release.tag_name }}
         build_tags: -tags netgo
@@ -46,7 +46,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - base: "alpine:3.18"
+          - base: "alpine:3.19"
             postfix: ""
           - base: "scratch"
             postfix: "-scratch"
