@@ -29,6 +29,10 @@
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator.svg" alt="Go Reference">
   </a>
 
+  <a href="https://github.com/avelino/awesome-go">
+  <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
+  </a> 
+
   <a href="https://goreportcard.com/report/github.com/Boeing/config-file-validator">
   <img src="https://goreportcard.com/badge/github.com/Boeing/config-file-validator" alt="Go Report Card">
   </a>
