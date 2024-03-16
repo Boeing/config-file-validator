@@ -9,6 +9,7 @@ require (
 	github.com/magiconair/properties v1.8.7
 	github.com/pelletier/go-toml/v2 v2.0.6
 	github.com/stretchr/testify v1.8.1
+	github.com/tufanbarisyildirim/gonginx v0.0.0-20231222202608-ba16e88a9436
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.0
