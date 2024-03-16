@@ -136,10 +136,9 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
 					return nil
 				}
-
+				extensionLowerCase := strings.ToLower(walkFileExtension)
 				for _, fileType := range fsf.FileTypes {
-					tmp := strings.ToLower(walkFileExtension)
-					if _, ok := fileType.Extensions[tmp]; ok {
+					if _, ok := fileType.Extensions[extensionLowerCase]; ok {
 						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
 						matchingFiles = append(matchingFiles, fileMetadata)
 						break
