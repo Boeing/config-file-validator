@@ -11,6 +11,10 @@
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
   </a>
 
+  <a href="https://github.com/avelino/awesome-go">
+  <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
+  </a>  
+
   <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator">
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator.svg" alt="Go Reference">
   </a>
