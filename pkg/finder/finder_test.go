@@ -2,6 +2,7 @@ package finder
 
 import (
 	"fmt"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 	"path/filepath"
 	"testing"
 
@@ -112,7 +113,7 @@ func Test_fsFinderWithDepth(t *testing.T) {
 func Test_fsFinderCustomTypes(t *testing.T) {
 	jsonFileType := filetype.FileType{
 		Name:       "json",
-		Extensions: []string{"json"},
+		Extensions: misc.ArrToMap("json"),
 		Validator:  validator.JsonValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
