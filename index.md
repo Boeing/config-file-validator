@@ -25,6 +25,10 @@
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
   </a>
 
+  <a href="https://github.com/avelino/awesome-go">
+  <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
+  </a> 
+
   <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator">
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator.svg" alt="Go Reference">
   </a>
@@ -186,7 +190,7 @@ docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.5.0 /
 ![Docker Standard Run](./img/docker_run.png)
 
 ## Build
-The project can be downloaded and built from source using an environment with golang 1.21 installed. After a successful build, the binary can be moved to a location on your operating system PATH.
+The project can be downloaded and built from source using an environment with golang 1.21+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
 
 ### MacOS
 #### Build
