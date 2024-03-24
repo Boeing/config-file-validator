@@ -121,7 +121,7 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
 			_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
 			if dirEntry.IsDir() && ((fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) || isExcluded) {
-				return fs.SkipDir
+				return filepath.SkipDir
 			}
 
 			if !dirEntry.IsDir() {
