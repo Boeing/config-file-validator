@@ -11,6 +11,7 @@ import (
 // GroupOutput is a global variable that is used to
 // store the group by options that the user specifies
 var GroupOutput []string
+var Quiet bool
 
 type CLI struct {
 	// FileFinder interface to search for the files
@@ -43,6 +44,12 @@ func WithReporter(reporter reporter.Reporter) CLIOption {
 func WithGroupOutput(groupOutput []string) CLIOption {
 	return func(c *CLI) {
 		GroupOutput = groupOutput
+	}
+}
+
+func WithQuiet(quiet bool) CLIOption {
+	return func(c *CLI) {
+		Quiet = quiet
 	}
 }
 
@@ -108,7 +115,7 @@ func (c CLI) Run() (int, error) {
 		// Check reporter type to determine how to print
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			reporter.PrintSingleGroupJson(reportGroup)
-		} else {
+		} else if !Quiet {
 			reporter.PrintSingleGroupStdout(reportGroup)
 		}
 	} else if len(GroupOutput) == 2 {
@@ -118,7 +125,7 @@ func (c CLI) Run() (int, error) {
 		}
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			reporter.PrintDoubleGroupJson(reportGroup)
-		} else {
+		} else if !Quiet {
 			reporter.PrintDoubleGroupStdout(reportGroup)
 		}
 
@@ -129,11 +136,13 @@ func (c CLI) Run() (int, error) {
 		}
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			reporter.PrintTripleGroupJson(reportGroup)
-		} else {
+		} else if !Quiet {
 			reporter.PrintTripleGroupStdout(reportGroup)
 		}
 	} else {
-		err = c.Reporter.Print(reports)
+		if !Quiet {
+			err = c.Reporter.Print(reports)
+		}
 		if err != nil {
 			fmt.Println("failed to report:", err)
 			errorFound = true

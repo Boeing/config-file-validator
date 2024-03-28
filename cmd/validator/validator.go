@@ -51,6 +51,7 @@ type validatorConfig struct {
 	versionQuery     *bool
 	output           *string
 	groupOutput      *string
+	quiet            *bool
 }
 
 // Custom Usage function to cover
@@ -78,6 +79,7 @@ func getFlags() (validatorConfig, error) {
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
+	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't prints anything to stdout.")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
@@ -140,6 +142,7 @@ func getFlags() (validatorConfig, error) {
 		versionPtr,
 		outputPtr,
 		groupOutputPtr,
+		quietPrt,
 	}
 
 	return config, nil
@@ -201,6 +204,7 @@ func mainInit() int {
 	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes)}
+	quiet := *validatorConfig.quiet
 
 	if validatorConfig.depth != nil && isFlagSet("depth") {
 		fsOpts = append(fsOpts, finder.WithDepth(*validatorConfig.depth))
@@ -214,6 +218,7 @@ func mainInit() int {
 		cli.WithReporter(reporter),
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
+		cli.WithQuiet(quiet),
 	)
 
 	// Run the config file validation
