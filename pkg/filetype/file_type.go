@@ -95,6 +95,14 @@ var HoconFileType = FileType{
 	validator.HoconValidator{},
 }
 
+// Instance of the FileType object to
+// represent a ENV file
+var EnvFileType = FileType{
+	"env",
+	misc.ArrToMap("env"),
+	validator.EnvValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -108,4 +116,5 @@ var FileTypes = []FileType{
 	PlistFileType,
 	CsvFileType,
 	HoconFileType,
+	EnvFileType,
 }
