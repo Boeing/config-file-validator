@@ -259,6 +259,11 @@ You can also use the provided Dockerfile to build the config file validator tool
 docker build . -t config-file-validator:v1.5.0
 ```
 
+## Contributors
+<a href="https://github.com/Boeing/config-file-validator/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" />
+</a>
+
 ## Contributing
 We welcome contributions! Please refer to our [contributing guide](/CONTRIBUTING.md)
 
