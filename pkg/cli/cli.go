@@ -11,6 +11,7 @@ import (
 // GroupOutput is a global variable that is used to
 // store the group by options that the user specifies
 var GroupOutput []string
+var Quiet bool
 
 type CLI struct {
 	// FileFinder interface to search for the files
@@ -43,6 +44,12 @@ func WithReporter(reporter reporter.Reporter) CLIOption {
 func WithGroupOutput(groupOutput []string) CLIOption {
 	return func(c *CLI) {
 		GroupOutput = groupOutput
+	}
+}
+
+func WithQuiet(quiet bool) CLIOption {
+	return func(c *CLI) {
+		Quiet = quiet
 	}
 }
 
@@ -133,7 +140,9 @@ func (c CLI) Run() (int, error) {
 			reporter.PrintTripleGroupStdout(reportGroup)
 		}
 	} else {
-		err = c.Reporter.Print(reports)
+		if !Quiet {
+			err = c.Reporter.Print(reports)
+		}
 		if err != nil {
 			fmt.Println("failed to report:", err)
 			errorFound = true
