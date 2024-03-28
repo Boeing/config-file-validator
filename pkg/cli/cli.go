@@ -115,7 +115,7 @@ func (c CLI) Run() (int, error) {
 		// Check reporter type to determine how to print
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			reporter.PrintSingleGroupJson(reportGroup)
-		} else {
+		} else if !Quiet {
 			reporter.PrintSingleGroupStdout(reportGroup)
 		}
 	} else if len(GroupOutput) == 2 {
@@ -125,7 +125,7 @@ func (c CLI) Run() (int, error) {
 		}
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			reporter.PrintDoubleGroupJson(reportGroup)
-		} else {
+		} else if !Quiet {
 			reporter.PrintDoubleGroupStdout(reportGroup)
 		}
 
@@ -136,7 +136,7 @@ func (c CLI) Run() (int, error) {
 		}
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			reporter.PrintTripleGroupJson(reportGroup)
-		} else {
+		} else if !Quiet {
 			reporter.PrintTripleGroupStdout(reportGroup)
 		}
 	} else {
