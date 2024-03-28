@@ -82,8 +82,12 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		absPath, err := filepath.Abs(pathRoot)
+		if err != nil {
+			return nil, err
+		}
 		for _, match := range matches {
-			absPath, err := filepath.Abs(match.Path)
 			if err != nil {
 				return nil, err
 			}
@@ -128,7 +132,7 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
 
-				walkFileExtension := filepath.Ext(dirEntry.Name())[1:]
+				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 
 				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
 					return nil
