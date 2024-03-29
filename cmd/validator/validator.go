@@ -79,7 +79,7 @@ func getFlags() (validatorConfig, error) {
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
-	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't prints anything to stdout.")
+	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
