@@ -65,7 +65,7 @@ There are several ways to install the config file validator tool
 
 We offer alpine, ubuntu, and scratch containers
 
-#### Apline 
+#### Alpine
 
 ```
 docker pull ghcr.io/boeing/config-file-validator:v1.5.0
@@ -190,7 +190,7 @@ docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.5.0 /
 ![Docker Standard Run](./img/docker_run.png)
 
 ## Build
-The project can be downloaded and built from source using an environment with golang 1.21+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
+The project can be downloaded and built from source using an environment with Go 1.21+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
 
 ### MacOS
 #### Build
