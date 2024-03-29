@@ -1,5 +1,5 @@
 /*
-Validator recusively scans a directory to search for configuration files and
+Validator recursively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
 Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, TOML, XML, and YAML.

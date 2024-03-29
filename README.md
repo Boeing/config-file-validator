@@ -49,7 +49,7 @@ There are several ways to install the config file validator tool
 
 ### Docker
 
-We offer alpine, ubuntu, and scratch containers
+We offer Alpine, Ubuntu, and Scratch containers
 
 #### Alpine
 
@@ -128,7 +128,7 @@ validator /path/to/search
 ![Standard Run](./img/standard_run.png)
 
 #### Multiple search paths
-Multiple search paths are supported and the results will be merged into a single report
+Multiple search paths are supported, and the results will be merged into a single report
 ```
 validator /path/to/search /another/path/to/search
 ```
@@ -193,9 +193,9 @@ docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.5.0 /
 ![Docker Standard Run](./img/docker_run.png)
 
 ## Build
-The project can be downloaded and built from source using an environment with golang 1.21 installed. After a successful build, the binary can be moved to a location on your operating system PATH.
+The project can be downloaded and built from source using an environment with Go 1.21 installed. After a successful build, the binary can be moved to a location on your operating system PATH.
 
-### MacOS
+### macOS
 #### Build
 ```
 CGO_ENABLED=0 \
