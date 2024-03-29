@@ -69,19 +69,19 @@ We offer Alpine, Ubuntu, and scratch containers
 #### Alpine
 
 ```
-docker pull ghcr.io/boeing/config-file-validator:v1.5.0
+docker pull ghcr.io/boeing/config-file-validator:v1.6.0
 ```
 
 #### Ubuntu
 
 ```
-docker pull ghcr.io/boeing/config-file-validator-ubuntu:v1.5.0
+docker pull ghcr.io/boeing/config-file-validator-ubuntu:v1.6.0
 ```
 
 #### Scratch
 
 ```
-docker pull ghcr.io/boeing/config-file-validator-scratch:v1.5.0
+docker pull ghcr.io/boeing/config-file-validator-scratch:v1.6.0
 ```
 
 ### Binary Releases
@@ -106,7 +106,7 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```
-go install github.com/Boeing/config-file-validator/cmd/validator@v1.5.0
+go install github.com/Boeing/config-file-validator/cmd/validator@v1.6.0
 ```
 
 ## Usage
@@ -290,7 +290,7 @@ cp .\validator.exe 'C:\Program Files\validator'
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```
-docker build . -t config-file-validator:v1.5.0
+docker build . -t config-file-validator:v1.6.0
 ```
 
 ## Contributors
