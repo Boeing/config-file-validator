@@ -45,6 +45,7 @@
 ## Supported config files formats:
 * Apple PList XML
 * CSV
+* ENV
 * HCL
 * HOCON
 * INI
@@ -122,6 +123,10 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -output string
+        Destination to a file to output results
+  -groupby string
+        Group the output by filetype, pass-fail, or directory. Supported Reporters are Standard and JSON
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
@@ -149,13 +154,13 @@ validator /path/to/search /another/path/to/search
 Exclude subdirectories in the search path
 
 ```
-validator --exclude-dirs=/path/to/search/tests /path/to/search 
+validator --exclude-dirs=/path/to/search/tests /path/to/search
 ```
 
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `csv`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`.
+Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`
 
 ```
 validator --exclude-file-types=json /path/to/search
@@ -164,7 +169,7 @@ validator --exclude-file-types=json /path/to/search
 ![Exclude File Types Run](./img/exclude_file_types.png)
 
 #### Customize recursion depth
-By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated. 
+By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated.
 
 ```
 validator --depth=0 /path/to/search
@@ -173,7 +178,7 @@ validator --depth=0 /path/to/search
 ![Custom Recursion Run](./img/custom_recursion.png)
 
 #### Customize report output
-Customize the report output. Available options are `standard` and `json`
+Customize the report output. Available options are `standard`, `junit`, and `json`
 
 ```
 validator --reporter=json /path/to/search
@@ -181,10 +186,39 @@ validator --reporter=json /path/to/search
 
 ![Exclude File Types Run](./img/custom_reporter.png)
 
+### Group report output
+Group the report output by file type, directory, or pass-fail. Supports one or more groupings.
+
+```
+validator -groupby filetype
+```
+
+![Groupby File Type](./img/gb-filetype.png)
+
+#### Multiple groups
+```
+validator -groupby directory,pass-fail
+```
+
+![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.png)
+
+### Output results to a file
+Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format. Available options are `junit` and `json`. If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
+
+```
+validator --reporter=json --output=/path/to/dir
+```
+
+### Suppress output
+Passing the `--quiet` flag suppresses all output to stdout. If there are invalid config files the validator tool will exit with 1. Any errors in execution such as an invalid path will still be displayed.
+
+```
+validator --quiet /path/to/search
+```
 
 #### Container Run
 ```
-docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.5.0 /test
+docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.6.0 /test
 ```
 
 ![Docker Standard Run](./img/docker_run.png)
