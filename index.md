@@ -114,7 +114,7 @@ go install github.com/Boeing/config-file-validator/cmd/validator@v1.5.0
 Usage: validator [OPTIONS] [<search_path>...]
 
 positional arguments:
-    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided. Multiple search paths can be declared separated by a space.
+    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
 
 optional flags:
   -depth int
@@ -123,10 +123,12 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
-  -output string
-        Destination to a file to output results
   -groupby string
-        Group the output by filetype, pass-fail, or directory. Supported Reporters are Standard and JSON
+    	Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+  -output string
+    	Destination to a file to output results
+  -quiet
+    	If quiet flag is set. It doesn't print any output to stdout.
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
