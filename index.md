@@ -64,7 +64,7 @@ There are several ways to install the config file validator tool
 
 ### Docker
 
-We offer Alpine, Ubuntu, and scratch containers
+We offer Alpine, Ubuntu, and Scratch containers
 
 #### Alpine
 
@@ -145,7 +145,7 @@ validator /path/to/search
 ![Standard Run](./img/standard_run.png)
 
 #### Multiple search paths
-Multiple search paths are supported and the results will be merged into a single report
+Multiple search paths are supported, and the results will be merged into a single report
 ```
 validator /path/to/search /another/path/to/search
 ```
