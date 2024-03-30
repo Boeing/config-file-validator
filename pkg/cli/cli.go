@@ -101,6 +101,7 @@ func (c CLI) Run() (int, error) {
 			FilePath:        fileToValidate.Path,
 			IsValid:         isValid,
 			ValidationError: err,
+			IsQuiet:         Quiet,
 		}
 		reports = append(reports, report)
 	}
@@ -121,10 +122,6 @@ func (c CLI) Run() (int, error) {
 // printReports prints the reports based on the specified grouping and reporter type.
 // It returns any error encountered during the printing process.
 func (c CLI) printReports(reports []reporter.Report) error {
-	if Quiet {
-		return nil
-	}
-
 	switch len(GroupOutput) {
 	case 1:
 		return c.printGroupSingle(reports)
@@ -151,8 +148,8 @@ func (c CLI) printGroupSingle(reports []reporter.Report) error {
 	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 		return reporter.PrintSingleGroupJson(reportGroup)
 	}
-
 	return reporter.PrintSingleGroupStdout(reportGroup)
+
 }
 
 func (c CLI) printGroupDouble(reports []reporter.Report) error {
@@ -165,8 +162,8 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 		return reporter.PrintDoubleGroupJson(reportGroup)
 	}
-
 	return reporter.PrintDoubleGroupStdout(reportGroup)
+
 }
 
 func (c CLI) printGroupTriple(reports []reporter.Report) error {

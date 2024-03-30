@@ -12,6 +12,10 @@ type StdoutReporter struct{}
 // Print implements the Reporter interface by outputting
 // the report content to stdout
 func (sr StdoutReporter) Print(reports []Report) error {
+	if reports[0].IsQuiet {
+		return nil
+	}
+
 	var results string
 	var successCount = 0
 	var failureCount = 0
@@ -32,7 +36,6 @@ func (sr StdoutReporter) Print(reports []Report) error {
 			successCount = successCount + 1
 		}
 	}
-	fmt.Printf("Summary: %d succeeded, %d failed\n", successCount, failureCount)
 
 	return nil
 }

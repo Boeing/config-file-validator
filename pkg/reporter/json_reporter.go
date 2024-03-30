@@ -68,7 +68,9 @@ func (jr JsonReporter) Print(reports []Report) error {
 	}
 
 	jsonBytes = append(jsonBytes, '\n')
-	fmt.Print(string(jsonBytes))
+	if !reports[0].IsQuiet {
+		fmt.Print(string(jsonBytes))
+	}
 
 	if jr.outputDest != "" {
 		return outputBytesToFile(jr.outputDest, "result", "json", jsonBytes)
