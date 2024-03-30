@@ -19,7 +19,7 @@ func (csvv CsvValidator) Validate(b []byte) (bool, error) {
 
 	for {
 		_, err := csvReader.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 
