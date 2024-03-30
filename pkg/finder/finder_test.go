@@ -2,9 +2,10 @@ package finder
 
 import (
 	"fmt"
-	"github.com/Boeing/config-file-validator/pkg/misc"
 	"path/filepath"
 	"testing"
+
+	"github.com/Boeing/config-file-validator/pkg/misc"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/validator"
@@ -208,7 +209,7 @@ func Test_FileSystemFinderAbsPath(t *testing.T) {
 
 func Test_FileSystemFinderUpperCaseExtension(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/uppercase-extention"),
+		WithPathRoots("../../test/fixtures/uppercase-extension"),
 	)
 
 	files, err := fsFinder.Find()
@@ -224,7 +225,7 @@ func Test_FileSystemFinderUpperCaseExtension(t *testing.T) {
 
 func Test_FileSystemFinderMixedCaseExtension(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/mixedcase-extention"),
+		WithPathRoots("../../test/fixtures/mixedcase-extension"),
 	)
 
 	files, err := fsFinder.Find()
