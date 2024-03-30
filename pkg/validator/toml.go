@@ -3,6 +3,7 @@ package validator
 import (
 	"errors"
 	"fmt"
+
 	"github.com/pelletier/go-toml/v2"
 )
 

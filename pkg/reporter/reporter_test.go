@@ -146,15 +146,13 @@ func Test_junitReport(t *testing.T) {
 }
 
 func Test_jsonReporterWriter(t *testing.T) {
-	var (
-		report = Report{
-			"good.json",
-			"test/output/example/good.json",
-			true,
-			nil,
-			false,
-		}
-	)
+	report := Report{
+		"good.json",
+		"test/output/example/good.json",
+		true,
+		nil,
+		false,
+	}
 	deleteFiles(t)
 
 	bytes, err := os.ReadFile("../../test/output/example/result.json")
@@ -254,15 +252,13 @@ func Test_jsonReporterWriter(t *testing.T) {
 }
 
 func Test_JunitReporter_OutputBytesToFile(t *testing.T) {
-	var (
-		report = Report{
-			"good.json",
-			"test/output/example/good.json",
-			true,
-			nil,
-			false,
-		}
-	)
+	report := Report{
+		"good.json",
+		"test/output/example/good.json",
+		true,
+		nil,
+		false,
+	}
 	deleteFiles(t)
 
 	// this "bytes" is data to check if the file generated is correct
@@ -503,7 +499,8 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 	groupReports := map[string]map[string]map[string][]Report{
 		"pass-fail": {"directory": {"filetype": reports}},
 		"filetype":  {"directory": {"pass-fail": reports}},
-		"directory": {"filetype": {"pass-fail": reports}}}
+		"directory": {"filetype": {"pass-fail": reports}},
+	}
 
 	err := PrintTripleGroupStdout(groupReports)
 	if err != nil {
@@ -611,7 +608,8 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 	groupReports := map[string]map[string]map[string][]Report{
 		"pass-fail": {"directory": {"filetype": reports}},
 		"filetype":  {"directory": {"pass-fail": reports}},
-		"directory": {"filetype": {"pass-fail": reports}}}
+		"directory": {"filetype": {"pass-fail": reports}},
+	}
 
 	err := PrintTripleGroupJson(groupReports)
 	if err != nil {

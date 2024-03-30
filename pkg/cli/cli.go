@@ -10,9 +10,11 @@ import (
 
 // GroupOutput is a global variable that is used to
 // store the group by options that the user specifies
-var GroupOutput []string
-var Quiet bool
-var errorFound bool
+var (
+	GroupOutput []string
+	Quiet       bool
+	errorFound  bool
+)
 
 type CLI struct {
 	// FileFinder interface to search for the files
@@ -81,7 +83,6 @@ func (c CLI) Run() (int, error) {
 	errorFound = false
 	var reports []reporter.Report
 	foundFiles, err := c.Finder.Find()
-
 	if err != nil {
 		return 1, fmt.Errorf("Unable to find files: %v", err)
 	}
@@ -131,7 +132,6 @@ func (c CLI) printReports(reports []reporter.Report) error {
 		return c.printGroupTriple(reports)
 	} else {
 		err := c.Reporter.Print(reports)
-
 		if err != nil {
 			fmt.Println("failed to report:", err)
 			errorFound = true
@@ -139,11 +139,9 @@ func (c CLI) printReports(reports []reporter.Report) error {
 
 		return nil
 	}
-
 }
 
 func (c CLI) printGroupSingle(reports []reporter.Report) error {
-
 	reportGroup, err := GroupBySingle(reports, GroupOutput[0])
 	if err != nil {
 		return fmt.Errorf("unable to group by single value: %v", err)
@@ -157,7 +155,6 @@ func (c CLI) printGroupSingle(reports []reporter.Report) error {
 	}
 
 	return nil
-
 }
 
 func (c CLI) printGroupDouble(reports []reporter.Report) error {
@@ -174,7 +171,6 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 	}
 
 	return nil
-
 }
 
 func (c CLI) printGroupTriple(reports []reporter.Report) error {
@@ -186,7 +182,6 @@ func (c CLI) printGroupTriple(reports []reporter.Report) error {
 	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 		reporter.PrintTripleGroupJson(reportGroup)
 	} else {
-
 		reporter.PrintTripleGroupStdout(reportGroup)
 	}
 

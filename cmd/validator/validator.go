@@ -186,7 +186,6 @@ func cleanString(command string) string {
 
 func mainInit() int {
 	validatorConfig, err := getFlags()
-
 	if err != nil {
 		return 1
 	}
@@ -202,9 +201,11 @@ func mainInit() int {
 	reporter := getReporter(validatorConfig.reportType, validatorConfig.output)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
-	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
+	fsOpts := []finder.FSFinderOptions{
+		finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
-		finder.WithExcludeFileTypes(excludeFileTypes)}
+		finder.WithExcludeFileTypes(excludeFileTypes),
+	}
 	quiet := *validatorConfig.quiet
 
 	if validatorConfig.depth != nil && isFlagSet("depth") {

@@ -28,7 +28,6 @@ func Test_NoGroupOutput(t *testing.T) {
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
-
 		if err != nil {
 			t.Errorf("An error was returned: %v", err)
 		}
@@ -60,7 +59,6 @@ func Test_SingleGroupOutput(t *testing.T) {
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
-
 		if err != nil {
 			t.Errorf("An error was returned: %v", err)
 		}
@@ -88,7 +86,6 @@ func Test_WindowsDirectoryGroupBy(t *testing.T) {
 	if len(groupDirectory) != 2 {
 		t.Errorf("GroupByDirectory did not group correctly")
 	}
-
 }
 
 func Test_DirectoryGroupBy(t *testing.T) {
@@ -108,8 +105,8 @@ func Test_DirectoryGroupBy(t *testing.T) {
 	if len(groupDirectory) != 2 {
 		t.Errorf("GroupByDirectory did not group correctly")
 	}
-
 }
+
 func Test_DoubleGroupOutput(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
@@ -131,7 +128,6 @@ func Test_DoubleGroupOutput(t *testing.T) {
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
-
 		if err != nil {
 			t.Errorf("An error was returned: %v", err)
 		}
@@ -163,7 +159,6 @@ func Test_TripleGroupOutput(t *testing.T) {
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
-
 		if err != nil {
 			t.Errorf("An error was returned: %v", err)
 		}
@@ -205,6 +200,7 @@ func Test_IncorrectSingleGroupOutput(t *testing.T) {
 		}
 	}
 }
+
 func Test_IncorrectDoubleGroupOutput(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
@@ -236,6 +232,7 @@ func Test_IncorrectDoubleGroupOutput(t *testing.T) {
 		}
 	}
 }
+
 func Test_IncorrectTripleGroupOutput(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}

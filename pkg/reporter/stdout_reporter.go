@@ -17,8 +17,8 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	}
 
 	var results string
-	var successCount = 0
-	var failureCount = 0
+	successCount := 0
+	failureCount := 0
 	for _, report := range reports {
 		if !report.IsValid {
 			color.Set(color.FgRed)
@@ -43,14 +43,14 @@ func (sr StdoutReporter) Print(reports []Report) error {
 // There is repeated code in the following two functions. Trying to consolidate
 // the code into one function is difficult because of the output format
 func PrintSingleGroupStdout(groupReport map[string][]Report) error {
-	var totalSuccessCount = 0
-	var totalFailureCount = 0
+	totalSuccessCount := 0
+	totalFailureCount := 0
 	sr := StdoutReporter{}
 
 	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
-		var successCount = 0
-		var failureCount = 0
+		successCount := 0
+		failureCount := 0
 		for _, report := range reports {
 			if !report.IsValid {
 				color.Set(color.FgRed)
@@ -75,16 +75,16 @@ func PrintSingleGroupStdout(groupReport map[string][]Report) error {
 
 // Prints the report for when two groups are passed in the groupby flag
 func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
-	var totalSuccessCount = 0
-	var totalFailureCount = 0
+	totalSuccessCount := 0
+	totalFailureCount := 0
 	sr := StdoutReporter{}
 
 	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
 		for group2, reports2 := range reports {
 			fmt.Printf("    %s\n", group2)
-			var successCount = 0
-			var failureCount = 0
+			successCount := 0
+			failureCount := 0
 			for _, report := range reports2 {
 				if !report.IsValid {
 					color.Set(color.FgRed)
@@ -111,8 +111,8 @@ func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 
 // Prints the report for when three groups are passed in the groupby flag
 func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Report) error {
-	var totalSuccessCount = 0
-	var totalFailureCount = 0
+	totalSuccessCount := 0
+	totalFailureCount := 0
 	sr := StdoutReporter{}
 
 	for groupOne, header := range groupReport {
@@ -121,8 +121,8 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 			fmt.Printf("    %s\n", groupTwo)
 			for groupThree, reports := range subheader {
 				fmt.Printf("        %s\n", groupThree)
-				var successCount = 0
-				var failureCount = 0
+				successCount := 0
+				failureCount := 0
 				for _, report := range reports {
 					if !report.IsValid {
 						color.Set(color.FgRed)

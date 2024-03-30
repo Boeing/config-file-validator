@@ -234,5 +234,4 @@ func createJsonReport(reports []Report) (reportJSON, error) {
 	}
 
 	return jsonReport, nil
-
 }

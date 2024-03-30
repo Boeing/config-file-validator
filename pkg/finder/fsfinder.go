@@ -1,13 +1,13 @@
 package finder
 
 import (
-	"github.com/Boeing/config-file-validator/pkg/misc"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 )
 
 type FileSystemFinder struct {
@@ -54,6 +54,7 @@ func WithDepth(depthVal int) FSFinderOptions {
 		fsf.Depth = &depthVal
 	}
 }
+
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	defaultExcludeDirs := make(map[string]struct{})
 	defaultPathRoots := []string{"."}
@@ -145,7 +146,6 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 			return nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

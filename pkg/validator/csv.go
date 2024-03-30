@@ -2,9 +2,9 @@ package validator
 
 import (
 	"bytes"
-	"io"
-
 	"encoding/csv"
+	"errors"
+	"io"
 )
 
 // CsvValidator is used to validate a byte slice that is intended to represent a

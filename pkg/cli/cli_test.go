@@ -23,7 +23,6 @@ func Test_CLI(t *testing.T) {
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
-
 	if err != nil {
 		t.Errorf("An error was returned: %v", err)
 	}
@@ -44,7 +43,6 @@ func Test_CLIWithFailedValidation(t *testing.T) {
 		WithFinder(fsFinder),
 	)
 	exitStatus, err := cli.Run()
-
 	if err != nil {
 		t.Errorf("An error was returned: %v", err)
 	}
@@ -89,7 +87,6 @@ func Test_CLIWithGroup(t *testing.T) {
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
-
 	if err != nil {
 		t.Errorf("An error was returned: %v", err)
 	}
@@ -116,7 +113,6 @@ func Test_CLIRepoertErr(t *testing.T) {
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
-
 	if err != nil {
 		t.Errorf("An error returned: %v", err)
 	}
