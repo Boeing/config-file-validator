@@ -40,15 +40,14 @@ func (sr StdoutReporter) Print(reports []Report) error {
 // There is repeated code in the following two functions. Trying to consolidate
 // the code into one function is difficult because of the output format
 func PrintSingleGroupStdout(groupReport map[string][]Report) error {
-	var successCount = 0
-	var failureCount = 0
 	var totalSuccessCount = 0
 	var totalFailureCount = 0
 	sr := StdoutReporter{}
+
 	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
-		successCount = 0
-		failureCount = 0
+		var successCount = 0
+		var failureCount = 0
 		for _, report := range reports {
 			if !report.IsValid {
 				color.Set(color.FgRed)
@@ -73,8 +72,6 @@ func PrintSingleGroupStdout(groupReport map[string][]Report) error {
 
 // Prints the report for when two groups are passed in the groupby flag
 func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
-	var successCount = 0
-	var failureCount = 0
 	var totalSuccessCount = 0
 	var totalFailureCount = 0
 	sr := StdoutReporter{}
@@ -83,8 +80,8 @@ func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 		fmt.Printf("%s\n", group)
 		for group2, reports2 := range reports {
 			fmt.Printf("    %s\n", group2)
-			successCount = 0
-			failureCount = 0
+			var successCount = 0
+			var failureCount = 0
 			for _, report := range reports2 {
 				if !report.IsValid {
 					color.Set(color.FgRed)

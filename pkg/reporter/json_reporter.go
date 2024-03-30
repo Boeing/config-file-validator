@@ -58,6 +58,9 @@ type tripleGroupReportJSON struct {
 // if outputDest flag is provided, output results to a file.
 func (jr JsonReporter) Print(reports []Report) error {
 	report, err := createJsonReport(reports)
+	if err != nil {
+		return err
+	}
 
 	jsonBytes, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
