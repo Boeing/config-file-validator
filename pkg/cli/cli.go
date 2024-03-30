@@ -161,6 +161,7 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 		return err
 	}
 
+	// Check reporter type to determine how to print
 	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 		return reporter.PrintDoubleGroupJson(reportGroup)
 	}
