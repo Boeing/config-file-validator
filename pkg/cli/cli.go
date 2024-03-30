@@ -129,7 +129,6 @@ func (c CLI) printReports(reports []reporter.Report) error {
 	if err != nil {
 		return err
 	}
-
 	// Group the output if the user specified a group by option
 	// Length is equal to one when empty as it contains an empty string
 	if len(GroupOutput) == 1 && GroupOutput[0] != "" {
