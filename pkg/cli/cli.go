@@ -45,13 +45,13 @@ func WithReporter(reporter reporter.Reporter) CLIOption {
 }
 
 func WithGroupOutput(groupOutput []string) CLIOption {
-	return func(c *CLI) {
+	return func(_ *CLI) {
 		GroupOutput = groupOutput
 	}
 }
 
 func WithQuiet(quiet bool) CLIOption {
-	return func(c *CLI) {
+	return func(_ *CLI) {
 		Quiet = quiet
 	}
 }

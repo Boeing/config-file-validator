@@ -8,7 +8,7 @@ type XmlValidator struct{}
 
 // Validate implements the Validator interface by attempting to
 // unmarshall a byte array of xml
-func (xv XmlValidator) Validate(b []byte) (bool, error) {
+func (XmlValidator) Validate(b []byte) (bool, error) {
 	var output interface{}
 	err := xml.Unmarshal(b, &output)
 	if err != nil {

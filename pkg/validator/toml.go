@@ -9,7 +9,7 @@ import (
 
 type TomlValidator struct{}
 
-func (tv TomlValidator) Validate(b []byte) (bool, error) {
+func (TomlValidator) Validate(b []byte) (bool, error) {
 	var output interface{}
 	err := toml.Unmarshal(b, &output)
 	var derr *toml.DecodeError

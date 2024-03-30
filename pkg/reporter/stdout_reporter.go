@@ -150,7 +150,7 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 // padErrorString adds padding to every newline in the error
 // string, except the first line and removes any trailing newlines
 // or spaces
-func (sr StdoutReporter) padErrorString(errS string) string {
+func (StdoutReporter) padErrorString(errS string) string {
 	errS = strings.TrimSpace(errS)
 	lines := strings.Split(errS, "\n")
 	for idx := 1; idx < len(lines); idx++ {

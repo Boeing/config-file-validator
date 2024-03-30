@@ -8,7 +8,7 @@ type YamlValidator struct{}
 
 // Validate implements the Validator interface by attempting to
 // unmarshall a byte array of yaml
-func (yv YamlValidator) Validate(b []byte) (bool, error) {
+func (YamlValidator) Validate(b []byte) (bool, error) {
 	var output interface{}
 	err := yaml.Unmarshal(b, &output)
 	if err != nil {
