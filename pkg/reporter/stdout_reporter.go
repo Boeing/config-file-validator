@@ -108,8 +108,6 @@ func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 
 // Prints the report for when three groups are passed in the groupby flag
 func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Report) error {
-	var successCount = 0
-	var failureCount = 0
 	var totalSuccessCount = 0
 	var totalFailureCount = 0
 	sr := StdoutReporter{}
@@ -120,8 +118,8 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 			fmt.Printf("    %s\n", groupTwo)
 			for groupThree, reports := range subheader {
 				fmt.Printf("        %s\n", groupThree)
-				successCount = 0
-				failureCount = 0
+				var successCount = 0
+				var failureCount = 0
 				for _, report := range reports {
 					if !report.IsValid {
 						color.Set(color.FgRed)
