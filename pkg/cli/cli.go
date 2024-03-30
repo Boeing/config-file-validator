@@ -135,28 +135,25 @@ func (c CLI) printReports(reports []reporter.Report) error {
 	if len(GroupOutput) == 1 && GroupOutput[0] != "" {
 		// Check reporter type to determine how to print
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-			reporter.PrintSingleGroupJson(reportGroup.(map[string][]reporter.Report))
+			return reporter.PrintSingleGroupJson(reportGroup.(map[string][]reporter.Report))
 		} else {
-			reporter.PrintSingleGroupStdout(reportGroup.(map[string][]reporter.Report))
+			return reporter.PrintSingleGroupStdout(reportGroup.(map[string][]reporter.Report))
 		}
 	} else if len(GroupOutput) == 2 {
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-			reporter.PrintDoubleGroupJson(reportGroup.(map[string]map[string][]reporter.Report))
+			return reporter.PrintDoubleGroupJson(reportGroup.(map[string]map[string][]reporter.Report))
 		} else {
-			reporter.PrintDoubleGroupStdout(reportGroup.(map[string]map[string][]reporter.Report))
+			return reporter.PrintDoubleGroupStdout(reportGroup.(map[string]map[string][]reporter.Report))
 		}
 	} else if len(GroupOutput) == 3 {
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-			reporter.PrintTripleGroupJson(reportGroup.(map[string]map[string]map[string][]reporter.Report))
+			return reporter.PrintTripleGroupJson(reportGroup.(map[string]map[string]map[string][]reporter.Report))
 		} else {
-			reporter.PrintTripleGroupStdout(reportGroup.(map[string]map[string]map[string][]reporter.Report))
+			return reporter.PrintTripleGroupStdout(reportGroup.(map[string]map[string]map[string][]reporter.Report))
 		}
 	} else {
 		return c.Reporter.Print(reports)
 	}
-
-	return nil
-
 }
 
 // groupReports groups the given reports based on the specified grouping option.
