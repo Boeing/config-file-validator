@@ -136,24 +136,21 @@ func (c CLI) printReports(reports []reporter.Report) error {
 		// Check reporter type to determine how to print
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			return reporter.PrintSingleGroupJson(reportGroup.(map[string][]reporter.Report))
-		} else {
-			return reporter.PrintSingleGroupStdout(reportGroup.(map[string][]reporter.Report))
 		}
+		return reporter.PrintSingleGroupStdout(reportGroup.(map[string][]reporter.Report))
 	} else if len(GroupOutput) == 2 {
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			return reporter.PrintDoubleGroupJson(reportGroup.(map[string]map[string][]reporter.Report))
-		} else {
-			return reporter.PrintDoubleGroupStdout(reportGroup.(map[string]map[string][]reporter.Report))
 		}
+		return reporter.PrintDoubleGroupStdout(reportGroup.(map[string]map[string][]reporter.Report))
 	} else if len(GroupOutput) == 3 {
 		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
 			return reporter.PrintTripleGroupJson(reportGroup.(map[string]map[string]map[string][]reporter.Report))
-		} else {
-			return reporter.PrintTripleGroupStdout(reportGroup.(map[string]map[string]map[string][]reporter.Report))
 		}
-	} else {
-		return c.Reporter.Print(reports)
+		return reporter.PrintTripleGroupStdout(reportGroup.(map[string]map[string]map[string][]reporter.Report))
 	}
+	return c.Reporter.Print(reports)
+
 }
 
 // groupReports groups the given reports based on the specified grouping option.
