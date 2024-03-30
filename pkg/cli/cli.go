@@ -84,14 +84,14 @@ func (c CLI) Run() (int, error) {
 	var reports []reporter.Report
 	foundFiles, err := c.Finder.Find()
 	if err != nil {
-		return 1, fmt.Errorf("Unable to find files: %v", err)
+		return 1, fmt.Errorf("Unable to find files: %w", err)
 	}
 
 	for _, fileToValidate := range foundFiles {
 		// read it
 		fileContent, err := os.ReadFile(fileToValidate.Path)
 		if err != nil {
-			return 1, fmt.Errorf("unable to read file: %v", err)
+			return 1, fmt.Errorf("unable to read file: %w", err)
 		}
 
 		isValid, err := fileToValidate.FileType.Validator.Validate(fileContent)
@@ -144,7 +144,7 @@ func (c CLI) printReports(reports []reporter.Report) error {
 func (c CLI) printGroupSingle(reports []reporter.Report) error {
 	reportGroup, err := GroupBySingle(reports, GroupOutput[0])
 	if err != nil {
-		return fmt.Errorf("unable to group by single value: %v", err)
+		return fmt.Errorf("unable to group by single value: %w", err)
 	}
 
 	// Check reporter type to determine how to print
@@ -160,7 +160,7 @@ func (c CLI) printGroupSingle(reports []reporter.Report) error {
 func (c CLI) printGroupDouble(reports []reporter.Report) error {
 	reportGroup, err := GroupByDouble(reports, GroupOutput)
 	if err != nil {
-		return fmt.Errorf("unable to group by double value: %v", err)
+		return fmt.Errorf("unable to group by double value: %w", err)
 	}
 
 	// Check reporter type to determine how to print
@@ -176,7 +176,7 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 func (c CLI) printGroupTriple(reports []reporter.Report) error {
 	reportGroup, err := GroupByTriple(reports, GroupOutput)
 	if err != nil {
-		return fmt.Errorf("unable to group by triple value: %v", err)
+		return fmt.Errorf("unable to group by triple value: %w", err)
 	}
 
 	if _, ok := c.Reporter.(reporter.JsonReporter); ok {

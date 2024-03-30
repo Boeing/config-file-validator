@@ -15,7 +15,7 @@ func (tv TomlValidator) Validate(b []byte) (bool, error) {
 	var derr *toml.DecodeError
 	if errors.As(err, &derr) {
 		row, col := derr.Position()
-		return false, fmt.Errorf("Error at line %v column %v: %v", row, col, err)
+		return false, fmt.Errorf("Error at line %v column %v: %w", row, col, err)
 	}
 	return true, nil
 }
