@@ -20,7 +20,7 @@ type CLI struct {
 	// FileFinder interface to search for the files
 	// in the SearchPath
 	Finder finder.FileFinder
-	// Reporter interface for outputting the results of the
+	// Reporter interface for outputting the results of
 	// the CLI run
 	Reporter reporter.Reporter
 }

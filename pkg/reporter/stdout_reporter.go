@@ -25,7 +25,7 @@ func (sr StdoutReporter) Print(reports []Report) error {
 			tmp := fmt.Sprintln("    × " + report.FilePath)
 			paddedString := sr.padErrorString(report.ValidationError.Error())
 			tmp += fmt.Sprintf("        error: %v\n", paddedString)
-			fmt.Printf(tmp)
+			fmt.Print(tmp)
 			color.Unset()
 			results += tmp
 			failureCount = failureCount + 1
