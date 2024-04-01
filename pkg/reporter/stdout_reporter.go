@@ -12,7 +12,7 @@ type StdoutReporter struct{}
 // Print implements the Reporter interface by outputting
 // the report content to stdout
 func (sr StdoutReporter) Print(reports []Report) error {
-	if reports[0].IsQuiet {
+	if len(reports) > 0 && reports[0].IsQuiet {
 		return nil
 	}
 

@@ -68,7 +68,8 @@ func (jr JsonReporter) Print(reports []Report) error {
 	}
 
 	jsonBytes = append(jsonBytes, '\n')
-	if !reports[0].IsQuiet {
+
+	if len(reports) > 0 && !reports[0].IsQuiet {
 		fmt.Print(string(jsonBytes))
 	}
 
