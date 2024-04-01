@@ -107,13 +107,13 @@ func (c CLI) Run() (int, error) {
 	}
 
 	err = c.printReports(reports)
+
 	if err != nil {
-		fmt.Println("failed to report:", err)
 		errorFound = true
 	}
 
 	if errorFound {
-		return 1, nil
+		return 1, err
 	} else {
 		return 0, nil
 	}
@@ -123,6 +123,8 @@ func (c CLI) Run() (int, error) {
 // It returns any error encountered during the printing process.
 func (c CLI) printReports(reports []reporter.Report) error {
 	switch len(GroupOutput) {
+	case 0:
+		return nil
 	case 1:
 		return c.printGroupSingle(reports)
 	case 2:
