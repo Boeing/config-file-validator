@@ -2,6 +2,7 @@ package finder
 
 import (
 	"fmt"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 	"path/filepath"
 	"testing"
 
@@ -112,7 +113,7 @@ func Test_fsFinderWithDepth(t *testing.T) {
 func Test_fsFinderCustomTypes(t *testing.T) {
 	jsonFileType := filetype.FileType{
 		Name:       "json",
-		Extensions: []string{"json"},
+		Extensions: misc.ArrToMap("json"),
 		Validator:  validator.JsonValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
@@ -205,7 +206,7 @@ func Test_FileSystemFinderAbsPath(t *testing.T) {
 	}
 }
 
-func Test_FileSystemFinderUpperCaseExtention(t *testing.T) {
+func Test_FileSystemFinderUpperCaseExtension(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("../../test/fixtures/uppercase-extention"),
 	)
@@ -221,7 +222,7 @@ func Test_FileSystemFinderUpperCaseExtention(t *testing.T) {
 	}
 }
 
-func Test_FileSystemFinderMixedCaseExtention(t *testing.T) {
+func Test_FileSystemFinderMixedCaseExtension(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("../../test/fixtures/mixedcase-extention"),
 	)

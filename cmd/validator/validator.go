@@ -1,5 +1,5 @@
 /*
-Validator recusively scans a directory to search for configuration files and
+Validator recursively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
 Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, TOML, XML, and YAML.
@@ -40,16 +40,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ValidatorConfig holds all flag possible to be setted
-type ValidatorConfig struct {
-	SearchPaths      []string
-	Depth            int
-	ExcludeDirs      string
-	ExcludeFileTypes string
-	Output           string
-	ReportType       string
-	GroupOutput      string
-	SearchPath       string
+type validatorConfig struct {
+	searchPaths      []string
+	excludeDirs      *string
+	excludeFileTypes *string
+	reportType       *string
+	depth            *int
+	versionQuery     *bool
+	output           *string
+	groupOutput      *string
+	quiet            *bool
 }
 
 var Flags ValidatorConfig
@@ -85,13 +85,17 @@ func GetReporter(reportType, outputDest string) reporter.Reporter {
 // If a required parameter is missing the help
 // output will be displayed and the function
 // will return with exit = 1
-func GetFlags(cmd *cobra.Command) (ValidatorConfig, error) {
-	depth := Flags.Depth
-	excludeDirs := Flags.ExcludeDirs
-	excludeFileTypes := Flags.ExcludeFileTypes
-	output := Flags.Output
-	reportType := Flags.ReportType
-	groupby := Flags.GroupOutput
+func getFlags() (validatorConfig, error) {
+	flag.Usage = validatorUsage
+	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
+	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
+	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	outputPtr := flag.String("output", "", "Destination to a file to output results")
+	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
+	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
+	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
+	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+	flag.Parse()
 
 	searchPaths := make([]string, 0)
 
@@ -141,14 +145,16 @@ func GetFlags(cmd *cobra.Command) (ValidatorConfig, error) {
 		}
 	}
 
-	config := ValidatorConfig{
-		SearchPaths:      searchPaths,
-		ExcludeDirs:      excludeDirs,
-		ExcludeFileTypes: excludeFileTypes,
-		ReportType:       reportType,
-		Depth:            depth,
-		Output:           output,
-		GroupOutput:      groupby,
+	config := validatorConfig{
+		searchPaths,
+		excludeDirsPtr,
+		excludeFileTypesPtr,
+		reportTypePtr,
+		depthPtr,
+		versionPtr,
+		outputPtr,
+		groupOutputPtr,
+		quietPrt,
 	}
 
 	return config, nil
@@ -163,8 +169,14 @@ func ExecRoot(cmd *cobra.Command) int {
 
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
-	excludeDirs := strings.Split(validatorConfig.ExcludeDirs, ",")
-	excludeFileTypes := strings.Split(validatorConfig.ExcludeFileTypes, ",")
+	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
+	reporter := getReporter(validatorConfig.reportType, validatorConfig.output)
+	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
+	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
+	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
+		finder.WithExcludeDirs(excludeDirs),
+		finder.WithExcludeFileTypes(excludeFileTypes)}
+	quiet := *validatorConfig.quiet
 
 	fsOpts := []finder.FSFinderOptions{
 		finder.WithPathRoots(validatorConfig.SearchPaths...),
@@ -186,7 +198,8 @@ func ExecRoot(cmd *cobra.Command) int {
 	cli := cli.Init(
 		cli.WithReporter(reporter),
 		cli.WithFinder(fileSystemFinder),
-		cli.WithGroupOutput(groupby),
+		cli.WithGroupOutput(groupOutput),
+		cli.WithQuiet(quiet),
 	)
 
 	// Run the config file validation
