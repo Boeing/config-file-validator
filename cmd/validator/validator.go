@@ -50,6 +50,7 @@ type ValidatorConfig struct {
 	ReportType       string
 	GroupOutput      string
 	SearchPath       string
+	Quiet            bool
 }
 
 var Flags ValidatorConfig
@@ -92,6 +93,7 @@ func GetFlags(cmd *cobra.Command) (ValidatorConfig, error) {
 	output := Flags.Output
 	reportType := Flags.ReportType
 	groupby := Flags.GroupOutput
+	quiet := Flags.Quiet
 
 	searchPaths := make([]string, 0)
 
@@ -149,6 +151,7 @@ func GetFlags(cmd *cobra.Command) (ValidatorConfig, error) {
 		Depth:            depth,
 		Output:           output,
 		GroupOutput:      groupby,
+		Quiet:            quiet,
 	}
 
 	return config, nil
@@ -187,6 +190,7 @@ func ExecRoot(cmd *cobra.Command) int {
 		cli.WithReporter(reporter),
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupby),
+		cli.WithQuiet(validatorConfig.Quiet),
 	)
 
 	// Run the config file validation
