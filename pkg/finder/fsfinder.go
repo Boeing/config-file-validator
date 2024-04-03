@@ -1,11 +1,12 @@
 package finder
 
 import (
-	"github.com/Boeing/config-file-validator/pkg/misc"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"slices"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 )
@@ -13,8 +14,8 @@ import (
 type FileSystemFinder struct {
 	PathRoots        []string
 	FileTypes        []filetype.FileType
-	ExcludeDirs      map[string]struct{}
-	ExcludeFileTypes map[string]struct{}
+	ExcludeDirs      []string
+	ExcludeFileTypes []string
 	Depth            *int
 }
 
@@ -37,14 +38,14 @@ func WithFileTypes(fileTypes []filetype.FileType) FSFinderOptions {
 // Add a custom list of file types to the FSFinder
 func WithExcludeDirs(excludeDirs []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeDirs = misc.ArrToMap(excludeDirs...)
+		fsf.ExcludeDirs = excludeDirs
 	}
 }
 
 // WithExcludeFileTypes adds excluded file types to FSFinder.
 func WithExcludeFileTypes(types []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeFileTypes = misc.ArrToMap(types...)
+		fsf.ExcludeFileTypes = types
 	}
 }
 
@@ -55,7 +56,7 @@ func WithDepth(depthVal int) FSFinderOptions {
 	}
 }
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
-	defaultExcludeDirs := make(map[string]struct{})
+	var defaultExcludeDirs []string
 	defaultPathRoots := []string{"."}
 
 	fsfinder := &FileSystemFinder{
@@ -118,27 +119,35 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
-			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
-			_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
-			if dirEntry.IsDir() && ((fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) || isExcluded) {
-				return filepath.SkipDir
+			// determine if directory is in the excludeDirs list
+			if dirEntry.IsDir() && fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth {
+				// Skip processing the directory
+				return fs.SkipDir // This is not reported as an error by filepath.WalkDir
+			}
+
+			for _, dir := range fsf.ExcludeDirs {
+				if dirEntry.IsDir() && dirEntry.Name() == dir {
+					err := filepath.SkipDir
+					if err != nil {
+						return err
+					}
+				}
 			}
 
 			if !dirEntry.IsDir() {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
-
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
-
-				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
+				if slices.Contains[[]string](fsf.ExcludeFileTypes, walkFileExtension) {
 					return nil
 				}
-				extensionLowerCase := strings.ToLower(walkFileExtension)
+
 				for _, fileType := range fsf.FileTypes {
-					if _, ok := fileType.Extensions[extensionLowerCase]; ok {
-						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
-						matchingFiles = append(matchingFiles, fileMetadata)
-						break
+					for _, extension := range fileType.Extensions {
+						if strings.EqualFold(extension, walkFileExtension) {
+							fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
+							matchingFiles = append(matchingFiles, fileMetadata)
+						}
 					}
 				}
 			}

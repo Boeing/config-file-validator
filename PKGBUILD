@@ -1,7 +1,7 @@
 # Maintainer: Clayton Kehoe <118750525+kehoecj@users.noreply.github.com>
 # Author : wiz64 <wiz64.com>
 pkgname=config-file-validator
-pkgver=1.6.0
+pkgver=1.5.0
 pkgrel=1
 pkgdesc="A tool to validate the syntax of configuration files"
 arch=('x86_64')

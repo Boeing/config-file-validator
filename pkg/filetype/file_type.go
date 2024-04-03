@@ -1,7 +1,6 @@
 package filetype
 
 import (
-	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
@@ -11,7 +10,7 @@ import (
 // to be able to validate the file
 type FileType struct {
 	Name       string
-	Extensions map[string]struct{}
+	Extensions []string
 	Validator  validator.Validator
 }
 
@@ -19,7 +18,7 @@ type FileType struct {
 // represent a JSON file
 var JsonFileType = FileType{
 	"json",
-	misc.ArrToMap("json"),
+	[]string{"json"},
 	validator.JsonValidator{},
 }
 
@@ -27,7 +26,7 @@ var JsonFileType = FileType{
 // represent a YAML file
 var YamlFileType = FileType{
 	"yaml",
-	misc.ArrToMap("yml", "yaml"),
+	[]string{"yml", "yaml"},
 	validator.YamlValidator{},
 }
 
@@ -35,7 +34,7 @@ var YamlFileType = FileType{
 // represent a XML file
 var XmlFileType = FileType{
 	"xml",
-	misc.ArrToMap("xml"),
+	[]string{"xml"},
 	validator.XmlValidator{},
 }
 
@@ -43,7 +42,7 @@ var XmlFileType = FileType{
 // represent a Toml file
 var TomlFileType = FileType{
 	"toml",
-	misc.ArrToMap("toml"),
+	[]string{"toml"},
 	validator.TomlValidator{},
 }
 
@@ -51,7 +50,7 @@ var TomlFileType = FileType{
 // represent a Ini file
 var IniFileType = FileType{
 	"ini",
-	misc.ArrToMap("ini"),
+	[]string{"ini"},
 	validator.IniValidator{},
 }
 
@@ -59,7 +58,7 @@ var IniFileType = FileType{
 // represent a Properties file
 var PropFileType = FileType{
 	"properties",
-	misc.ArrToMap("properties"),
+	[]string{"properties"},
 	validator.PropValidator{},
 }
 
@@ -67,7 +66,7 @@ var PropFileType = FileType{
 // represent a HCL file
 var HclFileType = FileType{
 	"hcl",
-	misc.ArrToMap("hcl"),
+	[]string{"hcl"},
 	validator.HclValidator{},
 }
 
@@ -75,7 +74,7 @@ var HclFileType = FileType{
 // represent a Plist file
 var PlistFileType = FileType{
 	"plist",
-	misc.ArrToMap("plist"),
+	[]string{"plist"},
 	validator.PlistValidator{},
 }
 
@@ -83,7 +82,7 @@ var PlistFileType = FileType{
 // represent a CSV file
 var CsvFileType = FileType{
 	"csv",
-	misc.ArrToMap("csv"),
+	[]string{"csv"},
 	validator.CsvValidator{},
 }
 
@@ -91,16 +90,8 @@ var CsvFileType = FileType{
 // represent a HOCON file
 var HoconFileType = FileType{
 	"hocon",
-	misc.ArrToMap("hocon"),
+	[]string{"hocon"},
 	validator.HoconValidator{},
-}
-
-// Instance of the FileType object to
-// represent a ENV file
-var EnvFileType = FileType{
-	"env",
-	misc.ArrToMap("env"),
-	validator.EnvValidator{},
 }
 
 // An array of files types that are supported
@@ -116,5 +107,4 @@ var FileTypes = []FileType{
 	PlistFileType,
 	CsvFileType,
 	HoconFileType,
-	EnvFileType,
 }
