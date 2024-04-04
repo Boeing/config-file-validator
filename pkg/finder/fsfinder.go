@@ -78,21 +78,11 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 	seen := make(map[string]struct{}, 0)
 	uniqueMatches := make([]FileMetadata, 0)
 	for _, pathRoot := range fsf.PathRoots {
-		matches, err := fsf.findOne(pathRoot)
+		matches, err := fsf.findOne(pathRoot, seen)
 		if err != nil {
 			return nil, err
 		}
-		for _, match := range matches {
-			absPath, err := filepath.Abs(match.Path)
-			if err != nil {
-				return nil, err
-			}
-			if _, ok := seen[absPath]; ok {
-				continue
-			}
-			uniqueMatches = append(uniqueMatches, match)
-			seen[absPath] = struct{}{}
-		}
+		uniqueMatches = append(uniqueMatches, matches...)
 	}
 	return uniqueMatches, nil
 }
@@ -100,7 +90,7 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 // findOne recursively walks through all subdirectories (excluding the excluded subdirectories)
 // and identifying if the file matches a type defined in the fileTypes array for a
 // single path and returns the file metadata.
-func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
+func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}) ([]FileMetadata, error) {
 	var matchingFiles []FileMetadata
 
 	// check that the path exists before walking it or the error returned
@@ -114,9 +104,14 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 		depth = *fsf.Depth
 	}
 
+	absRoot, err := filepath.Abs(pathRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	maxDepth := strings.Count(pathRoot, string(os.PathSeparator)) + depth
 
-	err := filepath.WalkDir(pathRoot,
+	err = filepath.WalkDir(absRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
 			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
 			_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
@@ -127,17 +122,27 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 			if !dirEntry.IsDir() {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
-
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
+				extensionLowerCase := strings.ToLower(walkFileExtension)
 
-				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
+				if _, ok := fsf.ExcludeFileTypes[extensionLowerCase]; ok {
 					return nil
 				}
-				extensionLowerCase := strings.ToLower(walkFileExtension)
+
+				absPath, err := filepath.Abs(path)
+				if err != nil {
+					return err
+				}
+
+				if _, seen := seenMap[absPath]; seen {
+					return nil
+				}
+
 				for _, fileType := range fsf.FileTypes {
 					if _, ok := fileType.Extensions[extensionLowerCase]; ok {
-						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
+						fileMetadata := FileMetadata{dirEntry.Name(), absPath, fileType}
 						matchingFiles = append(matchingFiles, fileMetadata)
+						seenMap[absPath] = struct{}{}
 						break
 					}
 				}
