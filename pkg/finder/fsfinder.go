@@ -104,14 +104,9 @@ func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}
 		depth = *fsf.Depth
 	}
 
-	absRoot, err := filepath.Abs(pathRoot)
-	if err != nil {
-		return nil, err
-	}
-
 	maxDepth := strings.Count(pathRoot, string(os.PathSeparator)) + depth
 
-	err = filepath.WalkDir(absRoot,
+	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
 			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
 			_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
