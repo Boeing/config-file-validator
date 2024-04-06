@@ -56,12 +56,14 @@ func WithDepth(depthVal int) FSFinderOptions {
 }
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	defaultExcludeDirs := make(map[string]struct{})
+	defaultExcludeFileTypes := make(map[string]struct{})
 	defaultPathRoots := []string{"."}
 
 	fsfinder := &FileSystemFinder{
-		PathRoots:   defaultPathRoots,
-		FileTypes:   filetype.FileTypes,
-		ExcludeDirs: defaultExcludeDirs,
+		PathRoots:        defaultPathRoots,
+		FileTypes:        filetype.FileTypes,
+		ExcludeDirs:      defaultExcludeDirs,
+		ExcludeFileTypes: defaultExcludeFileTypes,
 	}
 
 	for _, opt := range opts {
@@ -109,9 +111,11 @@ func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}
 	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
 			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
-			_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
-			if dirEntry.IsDir() && ((fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) || isExcluded) {
-				return filepath.SkipDir
+			if dirEntry.IsDir() {
+				_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
+				if isExcluded || (fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) {
+					return filepath.SkipDir
+				}
 			}
 
 			if !dirEntry.IsDir() {
@@ -120,27 +124,27 @@ func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 				extensionLowerCase := strings.ToLower(walkFileExtension)
 
-				if _, ok := fsf.ExcludeFileTypes[extensionLowerCase]; ok {
-					return nil
-				}
-
-				absPath, err := filepath.Abs(path)
-				if err != nil {
-					return err
-				}
-
-				if _, seen := seenMap[absPath]; seen {
+				if _, isExcluded := fsf.ExcludeFileTypes[extensionLowerCase]; isExcluded {
 					return nil
 				}
 
 				for _, fileType := range fsf.FileTypes {
-					if _, ok := fileType.Extensions[extensionLowerCase]; ok {
-						fileMetadata := FileMetadata{dirEntry.Name(), absPath, fileType}
-						matchingFiles = append(matchingFiles, fileMetadata)
-						seenMap[absPath] = struct{}{}
-						break
+					if _, isMatched := fileType.Extensions[extensionLowerCase]; isMatched {
+						absPath, err := filepath.Abs(path)
+						if err != nil {
+							return err
+						}
+
+						if _, seen := seenMap[absPath]; !seen {
+							fileMetadata := FileMetadata{dirEntry.Name(), absPath, fileType}
+							matchingFiles = append(matchingFiles, fileMetadata)
+							seenMap[absPath] = struct{}{}
+						}
+
+						return nil
 					}
 				}
+				fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
 			}
 
 			return nil
