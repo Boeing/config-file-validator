@@ -359,20 +359,12 @@ func Test_JunitReporter_OutputBytesToFile(t *testing.T) {
 	}
 }
 
-func assertErrorIs(expectation error) assert.ErrorAssertionFunc {
-	return func(t assert.TestingT, got error, msg ...any) bool {
-		if h, ok := t.(interface{ Helper() }); ok {
-			h.Helper()
-		}
-		return assert.ErrorIs(t, got, expectation, msg...)
-	}
-}
-
 func assertRegexpError(regexp any) assert.ErrorAssertionFunc {
 	return func(t assert.TestingT, got error, msg ...any) bool {
 		if h, ok := t.(interface{ Helper() }); ok {
 			h.Helper()
 		}
+		//nolint: testifylint // in this use case it's ok to use assert.Error
 		return assert.Error(t, got, msg...) && assert.Regexp(t, regexp, got.Error(), msg...)
 	}
 }
