@@ -149,12 +149,10 @@ func (c CLI) printGroupSingle(reports []reporter.Report) error {
 
 	// Check reporter type to determine how to print
 	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-		reporter.PrintSingleGroupJson(reportGroup)
-	} else {
-		reporter.PrintSingleGroupStdout(reportGroup)
+		return reporter.PrintSingleGroupJson(reportGroup)
 	}
 
-	return nil
+	return reporter.PrintSingleGroupStdout(reportGroup)
 }
 
 func (c CLI) printGroupDouble(reports []reporter.Report) error {
@@ -165,12 +163,10 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 
 	// Check reporter type to determine how to print
 	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-		reporter.PrintDoubleGroupJson(reportGroup)
-	} else {
-		reporter.PrintDoubleGroupStdout(reportGroup)
+		return reporter.PrintDoubleGroupJson(reportGroup)
 	}
 
-	return nil
+	return reporter.PrintDoubleGroupStdout(reportGroup)
 }
 
 func (c CLI) printGroupTriple(reports []reporter.Report) error {
@@ -180,10 +176,8 @@ func (c CLI) printGroupTriple(reports []reporter.Report) error {
 	}
 
 	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-		reporter.PrintTripleGroupJson(reportGroup)
-	} else {
-		reporter.PrintTripleGroupStdout(reportGroup)
+		return reporter.PrintTripleGroupJson(reportGroup)
 	}
 
-	return nil
+	return reporter.PrintTripleGroupStdout(reportGroup)
 }
