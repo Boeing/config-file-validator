@@ -168,7 +168,7 @@ func getReporter(reportType, outputDest *string) reporter.Reporter {
 	case "junit":
 		return reporter.NewJunitReporter(*outputDest)
 	case "json":
-		return reporter.NewJsonReporter(*outputDest)
+		return reporter.NewJSONReporter(*outputDest)
 	default:
 		return reporter.StdoutReporter{}
 	}

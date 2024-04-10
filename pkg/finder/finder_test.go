@@ -112,7 +112,7 @@ func Test_fsFinderCustomTypes(t *testing.T) {
 	jsonFileType := filetype.FileType{
 		Name:       "json",
 		Extensions: misc.ArrToMap("json"),
-		Validator:  validator.JsonValidator{},
+		Validator:  validator.JSONValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("../../test/fixtures"),

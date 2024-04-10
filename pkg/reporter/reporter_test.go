@@ -71,7 +71,7 @@ func Test_jsonReport(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithBackslashPath}
 
-	jsonReporter := JsonReporter{}
+	jsonReporter := JSONReporter{}
 	err := jsonReporter.Print(reports)
 	if err != nil {
 		t.Errorf("Reporting failed")
@@ -227,7 +227,7 @@ func Test_jsonReporterWriter(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			sut := NewJsonReporter(tt.args.outputDest)
+			sut := NewJSONReporter(tt.args.outputDest)
 			err := sut.Print(tt.args.reports)
 			tt.want.err(t, err)
 			if tt.want.data != nil {
@@ -537,7 +537,7 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 
 	groupReports := map[string][]Report{"pass-fail": reports}
 
-	err := PrintSingleGroupJson(groupReports)
+	err := PrintSingleGroupJSON(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -572,7 +572,7 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 
 	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
 
-	err := PrintDoubleGroupJson(groupReports)
+	err := PrintDoubleGroupJSON(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -611,7 +611,7 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 		"directory": {"filetype": {"pass-fail": reports}},
 	}
 
-	err := PrintTripleGroupJson(groupReports)
+	err := PrintTripleGroupJSON(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}

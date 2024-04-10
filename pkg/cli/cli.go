@@ -148,8 +148,8 @@ func (c CLI) printGroupSingle(reports []reporter.Report) error {
 	}
 
 	// Check reporter type to determine how to print
-	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-		return reporter.PrintSingleGroupJson(reportGroup)
+	if _, ok := c.Reporter.(reporter.JSONReporter); ok {
+		return reporter.PrintSingleGroupJSON(reportGroup)
 	}
 
 	return reporter.PrintSingleGroupStdout(reportGroup)
@@ -162,8 +162,8 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 	}
 
 	// Check reporter type to determine how to print
-	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-		return reporter.PrintDoubleGroupJson(reportGroup)
+	if _, ok := c.Reporter.(reporter.JSONReporter); ok {
+		return reporter.PrintDoubleGroupJSON(reportGroup)
 	}
 
 	return reporter.PrintDoubleGroupStdout(reportGroup)
@@ -175,8 +175,8 @@ func (c CLI) printGroupTriple(reports []reporter.Report) error {
 		return fmt.Errorf("unable to group by triple value: %w", err)
 	}
 
-	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-		return reporter.PrintTripleGroupJson(reportGroup)
+	if _, ok := c.Reporter.(reporter.JSONReporter); ok {
+		return reporter.PrintTripleGroupJSON(reportGroup)
 	}
 
 	return reporter.PrintTripleGroupStdout(reportGroup)

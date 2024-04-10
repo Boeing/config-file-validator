@@ -43,12 +43,12 @@ var testData = []struct {
 	expectedResult bool
 	validator      Validator
 }{
-	{"validJson", []byte(`{"test": "test"}`), true, JsonValidator{}},
-	{"invalidJson", []byte(`{test": "test"}`), false, JsonValidator{}},
-	{"validYaml", []byte("a: 1\nb: 2"), true, YamlValidator{}},
-	{"invalidYaml", []byte("a: b\nc: d:::::::::::::::"), false, YamlValidator{}},
-	{"validXml", []byte("<test>\n</test>"), true, XmlValidator{}},
-	{"invalidXml", []byte("<xml\n"), false, XmlValidator{}},
+	{"validJson", []byte(`{"test": "test"}`), true, JSONValidator{}},
+	{"invalidJson", []byte(`{test": "test"}`), false, JSONValidator{}},
+	{"validYaml", []byte("a: 1\nb: 2"), true, YAMLValidator{}},
+	{"invalidYaml", []byte("a: b\nc: d:::::::::::::::"), false, YAMLValidator{}},
+	{"validXml", []byte("<test>\n</test>"), true, XMLValidator{}},
+	{"invalidXml", []byte("<xml\n"), false, XMLValidator{}},
 	{"invalidToml", []byte("name = 123__456"), false, TomlValidator{}},
 	{"validToml", []byte("name = 123"), true, TomlValidator{}},
 	{"validIni", []byte(`{[Version]\nCatalog=hidden\n}`), true, IniValidator{}},

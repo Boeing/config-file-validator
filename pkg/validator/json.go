@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-type JsonValidator struct{}
+type JSONValidator struct{}
 
 // Returns a custom error message that contains the unmarshal
 // error message along with the line and character
@@ -28,7 +28,7 @@ func getCustomErr(input []byte, err error) error {
 
 // Validate implements the Validator interface by attempting to
 // unmarshall a byte array of json
-func (JsonValidator) Validate(b []byte) (bool, error) {
+func (JSONValidator) Validate(b []byte) (bool, error) {
 	var output any
 	err := json.Unmarshal(b, &output)
 	if err != nil {
