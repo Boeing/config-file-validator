@@ -29,7 +29,7 @@ func getCustomErr(input []byte, err error) error {
 // Validate implements the Validator interface by attempting to
 // unmarshall a byte array of json
 func (JsonValidator) Validate(b []byte) (bool, error) {
-	var output interface{}
+	var output any
 	err := json.Unmarshal(b, &output)
 	if err != nil {
 		customError := getCustomErr(b, err)

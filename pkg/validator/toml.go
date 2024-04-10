@@ -10,7 +10,7 @@ import (
 type TomlValidator struct{}
 
 func (TomlValidator) Validate(b []byte) (bool, error) {
-	var output interface{}
+	var output any
 	err := toml.Unmarshal(b, &output)
 	var derr *toml.DecodeError
 	if errors.As(err, &derr) {

@@ -360,7 +360,7 @@ func Test_JunitReporter_OutputBytesToFile(t *testing.T) {
 }
 
 func assertErrorIs(expectation error) assert.ErrorAssertionFunc {
-	return func(t assert.TestingT, got error, msg ...interface{}) bool {
+	return func(t assert.TestingT, got error, msg ...any) bool {
 		if h, ok := t.(interface{ Helper() }); ok {
 			h.Helper()
 		}
@@ -368,8 +368,8 @@ func assertErrorIs(expectation error) assert.ErrorAssertionFunc {
 	}
 }
 
-func assertRegexpError(regexp interface{}) assert.ErrorAssertionFunc {
-	return func(t assert.TestingT, got error, msg ...interface{}) bool {
+func assertRegexpError(regexp any) assert.ErrorAssertionFunc {
+	return func(t assert.TestingT, got error, msg ...any) bool {
 		if h, ok := t.(interface{ Helper() }); ok {
 			h.Helper()
 		}
