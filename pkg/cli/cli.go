@@ -28,36 +28,36 @@ type CLI struct {
 // Implement the go options pattern to be able to
 // set options to the CLI struct using functional
 // programming
-type CLIOption func(*CLI)
+type Option func(*CLI)
 
 // Set the CLI Finder
-func WithFinder(finder finder.FileFinder) CLIOption {
+func WithFinder(finder finder.FileFinder) Option {
 	return func(c *CLI) {
 		c.Finder = finder
 	}
 }
 
 // Set the reporter type
-func WithReporter(reporter reporter.Reporter) CLIOption {
+func WithReporter(reporter reporter.Reporter) Option {
 	return func(c *CLI) {
 		c.Reporter = reporter
 	}
 }
 
-func WithGroupOutput(groupOutput []string) CLIOption {
+func WithGroupOutput(groupOutput []string) Option {
 	return func(_ *CLI) {
 		GroupOutput = groupOutput
 	}
 }
 
-func WithQuiet(quiet bool) CLIOption {
+func WithQuiet(quiet bool) Option {
 	return func(_ *CLI) {
 		Quiet = quiet
 	}
 }
 
 // Initialize the CLI object
-func Init(opts ...CLIOption) *CLI {
+func Init(opts ...Option) *CLI {
 	defaultFsFinder := finder.FileSystemFinderInit()
 	defaultReporter := reporter.StdoutReporter{}
 
