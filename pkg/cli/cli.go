@@ -116,9 +116,9 @@ func (c CLI) Run() (int, error) {
 
 	if errorFound {
 		return 1, nil
-	} else {
-		return 0, nil
 	}
+
+	return 0, nil
 }
 
 // printReports prints the reports based on the specified grouping and reporter type.
@@ -130,15 +130,15 @@ func (c CLI) printReports(reports []reporter.Report) error {
 		return c.printGroupDouble(reports)
 	} else if len(GroupOutput) == 3 {
 		return c.printGroupTriple(reports)
-	} else {
-		err := c.Reporter.Print(reports)
-		if err != nil {
-			fmt.Println("failed to report:", err)
-			errorFound = true
-		}
-
-		return nil
 	}
+
+	err := c.Reporter.Print(reports)
+	if err != nil {
+		fmt.Println("failed to report:", err)
+		errorFound = true
+	}
+
+	return nil
 }
 
 func (c CLI) printGroupSingle(reports []reporter.Report) error {
