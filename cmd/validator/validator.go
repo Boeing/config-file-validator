@@ -198,7 +198,7 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	reporter := getReporter(validatorConfig.reportType, validatorConfig.output)
+	choosenReporter := getReporter(validatorConfig.reportType, validatorConfig.output)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	fsOpts := []finder.FSFinderOptions{
@@ -216,15 +216,15 @@ func mainInit() int {
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
 	// Initialize the CLI
-	cli := cli.Init(
-		cli.WithReporter(reporter),
+	c := cli.Init(
+		cli.WithReporter(choosenReporter),
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
 	)
 
 	// Run the config file validation
-	exitStatus, err := cli.Run()
+	exitStatus, err := c.Run()
 	if err != nil {
 		log.Printf("An error occurred during CLI execution: %v", err)
 	}

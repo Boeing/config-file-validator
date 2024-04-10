@@ -31,16 +31,16 @@ type CLI struct {
 type Option func(*CLI)
 
 // Set the CLI Finder
-func WithFinder(finder finder.FileFinder) Option {
+func WithFinder(f finder.FileFinder) Option {
 	return func(c *CLI) {
-		c.Finder = finder
+		c.Finder = f
 	}
 }
 
 // Set the reporter type
-func WithReporter(reporter reporter.Reporter) Option {
+func WithReporter(r reporter.Reporter) Option {
 	return func(c *CLI) {
-		c.Reporter = reporter
+		c.Reporter = r
 	}
 }
 

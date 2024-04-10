@@ -101,7 +101,7 @@ func Test_CLIRepoertErr(t *testing.T) {
 	excludeDirs := []string{"subdir", "subdir2"}
 	groupOutput := []string{""}
 	output := "./wrong/path"
-	reporter := reporter.NewJSONReporter(output)
+	jsonReporter := reporter.NewJSONReporter(output)
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(searchPath),
@@ -109,7 +109,7 @@ func Test_CLIRepoertErr(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporter(reporter),
+		WithReporter(jsonReporter),
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
