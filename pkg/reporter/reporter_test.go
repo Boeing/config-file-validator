@@ -16,6 +16,7 @@ func Test_stdoutReport(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -23,6 +24,7 @@ func Test_stdoutReport(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reportWithMultiLineValidationError := Report{
@@ -30,6 +32,7 @@ func Test_stdoutReport(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse keys:\nkey1\nkey2"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
@@ -47,6 +50,7 @@ func Test_jsonReport(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithBackslashPath := Report{
@@ -54,6 +58,7 @@ func Test_jsonReport(t *testing.T) {
 		"\\fake\\path\\good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -61,6 +66,7 @@ func Test_jsonReport(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithBackslashPath}
@@ -111,6 +117,7 @@ func Test_junitReport(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithBackslashPath := Report{
@@ -118,6 +125,7 @@ func Test_junitReport(t *testing.T) {
 		"\\fake\\path\\good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -125,6 +133,7 @@ func Test_junitReport(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithBackslashPath, reportWithValidationError}
@@ -143,6 +152,7 @@ func Test_jsonReporterWriter(t *testing.T) {
 			"test/output/example/good.json",
 			true,
 			nil,
+			false,
 		}
 	)
 	deleteFiles(t)
@@ -250,6 +260,7 @@ func Test_JunitReporter_OutputBytesToFile(t *testing.T) {
 			"test/output/example/good.json",
 			true,
 			nil,
+			false,
 		}
 	)
 	deleteFiles(t)
@@ -398,6 +409,7 @@ func Test_stdoutReportSingleGroup(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -405,6 +417,7 @@ func Test_stdoutReportSingleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reportWithMultiLineValidationError := Report{
@@ -412,6 +425,7 @@ func Test_stdoutReportSingleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse keys:\nkey1\nkey2"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
@@ -430,6 +444,7 @@ func Test_stdoutReportDoubleGroup(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -437,6 +452,7 @@ func Test_stdoutReportDoubleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reportWithMultiLineValidationError := Report{
@@ -444,6 +460,7 @@ func Test_stdoutReportDoubleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse keys:\nkey1\nkey2"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
@@ -462,6 +479,7 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -469,6 +487,7 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reportWithMultiLineValidationError := Report{
@@ -476,6 +495,7 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse keys:\nkey1\nkey2"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
@@ -497,6 +517,7 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -504,6 +525,7 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reportWithMultiLineValidationError := Report{
@@ -511,6 +533,7 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse keys:\nkey1\nkey2"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
@@ -529,6 +552,7 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -536,6 +560,7 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reportWithMultiLineValidationError := Report{
@@ -543,6 +568,7 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse keys:\nkey1\nkey2"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
@@ -561,6 +587,7 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 		"/fake/path/good.xml",
 		true,
 		nil,
+		false,
 	}
 
 	reportWithValidationError := Report{
@@ -568,6 +595,7 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse bad.xml file"),
+		false,
 	}
 
 	reportWithMultiLineValidationError := Report{
@@ -575,6 +603,7 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 		"/fake/path/bad.xml",
 		false,
 		errors.New("Unable to parse keys:\nkey1\nkey2"),
+		false,
 	}
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}

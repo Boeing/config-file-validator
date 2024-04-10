@@ -118,7 +118,7 @@ func Test_CLIRepoertErr(t *testing.T) {
 	exitStatus, err := cli.Run()
 
 	if err != nil {
-		t.Errorf("An error was returned: %v", err)
+		t.Errorf("An error returned: %v", err)
 	}
 
 	if exitStatus == 0 {

@@ -12,6 +12,7 @@ import (
 // store the group by options that the user specifies
 var GroupOutput []string
 var Quiet bool
+var errorFound bool
 
 type CLI struct {
 	// FileFinder interface to search for the files
@@ -77,7 +78,7 @@ func Init(opts ...CLIOption) *CLI {
 // - Calls the Validate method from the Validator interface to validate the file
 // - Outputs the results using the Reporter
 func (c CLI) Run() (int, error) {
-	errorFound := false
+	errorFound = false
 	var reports []reporter.Report
 	foundFiles, err := c.Finder.Find()
 
@@ -101,56 +102,93 @@ func (c CLI) Run() (int, error) {
 			FilePath:        fileToValidate.Path,
 			IsValid:         isValid,
 			ValidationError: err,
+			IsQuiet:         Quiet,
 		}
 		reports = append(reports, report)
+
 	}
 
-	// Group the output if the user specified a group by option
-	// Length is equal to one when empty as it contains an empty string
-	if len(GroupOutput) == 1 && GroupOutput[0] != "" {
-		reportGroup, err := GroupBySingle(reports, GroupOutput[0])
-		if err != nil {
-			return 1, fmt.Errorf("unable to group by single value: %v", err)
-		}
-		// Check reporter type to determine how to print
-		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-			reporter.PrintSingleGroupJson(reportGroup)
-		} else if !Quiet {
-			reporter.PrintSingleGroupStdout(reportGroup)
-		}
-	} else if len(GroupOutput) == 2 {
-		reportGroup, err := GroupByDouble(reports, GroupOutput)
-		if err != nil {
-			return 1, fmt.Errorf("unable to group by double value: %v", err)
-		}
-		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-			reporter.PrintDoubleGroupJson(reportGroup)
-		} else if !Quiet {
-			reporter.PrintDoubleGroupStdout(reportGroup)
-		}
-
-	} else if len(GroupOutput) == 3 {
-		reportGroup, err := GroupByTriple(reports, GroupOutput)
-		if err != nil {
-			return 1, fmt.Errorf("unable to group by triple value: %v", err)
-		}
-		if _, ok := c.Reporter.(reporter.JsonReporter); ok {
-			reporter.PrintTripleGroupJson(reportGroup)
-		} else if !Quiet {
-			reporter.PrintTripleGroupStdout(reportGroup)
-		}
-	} else {
-		if !Quiet {
-			err = c.Reporter.Print(reports)
-		}
-		if err != nil {
-			fmt.Println("failed to report:", err)
-			errorFound = true
-		}
+	err = c.printReports(reports)
+	if err != nil {
+		return 1, err
 	}
+
 	if errorFound {
 		return 1, nil
 	} else {
 		return 0, nil
 	}
+}
+
+// printReports prints the reports based on the specified grouping and reporter type.
+// It returns any error encountered during the printing process.
+func (c CLI) printReports(reports []reporter.Report) error {
+	if len(GroupOutput) == 1 && GroupOutput[0] != "" {
+		return c.printGroupSingle(reports)
+	} else if len(GroupOutput) == 2 {
+		return c.printGroupDouble(reports)
+	} else if len(GroupOutput) == 3 {
+		return c.printGroupTriple(reports)
+	} else {
+		err := c.Reporter.Print(reports)
+
+		if err != nil {
+			fmt.Println("failed to report:", err)
+			errorFound = true
+		}
+
+		return nil
+	}
+
+}
+
+func (c CLI) printGroupSingle(reports []reporter.Report) error {
+
+	reportGroup, err := GroupBySingle(reports, GroupOutput[0])
+	if err != nil {
+		return fmt.Errorf("unable to group by single value: %v", err)
+	}
+
+	// Check reporter type to determine how to print
+	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
+		reporter.PrintSingleGroupJson(reportGroup)
+	} else {
+		reporter.PrintSingleGroupStdout(reportGroup)
+	}
+
+	return nil
+
+}
+
+func (c CLI) printGroupDouble(reports []reporter.Report) error {
+	reportGroup, err := GroupByDouble(reports, GroupOutput)
+	if err != nil {
+		return fmt.Errorf("unable to group by double value: %v", err)
+	}
+
+	// Check reporter type to determine how to print
+	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
+		reporter.PrintDoubleGroupJson(reportGroup)
+	} else {
+		reporter.PrintDoubleGroupStdout(reportGroup)
+	}
+
+	return nil
+
+}
+
+func (c CLI) printGroupTriple(reports []reporter.Report) error {
+	reportGroup, err := GroupByTriple(reports, GroupOutput)
+	if err != nil {
+		return fmt.Errorf("unable to group by triple value: %v", err)
+	}
+
+	if _, ok := c.Reporter.(reporter.JsonReporter); ok {
+		reporter.PrintTripleGroupJson(reportGroup)
+	} else {
+
+		reporter.PrintTripleGroupStdout(reportGroup)
+	}
+
+	return nil
 }

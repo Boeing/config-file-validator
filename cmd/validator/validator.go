@@ -186,6 +186,7 @@ func cleanString(command string) string {
 
 func mainInit() int {
 	validatorConfig, err := getFlags()
+
 	if err != nil {
 		return 1
 	}
