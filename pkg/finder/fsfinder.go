@@ -1,13 +1,13 @@
 package finder
 
 import (
-	"github.com/Boeing/config-file-validator/pkg/misc"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 )
 
 type FileSystemFinder struct {
@@ -54,6 +54,7 @@ func WithDepth(depthVal int) FSFinderOptions {
 		fsf.Depth = &depthVal
 	}
 }
+
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	defaultExcludeDirs := make(map[string]struct{})
 	defaultPathRoots := []string{"."}
@@ -118,6 +119,10 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
 			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
 			_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
 			if dirEntry.IsDir() && ((fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) || isExcluded) {
@@ -145,7 +150,6 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 			return nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

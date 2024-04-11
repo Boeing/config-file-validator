@@ -17,26 +17,26 @@ type FileType struct {
 
 // Instance of the FileType object to
 // represent a JSON file
-var JsonFileType = FileType{
+var JSONFileType = FileType{
 	"json",
 	misc.ArrToMap("json"),
-	validator.JsonValidator{},
+	validator.JSONValidator{},
 }
 
 // Instance of the FileType object to
 // represent a YAML file
-var YamlFileType = FileType{
+var YAMLFileType = FileType{
 	"yaml",
 	misc.ArrToMap("yml", "yaml"),
-	validator.YamlValidator{},
+	validator.YAMLValidator{},
 }
 
 // Instance of FileType object to
 // represent a XML file
-var XmlFileType = FileType{
+var XMLFileType = FileType{
 	"xml",
 	misc.ArrToMap("xml"),
-	validator.XmlValidator{},
+	validator.XMLValidator{},
 }
 
 // Instance of FileType object to
@@ -106,9 +106,9 @@ var EnvFileType = FileType{
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
-	JsonFileType,
-	YamlFileType,
-	XmlFileType,
+	JSONFileType,
+	YAMLFileType,
+	XMLFileType,
 	TomlFileType,
 	IniFileType,
 	PropFileType,

@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-type JsonReporter struct {
+type JSONReporter struct {
 	outputDest string
 }
 
-func NewJsonReporter(outputDest string) *JsonReporter {
-	return &JsonReporter{
+func NewJSONReporter(outputDest string) *JSONReporter {
+	return &JSONReporter{
 		outputDest: outputDest,
 	}
 }
@@ -56,8 +56,8 @@ type tripleGroupReportJSON struct {
 // Print implements the Reporter interface by outputting
 // the report content to stdout as JSON
 // if outputDest flag is provided, output results to a file.
-func (jr JsonReporter) Print(reports []Report) error {
-	report, err := createJsonReport(reports)
+func (jr JSONReporter) Print(reports []Report) error {
+	report, err := createJSONReport(reports)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (jr JsonReporter) Print(reports []Report) error {
 }
 
 // Prints the report for when one group is passed in the groupby flag
-func PrintSingleGroupJson(groupReports map[string][]Report) error {
+func PrintSingleGroupJSON(groupReports map[string][]Report) error {
 	var jsonReport groupReportJSON
 	totalPassed := 0
 	totalFailed := 0
@@ -89,7 +89,7 @@ func PrintSingleGroupJson(groupReports map[string][]Report) error {
 	jsonReport.Summary = make(map[string][]summary)
 
 	for group, reports := range groupReports {
-		report, err := createJsonReport(reports)
+		report, err := createJSONReport(reports)
 		if err != nil {
 			return err
 		}
@@ -115,7 +115,7 @@ func PrintSingleGroupJson(groupReports map[string][]Report) error {
 }
 
 // Prints the report for when two groups are passed in the groupby flag
-func PrintDoubleGroupJson(groupReports map[string]map[string][]Report) error {
+func PrintDoubleGroupJSON(groupReports map[string]map[string][]Report) error {
 	var jsonReport doubleGroupReportJSON
 	totalPassed := 0
 	totalFailed := 0
@@ -126,7 +126,7 @@ func PrintDoubleGroupJson(groupReports map[string]map[string][]Report) error {
 		jsonReport.Files[group] = make(map[string][]fileStatus, 0)
 		jsonReport.Summary[group] = make(map[string][]summary, 0)
 		for group2, reports := range group2 {
-			report, err := createJsonReport(reports)
+			report, err := createJSONReport(reports)
 			if err != nil {
 				return err
 			}
@@ -152,7 +152,7 @@ func PrintDoubleGroupJson(groupReports map[string]map[string][]Report) error {
 }
 
 // Prinnts the report for when three groups are passed in the groupby flag
-func PrintTripleGroupJson(groupReports map[string]map[string]map[string][]Report) error {
+func PrintTripleGroupJSON(groupReports map[string]map[string]map[string][]Report) error {
 	var jsonReport tripleGroupReportJSON
 	totalPassed := 0
 	totalFailed := 0
@@ -168,7 +168,7 @@ func PrintTripleGroupJson(groupReports map[string]map[string]map[string][]Report
 			jsonReport.Summary[group][group2] = make(map[string][]summary, 0)
 
 			for group3, reports := range group3 {
-				report, err := createJsonReport(reports)
+				report, err := createJSONReport(reports)
 				if err != nil {
 					return err
 				}
@@ -197,7 +197,7 @@ func PrintTripleGroupJson(groupReports map[string]map[string]map[string][]Report
 }
 
 // Creates the json report
-func createJsonReport(reports []Report) (reportJSON, error) {
+func createJSONReport(reports []Report) (reportJSON, error) {
 	var jsonReport reportJSON
 
 	for _, report := range reports {
@@ -234,5 +234,4 @@ func createJsonReport(reports []Report) (reportJSON, error) {
 	}
 
 	return jsonReport, nil
-
 }

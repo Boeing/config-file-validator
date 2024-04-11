@@ -5,9 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Boeing/config-file-validator/pkg/misc"
-
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
@@ -25,7 +24,6 @@ func Test_fsFinder(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to find files")
 	}
-
 }
 
 func Test_fsFinderExcludeDirs(t *testing.T) {
@@ -64,7 +62,6 @@ func Test_fsFinderExcludeFileTypes(t *testing.T) {
 }
 
 func Test_fsFinderWithDepth(t *testing.T) {
-
 	type test struct {
 		name               string
 		inputDepth         int
@@ -115,7 +112,7 @@ func Test_fsFinderCustomTypes(t *testing.T) {
 	jsonFileType := filetype.FileType{
 		Name:       "json",
 		Extensions: misc.ArrToMap("json"),
-		Validator:  validator.JsonValidator{},
+		Validator:  validator.JSONValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("../../test/fixtures"),

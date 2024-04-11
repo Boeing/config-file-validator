@@ -168,7 +168,7 @@ func getReporter(reportType, outputDest *string) reporter.Reporter {
 	case "junit":
 		return reporter.NewJunitReporter(*outputDest)
 	case "json":
-		return reporter.NewJsonReporter(*outputDest)
+		return reporter.NewJSONReporter(*outputDest)
 	default:
 		return reporter.StdoutReporter{}
 	}
@@ -186,7 +186,6 @@ func cleanString(command string) string {
 
 func mainInit() int {
 	validatorConfig, err := getFlags()
-
 	if err != nil {
 		return 1
 	}
@@ -199,12 +198,14 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	reporter := getReporter(validatorConfig.reportType, validatorConfig.output)
+	choosenReporter := getReporter(validatorConfig.reportType, validatorConfig.output)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
-	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
+	fsOpts := []finder.FSFinderOptions{
+		finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
-		finder.WithExcludeFileTypes(excludeFileTypes)}
+		finder.WithExcludeFileTypes(excludeFileTypes),
+	}
 	quiet := *validatorConfig.quiet
 
 	if validatorConfig.depth != nil && isFlagSet("depth") {
@@ -215,15 +216,15 @@ func mainInit() int {
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
 	// Initialize the CLI
-	cli := cli.Init(
-		cli.WithReporter(reporter),
+	c := cli.Init(
+		cli.WithReporter(choosenReporter),
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
 	)
 
 	// Run the config file validation
-	exitStatus, err := cli.Run()
+	exitStatus, err := c.Run()
 	if err != nil {
 		log.Printf("An error occurred during CLI execution: %v", err)
 	}

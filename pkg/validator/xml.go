@@ -4,12 +4,12 @@ import (
 	"encoding/xml"
 )
 
-type XmlValidator struct{}
+type XMLValidator struct{}
 
 // Validate implements the Validator interface by attempting to
 // unmarshall a byte array of xml
-func (xv XmlValidator) Validate(b []byte) (bool, error) {
-	var output interface{}
+func (XMLValidator) Validate(b []byte) (bool, error) {
+	var output any
 	err := xml.Unmarshal(b, &output)
 	if err != nil {
 		return false, err

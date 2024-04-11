@@ -71,7 +71,7 @@ func Test_jsonReport(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithBackslashPath}
 
-	jsonReporter := JsonReporter{}
+	jsonReporter := JSONReporter{}
 	err := jsonReporter.Print(reports)
 	if err != nil {
 		t.Errorf("Reporting failed")
@@ -146,15 +146,13 @@ func Test_junitReport(t *testing.T) {
 }
 
 func Test_jsonReporterWriter(t *testing.T) {
-	var (
-		report = Report{
-			"good.json",
-			"test/output/example/good.json",
-			true,
-			nil,
-			false,
-		}
-	)
+	report := Report{
+		"good.json",
+		"test/output/example/good.json",
+		true,
+		nil,
+		false,
+	}
 	deleteFiles(t)
 
 	bytes, err := os.ReadFile("../../test/output/example/result.json")
@@ -229,7 +227,7 @@ func Test_jsonReporterWriter(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			sut := NewJsonReporter(tt.args.outputDest)
+			sut := NewJSONReporter(tt.args.outputDest)
 			err := sut.Print(tt.args.reports)
 			tt.want.err(t, err)
 			if tt.want.data != nil {
@@ -254,15 +252,13 @@ func Test_jsonReporterWriter(t *testing.T) {
 }
 
 func Test_JunitReporter_OutputBytesToFile(t *testing.T) {
-	var (
-		report = Report{
-			"good.json",
-			"test/output/example/good.json",
-			true,
-			nil,
-			false,
-		}
-	)
+	report := Report{
+		"good.json",
+		"test/output/example/good.json",
+		true,
+		nil,
+		false,
+	}
 	deleteFiles(t)
 
 	// this "bytes" is data to check if the file generated is correct
@@ -363,20 +359,12 @@ func Test_JunitReporter_OutputBytesToFile(t *testing.T) {
 	}
 }
 
-func assertErrorIs(expectation error) assert.ErrorAssertionFunc {
-	return func(t assert.TestingT, got error, msg ...interface{}) bool {
+func assertRegexpError(regexp any) assert.ErrorAssertionFunc {
+	return func(t assert.TestingT, got error, msg ...any) bool {
 		if h, ok := t.(interface{ Helper() }); ok {
 			h.Helper()
 		}
-		return assert.ErrorIs(t, got, expectation, msg...)
-	}
-}
-
-func assertRegexpError(regexp interface{}) assert.ErrorAssertionFunc {
-	return func(t assert.TestingT, got error, msg ...interface{}) bool {
-		if h, ok := t.(interface{ Helper() }); ok {
-			h.Helper()
-		}
+		//nolint: testifylint // in this use case it's ok to use assert.Error
 		return assert.Error(t, got, msg...) && assert.Regexp(t, regexp, got.Error(), msg...)
 	}
 }
@@ -503,7 +491,8 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 	groupReports := map[string]map[string]map[string][]Report{
 		"pass-fail": {"directory": {"filetype": reports}},
 		"filetype":  {"directory": {"pass-fail": reports}},
-		"directory": {"filetype": {"pass-fail": reports}}}
+		"directory": {"filetype": {"pass-fail": reports}},
+	}
 
 	err := PrintTripleGroupStdout(groupReports)
 	if err != nil {
@@ -540,7 +529,7 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 
 	groupReports := map[string][]Report{"pass-fail": reports}
 
-	err := PrintSingleGroupJson(groupReports)
+	err := PrintSingleGroupJSON(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -575,7 +564,7 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 
 	groupReports := map[string]map[string][]Report{"pass-fail": {"pass-fail": reports}, "filetype": {"filetype": reports}}
 
-	err := PrintDoubleGroupJson(groupReports)
+	err := PrintDoubleGroupJSON(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}
@@ -611,9 +600,10 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 	groupReports := map[string]map[string]map[string][]Report{
 		"pass-fail": {"directory": {"filetype": reports}},
 		"filetype":  {"directory": {"pass-fail": reports}},
-		"directory": {"filetype": {"pass-fail": reports}}}
+		"directory": {"filetype": {"pass-fail": reports}},
+	}
 
-	err := PrintTripleGroupJson(groupReports)
+	err := PrintTripleGroupJSON(groupReports)
 	if err != nil {
 		t.Errorf("Reporting failed")
 	}

@@ -9,7 +9,7 @@ import (
 type HoconValidator struct{}
 
 // Validate checks if the provided byte slice represents a valid .hocon file.
-func (hv HoconValidator) Validate(b []byte) (bool, error) {
+func (HoconValidator) Validate(b []byte) (bool, error) {
 	_, err := hocon.ParseString(string(b))
 	if err != nil {
 		return false, err

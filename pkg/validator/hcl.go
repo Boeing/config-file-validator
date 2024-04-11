@@ -20,7 +20,7 @@ type HclValidator struct{}
 // If the hcl.Diagnostics slice contains more than one error, the wrapped
 // error returned by this function will include them as "and {count} other
 // diagnostic(s)" in the error message.
-func (hclv HclValidator) Validate(b []byte) (bool, error) {
+func (HclValidator) Validate(b []byte) (bool, error) {
 	_, diags := hclparse.NewParser().ParseHCL(b, "")
 	if diags == nil {
 		return true, nil
