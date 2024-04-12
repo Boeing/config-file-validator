@@ -219,7 +219,7 @@ go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
 -o validator \
-cmd/validator/validator.go
+main.go
 ```
 
 #### Install
@@ -238,7 +238,7 @@ go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
 -o validator \
-cmd/validator/validator.go
+main.go
 ```
 
 #### Install
@@ -257,7 +257,7 @@ go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
 -o validator.exe \
-cmd/validator/validator.go
+main.go
 ```
 
 #### Install
