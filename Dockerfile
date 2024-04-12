@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=alpine:3.18
+ARG BASE_IMAGE=alpine:3.19
 
 FROM golang:1.21 as go-builder
 ARG VALIDATOR_VERSION=unknown
