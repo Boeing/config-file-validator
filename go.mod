@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/fatih/color v1.13.0
 	github.com/gurkankaymak/hocon v1.2.18
+	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.18.1
 	github.com/magiconair/properties v1.8.7
 	github.com/pelletier/go-toml/v2 v2.0.6
