@@ -6,16 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"slices"
-
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 )
 
 type FileSystemFinder struct {
 	PathRoots        []string
 	FileTypes        []filetype.FileType
-	ExcludeDirs      []string
-	ExcludeFileTypes []string
+	ExcludeDirs      map[string]struct{}
+	ExcludeFileTypes map[string]struct{}
 	Depth            *int
 }
 
@@ -38,14 +37,14 @@ func WithFileTypes(fileTypes []filetype.FileType) FSFinderOptions {
 // Add a custom list of file types to the FSFinder
 func WithExcludeDirs(excludeDirs []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeDirs = excludeDirs
+		fsf.ExcludeDirs = misc.ArrToMap(excludeDirs...)
 	}
 }
 
 // WithExcludeFileTypes adds excluded file types to FSFinder.
 func WithExcludeFileTypes(types []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeFileTypes = types
+		fsf.ExcludeFileTypes = misc.ArrToMap(types...)
 	}
 }
 
@@ -57,7 +56,7 @@ func WithDepth(depthVal int) FSFinderOptions {
 }
 
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
-	var defaultExcludeDirs []string
+	defaultExcludeDirs := make(map[string]struct{})
 	defaultPathRoots := []string{"."}
 
 	fsfinder := &FileSystemFinder{
@@ -133,17 +132,18 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 			if !dirEntry.IsDir() {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
+
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
-				if slices.Contains[[]string](fsf.ExcludeFileTypes, walkFileExtension) {
+
+				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
 					return nil
 				}
-
+				extensionLowerCase := strings.ToLower(walkFileExtension)
 				for _, fileType := range fsf.FileTypes {
-					for _, extension := range fileType.Extensions {
-						if strings.EqualFold(extension, walkFileExtension) {
-							fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
-							matchingFiles = append(matchingFiles, fileMetadata)
-						}
+					if _, ok := fileType.Extensions[extensionLowerCase]; ok {
+						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
+						matchingFiles = append(matchingFiles, fileMetadata)
+						break
 					}
 				}
 			}
