@@ -18,7 +18,7 @@ func CmdFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().
 		StringVar(&validator.Flags.GroupOutput, "groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	cmd.PersistentFlags().
-		StringVar(&validator.Flags.SearchPath, "search_path", ".", "search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided.")
+		BoolVar(&validator.Flags.Quiet, "quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 }
 
 func init() {
