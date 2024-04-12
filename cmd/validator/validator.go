@@ -107,19 +107,19 @@ func getFlags(cmd *cobra.Command, args []string) (ValidatorConfig, error) {
 
 	if reportType != "standard" && reportType != "json" && reportType != "junit" {
 		fmt.Println("Wrong parameter value for reporter, only supports standard, json or junit")
-		cmd.Usage()
+		_ = cmd.Usage()
 		return ValidatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
 	}
 
 	if reportType == "junit" && groupby != "" {
 		fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
-		cmd.Usage()
+		_ = cmd.Usage()
 		return ValidatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
 	}
 
 	if isFlagSet("depth", cmd) && depth < 0 {
 		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
-		cmd.Usage()
+		_ = cmd.Usage()
 		return ValidatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
 	}
 
@@ -133,14 +133,14 @@ func getFlags(cmd *cobra.Command, args []string) (ValidatorConfig, error) {
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
 				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
-				cmd.Usage()
+				_ = cmd.Usage()
 				return ValidatorConfig{}, errors.New(
 					"Wrong parameter value for groupby, only supports filetype, directory, pass-fail",
 				)
 			}
 			if _, ok := seenValues[groupBy]; ok {
 				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
-				cmd.Usage()
+				_ = cmd.Usage()
 				return ValidatorConfig{}, errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
 			}
 			seenValues[groupBy] = true
