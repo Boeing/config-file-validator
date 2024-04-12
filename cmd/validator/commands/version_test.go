@@ -13,7 +13,7 @@ func TestFlagVersion(t *testing.T) {
 	root := &cobra.Command{
 		Use: "root",
 		Run: func(c *cobra.Command, args []string) {
-			exitStatus = cmd.ExecRoot(c)
+			exitStatus = cmd.ExecRoot(c, args)
 		}}
 
 	SetVersion("testing")

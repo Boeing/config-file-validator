@@ -1,5 +1,5 @@
 /*
-Validator recusively scans a directory to search for configuration files and
+Validator recursively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
 Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, TOML, XML, and YAML.
@@ -49,7 +49,6 @@ type ValidatorConfig struct {
 	Output           string
 	ReportType       string
 	GroupOutput      string
-	SearchPath       string
 	Quiet            bool
 }
 
@@ -86,7 +85,7 @@ func getReporter(reportType, outputDest string) reporter.Reporter {
 // If a required parameter is missing the help
 // output will be displayed and the function
 // will return with exit = 1
-func getFlags(cmd *cobra.Command) (ValidatorConfig, error) {
+func getFlags(cmd *cobra.Command, args []string) (ValidatorConfig, error) {
 	depth := Flags.Depth
 	excludeDirs := Flags.ExcludeDirs
 	excludeFileTypes := Flags.ExcludeFileTypes
@@ -98,8 +97,13 @@ func getFlags(cmd *cobra.Command) (ValidatorConfig, error) {
 	searchPaths := make([]string, 0)
 
 	// If search path arg is empty, default is cwd (".")
-	// if not, set it to the arg. Supports N number of paths
-	searchPaths = append(searchPaths, Flags.SearchPath)
+	// if not, set it to the arg. Supports N number of
+	// paths
+	if len(args) == 0 {
+		searchPaths = append(searchPaths, ".")
+	} else {
+		searchPaths = append(searchPaths, args...)
+	}
 
 	if reportType != "standard" && reportType != "json" && reportType != "junit" {
 		fmt.Println("Wrong parameter value for reporter, only supports standard, json or junit")
@@ -158,8 +162,8 @@ func getFlags(cmd *cobra.Command) (ValidatorConfig, error) {
 }
 
 // ExecRoot control all the flow of the program and call cli.Run() that process everything.
-func ExecRoot(cmd *cobra.Command) int {
-	validatorConfig, err := getFlags(cmd)
+func ExecRoot(cmd *cobra.Command, args []string) int {
+	validatorConfig, err := getFlags(cmd, args)
 	if err != nil {
 		return 1
 	}

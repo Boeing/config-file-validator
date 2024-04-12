@@ -12,8 +12,9 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "validator",
 	Short: "Cross Platform tool to validate configuration files",
+	Args:  cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(validator.ExecRoot(cmd))
+		os.Exit(validator.ExecRoot(cmd, args))
 	},
 }
 
