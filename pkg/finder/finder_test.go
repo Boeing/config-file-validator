@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
@@ -23,7 +24,6 @@ func Test_fsFinder(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to find files")
 	}
-
 }
 
 func Test_fsFinderExcludeDirs(t *testing.T) {
@@ -62,7 +62,6 @@ func Test_fsFinderExcludeFileTypes(t *testing.T) {
 }
 
 func Test_fsFinderWithDepth(t *testing.T) {
-
 	type test struct {
 		name               string
 		inputDepth         int
@@ -112,8 +111,8 @@ func Test_fsFinderWithDepth(t *testing.T) {
 func Test_fsFinderCustomTypes(t *testing.T) {
 	jsonFileType := filetype.FileType{
 		Name:       "json",
-		Extensions: []string{"json"},
-		Validator:  validator.JsonValidator{},
+		Extensions: misc.ArrToMap("json"),
+		Validator:  validator.JSONValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("../../test/fixtures"),
@@ -207,7 +206,7 @@ func Test_FileSystemFinderAbsPath(t *testing.T) {
 
 func Test_FileSystemFinderUpperCaseExtention(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/uppercase-extention"),
+		WithPathRoots("../../test/fixtures/uppercase-extension"),
 	)
 
 	files, err := fsFinder.Find()
@@ -223,7 +222,7 @@ func Test_FileSystemFinderUpperCaseExtention(t *testing.T) {
 
 func Test_FileSystemFinderMixedCaseExtention(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/mixedcase-extention"),
+		WithPathRoots("../../test/fixtures/mixedcase-extension"),
 	)
 
 	files, err := fsFinder.Find()

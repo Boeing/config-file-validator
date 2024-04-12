@@ -1,6 +1,7 @@
 package filetype
 
 import (
+	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
@@ -16,26 +17,26 @@ type FileType struct {
 
 // Instance of the FileType object to
 // represent a JSON file
-var JsonFileType = FileType{
+var JSONFileType = FileType{
 	"json",
-	[]string{"json"},
-	validator.JsonValidator{},
+	misc.ArrToMap("json"),
+	validator.JSONValidator{},
 }
 
 // Instance of the FileType object to
 // represent a YAML file
-var YamlFileType = FileType{
+var YAMLFileType = FileType{
 	"yaml",
-	[]string{"yml", "yaml"},
-	validator.YamlValidator{},
+	misc.ArrToMap("yml", "yaml"),
+	validator.YAMLValidator{},
 }
 
 // Instance of FileType object to
 // represent a XML file
-var XmlFileType = FileType{
+var XMLFileType = FileType{
 	"xml",
-	[]string{"xml"},
-	validator.XmlValidator{},
+	misc.ArrToMap("xml"),
+	validator.XMLValidator{},
 }
 
 // Instance of FileType object to
@@ -97,9 +98,9 @@ var HoconFileType = FileType{
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
-	JsonFileType,
-	YamlFileType,
-	XmlFileType,
+	JSONFileType,
+	YAMLFileType,
+	XMLFileType,
 	TomlFileType,
 	IniFileType,
 	PropFileType,

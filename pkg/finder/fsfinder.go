@@ -55,6 +55,7 @@ func WithDepth(depthVal int) FSFinderOptions {
 		fsf.Depth = &depthVal
 	}
 }
+
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	var defaultExcludeDirs []string
 	defaultPathRoots := []string{"."}
@@ -119,19 +120,14 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
-			// determine if directory is in the excludeDirs list
-			if dirEntry.IsDir() && fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth {
-				// Skip processing the directory
-				return fs.SkipDir // This is not reported as an error by filepath.WalkDir
+			if err != nil {
+				return err
 			}
 
-			for _, dir := range fsf.ExcludeDirs {
-				if dirEntry.IsDir() && dirEntry.Name() == dir {
-					err := filepath.SkipDir
-					if err != nil {
-						return err
-					}
-				}
+			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
+			_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
+			if dirEntry.IsDir() && ((fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) || isExcluded) {
+				return filepath.SkipDir
 			}
 
 			if !dirEntry.IsDir() {
@@ -154,7 +150,6 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 			return nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

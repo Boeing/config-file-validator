@@ -23,7 +23,6 @@ func Test_CLI(t *testing.T) {
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
-
 	if err != nil {
 		t.Errorf("An error was returned: %v", err)
 	}
@@ -44,7 +43,6 @@ func Test_CLIWithFailedValidation(t *testing.T) {
 		WithFinder(fsFinder),
 	)
 	exitStatus, err := cli.Run()
-
 	if err != nil {
 		t.Errorf("An error was returned: %v", err)
 	}
@@ -89,7 +87,6 @@ func Test_CLIWithGroup(t *testing.T) {
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
-
 	if err != nil {
 		t.Errorf("An error was returned: %v", err)
 	}
@@ -104,7 +101,7 @@ func Test_CLIRepoertErr(t *testing.T) {
 	excludeDirs := []string{"subdir", "subdir2"}
 	groupOutput := []string{""}
 	output := "./wrong/path"
-	reporter := reporter.NewJsonReporter(output)
+	jsonReporter := reporter.NewJSONReporter(output)
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(searchPath),
@@ -112,13 +109,12 @@ func Test_CLIRepoertErr(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporter(reporter),
+		WithReporter(jsonReporter),
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
-
 	if err != nil {
-		t.Errorf("An error was returned: %v", err)
+		t.Errorf("An error returned: %v", err)
 	}
 
 	if exitStatus == 0 {

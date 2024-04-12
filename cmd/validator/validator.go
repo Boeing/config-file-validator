@@ -55,8 +55,8 @@ type ValidatorConfig struct {
 
 var Flags ValidatorConfig
 
-// IsFlagSet verifies if a given flag has been set or not
-func IsFlagSet(flagName string, cmd *cobra.Command) bool {
+// isFlagSet verifies if a given flag has been set or not
+func isFlagSet(flagName string, cmd *cobra.Command) bool {
 	return cmd.Flags().Lookup(flagName).Changed
 }
 
@@ -70,12 +70,12 @@ func CleanString(str string) string {
 
 // Return the reporter associated with the
 // reportType string
-func GetReporter(reportType, outputDest string) reporter.Reporter {
+func getReporter(reportType, outputDest string) reporter.Reporter {
 	switch reportType {
 	case "junit":
 		return reporter.NewJunitReporter(outputDest)
 	case "json":
-		return reporter.NewJsonReporter(outputDest)
+		return reporter.NewJSONReporter(outputDest)
 	default:
 		return reporter.StdoutReporter{}
 	}
@@ -86,7 +86,7 @@ func GetReporter(reportType, outputDest string) reporter.Reporter {
 // If a required parameter is missing the help
 // output will be displayed and the function
 // will return with exit = 1
-func GetFlags(cmd *cobra.Command) (ValidatorConfig, error) {
+func getFlags(cmd *cobra.Command) (ValidatorConfig, error) {
 	depth := Flags.Depth
 	excludeDirs := Flags.ExcludeDirs
 	excludeFileTypes := Flags.ExcludeFileTypes
@@ -113,7 +113,7 @@ func GetFlags(cmd *cobra.Command) (ValidatorConfig, error) {
 		return ValidatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
 	}
 
-	if IsFlagSet("depth", cmd) && depth < 0 {
+	if isFlagSet("depth", cmd) && depth < 0 {
 		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
 		cmd.Usage()
 		return ValidatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
@@ -159,7 +159,7 @@ func GetFlags(cmd *cobra.Command) (ValidatorConfig, error) {
 
 // ExecRoot control all the flow of the program and call cli.Run() that process everything.
 func ExecRoot(cmd *cobra.Command) int {
-	validatorConfig, err := GetFlags(cmd)
+	validatorConfig, err := getFlags(cmd)
 	if err != nil {
 		return 1
 	}
@@ -175,26 +175,26 @@ func ExecRoot(cmd *cobra.Command) int {
 		finder.WithExcludeFileTypes(excludeFileTypes),
 	}
 
-	if IsFlagSet("depth", cmd) {
+	if isFlagSet("depth", cmd) {
 		fsOpts = append(fsOpts, finder.WithDepth(validatorConfig.Depth))
 	}
 
 	// Initialize a file system finder
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
-	reporter := GetReporter(validatorConfig.ReportType, validatorConfig.Output)
+	choosenReporter := getReporter(validatorConfig.ReportType, validatorConfig.Output)
 	groupby := strings.Split(validatorConfig.GroupOutput, ",")
 
 	// Initialize the CLI
-	cli := cli.Init(
-		cli.WithReporter(reporter),
+	c := cli.Init(
+		cli.WithReporter(choosenReporter),
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupby),
 		cli.WithQuiet(validatorConfig.Quiet),
 	)
 
 	// Run the config file validation
-	exitStatus, err := cli.Run()
+	exitStatus, err := c.Run()
 	if err != nil {
 		log.Printf("An error occurred during CLI execution: %v", err)
 	}

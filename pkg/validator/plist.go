@@ -11,8 +11,8 @@ import (
 type PlistValidator struct{}
 
 // Validate checks if the provided byte slice represents a valid .plist file.
-func (csvv PlistValidator) Validate(b []byte) (bool, error) {
-	var output interface{}
+func (PlistValidator) Validate(b []byte) (bool, error) {
+	var output any
 	plistDecoder := plist.NewDecoder(bytes.NewReader(b))
 	err := plistDecoder.Decode(&output)
 	if err != nil {

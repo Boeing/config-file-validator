@@ -64,7 +64,7 @@ type Testcase struct {
 	Time            float32          `xml:"time,attr,omitempty"`
 	File            string           `xml:"file,attr,omitempty"`
 	Line            int              `xml:"line,attr,omitempty"`
-	Skipped         *Skipped         `xml:"skipped,omitempty,omitempty"`
+	Skipped         *Skipped         `xml:"skipped,attr,omitempty"`
 	Properties      *[]Property      `xml:"properties>property,omitempty"`
 	TestcaseError   *TestcaseError   `xml:"error,omitempty"`
 	TestcaseFailure *TestcaseFailure `xml:"failure,omitempty"`

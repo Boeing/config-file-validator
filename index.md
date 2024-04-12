@@ -19,7 +19,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-95.3%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-95.6%25-brightgreen" alt="Code Coverage">
 
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">

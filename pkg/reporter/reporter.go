@@ -7,6 +7,7 @@ type Report struct {
 	FilePath        string
 	IsValid         bool
 	ValidationError error
+	IsQuiet         bool
 }
 
 // Reporter is the interface that wraps the Print method
