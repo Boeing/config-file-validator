@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 \
   -ldflags="-w -s -extldflags '-static' -X github.com/Boeing/config-file-validator.version=$VALIDATOR_VERSION" \
   -tags netgo \
   -o validator \
-  cmd/validator/validator.go
+  main.go
 
 FROM $BASE_IMAGE
 COPY --from=go-builder /build/validator /
