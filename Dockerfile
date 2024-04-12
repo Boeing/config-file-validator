@@ -1,6 +1,6 @@
 ARG BASE_IMAGE=alpine:3.19
 
-FROM golang:1.21 as go-builder
+FROM golang:1.22 as go-builder
 ARG VALIDATOR_VERSION=unknown
 COPY . /build/
 WORKDIR /build
