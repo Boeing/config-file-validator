@@ -9,8 +9,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   releases-matrix:
@@ -25,6 +24,9 @@ jobs:
             goos: darwin
           - goarch: arm64
             goos: windows
+
+    permissions:
+      packages: write
 
     steps:
     - name: Harden Runner
@@ -51,11 +53,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - base: "alpine:3.19"
+          - base: "alpine:3.19@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b"
             postfix: ""
           - base: "scratch"
             postfix: "-scratch"
-          - base: "ubuntu:20.04"
+          - base: "ubuntu:20.04@sha256:874aca52f79ae5f8258faff03e10ce99ae836f6e7d2df6ecd3da5c1cad3a912b"
             postfix: "-ubuntu"
 
     steps:

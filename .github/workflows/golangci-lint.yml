@@ -10,10 +10,11 @@ permissions:
   contents: read
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
   pull-requests: read
-  # Optional: Allow write access to checks to allow the action to annotate code in the PR.
-  checks: write
 
 jobs:
+  permissions:
+    # Optional: Allow write access to checks to allow the action to annotate code in the PR.
+    checks: write
   golangci:
     strategy:
       matrix:
