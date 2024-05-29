@@ -12,14 +12,15 @@ permissions:
   pull-requests: read
 
 jobs:
-  permissions:
-    # Optional: Allow write access to checks to allow the action to annotate code in the PR.
-    checks: write
   golangci:
     strategy:
       matrix:
         go: ['1.21']
         os: [ubuntu-latest, macos-latest, windows-latest]
+    permissions:
+      # Optional: Allow write access to checks to allow the action to annotate code in the PR.
+      checks: write
+    
     name: lint
     runs-on: ${{ matrix.os }}
     steps:
