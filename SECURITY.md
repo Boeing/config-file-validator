@@ -1,6 +1,6 @@
 # Reporting Security Issues
 
-The config-file-validator team and community take security bugs in the config-file-validator seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
+The config-file-validator admins and community take security bugs in the config-file-validator project seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
 
 To report a security issue, please use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/boeing/config-file-validator/security/advisories/new) tab.
 
