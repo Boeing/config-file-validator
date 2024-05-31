@@ -92,3 +92,16 @@ func Test_ValidationInput(t *testing.T) {
 		})
 	}
 }
+
+// This fuzz test is validating the ability
+// of the validators to handle random input
+func FuzzJSONInput(f *testing.F) {
+    testcases := []string{`{"test": "test"}`, "{]'{}} ", `{}`, `[]`}
+    for _, tc := range testcases {
+        f.Add(tc)  // Use f.Add to provide a seed corpus
+    }
+    f.Fuzz(func(t *testing.T, orig string) {
+		jsonValidator := JSONValidator{}
+		jsonValidator.Validate([]byte(orig))
+    })
+}
