@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"fmt"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/misc"
@@ -16,6 +17,7 @@ type FileSystemFinder struct {
 	ExcludeDirs      map[string]struct{}
 	ExcludeFileTypes map[string]struct{}
 	Depth            *int
+	AdditionalFiles  map[string]string
 }
 
 type FSFinderOptions func(*FileSystemFinder)
@@ -52,6 +54,27 @@ func WithExcludeFileTypes(types []string) FSFinderOptions {
 func WithDepth(depthVal int) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
 		fsf.Depth = &depthVal
+	}
+}
+
+// AddFiles adds additional files with specified formats to FSFinder
+func AddFiles(files []string) FSFinderOptions {
+	return func(fsf *FileSystemFinder) {
+		if len(files) > 0 {
+		fsf.AdditionalFiles= make(map[string]string)
+			for i := range files {
+				kv := strings.Split(files[i], ":")
+				if len(kv) == 2 {
+					fsf.AdditionalFiles[kv[0]] = kv[1]
+				}
+			}
+		}
+	}
+}
+
+func readConfig(file string) {
+	if len(file) > 0 {
+		//WORK IN PROGRESS
 	}
 }
 
@@ -135,10 +158,31 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 
+				// Checking for file name matching with additional files
+				// Check matching base name, return vals with passed KVPair value as fileType
+				//if _, ok := fsf.AdditionalFiles[dirEntry.Name()]; ok {
+				//	extensionLowerCase := AdditionalFiles[dirEntry.Name()]
+				//}
+
+				if len(walkFileExtension) == 0 {
+					var ok bool
+					walkFileExtension, ok = fsf.AdditionalFiles[dirEntry.Name()]
+					if !ok {
+						walkFileExtension = ""
+					}
+				}
+
+				fmt.Println(path)
+				fmt.Println(walkFileExtension)
+
+				// Checking for case sensitive exclusion
 				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
+					fmt.Println("excluded")
 					return nil
 				}
 				extensionLowerCase := strings.ToLower(walkFileExtension)
+
+				// Check each fileType, ignore non-matching extensions
 				for _, fileType := range fsf.FileTypes {
 					if _, ok := fileType.Extensions[extensionLowerCase]; ok {
 						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}

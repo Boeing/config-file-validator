@@ -23,6 +23,10 @@ optional flags:
     	Format of the printed report. Options are standard and json (default "standard")
   -version
     	Version prints the release version of validator
+  -additional-file
+		Adds additional file to check in given format [<file>:<format>, ...]
+  -additional-file-config
+		Reads in a given yaml file outlining custom config files, and their respective types
 */
 
 package main
@@ -52,6 +56,8 @@ type validatorConfig struct {
 	output           *string
 	groupOutput      *string
 	quiet            *bool
+	additionalFile   *string
+	configFile       *string
 }
 
 // Custom Usage function to cover
@@ -80,6 +86,9 @@ func getFlags() (validatorConfig, error) {
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+	additionalFile := flag.String("additional-file", "", "Adds file to be checked in given format, '<file>:<format>, '. Useful if the file lacks extensions.")
+	addFileConfig := flag.String("additional-file-config", "", "Name of yaml file outlining additional files without extensions. Similar to additional-file")
+
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
@@ -133,6 +142,8 @@ func getFlags() (validatorConfig, error) {
 		}
 	}
 
+	// Validate extension types for additional file?
+
 	config := validatorConfig{
 		searchPaths,
 		excludeDirsPtr,
@@ -143,6 +154,8 @@ func getFlags() (validatorConfig, error) {
 		outputPtr,
 		groupOutputPtr,
 		quietPrt,
+		additionalFile,
+		addFileConfig,
 	}
 
 	return config, nil
@@ -201,10 +214,13 @@ func mainInit() int {
 	choosenReporter := getReporter(validatorConfig.reportType, validatorConfig.output)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
+    additionalFiles := strings.Split(*validatorConfig.additionalFile, ",")
 	fsOpts := []finder.FSFinderOptions{
 		finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes),
+		finder.AddFiles(additionalFiles),
+		finder.readConfig(*validatorConfig.addFileConfig),
 	}
 	quiet := *validatorConfig.quiet
 
