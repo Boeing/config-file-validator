@@ -35,6 +35,12 @@ func Test_flags(t *testing.T) {
 		{"grouped junit", []string{"-groupby=directory", "--reporter=junit", "."}, 1},
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, 1},
 		{"quiet flag", []string{"--quiet=true", "."}, 0},
+		{"correct unchecked file", []string{"--unchecked-files=testGood:yaml"}, 0},
+		{"bad format unchecked file", []string{"--unchecked-files=testBad yaml"}, 1},
+		{"bad file type", []string{"--unchecked-files=testBad:py"}, 1},
+		{"missing config file", []string{"--unchecked-file-config=notHere.yaml"}, 1},
+		{"bad format config file", []string{"--unchecked-file-config=../../test/fixtures/good.yaml"}, 1},
+		{"good config file", []string{"--unchecked-file-config=../../test/fixtures/testConfig.yaml"}, 0},
 	}
 	for _, tc := range cases {
 		// this call is required because otherwise flags panics,

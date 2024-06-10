@@ -23,10 +23,10 @@ optional flags:
     	Format of the printed report. Options are standard and json (default "standard")
   -version
     	Version prints the release version of validator
-  -additional-file
-		Adds additional file to check in given format [<file>:<format>, ...]
-  -additional-file-config
-		Reads in a given yaml file outlining custom config files, and their respective types
+  -unchecked-file
+		Flags set extensionless files to be checked in a given format [<file>:<format>, ...]. Otherwise ignored by validator.
+  -unchecked-file-config
+		Path to a yaml file outlining unchecked files, and their respective types. Note if both options are used on the same file, config takes precedence.
 */
 
 package main
@@ -44,6 +44,7 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/filetype"
 )
 
 type validatorConfig struct {
@@ -56,7 +57,7 @@ type validatorConfig struct {
 	output           *string
 	groupOutput      *string
 	quiet            *bool
-	additionalFile   *string
+	uncheckedFiles   *string
 	configFile       *string
 }
 
@@ -86,8 +87,8 @@ func getFlags() (validatorConfig, error) {
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
-	additionalFile := flag.String("additional-file", "", "Adds file to be checked in given format, '<file>:<format>, '. Useful if the file lacks extensions.")
-	addFileConfig := flag.String("additional-file-config", "", "Name of yaml file outlining additional files without extensions. Similar to additional-file")
+	uncheckedFiles := flag.String("unchecked-files", "", "Sets stated extensionless files to be checked in a given format [<relativeFilePath>:<format>, ...]. Otherwise ignored by validator.")
+	configFile := flag.String("unchecked-file-config", "", "Path to a yaml file to define relative paths / names of unchecked files, and their respective types.")
 
 	flag.Parse()
 
@@ -142,7 +143,35 @@ func getFlags() (validatorConfig, error) {
 		}
 	}
 
-	// Validate extension types for additional file?
+	uncheckedClean := cleanString("unchecked-files")
+	uncheckedPairs := strings.Split(uncheckedClean, ",")
+
+	// Check that checked files are listed in proper format and with valid config types
+	if uncheckedFiles != nil && isFlagSet("unchecked-files") {
+		for _, pair := range uncheckedPairs {
+			if !strings.Contains(pair, ":") {
+				errorMsg :="Format error in adding unchecked file: " + pair + ", ':' delimeter required to separate file path from type"
+				fmt.Println(errorMsg)
+				flag.Usage()
+				return validatorConfig{}, errors.New(errorMsg)
+			}
+			uncheckedType:= strings.Split(pair, ":")[1]
+
+			isFound := false
+			for _, fileType := range filetype.FileTypes {
+				if fileType.Name == uncheckedType {
+					isFound = true
+					break
+				}
+			}
+			if !isFound {
+				errorMsg := "Invalid file type for unchecked file: " + pair + ". Only supported formats accepted"
+				fmt.Println(errorMsg)
+				flag.Usage()
+				return validatorConfig{}, errors.New(errorMsg)
+			}
+		}
+	}
 
 	config := validatorConfig{
 		searchPaths,
@@ -154,8 +183,8 @@ func getFlags() (validatorConfig, error) {
 		outputPtr,
 		groupOutputPtr,
 		quietPrt,
-		additionalFile,
-		addFileConfig,
+		uncheckedFiles,
+		configFile,
 	}
 
 	return config, nil
@@ -214,13 +243,14 @@ func mainInit() int {
 	choosenReporter := getReporter(validatorConfig.reportType, validatorConfig.output)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
-    additionalFiles := strings.Split(*validatorConfig.additionalFile, ",")
+    uncheckedFiles := strings.Split(*validatorConfig.uncheckedFiles, ",")
+	
 	fsOpts := []finder.FSFinderOptions{
 		finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes),
-		finder.AddFiles(additionalFiles),
-		finder.readConfig(*validatorConfig.addFileConfig),
+		finder.AddFiles(uncheckedFiles),
+		finder.StoreConfig(*validatorConfig.configFile),
 	}
 	quiet := *validatorConfig.quiet
 

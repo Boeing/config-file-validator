@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"fmt"
+	"io/ioutil"
+	"gopkg.in/yaml.v3"
+	"errors"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/misc"
@@ -17,7 +19,8 @@ type FileSystemFinder struct {
 	ExcludeDirs      map[string]struct{}
 	ExcludeFileTypes map[string]struct{}
 	Depth            *int
-	AdditionalFiles  map[string]string
+	UncheckedFiles   map[string]string
+	ConfigFile       string
 }
 
 type FSFinderOptions func(*FileSystemFinder)
@@ -57,25 +60,56 @@ func WithDepth(depthVal int) FSFinderOptions {
 	}
 }
 
-// AddFiles adds additional files with specified formats to FSFinder
+// AddFiles adds unchecked files with specified formats to FSFinder (adds support for extensionless files)
 func AddFiles(files []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
 		if len(files) > 0 {
-		fsf.AdditionalFiles= make(map[string]string)
+		fsf.UncheckedFiles= make(map[string]string)
 			for i := range files {
 				kv := strings.Split(files[i], ":")
 				if len(kv) == 2 {
-					fsf.AdditionalFiles[kv[0]] = kv[1]
+					// Creating <file name/dir>:<file type> mapping to link extensionless files with their actual format
+					fsf.UncheckedFiles[filepath.Clean(kv[0])] = kv[1]
 				}
 			}
 		}
 	}
 }
 
-func readConfig(file string) {
-	if len(file) > 0 {
-		//WORK IN PROGRESS
+// StoreConfig stores config file path to read in data later
+func StoreConfig(file string) FSFinderOptions {
+	return func(fsf *FileSystemFinder) {
+		fsf.ConfigFile = file
 	}
+}
+
+// ReadConfig reads in a config file in yaml format.
+// It converts the stored files and typings to mapped KVpairs,
+// similar to AddFiles in function and purpose.
+func ReadConfig(file string, fsf FileSystemFinder) (map[string]string, error) {
+	if fsf.UncheckedFiles == nil {
+		fsf.UncheckedFiles= make(map[string]string)
+	}
+	configFile, _ := ioutil.ReadFile(file)
+
+	// Create a map to store the unmarshaled data
+	data := make(map[string][]interface{})
+
+	// Unmarshal the YAML data into the map
+	err := yaml.Unmarshal(configFile, &data)
+	if err != nil {
+		errMsg := "Failed to read in config file data from " + file
+ 		return nil, errors.New(errMsg)
+	}
+
+	// Storing the imported data as 'additional files' for findOne to access
+	for key, value := range data {
+		for _, val := range value {
+			strVal := val.(string)
+			fsf.UncheckedFiles[filepath.Clean(strVal)] = key
+		}
+	}
+	return fsf.UncheckedFiles, nil
 }
 
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
@@ -138,6 +172,17 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 		depth = *fsf.Depth
 	}
 
+	// Error checking of config file option
+	if fsf.ConfigFile != "" {
+		if _, err := os.Stat(fsf.ConfigFile); os.IsNotExist(err) {
+			return nil, err
+		}
+		var err error 
+		if fsf.UncheckedFiles, err = ReadConfig(fsf.ConfigFile, fsf); err != nil {
+			return nil, err
+		}
+	}
+
 	maxDepth := strings.Count(pathRoot, string(os.PathSeparator)) + depth
 
 	err := filepath.WalkDir(pathRoot,
@@ -155,29 +200,20 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 			if !dirEntry.IsDir() {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
-
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 
-				// Checking for file name matching with additional files
-				// Check matching base name, return vals with passed KVPair value as fileType
-				//if _, ok := fsf.AdditionalFiles[dirEntry.Name()]; ok {
-				//	extensionLowerCase := AdditionalFiles[dirEntry.Name()]
-				//}
-
+				// If a file is extensionless, check if its stored as an additional file and update the extension. Otherwise ignore
 				if len(walkFileExtension) == 0 {
-					var ok bool
-					walkFileExtension, ok = fsf.AdditionalFiles[dirEntry.Name()]
-					if !ok {
-						walkFileExtension = ""
+					// Check for relative file path match
+					if ret, ok := fsf.UncheckedFiles[path]; ok { 
+						walkFileExtension = ret
+					} else if ret, ok := fsf.UncheckedFiles[dirEntry.Name()]; ok { // Checking for file name match
+						walkFileExtension = ret
 					}
 				}
 
-				fmt.Println(path)
-				fmt.Println(walkFileExtension)
-
 				// Checking for case sensitive exclusion
 				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
-					fmt.Println("excluded")
 					return nil
 				}
 				extensionLowerCase := strings.ToLower(walkFileExtension)
