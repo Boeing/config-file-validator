@@ -204,7 +204,7 @@ func Test_FileSystemFinderAbsPath(t *testing.T) {
 	}
 }
 
-func Test_FileSystemFinderUpperCaseExtension(t *testing.T) {
+func Test_FileSystemFinderUpperCaseExtention(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("../../test/fixtures/uppercase-extension"),
 	)
@@ -220,7 +220,7 @@ func Test_FileSystemFinderUpperCaseExtension(t *testing.T) {
 	}
 }
 
-func Test_FileSystemFinderMixedCaseExtension(t *testing.T) {
+func Test_FileSystemFinderMixedCaseExtention(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("../../test/fixtures/mixedcase-extension"),
 	)

@@ -19,10 +19,6 @@
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
   </a>
 
-  <a href="https://github.com/avelino/awesome-go">
-  <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
-  </a>  
-
   <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator">
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator.svg" alt="Go Reference">
   </a>
@@ -39,9 +35,7 @@
 ## Supported config files formats:
 * Apple PList XML
 * CSV
-* ENV
 * HCL
-* HOCON
 * INI
 * JSON
 * Properties
@@ -105,28 +99,28 @@ go install github.com/Boeing/config-file-validator/cmd/validator@v1.6.0
 
 ## Usage
 ```
-Usage: validator [OPTIONS] [<search_path>...]
+Cross Platform tool to validate configuration files
 
-positional arguments:
-    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
+Usage:
+  validator [flags]
+  validator [command]
 
-optional flags:
-  -depth int
-    	Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
-  -exclude-dirs string
-    	Subdirectories to exclude when searching for configuration files
-  -exclude-file-types string
-    	A comma separated list of file types to ignore
-  -groupby string
-    	Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
-  -output string
-    	Destination to a file to output results
-  -quiet
-    	If quiet flag is set. It doesn't print any output to stdout.
-  -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
-  -version
-    	Version prints the release version of validator
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  version     Version prints the release version of validator
+
+Flags:
+      --depth int                   Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal.
+      --exclude-dirs string         Subdirectories to exclude when searching for configuration files
+      --exclude-file-types string   A comma separated list of file types to ignore
+      --groupby string              Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+  -h, --help                        help for validator
+      --output string               Destination to a file to output results
+      --quiet                       If quiet flag is set. It doesn't print any output to stdout.
+      --reporter string             Format of the printed report. Options are standard and json (default "standard")
+
+Use "validator [command] --help" for more information about a command.
 ```
 
 ### Examples
@@ -198,6 +192,7 @@ validator -groupby directory,pass-fail
 
 ![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.png)
 
+
 ### Output results to a file
 Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format. Available options are `junit` and `json`. If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
 
@@ -232,7 +227,7 @@ go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
 -o validator \
-cmd/validator/validator.go
+main.go
 ```
 
 #### Install
@@ -251,7 +246,7 @@ go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
 -o validator \
-cmd/validator/validator.go
+main.go
 ```
 
 #### Install
@@ -270,7 +265,7 @@ go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
 -o validator.exe \
-cmd/validator/validator.go
+main.go
 ```
 
 #### Install

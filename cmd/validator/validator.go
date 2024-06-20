@@ -5,64 +5,83 @@ validates them using the go package for each configuration type.
 Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, TOML, XML, and YAML.
 configuration file types are supported.
 
-Usage: validator [OPTIONS] [<search_path>...]
+Cross Platform tool to validate configuration files
 
-positional arguments:
-    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided. Multiple search paths can be declared separated by a space.
+Usage:
+  validator [flags]
+  validator [command]
 
-optional flags:
-  -depth int
-    	Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
-  -exclude-dirs string
-    	Subdirectories to exclude when searching for configuration files
-  -exclude-file-types string
-    	A comma separated list of file types to ignore
-  -output
-     	Destination of a file to outputting results
-  -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
-  -version
-    	Version prints the release version of validator
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  version     Version prints the release version of validator
+
+Flags:
+      --depth int                   Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal.
+      --exclude-dirs string         Subdirectories to exclude when searching for configuration files
+      --exclude-file-types string   A comma separated list of file types to ignore
+      --groupby string              Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+  -h, --help                        help for validator
+      --output string               Destination to a file to output results
+      --quiet                       If quiet flag is set. It doesn't print any output to stdout.
+      --reporter string             Format of the printed report. Options are standard and json (default "standard")
+
+Use "validator [command] --help" for more information about a command.
 */
 
-package main
+package cmd
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
-	"os"
 	"slices"
 	"strings"
 
-	configfilevalidator "github.com/Boeing/config-file-validator"
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/spf13/cobra"
 )
 
-type validatorConfig struct {
-	searchPaths      []string
-	excludeDirs      *string
-	excludeFileTypes *string
-	reportType       *string
-	depth            *int
-	versionQuery     *bool
-	output           *string
-	groupOutput      *string
-	quiet            *bool
+// ValidatorConfig holds all flag possible to be setted
+type ValidatorConfig struct {
+	SearchPaths      []string
+	Depth            int
+	ExcludeDirs      string
+	ExcludeFileTypes string
+	Output           string
+	ReportType       string
+	GroupOutput      string
+	Quiet            bool
 }
 
-// Custom Usage function to cover
-func validatorUsage() {
-	fmt.Printf("Usage: validator [OPTIONS] [<search_path>...]\n\n")
-	fmt.Printf("positional arguments:\n")
-	fmt.Printf(
-		"    search_path: The search path on the filesystem for configuration files. " +
-			"Defaults to the current working directory if no search_path provided\n\n")
-	fmt.Printf("optional flags:\n")
-	flag.PrintDefaults()
+var Flags ValidatorConfig
+
+// isFlagSet verifies if a given flag has been set or not
+func isFlagSet(flagName string, cmd *cobra.Command) bool {
+	return cmd.Flags().Lookup(flagName).Changed
+}
+
+// CleanString takes a command string and a split string
+// and returns a cleaned string
+func CleanString(str string) string {
+	str = strings.ToLower(str)
+	str = strings.TrimSpace(str)
+	return str
+}
+
+// Return the reporter associated with the
+// reportType string
+func getReporter(reportType, outputDest string) reporter.Reporter {
+	switch reportType {
+	case "junit":
+		return reporter.NewJunitReporter(outputDest)
+	case "json":
+		return reporter.NewJSONReporter(outputDest)
+	default:
+		return reporter.StdoutReporter{}
+	}
 }
 
 // Parses, validates, and returns the flags
@@ -70,157 +89,116 @@ func validatorUsage() {
 // If a required parameter is missing the help
 // output will be displayed and the function
 // will return with exit = 1
-func getFlags() (validatorConfig, error) {
-	flag.Usage = validatorUsage
-	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
-	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
-	outputPtr := flag.String("output", "", "Destination to a file to output results")
-	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
-	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
-	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
-	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
-	flag.Parse()
+func getFlags(cmd *cobra.Command, args []string) (ValidatorConfig, error) {
+	depth := Flags.Depth
+	excludeDirs := Flags.ExcludeDirs
+	excludeFileTypes := Flags.ExcludeFileTypes
+	output := Flags.Output
+	reportType := Flags.ReportType
+	groupby := Flags.GroupOutput
+	quiet := Flags.Quiet
 
 	searchPaths := make([]string, 0)
 
-	// If search path arg is empty, set it to the cwd
-	// if not, set it to the arg. Supports n number of
+	// If search path arg is empty, default is cwd (".")
+	// if not, set it to the arg. Supports N number of
 	// paths
-	if flag.NArg() == 0 {
+	if len(args) == 0 {
 		searchPaths = append(searchPaths, ".")
 	} else {
-		searchPaths = append(searchPaths, flag.Args()...)
+		searchPaths = append(searchPaths, args...)
 	}
 
-	if *reportTypePtr != "standard" && *reportTypePtr != "json" && *reportTypePtr != "junit" {
+	if reportType != "standard" && reportType != "json" && reportType != "junit" {
 		fmt.Println("Wrong parameter value for reporter, only supports standard, json or junit")
-		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
+		_ = cmd.Usage()
+		return ValidatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
 	}
 
-	if *reportTypePtr == "junit" && *groupOutputPtr != "" {
+	if reportType == "junit" && groupby != "" {
 		fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
-		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+		_ = cmd.Usage()
+		return ValidatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
 	}
 
-	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
+	if isFlagSet("depth", cmd) && depth < 0 {
 		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
-		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
+		_ = cmd.Usage()
+		return ValidatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
 	}
 
-	groupByCleanString := cleanString("groupby")
-	groupByUserInput := strings.Split(groupByCleanString, ",")
-	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
-	seenValues := make(map[string]bool)
+	if groupby != "" {
+		groupByCleanString := CleanString(groupby)
+		groupByUserInput := strings.Split(groupByCleanString, ",")
+		groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
+		seenValues := make(map[string]bool)
 
-	// Check that the groupby values are valid and not duplicates
-	if groupOutputPtr != nil && isFlagSet("groupby") {
+		// Check that the groupby values are valid and not duplicates
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
 				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
-				flag.Usage()
-				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+				_ = cmd.Usage()
+				return ValidatorConfig{}, errors.New(
+					"Wrong parameter value for groupby, only supports filetype, directory, pass-fail",
+				)
 			}
 			if _, ok := seenValues[groupBy]; ok {
 				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
-				flag.Usage()
-				return validatorConfig{}, errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
+				_ = cmd.Usage()
+				return ValidatorConfig{}, errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
 			}
 			seenValues[groupBy] = true
 		}
 	}
 
-	config := validatorConfig{
-		searchPaths,
-		excludeDirsPtr,
-		excludeFileTypesPtr,
-		reportTypePtr,
-		depthPtr,
-		versionPtr,
-		outputPtr,
-		groupOutputPtr,
-		quietPrt,
+	config := ValidatorConfig{
+		SearchPaths:      searchPaths,
+		ExcludeDirs:      excludeDirs,
+		ExcludeFileTypes: excludeFileTypes,
+		ReportType:       reportType,
+		Depth:            depth,
+		Output:           output,
+		GroupOutput:      groupby,
+		Quiet:            quiet,
 	}
 
 	return config, nil
 }
 
-// isFlagSet verifies if a given flag has been set or not
-func isFlagSet(flagName string) bool {
-	var isSet bool
-
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == flagName {
-			isSet = true
-		}
-	})
-
-	return isSet
-}
-
-// Return the reporter associated with the
-// reportType string
-func getReporter(reportType, outputDest *string) reporter.Reporter {
-	switch *reportType {
-	case "junit":
-		return reporter.NewJunitReporter(*outputDest)
-	case "json":
-		return reporter.NewJSONReporter(*outputDest)
-	default:
-		return reporter.StdoutReporter{}
-	}
-}
-
-// cleanString takes a command string and a split string
-// and returns a cleaned string
-func cleanString(command string) string {
-	cleanedString := flag.Lookup(command).Value.String()
-	cleanedString = strings.ToLower(cleanedString)
-	cleanedString = strings.TrimSpace(cleanedString)
-
-	return cleanedString
-}
-
-func mainInit() int {
-	validatorConfig, err := getFlags()
+// ExecRoot control all the flow of the program and call cli.Run() that process everything.
+func ExecRoot(cmd *cobra.Command, args []string) int {
+	validatorConfig, err := getFlags(cmd, args)
 	if err != nil {
 		return 1
 	}
 
-	if *validatorConfig.versionQuery {
-		fmt.Println(configfilevalidator.GetVersion())
-		return 0
-	}
-
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
-	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	choosenReporter := getReporter(validatorConfig.reportType, validatorConfig.output)
-	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
-	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
+	excludeDirs := strings.Split(validatorConfig.ExcludeDirs, ",")
+	excludeFileTypes := strings.Split(validatorConfig.ExcludeFileTypes, ",")
+
 	fsOpts := []finder.FSFinderOptions{
-		finder.WithPathRoots(validatorConfig.searchPaths...),
+		finder.WithPathRoots(validatorConfig.SearchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes),
 	}
-	quiet := *validatorConfig.quiet
 
-	if validatorConfig.depth != nil && isFlagSet("depth") {
-		fsOpts = append(fsOpts, finder.WithDepth(*validatorConfig.depth))
+	if isFlagSet("depth", cmd) {
+		fsOpts = append(fsOpts, finder.WithDepth(validatorConfig.Depth))
 	}
 
 	// Initialize a file system finder
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
+	choosenReporter := getReporter(validatorConfig.ReportType, validatorConfig.Output)
+	groupby := strings.Split(validatorConfig.GroupOutput, ",")
+
 	// Initialize the CLI
 	c := cli.Init(
 		cli.WithReporter(choosenReporter),
 		cli.WithFinder(fileSystemFinder),
-		cli.WithGroupOutput(groupOutput),
-		cli.WithQuiet(quiet),
+		cli.WithGroupOutput(groupby),
+		cli.WithQuiet(validatorConfig.Quiet),
 	)
 
 	// Run the config file validation
@@ -230,8 +208,4 @@ func mainInit() int {
 	}
 
 	return exitStatus
-}
-
-func main() {
-	os.Exit(mainInit())
 }

@@ -64,8 +64,6 @@ var testData = []struct {
 	{"invalidPlist", invalidPlistBytes, false, PlistValidator{}},
 	{"validHocon", []byte(`test = [1, 2, 3]`), true, HoconValidator{}},
 	{"invalidHocon", []byte(`test = [1, 2,, 3]`), false, HoconValidator{}},
-	{"validEnv", []byte("KEY=VALUE"), true, EnvValidator{}},
-	{"invalidEnv", []byte("=TEST"), false, EnvValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
