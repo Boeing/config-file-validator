@@ -177,7 +177,7 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 	// Error checking of config file option
 	if fsf.ConfigFile != "" {
-		if _, err := os.Stat(fsf.ConfigFile); os.IsNotExist(err) {
+		if _, err := os.Stat(fsf.ConfigFile); err != nil {
 			return nil, err
 		}
 		var err error 
