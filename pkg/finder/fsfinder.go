@@ -5,9 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"io/ioutil"
 	"gopkg.in/yaml.v3"
-	"errors"
+	"fmt"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/misc"
@@ -63,15 +62,17 @@ func WithDepth(depthVal int) FSFinderOptions {
 // AddFiles adds unchecked files with specified formats to FSFinder (adds support for extensionless files)
 func AddFiles(files []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		if len(files) > 0 {
+		if len(files) == 0 {
+			return
+		}
 		fsf.UncheckedFiles= make(map[string]string)
-			for i := range files {
-				kv := strings.Split(files[i], ":")
-				if len(kv) == 2 {
-					// Creating <file name/dir>:<file type> mapping to link extensionless files with their actual format
-					fsf.UncheckedFiles[filepath.Clean(kv[0])] = kv[1]
-				}
+		for i := range files {
+			kv := strings.Split(files[i], ":")
+			if len(kv) != 2 {
+				continue
 			}
+			// Creating <file name/dir>:<file type> mapping to link extensionless files with their actual format
+			fsf.UncheckedFiles[filepath.Clean(kv[0])] = kv[1]
 		}
 	}
 }
@@ -90,16 +91,18 @@ func ReadConfig(file string, fsf FileSystemFinder) (map[string]string, error) {
 	if fsf.UncheckedFiles == nil {
 		fsf.UncheckedFiles= make(map[string]string)
 	}
-	configFile, _ := ioutil.ReadFile(file)
+	configFile, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read in config file using path %s", file)
+	}
 
 	// Create a map to store the unmarshaled data
 	data := make(map[string][]interface{})
 
 	// Unmarshal the YAML data into the map
-	err := yaml.Unmarshal(configFile, &data)
+	err = yaml.Unmarshal(configFile, &data)
 	if err != nil {
-		errMsg := "Failed to read in config file data from " + file
- 		return nil, errors.New(errMsg)
+		return nil, fmt.Errorf("Failed to read in config file data from %s", file)
 	}
 
 	// Storing the imported data as 'additional files' for findOne to access

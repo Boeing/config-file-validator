@@ -24,7 +24,7 @@ optional flags:
   -version
     	Version prints the release version of validator
   -unchecked-file
-		Flags set extensionless files to be checked in a given format [<file>:<format>, ...]. Otherwise ignored by validator.
+		Flags set extensionless files to be checked in a given format [<file>:<format>,...]. Otherwise ignored by validator. (No spaces after commas)
   -unchecked-file-config
 		Path to a yaml file outlining unchecked files, and their respective types. Note if both options are used on the same file, config takes precedence.
 */
@@ -150,22 +150,29 @@ func getFlags() (validatorConfig, error) {
 	if uncheckedFiles != nil && isFlagSet("unchecked-files") {
 		for _, pair := range uncheckedPairs {
 			if !strings.Contains(pair, ":") {
-				errorMsg :="Format error in adding unchecked file: " + pair + ", ':' delimeter required to separate file path from type"
+				err:= fmt.Errorf("Format error in adding unchecked file: %s, ':' delimeter required to separate file path from type", pair)
+				fmt.Println(err)
+				flag.Usage()
+				return validatorConfig{}, err
+			}
+			uncheckedType := strings.Split(pair, ":")
+
+			isFoundType := false
+			for _, fileType := range filetype.FileTypes {
+				if fileType.Name == uncheckedType[1] {
+					isFoundType = true
+					break
+				}
+			}
+			if !isFoundType {
+				errorMsg := "Invalid file type for unchecked file: " + pair + ". Only supported formats accepted"
 				fmt.Println(errorMsg)
 				flag.Usage()
 				return validatorConfig{}, errors.New(errorMsg)
 			}
-			uncheckedType:= strings.Split(pair, ":")[1]
 
-			isFound := false
-			for _, fileType := range filetype.FileTypes {
-				if fileType.Name == uncheckedType {
-					isFound = true
-					break
-				}
-			}
-			if !isFound {
-				errorMsg := "Invalid file type for unchecked file: " + pair + ". Only supported formats accepted"
+			if _, err := os.Stat(uncheckedType[0]); err != nil {
+				errorMsg := "File not found for unchecked file: " + uncheckedType[0] + ". Must add existing files"
 				fmt.Println(errorMsg)
 				flag.Usage()
 				return validatorConfig{}, errors.New(errorMsg)
