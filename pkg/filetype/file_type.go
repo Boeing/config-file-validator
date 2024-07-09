@@ -18,89 +18,89 @@ type FileType struct {
 // Instance of the FileType object to
 // represent a JSON file
 var JSONFileType = FileType{
-	"json",
-	misc.ArrToMap("json"),
-	validator.JSONValidator{},
+	Name:       "json",
+	Extensions: misc.ArrToMap("json"),
+	Validator:  validator.JSONValidator{},
 }
 
 // Instance of the FileType object to
 // represent a YAML file
 var YAMLFileType = FileType{
-	"yaml",
-	misc.ArrToMap("yml", "yaml"),
-	validator.YAMLValidator{},
+	Name:       "yaml",
+	Extensions: misc.ArrToMap("yml", "yaml"),
+	Validator:  validator.YAMLValidator{},
 }
 
 // Instance of FileType object to
 // represent a XML file
 var XMLFileType = FileType{
-	"xml",
-	misc.ArrToMap("xml"),
-	validator.XMLValidator{},
+	Name:       "xml",
+	Extensions: misc.ArrToMap("xml"),
+	Validator:  validator.XMLValidator{},
 }
 
 // Instance of FileType object to
 // represent a Toml file
 var TomlFileType = FileType{
-	"toml",
-	misc.ArrToMap("toml"),
-	validator.TomlValidator{},
+	Name:       "toml",
+	Extensions: misc.ArrToMap("toml"),
+	Validator:  validator.TomlValidator{},
 }
 
 // Instance of FileType object to
 // represent a Ini file
 var IniFileType = FileType{
-	"ini",
-	misc.ArrToMap("ini"),
-	validator.IniValidator{},
+	Name:       "ini",
+	Extensions: misc.ArrToMap("ini"),
+	Validator:  validator.IniValidator{},
 }
 
 // Instance of FileType object to
 // represent a Properties file
 var PropFileType = FileType{
-	"properties",
-	misc.ArrToMap("properties"),
-	validator.PropValidator{},
+	Name:       "properties",
+	Extensions: misc.ArrToMap("properties"),
+	Validator:  validator.PropValidator{},
 }
 
 // Instance of the FileType object to
 // represent a HCL file
 var HclFileType = FileType{
-	"hcl",
-	misc.ArrToMap("hcl"),
-	validator.HclValidator{},
+	Name:       "hcl",
+	Extensions: misc.ArrToMap("hcl", ".tftpl"),
+	Validator:  validator.HclValidator{},
 }
 
 // Instance of the FileType object to
 // represent a Plist file
 var PlistFileType = FileType{
-	"plist",
-	misc.ArrToMap("plist"),
-	validator.PlistValidator{},
+	Name:       "plist",
+	Extensions: misc.ArrToMap("plist"),
+	Validator:  validator.PlistValidator{},
 }
 
 // Instance of the FileType object to
 // represent a CSV file
 var CsvFileType = FileType{
-	"csv",
-	misc.ArrToMap("csv"),
-	validator.CsvValidator{},
+	Name:       "csv",
+	Extensions: misc.ArrToMap("csv"),
+	Validator:  validator.CsvValidator{},
 }
 
 // Instance of the FileType object to
 // represent a HOCON file
 var HoconFileType = FileType{
-	"hocon",
-	misc.ArrToMap("hocon"),
-	validator.HoconValidator{},
+	Name:       "hocon",
+	Extensions: misc.ArrToMap("hocon"),
+	Validator:  validator.HoconValidator{},
 }
 
 // Instance of the FileType object to
 // represent a ENV file
 var EnvFileType = FileType{
-	"env",
-	misc.ArrToMap("env"),
-	validator.EnvValidator{},
+	Name:       "env",
+	Extensions: misc.ArrToMap("env"),
+	Validator:  validator.EnvValidator{},
 }
 
 // An array of files types that are supported
