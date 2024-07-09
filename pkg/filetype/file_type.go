@@ -12,6 +12,7 @@ import (
 type FileType struct {
 	Name       string
 	Extensions map[string]struct{}
+	KnownFiles map[string]struct{}
 	Validator  validator.Validator
 }
 
@@ -52,6 +53,7 @@ var TomlFileType = FileType{
 var IniFileType = FileType{
 	Name:       "ini",
 	Extensions: misc.ArrToMap("ini"),
+	KnownFiles: misc.ArrToMap(".editorconfig", ".gitconfig", ".gitmodules", ".shellcheckrc", ".npmrc", "inputrc", ".inputrc", ".wgetrc", ".curlrc", ".nanorc"),
 	Validator:  validator.IniValidator{},
 }
 

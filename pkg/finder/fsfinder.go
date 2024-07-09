@@ -133,6 +133,7 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
 
+				walkFileName := filepath.Base(path)
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 
 				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
@@ -140,6 +141,13 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 				}
 				extensionLowerCase := strings.ToLower(walkFileExtension)
 				for _, fileType := range fsf.FileTypes {
+
+					if _, ok := fileType.KnownFiles[walkFileName]; ok {
+						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
+						matchingFiles = append(matchingFiles, fileMetadata)
+						break
+					}
+
 					if _, ok := fileType.Extensions[extensionLowerCase]; ok {
 						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
 						matchingFiles = append(matchingFiles, fileMetadata)
