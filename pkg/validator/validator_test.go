@@ -66,6 +66,8 @@ var testData = []struct {
 	{"invalidHocon", []byte(`test = [1, 2,, 3]`), false, HoconValidator{}},
 	{"validEnv", []byte("KEY=VALUE"), true, EnvValidator{}},
 	{"invalidEnv", []byte("=TEST"), false, EnvValidator{}},
+	{"validEditorConfig", []byte("working = true"), true, EditorConfigValidator{}},
+	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {

@@ -103,6 +103,14 @@ var EnvFileType = FileType{
 	validator.EnvValidator{},
 }
 
+// Instance of the FileType object to
+// represent a EDITORCONFIG file
+var EditorConfigFileType = FileType{
+	"editorconfig",
+	misc.ArrToMap("editorconfig"),
+	validator.EditorConfigValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -117,4 +125,5 @@ var FileTypes = []FileType{
 	CsvFileType,
 	HoconFileType,
 	EnvFileType,
+	EditorConfigFileType,
 }
