@@ -6,16 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"slices"
-
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 )
 
 type FileSystemFinder struct {
 	PathRoots        []string
 	FileTypes        []filetype.FileType
-	ExcludeDirs      []string
-	ExcludeFileTypes []string
+	ExcludeDirs      map[string]struct{}
+	ExcludeFileTypes map[string]struct{}
 	Depth            *int
 }
 
@@ -38,14 +37,14 @@ func WithFileTypes(fileTypes []filetype.FileType) FSFinderOptions {
 // Add a custom list of file types to the FSFinder
 func WithExcludeDirs(excludeDirs []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeDirs = excludeDirs
+		fsf.ExcludeDirs = misc.ArrToMap(excludeDirs...)
 	}
 }
 
 // WithExcludeFileTypes adds excluded file types to FSFinder.
 func WithExcludeFileTypes(types []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeFileTypes = types
+		fsf.ExcludeFileTypes = misc.ArrToMap(types...)
 	}
 }
 
@@ -55,14 +54,17 @@ func WithDepth(depthVal int) FSFinderOptions {
 		fsf.Depth = &depthVal
 	}
 }
+
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
-	var defaultExcludeDirs []string
+	defaultExcludeDirs := make(map[string]struct{})
+	defaultExcludeFileTypes := make(map[string]struct{})
 	defaultPathRoots := []string{"."}
 
 	fsfinder := &FileSystemFinder{
-		PathRoots:   defaultPathRoots,
-		FileTypes:   filetype.FileTypes,
-		ExcludeDirs: defaultExcludeDirs,
+		PathRoots:        defaultPathRoots,
+		FileTypes:        filetype.FileTypes,
+		ExcludeDirs:      defaultExcludeDirs,
+		ExcludeFileTypes: defaultExcludeFileTypes,
 	}
 
 	for _, opt := range opts {
@@ -79,21 +81,11 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 	seen := make(map[string]struct{}, 0)
 	uniqueMatches := make([]FileMetadata, 0)
 	for _, pathRoot := range fsf.PathRoots {
-		matches, err := fsf.findOne(pathRoot)
+		matches, err := fsf.findOne(pathRoot, seen)
 		if err != nil {
 			return nil, err
 		}
-		for _, match := range matches {
-			absPath, err := filepath.Abs(match.Path)
-			if err != nil {
-				return nil, err
-			}
-			if _, ok := seen[absPath]; ok {
-				continue
-			}
-			uniqueMatches = append(uniqueMatches, match)
-			seen[absPath] = struct{}{}
-		}
+		uniqueMatches = append(uniqueMatches, matches...)
 	}
 	return uniqueMatches, nil
 }
@@ -101,7 +93,7 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 // findOne recursively walks through all subdirectories (excluding the excluded subdirectories)
 // and identifying if the file matches a type defined in the fileTypes array for a
 // single path and returns the file metadata.
-func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
+func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}) ([]FileMetadata, error) {
 	var matchingFiles []FileMetadata
 
 	// check that the path exists before walking it or the error returned
@@ -119,18 +111,15 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 
 	err := filepath.WalkDir(pathRoot,
 		func(path string, dirEntry fs.DirEntry, err error) error {
-			// determine if directory is in the excludeDirs list
-			if dirEntry.IsDir() && fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth {
-				// Skip processing the directory
-				return fs.SkipDir // This is not reported as an error by filepath.WalkDir
+			if err != nil {
+				return err
 			}
 
-			for _, dir := range fsf.ExcludeDirs {
-				if dirEntry.IsDir() && dirEntry.Name() == dir {
-					err := filepath.SkipDir
-					if err != nil {
-						return err
-					}
+			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
+			if dirEntry.IsDir() {
+				_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
+				if isExcluded || (fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) {
+					return filepath.SkipDir
 				}
 			}
 
@@ -138,23 +127,33 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
-				if slices.Contains[[]string](fsf.ExcludeFileTypes, walkFileExtension) {
+				extensionLowerCase := strings.ToLower(walkFileExtension)
+
+				if _, isExcluded := fsf.ExcludeFileTypes[extensionLowerCase]; isExcluded {
 					return nil
 				}
 
 				for _, fileType := range fsf.FileTypes {
-					for _, extension := range fileType.Extensions {
-						if strings.EqualFold(extension, walkFileExtension) {
-							fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
-							matchingFiles = append(matchingFiles, fileMetadata)
+					if _, isMatched := fileType.Extensions[extensionLowerCase]; isMatched {
+						absPath, err := filepath.Abs(path)
+						if err != nil {
+							return err
 						}
+
+						if _, seen := seenMap[absPath]; !seen {
+							fileMetadata := FileMetadata{dirEntry.Name(), absPath, fileType}
+							matchingFiles = append(matchingFiles, fileMetadata)
+							seenMap[absPath] = struct{}{}
+						}
+
+						return nil
 					}
 				}
+				fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
 			}
 
 			return nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

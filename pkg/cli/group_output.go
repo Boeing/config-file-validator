@@ -43,7 +43,6 @@ func GroupByPassFail(reports []reporter.Report) map[string][]reporter.Report {
 		} else {
 			reportByPassOrFail["Failed"] = append(reportByPassOrFail["Failed"], report)
 		}
-
 	}
 
 	return reportByPassOrFail

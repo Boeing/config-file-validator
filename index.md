@@ -19,11 +19,23 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-95.3%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-95.6%25-brightgreen" alt="Code Coverage">
+
+  <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
+    <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
+  </a>
+
+  <a href="https://www.bestpractices.dev/projects/9027">
+    <img src="https://www.bestpractices.dev/projects/9027/badge">
+  </a>
 
   <a href="https://opensource.org/licenses/Apache-2.0">
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
   </a>
+
+  <a href="https://github.com/avelino/awesome-go">
+  <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
+  </a> 
 
   <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator">
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator.svg" alt="Go Reference">
@@ -41,6 +53,8 @@
 ## Supported config files formats:
 * Apple PList XML
 * CSV
+* EDITORCONFIG
+* ENV
 * HCL
 * HOCON
 * INI
@@ -59,24 +73,24 @@ There are several ways to install the config file validator tool
 
 ### Docker
 
-We offer alpine, ubuntu, and scratch containers
+We offer Alpine, Ubuntu, and Scratch containers
 
-#### Apline 
+#### Alpine
 
 ```
-docker pull ghcr.io/boeing/config-file-validator:v1.5.0
+docker pull ghcr.io/boeing/config-file-validator:v1.6.0
 ```
 
 #### Ubuntu
 
 ```
-docker pull ghcr.io/boeing/config-file-validator-ubuntu:v1.5.0
+docker pull ghcr.io/boeing/config-file-validator-ubuntu:v1.6.0
 ```
 
 #### Scratch
 
 ```
-docker pull ghcr.io/boeing/config-file-validator-scratch:v1.5.0
+docker pull ghcr.io/boeing/config-file-validator-scratch:v1.6.0
 ```
 
 ### Binary Releases
@@ -101,7 +115,7 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```
-go install github.com/Boeing/config-file-validator/cmd/validator@v1.5.0
+go install github.com/Boeing/config-file-validator/cmd/validator@v1.6.0
 ```
 
 ## Usage
@@ -109,7 +123,7 @@ go install github.com/Boeing/config-file-validator/cmd/validator@v1.5.0
 Usage: validator [OPTIONS] [<search_path>...]
 
 positional arguments:
-    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided. Multiple search paths can be declared separated by a space.
+    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
 
 optional flags:
   -depth int
@@ -118,6 +132,12 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -groupby string
+    	Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+  -output string
+    	Destination to a file to output results
+  -quiet
+    	If quiet flag is set. It doesn't print any output to stdout.
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -version
@@ -134,7 +154,7 @@ validator /path/to/search
 ![Standard Run](./img/standard_run.png)
 
 #### Multiple search paths
-Multiple search paths are supported and the results will be merged into a single report
+Multiple search paths are supported, and the results will be merged into a single report
 ```
 validator /path/to/search /another/path/to/search
 ```
@@ -145,13 +165,13 @@ validator /path/to/search /another/path/to/search
 Exclude subdirectories in the search path
 
 ```
-validator --exclude-dirs=/path/to/search/tests /path/to/search 
+validator --exclude-dirs=/path/to/search/tests /path/to/search
 ```
 
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `csv`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`.
+Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`
 
 ```
 validator --exclude-file-types=json /path/to/search
@@ -160,7 +180,7 @@ validator --exclude-file-types=json /path/to/search
 ![Exclude File Types Run](./img/exclude_file_types.png)
 
 #### Customize recursion depth
-By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated. 
+By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated.
 
 ```
 validator --depth=0 /path/to/search
@@ -169,7 +189,7 @@ validator --depth=0 /path/to/search
 ![Custom Recursion Run](./img/custom_recursion.png)
 
 #### Customize report output
-Customize the report output. Available options are `standard` and `json`
+Customize the report output. Available options are `standard`, `junit`, and `json`
 
 ```
 validator --reporter=json /path/to/search
@@ -177,18 +197,47 @@ validator --reporter=json /path/to/search
 
 ![Exclude File Types Run](./img/custom_reporter.png)
 
+### Group report output
+Group the report output by file type, directory, or pass-fail. Supports one or more groupings.
+
+```
+validator -groupby filetype
+```
+
+![Groupby File Type](./img/gb-filetype.png)
+
+#### Multiple groups
+```
+validator -groupby directory,pass-fail
+```
+
+![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.png)
+
+### Output results to a file
+Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format. Available options are `junit` and `json`. If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
+
+```
+validator --reporter=json --output=/path/to/dir
+```
+
+### Suppress output
+Passing the `--quiet` flag suppresses all output to stdout. If there are invalid config files the validator tool will exit with 1. Any errors in execution such as an invalid path will still be displayed.
+
+```
+validator --quiet /path/to/search
+```
 
 #### Container Run
 ```
-docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.5.0 /test
+docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.6.0 /test
 ```
 
 ![Docker Standard Run](./img/docker_run.png)
 
 ## Build
-The project can be downloaded and built from source using an environment with golang 1.21 installed. After a successful build, the binary can be moved to a location on your operating system PATH.
+The project can be downloaded and built from source using an environment with Go 1.21+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
 
-### MacOS
+### macOS
 #### Build
 ```
 CGO_ENABLED=0 \
@@ -250,8 +299,13 @@ cp .\validator.exe 'C:\Program Files\validator'
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```
-docker build . -t config-file-validator:v1.5.0
+docker build . -t config-file-validator:v1.6.0
 ```
+
+## Contributors
+<a href="https://github.com/Boeing/config-file-validator/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" />
+</a>
 
 ## Contributing
 We welcome contributions! Please refer to our [contributing guide](/CONTRIBUTING.md)

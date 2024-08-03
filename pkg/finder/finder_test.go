@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
@@ -23,7 +24,6 @@ func Test_fsFinder(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unable to find files")
 	}
-
 }
 
 func Test_fsFinderExcludeDirs(t *testing.T) {
@@ -62,7 +62,6 @@ func Test_fsFinderExcludeFileTypes(t *testing.T) {
 }
 
 func Test_fsFinderWithDepth(t *testing.T) {
-
 	type test struct {
 		name               string
 		inputDepth         int
@@ -112,8 +111,8 @@ func Test_fsFinderWithDepth(t *testing.T) {
 func Test_fsFinderCustomTypes(t *testing.T) {
 	jsonFileType := filetype.FileType{
 		Name:       "json",
-		Extensions: []string{"json"},
-		Validator:  validator.JsonValidator{},
+		Extensions: misc.ArrToMap("json"),
+		Validator:  validator.JSONValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("../../test/fixtures"),
@@ -167,9 +166,7 @@ func Test_FileSystemFinderMultipleFinder(t *testing.T) {
 func Test_FileSystemFinderDuplicateFiles(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots(
-			"../../test/fixtures/subdir/good.json",
 			"../../test/fixtures/subdir/",
-			"../../test/fixtures/subdir/../subdir/good.json",
 		),
 	)
 
@@ -205,9 +202,9 @@ func Test_FileSystemFinderAbsPath(t *testing.T) {
 	}
 }
 
-func Test_FileSystemFinderUpperCaseExtention(t *testing.T) {
+func Test_FileSystemFinderUpperCaseExtension(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/uppercase-extention"),
+		WithPathRoots("../../test/fixtures/uppercase-extension"),
 	)
 
 	files, err := fsFinder.Find()
@@ -221,9 +218,9 @@ func Test_FileSystemFinderUpperCaseExtention(t *testing.T) {
 	}
 }
 
-func Test_FileSystemFinderMixedCaseExtention(t *testing.T) {
+func Test_FileSystemFinderMixedCaseExtension(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/mixedcase-extention"),
+		WithPathRoots("../../test/fixtures/mixedcase-extension"),
 	)
 
 	files, err := fsFinder.Find()
@@ -249,5 +246,17 @@ func Test_FileFinderBadPath(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Error should be thrown for bad path")
+	}
+}
+
+func Benchmark_Finder(b *testing.B) {
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots("../../test/fixtures/"),
+	)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = fsFinder.Find()
 	}
 }

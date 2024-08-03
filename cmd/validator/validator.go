@@ -1,5 +1,5 @@
 /*
-Validator recusively scans a directory to search for configuration files and
+Validator recursively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
 Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, TOML, XML, and YAML.
@@ -51,6 +51,7 @@ type validatorConfig struct {
 	versionQuery     *bool
 	output           *string
 	groupOutput      *string
+	quiet            *bool
 }
 
 // Custom Usage function to cover
@@ -78,6 +79,7 @@ func getFlags() (validatorConfig, error) {
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
+	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
@@ -140,6 +142,7 @@ func getFlags() (validatorConfig, error) {
 		versionPtr,
 		outputPtr,
 		groupOutputPtr,
+		quietPrt,
 	}
 
 	return config, nil
@@ -197,12 +200,15 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	reporter := getReporter(validatorConfig.reportType, validatorConfig.output)
+	choosenReporter := getReporter(validatorConfig.reportType, validatorConfig.output)
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
-	fsOpts := []finder.FSFinderOptions{finder.WithPathRoots(validatorConfig.searchPaths...),
+	fsOpts := []finder.FSFinderOptions{
+		finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
-		finder.WithExcludeFileTypes(excludeFileTypes)}
+		finder.WithExcludeFileTypes(excludeFileTypes),
+	}
+	quiet := *validatorConfig.quiet
 
 	if validatorConfig.depth != nil && isFlagSet("depth") {
 		fsOpts = append(fsOpts, finder.WithDepth(*validatorConfig.depth))
@@ -212,14 +218,15 @@ func mainInit() int {
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
 	// Initialize the CLI
-	cli := cli.Init(
-		cli.WithReporter(reporter),
+	c := cli.Init(
+		cli.WithReporter(choosenReporter),
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
+		cli.WithQuiet(quiet),
 	)
 
 	// Run the config file validation
-	exitStatus, err := cli.Run()
+	exitStatus, err := c.Run()
 	if err != nil {
 		log.Printf("An error occurred during CLI execution: %v", err)
 	}
