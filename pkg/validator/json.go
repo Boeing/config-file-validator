@@ -17,7 +17,7 @@ func getCustomErr(input []byte, err error) error {
 	if !errors.As(err, &jsonError) {
 		// not a json.SyntaxError
 		// nothing interesting we can wrap into the error
-		return err
+		return fmt.Errorf("Unable to validate file %w", err)
 	}
 
 	offset := int(jsonError.Offset)
