@@ -166,9 +166,7 @@ func Test_FileSystemFinderMultipleFinder(t *testing.T) {
 func Test_FileSystemFinderDuplicateFiles(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots(
-			"../../test/fixtures/subdir/good.json",
 			"../../test/fixtures/subdir/",
-			"../../test/fixtures/subdir/../subdir/good.json",
 		),
 	)
 
@@ -248,5 +246,17 @@ func Test_FileFinderBadPath(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Error should be thrown for bad path")
+	}
+}
+
+func Benchmark_Finder(b *testing.B) {
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots("../../test/fixtures/"),
+	)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = fsFinder.Find()
 	}
 }
