@@ -104,7 +104,7 @@ var EnvFileType = FileType{
 }
 
 // Instance of the FileType object to
-// represent a EDITORCONFIG file
+// represent an EDITORCONFIG file
 var EditorConfigFileType = FileType{
 	"editorconfig",
 	misc.ArrToMap("editorconfig"),
