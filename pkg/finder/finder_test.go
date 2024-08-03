@@ -168,9 +168,7 @@ func Test_FileSystemFinderMultipleFinder(t *testing.T) {
 func Test_FileSystemFinderDuplicateFiles(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots(
-			//"../../test/fixtures/subdir/good.json",
 			"../../test/fixtures/subdir/",
-			//"../../test/fixtures/subdir/../subdir/good.json",
 		),
 	)
 
