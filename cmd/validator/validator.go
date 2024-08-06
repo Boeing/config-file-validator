@@ -23,10 +23,10 @@ optional flags:
     	Format of the printed report. Options are standard and json (default "standard")
   -version
     	Version prints the release version of validator
-  -unchecked-file
-		Flags set extensionless files to be checked in a given format [<file>:<format>,...]. Otherwise ignored by validator. (No spaces after commas)
-  -unchecked-file-config
-		Path to a yaml file outlining unchecked files, and their respective types. Note if both options are used on the same file, config takes precedence.
+  -unchecked-file string
+		  Add specific files without extensions to be validated using a set format. Declare using [<.\file>:<format>,...] (No spaces after commas)
+  -unchecked-file-config string
+		  Path to a yaml file outlining a list of unchecked files. If both unchecked options are used on the same file, config takes precedence. See README examples for format.
 */
 
 package main
@@ -87,8 +87,8 @@ func getFlags() (validatorConfig, error) {
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
-	uncheckedFiles := flag.String("unchecked-files", "", "Sets stated extensionless files to be checked in a given format [<relativeFilePath>:<format>, ...]. Otherwise ignored by validator.")
-	configFile := flag.String("unchecked-file-config", "", "Path to a yaml file to define relative paths / names of unchecked files, and their respective types.")
+	uncheckedFiles := flag.String("unchecked-files", "", "Add specific files without extensions to be validated using a set format. Declare using [<./file/path>:<format>,...] (No spaces after commas)")
+	configFile := flag.String("unchecked-file-config", "", "Path to a yaml file outlining a list of unchecked files. If both unchecked options are used on the same file, config takes precedence. See README examples for format.")
 
 	flag.Parse()
 
@@ -146,7 +146,7 @@ func getFlags() (validatorConfig, error) {
 	uncheckedClean := cleanString("unchecked-files")
 	uncheckedPairs := strings.Split(uncheckedClean, ",")
 
-	// Check that checked files are listed in proper format and with valid config types
+	// Check that checked files are listed in proper format and with valid config types. Return error if not a file.
 	if uncheckedFiles != nil && isFlagSet("unchecked-files") {
 		for _, pair := range uncheckedPairs {
 			if !strings.Contains(pair, ":") {
@@ -171,8 +171,17 @@ func getFlags() (validatorConfig, error) {
 				return validatorConfig{}, errors.New(errorMsg)
 			}
 
-			if _, err := os.Stat(uncheckedType[0]); err != nil {
-				errorMsg := "File not found for unchecked file: " + uncheckedType[0] + ". Must add existing files"
+			info, err := os.Stat(uncheckedType[0])
+
+			if err != nil {
+				errorMsg := "File not found for unchecked file: " + uncheckedType[0] + ". Must add existing file path"
+				fmt.Println(errorMsg)
+				flag.Usage()
+				return validatorConfig{}, errors.New(errorMsg)
+			}
+
+			if info.IsDir() {
+				errorMsg := "File path for " + pair + " leads to a directory, not a valid file."
 				fmt.Println(errorMsg)
 				flag.Usage()
 				return validatorConfig{}, errors.New(errorMsg)

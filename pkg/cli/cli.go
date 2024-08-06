@@ -101,6 +101,7 @@ func (c CLI) Run() (int, error) {
 		report := reporter.Report{
 			FileName:        fileToValidate.Name,
 			FilePath:        fileToValidate.Path,
+			FileType: 		 fileToValidate.FileType.Name,
 			IsValid:         isValid,
 			ValidationError: err,
 			IsQuiet:         Quiet,

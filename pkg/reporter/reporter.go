@@ -5,6 +5,7 @@ package reporter
 type Report struct {
 	FileName        string
 	FilePath        string
+	FileType        string
 	IsValid         bool
 	ValidationError error
 	IsQuiet         bool

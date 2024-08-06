@@ -127,6 +127,10 @@ optional flags:
     	Format of the printed report. Options are standard and json (default "standard")
   -version
     	Version prints the release version of validator
+  -unchecked-file string
+		  Add specific files without extensions to be validated using a set format. Declare using [<.\file\path>:<format>,...] (No spaces after commas)
+  -unchecked-file-config string
+		  Path to a yaml file outlining a list of unchecked files. If both unchecked options are used on the same file, config takes precedence. See examples for format.
 ```
 
 ### Examples
@@ -197,6 +201,30 @@ validator -groupby directory,pass-fail
 ```
 
 ![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.png)
+
+#### Unchecked Files
+List files without extensions to be validated based on set file type.
+```
+validator --unchecked-files .\path\to\extensionlessCsv:csv,.\path\to\extensionlessIni:ini
+```
+
+![Add Extensionless Files](./img/gb-filetype-and-pass-fail.png)
+
+#### Unchecked Files Config
+Add unchecked files through a yaml config file. Relative path of listed files are based on working directory of user when running validator.
+```
+validator --unchecked-file-config .\path\to\yml\file
+```
+Note the accepted yaml format:
+```
+json:
+  - example\json\file\extensionlessJson
+  - another\example\json\file\extensionlessJson
+csv:
+  - example\extensionlessCsv
+```
+
+![Add Extensionless Files using Config](./img/gb-filetype-and-pass-fail.png)
 
 ### Output results to a file
 Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format. Available options are `junit` and `json`. If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
