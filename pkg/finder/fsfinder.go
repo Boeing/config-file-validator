@@ -72,7 +72,8 @@ func AddFiles(files []string) FSFinderOptions {
 				continue
 			}
 			// Creating <file name/dir>:<file type> mapping to link extensionless files with their actual format
-			fsf.UncheckedFiles[filepath.Clean(kv[0])] = kv[1]
+     path, format := kv[0], kv[1]
+			fsf.UncheckedFiles[filepath.Clean(path)] = kv[format]
 		}
 	}
 }
