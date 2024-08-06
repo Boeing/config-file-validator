@@ -165,7 +165,7 @@ func getFlags() (validatorConfig, error) {
 				}
 			}
 			if !isFoundType {
-				errorMsg := "Invalid file type for unchecked file: " + pair + ". Only supported formats accepted"
+				err := fmt.Errorf("Invalid file type for unchecked file: %s. Only supported formats accepted", pair)
 				fmt.Println(errorMsg)
 				flag.Usage()
 				return validatorConfig{}, errors.New(errorMsg)
