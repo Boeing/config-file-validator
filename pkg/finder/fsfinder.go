@@ -109,7 +109,10 @@ func ReadConfig(file string, fsf FileSystemFinder) (map[string]string, error) {
 	// Storing the imported data as 'additional files' for findOne to access
 	for key, value := range data {
 		for _, val := range value {
-			strVal := val.(string)
+			strVal, ok := val.(string)
+     if !ok {
+          continue
+     }
 			fsf.UncheckedFiles[filepath.Clean(strVal)] = key
 		}
 	}
