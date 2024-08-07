@@ -110,7 +110,7 @@ func ReadConfig(file string, fsf FileSystemFinder) (map[string]string, error) {
      if !ok {
           continue
      }
-			fsf.UncheckedFiles[filepath.Clean(strVal)] = key
+			fsf.UncheckedFiles.Add(strVal, key)
 		}
 	}
 	return fsf.UncheckedFiles, nil
