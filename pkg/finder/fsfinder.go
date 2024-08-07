@@ -68,11 +68,8 @@ func AddFiles(files []string) FSFinderOptions {
 		fsf.UncheckedFiles= make(map[string]string)
 		for i := range files {
 			kv := strings.Split(files[i], ":")
-			if len(kv) != 2 {
-				continue
-			}
 			// Creating <file name/dir>:<file type> mapping to link extensionless files with their actual format
-     path, format := kv[0], kv[1]
+     		path, format := kv[0], kv[1]
 			fsf.UncheckedFiles[filepath.Clean(path)] = kv[format]
 		}
 	}

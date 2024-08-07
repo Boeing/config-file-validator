@@ -156,10 +156,10 @@ func getFlags() (validatorConfig, error) {
 				return validatorConfig{}, err
 			}
 			uncheckedType := strings.Split(pair, ":")
-
+			fileName, fileType := uncheckedType[0], uncheckedType[1]
 			isFoundType := false
 			for _, fileType := range filetype.FileTypes {
-				if fileType.Name == uncheckedType[1] {
+				if fileType.Name == fileType {
 					isFoundType = true
 					break
 				}
@@ -171,10 +171,10 @@ func getFlags() (validatorConfig, error) {
 				return validatorConfig{}, errors.New(errorMsg)
 			}
 
-			info, err := os.Stat(uncheckedType[0])
+			info, err := os.Stat(fileName)
 
 			if err != nil {
-				errorMsg := "File not found for unchecked file: " + uncheckedType[0] + ". Must add existing file path"
+				errorMsg := "File not found for unchecked file: " + fileName + ". Must add existing file path"
 				fmt.Println(errorMsg)
 				flag.Usage()
 				return validatorConfig{}, errors.New(errorMsg)
