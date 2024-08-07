@@ -156,35 +156,35 @@ func getFlags() (validatorConfig, error) {
 				return validatorConfig{}, err
 			}
 			uncheckedType := strings.Split(pair, ":")
-			fileName, fileType := uncheckedType[0], uncheckedType[1]
+			fileName, typeName := uncheckedType[0], uncheckedType[1]
 			isFoundType := false
 			for _, fileType := range filetype.FileTypes {
-				if fileType.Name == fileType {
+				if fileType.Name == typeName {
 					isFoundType = true
 					break
 				}
 			}
 			if !isFoundType {
-				err := fmt.Errorf("Invalid file type for unchecked file: %s. Only supported formats accepted", pair)
-				fmt.Println(errorMsg)
+				errMsg := fmt.Errorf("Invalid file type for unchecked file: %s. Only supported formats accepted", pair)
+				fmt.Println(errMsg)
 				flag.Usage()
-				return validatorConfig{}, errors.New(errorMsg)
+				return validatorConfig{}, errMsg
 			}
 
 			info, err := os.Stat(fileName)
 
 			if err != nil {
-				errorMsg := "File not found for unchecked file: " + fileName + ". Must add existing file path"
-				fmt.Println(errorMsg)
+				errMsg := fmt.Errorf("File not found for unchecked file: %s. Must add existing file path", fileName)
+				fmt.Println(errMsg)
 				flag.Usage()
-				return validatorConfig{}, errors.New(errorMsg)
+				return validatorConfig{}, errMsg
 			}
 
 			if info.IsDir() {
-				errorMsg := "File path for " + pair + " leads to a directory, not a valid file."
-				fmt.Println(errorMsg)
+				errMsg := fmt.Errorf("File path for %s leads to a directory, not a valid file.",  pair)
+				fmt.Println(errMsg)
 				flag.Usage()
-				return validatorConfig{}, errors.New(errorMsg)
+				return validatorConfig{}, errMsg
 			}
 		}
 	}
@@ -265,7 +265,7 @@ func mainInit() int {
 		finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes),
-		finder.AddFiles(uncheckedFiles),
+		finder.AddFiles(uncheckedFiles, isFlagSet("unchecked-files")),
 		finder.StoreConfig(*validatorConfig.configFile),
 	}
 	quiet := *validatorConfig.quiet

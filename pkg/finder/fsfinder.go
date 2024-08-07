@@ -60,9 +60,9 @@ func WithDepth(depthVal int) FSFinderOptions {
 }
 
 // AddFiles adds unchecked files with specified formats to FSFinder (adds support for extensionless files)
-func AddFiles(files []string) FSFinderOptions {
+func AddFiles(files []string, filesPresent bool) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		if len(files) == 0 {
+		if !filesPresent {
 			return
 		}
 		fsf.UncheckedFiles= make(map[string]string)
@@ -70,7 +70,7 @@ func AddFiles(files []string) FSFinderOptions {
 			kv := strings.Split(files[i], ":")
 			// Creating <file name/dir>:<file type> mapping to link extensionless files with their actual format
      		path, format := kv[0], kv[1]
-			fsf.UncheckedFiles[filepath.Clean(path)] = kv[format]
+			fsf.UncheckedFiles[filepath.Clean(path)] = format
 		}
 	}
 }
@@ -107,10 +107,10 @@ func ReadConfig(file string, fsf FileSystemFinder) (map[string]string, error) {
 	for key, value := range data {
 		for _, val := range value {
 			strVal, ok := val.(string)
-     if !ok {
-          continue
-     }
-			fsf.UncheckedFiles.Add(strVal, key)
+			if !ok {
+				continue
+			}
+			fsf.UncheckedFiles[filepath.Clean(strVal)] = key
 		}
 	}
 	return fsf.UncheckedFiles, nil
