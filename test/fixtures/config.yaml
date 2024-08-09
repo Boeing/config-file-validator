@@ -1,0 +1,6 @@
+csv:
+  - extensionlessCsv
+ini:
+  - extensionlessIni
+json:
+  - extensionlessJson

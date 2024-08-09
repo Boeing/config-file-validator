@@ -78,7 +78,7 @@ func Test_fsFinderWithDepth(t *testing.T) {
 		},
 		{
 			name:               "recursion enabled",
-			inputDepth:         4,
+			inputDepth:         5,
 			inputPathRoot:      "../../test/fixtures/with-depth",
 			expectedFilesCount: 2,
 		},
@@ -258,5 +258,59 @@ func Benchmark_Finder(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, _ = fsFinder.Find()
+	}
+}
+
+func Benchmark_Finder(b *testing.B) {
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots("../../test/fixtures/"),
+	)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, _ = fsFinder.Find()
+	}
+}
+
+func Test_fsFinderBadConfig(t *testing.T) {
+	// Missing config file
+	fsFinder := FileSystemFinderInit(
+		StoreConfig("../../test/fixtures/notHere.yaml"),
+	)
+
+	_, err := fsFinder.Find()
+
+	if err == nil {
+		t.Errorf("Error should be thrown for missing Config")
+	}
+
+	// Bad format config file
+	fsFinder = FileSystemFinderInit(
+		StoreConfig("../../test/fixtures/good.yaml"),
+	)
+
+	_, err = fsFinder.Find()
+
+	if err == nil {
+		t.Errorf("Error should be thrown for bad Config data")
+	}
+}
+
+func Test_fsFinderGoodConfig(t *testing.T) {
+	// Proper config file
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots("../../test/fixtures/extensionless"),
+		StoreConfig("../../test/fixtures/config.yaml"),
+	)
+
+	files, err := fsFinder.Find()
+
+	if err != nil {
+		t.Errorf("Error thrown for correct config")
+	}
+
+	if len(files) < 1 {
+		t.Errorf("Unable to find files")
 	}
 }
