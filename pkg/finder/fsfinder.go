@@ -118,12 +118,14 @@ func ReadConfig(file string, fsf FileSystemFinder) (map[string]string, error) {
 
 func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 	defaultExcludeDirs := make(map[string]struct{})
+	defaultExcludeFileTypes := make(map[string]struct{})
 	defaultPathRoots := []string{"."}
 
 	fsfinder := &FileSystemFinder{
-		PathRoots:   defaultPathRoots,
-		FileTypes:   filetype.FileTypes,
-		ExcludeDirs: defaultExcludeDirs,
+		PathRoots:        defaultPathRoots,
+		FileTypes:        filetype.FileTypes,
+		ExcludeDirs:      defaultExcludeDirs,
+		ExcludeFileTypes: defaultExcludeFileTypes,
 	}
 
 	for _, opt := range opts {
@@ -140,21 +142,11 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 	seen := make(map[string]struct{}, 0)
 	uniqueMatches := make([]FileMetadata, 0)
 	for _, pathRoot := range fsf.PathRoots {
-		matches, err := fsf.findOne(pathRoot)
+		matches, err := fsf.findOne(pathRoot, seen)
 		if err != nil {
 			return nil, err
 		}
-		for _, match := range matches {
-			absPath, err := filepath.Abs(match.Path)
-			if err != nil {
-				return nil, err
-			}
-			if _, ok := seen[absPath]; ok {
-				continue
-			}
-			uniqueMatches = append(uniqueMatches, match)
-			seen[absPath] = struct{}{}
-		}
+		uniqueMatches = append(uniqueMatches, matches...)
 	}
 	return uniqueMatches, nil
 }
@@ -162,7 +154,7 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 // findOne recursively walks through all subdirectories (excluding the excluded subdirectories)
 // and identifying if the file matches a type defined in the fileTypes array for a
 // single path and returns the file metadata.
-func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
+func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}) ([]FileMetadata, error) {
 	var matchingFiles []FileMetadata
 
 	// check that the path exists before walking it or the error returned
@@ -196,15 +188,18 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 			}
 
 			// determine if directory is in the excludeDirs list or if the depth is greater than the maxDepth
-			_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
-			if dirEntry.IsDir() && ((fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) || isExcluded) {
-				return filepath.SkipDir
+			if dirEntry.IsDir() {
+				_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
+				if isExcluded || (fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) {
+					return filepath.SkipDir
+				}
 			}
 
 			if !dirEntry.IsDir() {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
+				extensionLowerCase := strings.ToLower(walkFileExtension)
 
 				// If a file is extensionless, check if its stored as an additional file and update the extension. Otherwise ignore
 				if len(walkFileExtension) == 0 {
@@ -217,19 +212,27 @@ func (fsf FileSystemFinder) findOne(pathRoot string) ([]FileMetadata, error) {
 				}
 
 				// Checking for case sensitive exclusion
-				if _, ok := fsf.ExcludeFileTypes[walkFileExtension]; ok {
+				if _, isExcluded := fsf.ExcludeFileTypes[extensionLowerCase]; isExcluded {
 					return nil
 				}
 				extensionLowerCase := strings.ToLower(walkFileExtension)
-
-				// Check each fileType, ignore non-matching extensions
 				for _, fileType := range fsf.FileTypes {
-					if _, ok := fileType.Extensions[extensionLowerCase]; ok {
-						fileMetadata := FileMetadata{dirEntry.Name(), path, fileType}
-						matchingFiles = append(matchingFiles, fileMetadata)
-						break
+					if _, isMatched := fileType.Extensions[extensionLowerCase]; isMatched {
+						absPath, err := filepath.Abs(path)
+						if err != nil {
+							return err
+						}
+
+						if _, seen := seenMap[absPath]; !seen {
+							fileMetadata := FileMetadata{dirEntry.Name(), absPath, fileType}
+							matchingFiles = append(matchingFiles, fileMetadata)
+							seenMap[absPath] = struct{}{}
+						}
+
+						return nil
 					}
 				}
+				fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
 			}
 
 			return nil

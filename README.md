@@ -39,6 +39,7 @@
 ## Supported config files formats:
 * Apple PList XML
 * CSV
+* EDITORCONFIG
 * ENV
 * HCL
 * HOCON
