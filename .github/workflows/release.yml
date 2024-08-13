@@ -27,6 +27,7 @@ jobs:
 
     permissions:
       packages: write
+      contents: write
 
     steps:
     - name: Harden Runner
