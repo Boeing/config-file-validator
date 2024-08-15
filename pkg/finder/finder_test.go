@@ -249,10 +249,11 @@ func Test_FileFinderBadPath(t *testing.T) {
 	}
 }
 
-func Test_FileFinderPathWithLeadingAndTrailingWhitespaces(t *testing.T) {
+func Test_FileFinderPathWithWhitespaces(t *testing.T) {
 	tests := []struct {
-		name string
-		path string
+		name      string
+		path      string
+		expectErr bool
 	}{
 		{
 			name: "no whitespace",
@@ -270,6 +271,26 @@ func Test_FileFinderPathWithLeadingAndTrailingWhitespaces(t *testing.T) {
 			name: "leading and trailing whitespace",
 			path: "  ../../test/fixtures/subdir  ",
 		},
+		{
+			name:      "whitespace in middle of path",
+			path:      "../../test/  fixtures  /subdir",
+			expectErr: true,
+		},
+		{
+			name:      "leading whitespace + whitespace in middle of path",
+			path:      "  ../../test/  fixtures  /subdir",
+			expectErr: true,
+		},
+		{
+			name:      "trailing whitespace + whitespace in middle of path",
+			path:      "../../test/  fixtures  /subdir  ",
+			expectErr: true,
+		},
+		{
+			name:      "leading and trailing whitespace + whitespace in middle of path",
+			path:      "  ../../test/  fixtures  /subdir  ",
+			expectErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -280,12 +301,18 @@ func Test_FileFinderPathWithLeadingAndTrailingWhitespaces(t *testing.T) {
 
 			files, err := fsFinder.Find()
 
-			if len(files) < 1 {
-				t.Errorf("Unable to find file")
-			}
+			if tt.expectErr {
+				if err == nil {
+					t.Errorf("Error should be thrown for bad path")
+				}
+			} else {
+				if len(files) < 1 {
+					t.Errorf("Unable to find file")
+				}
 
-			if err != nil {
-				t.Errorf("Unable to find file")
+				if err != nil {
+					t.Errorf("Unable to find file")
+				}
 			}
 		})
 	}
