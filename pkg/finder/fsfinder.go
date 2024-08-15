@@ -81,7 +81,9 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 	seen := make(map[string]struct{}, 0)
 	uniqueMatches := make([]FileMetadata, 0)
 	for _, pathRoot := range fsf.PathRoots {
-		matches, err := fsf.findOne(pathRoot, seen)
+		// remove all leading and trailing whitespace
+		trimmedPathRoot := strings.TrimSpace(pathRoot)
+		matches, err := fsf.findOne(trimmedPathRoot, seen)
 		if err != nil {
 			return nil, err
 		}
