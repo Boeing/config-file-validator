@@ -57,28 +57,6 @@
 ## Installation
 There are several ways to install the config file validator tool
 
-### Docker
-
-We offer Alpine, Ubuntu, and Scratch containers
-
-#### Alpine
-
-```
-docker pull ghcr.io/boeing/config-file-validator:v1.6.0
-```
-
-#### Ubuntu
-
-```
-docker pull ghcr.io/boeing/config-file-validator-ubuntu:v1.6.0
-```
-
-#### Scratch
-
-```
-docker pull ghcr.io/boeing/config-file-validator-scratch:v1.6.0
-```
-
 ### Binary Releases
 Download and unpack from https://github.com/Boeing/config-file-validator/releases
 
@@ -90,9 +68,10 @@ aqua g -i Boeing/config-file-validator
 ```
 
 ### Arch Linux
-We release a [PKGBUILD](https://github.com/Boeing/config-file-validator/blob/main/PKGBUILD) file for Arch Linux
+We release an [AUR package](https://aur.archlinux.org/packages/config-file-validator) for the config-file-validator
 
 ```
+git clone https://aur.archlinux.org/config-file-validator.git
 cd config-file-validator
 makepkg -si
 ```
@@ -101,7 +80,7 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```
-go install github.com/Boeing/config-file-validator/cmd/validator@v1.6.0
+go install github.com/Boeing/config-file-validator/cmd/validator@v1.7.1
 ```
 
 ## Usage
