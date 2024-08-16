@@ -71,28 +71,6 @@
 ## Installation
 There are several ways to install the config file validator tool
 
-### Docker
-
-We offer Alpine, Ubuntu, and Scratch containers
-
-#### Alpine
-
-```
-docker pull ghcr.io/boeing/config-file-validator:v1.6.0
-```
-
-#### Ubuntu
-
-```
-docker pull ghcr.io/boeing/config-file-validator-ubuntu:v1.6.0
-```
-
-#### Scratch
-
-```
-docker pull ghcr.io/boeing/config-file-validator-scratch:v1.6.0
-```
-
 ### Binary Releases
 Download and unpack from https://github.com/Boeing/config-file-validator/releases
 
@@ -104,9 +82,10 @@ aqua g -i Boeing/config-file-validator
 ```
 
 ### Arch Linux
-We release a [PKGBUILD](https://github.com/Boeing/config-file-validator/blob/main/PKGBUILD) file for Arch Linux
+We release an [AUR package](https://aur.archlinux.org/packages/config-file-validator) for the config-file-validator
 
 ```
+git clone https://aur.archlinux.org/config-file-validator.git
 cd config-file-validator
 makepkg -si
 ```
