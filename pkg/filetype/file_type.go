@@ -64,6 +64,14 @@ var PropFileType = FileType{
 }
 
 // Instance of the FileType object to
+// represent a Pkl file
+var PklFileType = FileType{
+	"pkl",
+	misc.ArrToMap("pkl"),
+	validator.PklValidator{},
+}
+
+// Instance of the FileType object to
 // represent a HCL file
 var HclFileType = FileType{
 	"hcl",
@@ -120,6 +128,7 @@ var FileTypes = []FileType{
 	TomlFileType,
 	IniFileType,
 	PropFileType,
+	PklFileType,
 	HclFileType,
 	PlistFileType,
 	CsvFileType,
