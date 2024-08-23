@@ -145,6 +145,40 @@ func Test_junitReport(t *testing.T) {
 	}
 }
 
+func Test_sarifReport(t *testing.T) {
+	reportNoValidationError := Report{
+		"good.xml",
+		"/fake/path/good.xml",
+		true,
+		nil,
+		false,
+	}
+
+	reportWithBackslashPath := Report{
+		"good.xml",
+		"\\fake\\path\\good.xml",
+		true,
+		nil,
+		false,
+	}
+
+	reportWithValidationError := Report{
+		"bad.xml",
+		"/fake/path/bad.xml",
+		false,
+		errors.New("Unable to parse bad.xml file"),
+		false,
+	}
+
+	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithBackslashPath}
+
+	sarifReporter := SARIFReporter{}
+	err := sarifReporter.Print(reports)
+	if err != nil {
+		t.Errorf("Reporting failed")
+	}
+}
+
 func Test_jsonReporterWriter(t *testing.T) {
 	report := Report{
 		"good.json",
