@@ -20,7 +20,7 @@ optional flags:
   -output
      	Destination of a file to outputting results
   -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
+    	Format of the printed report. Options are standard, json, junit and sarif (default "standard")
   -version
     	Version prints the release version of validator
 */
@@ -76,7 +76,7 @@ func getFlags() (validatorConfig, error) {
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	outputPtr := flag.String("output", "", "Destination to a file to output results")
-	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
+	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard, json, junit and sarif")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPtr := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
@@ -110,16 +110,22 @@ func getFlags() (validatorConfig, error) {
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
-	if *reportTypePtr != "standard" && *reportTypePtr != "json" && *reportTypePtr != "junit" {
-		fmt.Println("Wrong parameter value for reporter, only supports standard, json or junit")
+	if *reportTypePtr != "standard" && *reportTypePtr != "json" && *reportTypePtr != "junit" && *reportTypePtr != "sarif" {
+		fmt.Println("Wrong parameter value for reporter, only supports standard, json, junit or sarif")
 		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, junit or sarif")
 	}
 
 	if *reportTypePtr == "junit" && *groupOutputPtr != "" {
 		fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
 		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+	}
+
+	if *reportTypePtr == "sarif" && *groupOutputPtr != "" {
+		fmt.Println("Wrong parameter value for reporter, groupby is not supported for SARIF reports")
+		flag.Usage()
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for SARIF reports")
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
@@ -200,6 +206,8 @@ func getReporter(reportType, outputDest *string) reporter.Reporter {
 		return reporter.NewJunitReporter(*outputDest)
 	case "json":
 		return reporter.NewJSONReporter(*outputDest)
+	case "sarif":
+		return reporter.NewSARIFReporter(*outputDest)
 	default:
 		return reporter.StdoutReporter{}
 	}
