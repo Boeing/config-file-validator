@@ -285,6 +285,112 @@ func Test_jsonReporterWriter(t *testing.T) {
 	}
 }
 
+func Test_sarifReporterWriter(t *testing.T) {
+	report := Report{
+		"good.json",
+		"test/output/example/good.json",
+		true,
+		nil,
+		false,
+	}
+	deleteFiles(t)
+
+	bytes, err := os.ReadFile("../../test/output/example/result.sarif")
+	require.NoError(t, err)
+
+	type args struct {
+		reports    []Report
+		outputDest string
+	}
+	type want struct {
+		fileName string
+		data     []byte
+		err      assert.ErrorAssertionFunc
+	}
+
+	tests := map[string]struct {
+		args args
+		want want
+	}{
+		"normal/existing dir/default name": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "../../test/output",
+			},
+			want: want{
+				fileName: "result.sarif",
+				data:     bytes,
+				err:      assert.NoError,
+			},
+		},
+		"normal/file name is given": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "../../test/output/validator_result.sarif",
+			},
+			want: want{
+				fileName: "validator_result.sarif",
+				data:     bytes,
+				err:      assert.NoError,
+			},
+		},
+		"quash normal/empty string": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "",
+			},
+			want: want{
+				fileName: "",
+				data:     nil,
+				err:      assert.NoError,
+			},
+		},
+		"abnormal/non-existing dir": {
+			args: args{
+				reports: []Report{
+					report,
+				},
+				outputDest: "../../test/wrong/output",
+			},
+			want: want{
+				fileName: "",
+				data:     nil,
+				err:      assertRegexpError("failed to create a file: "),
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			sut := NewSARIFReporter(tt.args.outputDest)
+			err := sut.Print(tt.args.reports)
+			tt.want.err(t, err)
+			if tt.want.data != nil {
+				info, err := os.Stat(tt.args.outputDest)
+				require.NoError(t, err)
+				var filePath string
+				if info.IsDir() {
+					filePath = tt.args.outputDest + "/result.sarif"
+				} else { // if file was named with outputDest value
+					assert.Equal(t, tt.want.fileName, info.Name())
+					filePath = tt.args.outputDest
+				}
+				bytes, err := os.ReadFile(filePath)
+				require.NoError(t, err)
+				assert.Equal(t, tt.want.data, bytes)
+				err = os.Remove(filePath)
+				require.NoError(t, err)
+			}
+		},
+		)
+	}
+}
+
 func Test_JunitReporter_OutputBytesToFile(t *testing.T) {
 	report := Report{
 		"good.json",
