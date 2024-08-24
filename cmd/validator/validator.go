@@ -110,7 +110,9 @@ func getFlags() (validatorConfig, error) {
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
-	if *reportTypePtr != "standard" && *reportTypePtr != "json" && *reportTypePtr != "junit" && *reportTypePtr != "sarif" {
+	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
+
+	if !acceptedReportTypes[*reportTypePtr] {
 		fmt.Println("Wrong parameter value for reporter, only supports standard, json, junit or sarif")
 		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, junit or sarif")
