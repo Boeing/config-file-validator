@@ -47,3 +47,20 @@ jobs:
         build_tags: -tags netgo
         project_path: cmd/validator
         extra_files: LICENSE README.md
+
+  winget:
+    name: Publish to Winget
+    needs: [releases-matrix]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@f086349bfa2bd1361f7909c78558e816508cdc10 # v2.8.0
+        with:
+          egress-policy: audit
+
+      - uses: vedantmgoyal9/winget-releaser@b87a066d9e624db1394edcd947f8c4e5a7e30cd7 # main
+        with:
+          identifier: Boeing.config-file-validator
+          installers-regex: '-windows-\w+\.zip$'
+          token: ${{ secrets.WINGET_TOKEN }}
