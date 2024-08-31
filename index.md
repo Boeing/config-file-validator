@@ -81,6 +81,13 @@ You can install the validator using [aqua](https://aquaproj.github.io/).
 aqua g -i Boeing/config-file-validator
 ```
 
+### Scoop
+You can install the validator using [Scoop](https://scoop.sh/).
+
+```
+scoop install config-file-validator
+```
+
 ### Arch Linux
 We release an [AUR package](https://aur.archlinux.org/packages/config-file-validator) for the config-file-validator
 
