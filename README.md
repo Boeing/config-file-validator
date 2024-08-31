@@ -67,6 +67,13 @@ You can install the validator using [aqua](https://aquaproj.github.io/).
 aqua g -i Boeing/config-file-validator
 ```
 
+### Winget
+We release a Winget package for the config-file-validator
+
+```
+winget install Boeing.config-file-validator
+```
+
 ### Arch Linux
 We release an [AUR package](https://aur.archlinux.org/packages/config-file-validator) for the config-file-validator
 
