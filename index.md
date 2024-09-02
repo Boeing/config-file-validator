@@ -60,7 +60,7 @@
 * INI
 * JSON
 * Properties
-* PKL
+* PKL _(requires that the `pkl` binary is installed; `.pkl` files will be ignored if the binary is not installed)_
 * TOML
 * XML
 * YAML

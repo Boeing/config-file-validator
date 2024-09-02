@@ -2,6 +2,7 @@ package validator
 
 import (
 	_ "embed"
+	"os/exec"
 	"testing"
 )
 
@@ -72,6 +73,11 @@ var testData = []struct {
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
 }
 
+func isPklBinaryPresent() bool {
+	_, err := exec.LookPath("pkl")
+	return err == nil
+}
+
 func Test_ValidationInput(t *testing.T) {
 	t.Parallel()
 
@@ -80,6 +86,13 @@ func Test_ValidationInput(t *testing.T) {
 
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
+
+			// Skip PklValidator tests if the pkl binary is not present
+			if _, ok := tcase.validator.(PklValidator); ok {
+				if !isPklBinaryPresent() {
+					t.Skip("Skipping test: 'pkl' binary not found.")
+				}
+			}
 
 			valid, err := tcase.validator.Validate(tcase.testInput)
 			if valid != tcase.expectedResult {
