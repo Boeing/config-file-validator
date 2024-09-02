@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
@@ -73,6 +74,12 @@ func Init(opts ...Option) *CLI {
 	return cli
 }
 
+// Check if the 'pkl' binary is present in the PATH
+var isPklBinaryPresent = func() bool {
+	_, err := exec.LookPath("pkl")
+	return err == nil
+}
+
 // The Run method performs the following actions:
 // - Finds the calls the Find method from the Finder interface to
 // return a list of files
@@ -88,6 +95,14 @@ func (c CLI) Run() (int, error) {
 	}
 
 	for _, fileToValidate := range foundFiles {
+		// Pkl validation requires the 'pkl' binary to be present
+		if fileToValidate.FileType.Name == "pkl" {
+			if !isPklBinaryPresent() {
+				fmt.Printf("Warning: 'pkl' binary not found, file %s will be ignored.\n", fileToValidate.Path)
+				continue
+			}
+		}
+
 		// read it
 		fileContent, err := os.ReadFile(fileToValidate.Path)
 		if err != nil {

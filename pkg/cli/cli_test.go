@@ -121,3 +121,30 @@ func Test_CLIRepoertErr(t *testing.T) {
 		t.Errorf("should return err status code: %d", exitStatus)
 	}
 }
+
+func Test_CLI_IgnoreBadPklFileWhenBinaryNotFound(t *testing.T) {
+	// Save the original function before mocking and restore it after the test
+	originalIsPklBinaryPresent := isPklBinaryPresent
+	isPklBinaryPresent = func() bool {
+		return false
+	}
+	defer func() { isPklBinaryPresent = originalIsPklBinaryPresent }()
+
+	searchPath := "../../test/fixtures/subdir2/bad.pkl"
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(searchPath),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+	)
+	exitStatus, err := cli.Run()
+	if err != nil {
+		t.Errorf("An error was returned: %v", err)
+	}
+
+	// Since the pkl binary is not found, the bad pkl file should be ignored
+	// So the exit status should be 0
+	if exitStatus != 0 {
+		t.Errorf("Expected exit status 0, but got: %d", exitStatus)
+	}
+}
