@@ -16,7 +16,7 @@ optional flags:
   -exclude-dirs string
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
-    	A comma separated list of file types to ignore
+    	A comma separated list of file types to ignore. Possible file types are json, yaml, xml, toml, ini, properties, hcl, plist, csv, hocon, env and editorconfig
   -output
      	Destination of a file to outputting results
   -reporter string
@@ -74,7 +74,7 @@ func getFlags() (validatorConfig, error) {
 	flag.Usage = validatorUsage
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore. Possible file types are json, yaml, xml, toml, ini, properties, hcl, plist, csv, hocon, env and editorconfig")
 	outputPtr := flag.String("output", "", "Destination to a file to output results")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
