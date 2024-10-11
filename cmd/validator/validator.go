@@ -81,13 +81,21 @@ func getFlags() (validatorConfig, error) {
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 
-	setFlagFromEnvIfNotSet("depth", "CSV_DEPTH")
-	setFlagFromEnvIfNotSet("exclude-dirs", "CSV_EXCLUDE_DIRS")
-	setFlagFromEnvIfNotSet("exclude-file-types", "CSV_EXCLUDE_FILE_TYPES")
-	setFlagFromEnvIfNotSet("output", "CSV_OUTPUT")
-	setFlagFromEnvIfNotSet("reporter", "CSV_REPORTER")
-	setFlagFromEnvIfNotSet("groupby", "CSV_GROUPBY")
-	setFlagFromEnvIfNotSet("quiet", "CSV_QUIET")
+	flagsEnvMap := map[string]string{
+		"depth":              "CSV_DEPTH",
+		"exclude-dirs":       "CSV_EXCLUDE_DIRS",
+		"exclude-file-types": "CSV_EXCLUDE_FILE_TYPES",
+		"output":             "CSV_OUTPUT",
+		"reporter":           "CSV_REPORTER",
+		"groupby":            "CSV_GROUPBY",
+		"quiet":              "CSV_QUIET",
+	}
+
+	for flagName, envVar := range flagsEnvMap {
+		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
+			return validatorConfig{}, err
+		}
+	}
 
 	flag.Parse()
 
@@ -170,13 +178,18 @@ func isFlagSet(flagName string) bool {
 	return isSet
 }
 
-func setFlagFromEnvIfNotSet(flagName string, envVar string) {
-	if !isFlagSet(flagName) {
-		envVarValue, isEnvVarSet := os.LookupEnv(envVar)
-		if isEnvVarSet {
-			flag.Set(flagName, envVarValue)
+func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
+	if isFlagSet(flagName) {
+		return nil
+	}
+
+	if envVarValue, ok := os.LookupEnv(envVar); ok {
+		if err := flag.Set(flagName, envVarValue); err != nil {
+			return err
 		}
 	}
+
+	return nil
 }
 
 // Return the reporter associated with the
