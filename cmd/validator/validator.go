@@ -38,11 +38,12 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
+
 	configfilevalidator "github.com/Boeing/config-file-validator"
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
-	"github.com/bmatcuk/doublestar/v4"
 )
 
 type validatorConfig struct {
