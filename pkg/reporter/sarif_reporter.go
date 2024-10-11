@@ -17,9 +17,8 @@ type SARIFLog struct {
 }
 
 type runs struct {
-	Tool      tool       `json:"tool"`
-	Artifacts []artifact `json:"artifacts"`
-	Results   []result   `json:"results"`
+	Tool    tool     `json:"tool"`
+	Results []result `json:"results"`
 }
 
 type tool struct {
@@ -29,34 +28,30 @@ type tool struct {
 type driver struct {
 	Name    string `json:"name"`
 	InfoURI string `json:"informationUri"`
-}
-
-type artifact struct {
-	Location location `json:"location"`
+	Version string `json:"version"`
 }
 
 type result struct {
-	Kind      string           `json:"kind"`
-	Level     string           `json:"level"`
-	Message   message          `json:"message"`
-	Locations []resultLocation `json:"locations"`
+	Kind      string     `json:"kind"`
+	Level     string     `json:"level"`
+	Message   message    `json:"message"`
+	Locations []location `json:"locations"`
 }
 
 type message struct {
 	Text string `json:"text"`
 }
 
-type resultLocation struct {
+type location struct {
 	PhysicalLocation physicalLocation `json:"physicalLocation"`
 }
 
 type physicalLocation struct {
-	Location location `json:"artifactLocation"`
+	ArtifactLocation artifactLocation `json:"artifactLocation"`
 }
 
-type location struct {
-	URI   string `json:"uri"`
-	Index *int   `json:"index,omitempty"`
+type artifactLocation struct {
+	URI string `json:"uri"`
 }
 
 func NewSARIFReporter(outputDest string) *SARIFReporter {
@@ -65,30 +60,27 @@ func NewSARIFReporter(outputDest string) *SARIFReporter {
 	}
 }
 
-func createSARIFReport(reports []Report) (SARIFLog, error) {
+func createSARIFReport(reports []Report) (*SARIFLog, error) {
 	var log SARIFLog
 
 	n := len(reports)
 
 	log.Version = "2.1.0"
-	log.Schema = "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.4.json"
+	log.Schema = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
 
 	log.Runs = make([]runs, 1)
 	runs := &log.Runs[0]
 
 	runs.Tool.Driver.Name = "config-file-validator"
 	runs.Tool.Driver.InfoURI = "https://github.com/Boeing/config-file-validator"
+	runs.Tool.Driver.Version = "1.7.1"
 
-	runs.Artifacts = make([]artifact, n)
 	runs.Results = make([]result, n)
 
 	for i, report := range reports {
 		if strings.Contains(report.FilePath, "\\") {
 			report.FilePath = strings.ReplaceAll(report.FilePath, "\\", "/")
 		}
-
-		artifact := &runs.Artifacts[i]
-		artifact.Location.URI = report.FilePath
 
 		result := &runs.Results[i]
 		if !report.IsValid {
@@ -101,14 +93,13 @@ func createSARIFReport(reports []Report) (SARIFLog, error) {
 			result.Message.Text = "No errors detected"
 		}
 
-		result.Locations = make([]resultLocation, 1)
+		result.Locations = make([]location, 1)
 		location := &result.Locations[0]
-		location.PhysicalLocation.Location.URI = report.FilePath
-		location.PhysicalLocation.Location.Index = new(int)
-		*location.PhysicalLocation.Location.Index = i
+
+		location.PhysicalLocation.ArtifactLocation.URI = "file:///" + report.FilePath
 	}
 
-	return log, nil
+	return &log, nil
 }
 
 func (sr SARIFReporter) Print(reports []Report) error {
