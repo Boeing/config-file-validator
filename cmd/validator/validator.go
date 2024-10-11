@@ -38,6 +38,7 @@ import (
 
 	configfilevalidator "github.com/Boeing/config-file-validator"
 	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
@@ -65,6 +66,15 @@ func validatorUsage() {
 	flag.PrintDefaults()
 }
 
+// Assemble pretty formatted list of file types
+func getFileTypesStr() string {
+	options := make([]string, 0, len(filetype.FileTypes))
+	for _, typ := range filetype.FileTypes {
+		options = append(options, typ.Name)
+	}
+	return strings.Join(options, ",")
+}
+
 // Parses, validates, and returns the flags
 // flag.String returns a pointer
 // If a required parameter is missing the help
@@ -74,7 +84,7 @@ func getFlags() (validatorConfig, error) {
 	flag.Usage = validatorUsage
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore.\nValid options: "+getFileTypesStr())
 	outputPtr := flag.String("output", "", "Destination to a file to output results")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
@@ -109,6 +119,23 @@ func getFlags() (validatorConfig, error) {
 		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
 		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
+	}
+
+	if *excludeFileTypesPtr != "" {
+		splitTypes := strings.Split(*excludeFileTypesPtr, ",")
+		for _, t := range splitTypes {
+			valid := false
+			for _, ft := range filetype.FileTypes {
+				if t == ft.Name {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				flag.Usage()
+				return validatorConfig{}, errors.New("Invalid file type: " + t)
+			}
+		}
 	}
 
 	groupByCleanString := cleanString("groupby")
