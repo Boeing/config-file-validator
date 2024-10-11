@@ -21,6 +21,8 @@ optional flags:
      	Destination of a file to outputting results
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
+  -globbing bool
+		Set globbing to true to enable pattern matching for search paths
   -version
     	Version prints the release version of validator
 */
@@ -40,6 +42,7 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 type validatorConfig struct {
@@ -52,6 +55,7 @@ type validatorConfig struct {
 	output           *string
 	groupOutput      *string
 	quiet            *bool
+	globbing         *bool
 }
 
 // Custom Usage function to cover
@@ -80,15 +84,31 @@ func getFlags() (validatorConfig, error) {
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+	globbingPrt := flag.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
 
 	// If search path arg is empty, set it to the cwd
 	// if not, set it to the arg. Supports n number of
-	// paths
+	// paths. If globbing flag is set to true, find
+	// all matching paths
 	if flag.NArg() == 0 {
 		searchPaths = append(searchPaths, ".")
+	} else if *globbingPrt {
+		// For each Arg, check if a glob pattern is present
+		for _, flagArg := range flag.Args() {
+			if isGlobPattern(flagArg) {
+				// Find matches for the glob pattern
+				matches, err := doublestar.Glob(os.DirFS("."), flagArg)
+				if err != nil {
+					return validatorConfig{}, errors.New("Glob matching error")
+				}
+				searchPaths = append(searchPaths, matches...)
+			} else {
+				searchPaths = append(searchPaths, flagArg)
+			}
+		}
 	} else {
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
@@ -143,6 +163,7 @@ func getFlags() (validatorConfig, error) {
 		outputPtr,
 		groupOutputPtr,
 		quietPrt,
+		globbingPrt,
 	}
 
 	return config, nil
@@ -182,6 +203,11 @@ func cleanString(command string) string {
 	cleanedString = strings.TrimSpace(cleanedString)
 
 	return cleanedString
+}
+
+// Function to check if a string is a glob pattern
+func isGlobPattern(s string) bool {
+	return strings.ContainsAny(s, "*?[]")
 }
 
 func mainInit() int {
