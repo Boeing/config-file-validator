@@ -20,7 +20,7 @@ optional flags:
   -output
      	Destination of a file to outputting results
   -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
+    	A comma separated list of format of the printed report. Options are standard, json and junit (default "standard")
   -version
     	Version prints the release version of validator
 */
@@ -76,7 +76,7 @@ func getFlags() (validatorConfig, error) {
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	outputPtr := flag.String("output", "", "Destination to a file to output results")
-	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
+	reportTypePtr := flag.String("reporter", "standard", "A comma separated list of format of the printed report. Options are standard, json and junit")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
@@ -93,16 +93,17 @@ func getFlags() (validatorConfig, error) {
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
-	if *reportTypePtr != "standard" && *reportTypePtr != "json" && *reportTypePtr != "junit" {
-		fmt.Println("Wrong parameter value for reporter, only supports standard, json or junit")
-		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
-	}
-
-	if *reportTypePtr == "junit" && *groupOutputPtr != "" {
-		fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
-		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+	allowedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true}
+	passedValues := strings.Split(*reportTypePtr, ",")
+	for _, reportType := range passedValues {
+		_, ok := allowedReportTypes[reportType]
+		if !ok {
+			return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
+		} else if reportType == "junit" && *groupOutputPtr != "" {
+			fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+			flag.Usage()
+			return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+		}
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
@@ -198,7 +199,10 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	choosenReporter := getReporter(validatorConfig.reportType, validatorConfig.output)
+	chosenReporters := make([]reporter.Reporter, 0)
+	for _, reportType := range strings.Split(*validatorConfig.reportType, ",") {
+		chosenReporters = append(chosenReporters, getReporter(&reportType, validatorConfig.output))
+	}
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	fsOpts := []finder.FSFinderOptions{
@@ -217,7 +221,7 @@ func mainInit() int {
 
 	// Initialize the CLI
 	c := cli.Init(
-		cli.WithReporter(choosenReporter),
+		cli.WithReporters(chosenReporters),
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),

@@ -24,7 +24,7 @@ func Test_NoGroupOutput(t *testing.T) {
 		)
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporter(stdoutReporter),
+			WithReporters([]reporter.Reporter{stdoutReporter}),
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
@@ -55,7 +55,7 @@ func Test_SingleGroupOutput(t *testing.T) {
 		)
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporter(stdoutReporter),
+			WithReporters([]reporter.Reporter{stdoutReporter}),
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
@@ -124,7 +124,7 @@ func Test_DoubleGroupOutput(t *testing.T) {
 		)
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporter(stdoutReporter),
+			WithReporters([]reporter.Reporter{stdoutReporter}),
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
@@ -155,7 +155,7 @@ func Test_TripleGroupOutput(t *testing.T) {
 		)
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporter(stdoutReporter),
+			WithReporters([]reporter.Reporter{stdoutReporter}),
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
@@ -186,7 +186,7 @@ func Test_IncorrectSingleGroupOutput(t *testing.T) {
 		)
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporter(stdoutReporter),
+			WithReporters([]reporter.Reporter{stdoutReporter}),
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
@@ -218,7 +218,7 @@ func Test_IncorrectDoubleGroupOutput(t *testing.T) {
 		)
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporter(stdoutReporter),
+			WithReporters([]reporter.Reporter{stdoutReporter}),
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
@@ -250,7 +250,7 @@ func Test_IncorrectTripleGroupOutput(t *testing.T) {
 		)
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporter(stdoutReporter),
+			WithReporters([]reporter.Reporter{stdoutReporter}),
 			WithGroupOutput(groupOutput[i]),
 		)
 		exitStatus, err := cli.Run()
