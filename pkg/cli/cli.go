@@ -2,10 +2,9 @@ package cli
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"os"
 )
 
 // GroupOutput is a global variable that is used to
