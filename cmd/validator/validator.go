@@ -199,9 +199,10 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-	chosenReporters := make([]reporter.Reporter, 0)
-	for _, reportType := range strings.Split(*validatorConfig.reportType, ",") {
-		chosenReporters = append(chosenReporters, getReporter(&reportType, validatorConfig.output))
+	reportTypes := strings.Split(*validatorConfig.reportType, ",")
+	chosenReporters := make([]reporter.Reporter, len(reportTypes))
+	for i, reportType := range reportTypes {
+		chosenReporters[i] = getReporter(&reportType, validatorConfig.output)
 	}
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
