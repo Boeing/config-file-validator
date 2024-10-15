@@ -20,7 +20,7 @@ optional flags:
   -output
      	Destination of a file to outputting results
   -reporter string
-    	A comma separated list of format of the printed report. Options are standard, json and junit (default "standard")
+    	A comma separated list of format of the printed report. Options are standard, json, and junit (default "standard")
   -version
     	Version prints the release version of validator
 */
@@ -76,7 +76,7 @@ func getFlags() (validatorConfig, error) {
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	outputPtr := flag.String("output", "", "Destination to a file to output results")
-	reportTypePtr := flag.String("reporter", "standard", "A comma separated list of format of the printed report. Options are standard, json and junit")
+	reportTypePtr := flag.String("reporter", "standard", "A comma separated list of format of the printed report. Options are standard, json, and junit")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
@@ -98,8 +98,10 @@ func getFlags() (validatorConfig, error) {
 	for _, reportType := range passedValues {
 		_, ok := allowedReportTypes[reportType]
 		if !ok {
-			return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
-		} else if reportType == "junit" && *groupOutputPtr != "" {
+			return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, or junit")
+		}
+
+		if reportType == "junit" && *groupOutputPtr != "" {
 			fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
 			flag.Usage()
 			return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
