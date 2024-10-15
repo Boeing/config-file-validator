@@ -11,7 +11,7 @@ require (
 	github.com/magiconair/properties v1.8.7
 	github.com/owenrumney/go-sarif/v2 v2.3.3
 	github.com/pelletier/go-toml/v2 v2.0.6
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.9.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.0
