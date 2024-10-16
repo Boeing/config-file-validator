@@ -82,13 +82,13 @@ func getFlags() (validatorConfig, error) {
 	quietPtr := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 
 	flagsEnvMap := map[string]string{
-		"depth":              "CSV_DEPTH",
-		"exclude-dirs":       "CSV_EXCLUDE_DIRS",
-		"exclude-file-types": "CSV_EXCLUDE_FILE_TYPES",
-		"output":             "CSV_OUTPUT",
-		"reporter":           "CSV_REPORTER",
-		"groupby":            "CSV_GROUPBY",
-		"quiet":              "CSV_QUIET",
+		"depth":              "CFV_DEPTH",
+		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
+		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
+		"output":             "CFV_OUTPUT",
+		"reporter":           "CFV_REPORTER",
+		"groupby":            "CFV_GROUPBY",
+		"quiet":              "CFV_QUIET",
 	}
 
 	for flagName, envVar := range flagsEnvMap {
