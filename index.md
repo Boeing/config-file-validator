@@ -63,6 +63,7 @@
 * TOML
 * XML
 * YAML
+* SARIF
 
 ## Demo
 

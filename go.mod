@@ -9,7 +9,6 @@ require (
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.18.1
 	github.com/magiconair/properties v1.8.7
-	github.com/owenrumney/go-sarif/v2 v2.3.3
 	github.com/pelletier/go-toml/v2 v2.0.6
 	github.com/stretchr/testify v1.9.0
 	gopkg.in/ini.v1 v1.67.0
@@ -30,4 +29,5 @@ require (
 	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )

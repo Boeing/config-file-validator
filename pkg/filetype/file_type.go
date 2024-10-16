@@ -114,7 +114,7 @@ var EditorConfigFileType = FileType{
 var SarifFileType = FileType{
 	"sarif",
 	misc.ArrToMap("sarif"),
-	validator.SarifValidator{},
+	validator.JSONValidator{},
 }
 
 // An array of files types that are supported
