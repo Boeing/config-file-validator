@@ -22,7 +22,7 @@ optional flags:
   -reporter string
     	Format of the printed report. Options are standard and json (default "standard")
   -globbing bool
-		Set globbing to true to enable pattern matching for search paths
+    	Set globbing to true to enable pattern matching for search paths
   -version
     	Version prints the release version of validator
 */
