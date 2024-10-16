@@ -201,11 +201,15 @@ func mainInit() int {
 	// since the exclude dirs are a comma separated string
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
+
 	reportTypes := strings.Split(*validatorConfig.reportType, ",")
+	slices.Sort(reportTypes)
+	slices.Compact(reportTypes)
 	chosenReporters := make([]reporter.Reporter, len(reportTypes))
 	for i, reportType := range reportTypes {
 		chosenReporters[i] = getReporter(&reportType, validatorConfig.output)
 	}
+
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	fsOpts := []finder.FSFinderOptions{
