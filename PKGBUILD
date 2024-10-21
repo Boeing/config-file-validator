@@ -12,6 +12,11 @@ makedepends=('go>=1.21')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
+pkgver() {
+  cd "$pkgname"
+  git describe --tags | sed 's/^v//;s/-.*//'
+}
+
 build() {
   cd "$pkgname-$pkgver"
   CGO_ENABLED=0 \
