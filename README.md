@@ -161,10 +161,13 @@ validator --depth=0 /path/to/search
 ![Custom Recursion Run](./img/custom_recursion.png)
 
 #### Customize report output
-Customize the report output. Available options are `standard`, `junit`, and `json`
+You can customize the report output and save the results to a file (default name is result.{extension}). The available report types are `standard`, `junit`, and `json`. You can specify multiple report types by chaining the `--reporter` flags.
+
+Note that file output is supported only for `junit` and `json` report types. Providing an output file is optional, the results will be printed to stdout by default. To explicitly direct the output to stdout, use file path as `-`.
 
 ```
-validator --reporter=json /path/to/search
+validator --reporter=json:- /path/to/search
+validator --reporter=json:output.json --reporter=standard /path/to/search
 ```
 
 ![Exclude File Types Run](./img/custom_reporter.png)
@@ -184,13 +187,6 @@ validator -groupby directory,pass-fail
 ```
 
 ![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.png)
-
-### Output results to a file
-Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format. Available options are `junit` and `json`. If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
-
-```
-validator --reporter=json --output=/path/to/dir
-```
 
 ### Suppress output
 Passing the `--quiet` flag suppresses all output to stdout. If there are invalid config files the validator tool will exit with 1. Any errors in execution such as an invalid path will still be displayed.

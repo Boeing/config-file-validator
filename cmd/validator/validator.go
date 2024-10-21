@@ -17,10 +17,12 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
-  -output
-     	Destination of a file to outputting results
   -reporter string
-    	A comma separated list of report formats. Options are standard, json, and junit (default "standard")
+		A colon-separated string of report formats with optional output file paths.
+		Usage: --reporter <format>:<optional_file_path>
+		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
+		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
+		Supported formats: standard, json, junit (default: "standard")
   -version
     	Version prints the release version of validator
 */
@@ -46,12 +48,22 @@ type validatorConfig struct {
 	searchPaths      []string
 	excludeDirs      *string
 	excludeFileTypes *string
-	reportType       *string
+	reportType       map[string]string
 	depth            *int
 	versionQuery     *bool
-	output           *string
 	groupOutput      *string
 	quiet            *bool
+}
+
+type reporterFlags []string
+
+func (rf *reporterFlags) String() string {
+	return fmt.Sprintf("%v", *rf)
+}
+
+func (rf *reporterFlags) Set(value string) error {
+	*rf = append(*rf, value)
+	return nil
 }
 
 // Custom Usage function to cover
@@ -72,15 +84,46 @@ func validatorUsage() {
 // will return with exit = 1
 func getFlags() (validatorConfig, error) {
 	flag.Usage = validatorUsage
+	reporterConfigFlags := reporterFlags{}
+
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
-	outputPtr := flag.String("output", "", "Destination to a file to output results")
-	reportTypePtr := flag.String("reporter", "standard", "A comma separated list of report formats. Options are standard, json, and junit")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+
+	flag.Var(
+		&reporterConfigFlags,
+		"reporter",
+		`A colon-separated string of report formats with optional output file paths.
+Usage: --reporter <format>:<optional_file_path>
+Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
+Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
+Supported formats: standard, json, junit (default: "standard")`,
+	)
 	flag.Parse()
+
+	reporterConf := make(map[string]string)
+	for _, reportFlag := range reporterConfigFlags {
+		parts := strings.Split(reportFlag, ":")
+		switch len(parts) {
+		case 1:
+			reporterConf[parts[0]] = ""
+		case 2:
+			if parts[1] == "-" {
+				reporterConf[parts[0]] = ""
+			} else {
+				reporterConf[parts[0]] = parts[1]
+			}
+		default:
+			return validatorConfig{}, errors.New("Wrong parameter value format for reporter, expected format is `report_type:optional_file_path`")
+		}
+	}
+
+	if len(reporterConf) == 0 {
+		reporterConf["standard"] = ""
+	}
 
 	searchPaths := make([]string, 0)
 
@@ -94,8 +137,7 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	allowedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true}
-	passedValues := strings.Split(*reportTypePtr, ",")
-	for _, reportType := range passedValues {
+	for reportType, _ := range reporterConf {
 		_, ok := allowedReportTypes[reportType]
 		if !ok {
 			return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, or junit")
@@ -140,10 +182,9 @@ func getFlags() (validatorConfig, error) {
 		searchPaths,
 		excludeDirsPtr,
 		excludeFileTypesPtr,
-		reportTypePtr,
+		reporterConf,
 		depthPtr,
 		versionPtr,
-		outputPtr,
 		groupOutputPtr,
 		quietPrt,
 	}
@@ -202,12 +243,9 @@ func mainInit() int {
 	// it needs to be split into a slice of strings
 	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
 
-	reportTypes := strings.Split(*validatorConfig.reportType, ",")
-	slices.Sort(reportTypes)
-	slices.Compact(reportTypes)
-	chosenReporters := make([]reporter.Reporter, len(reportTypes))
-	for i, reportType := range reportTypes {
-		chosenReporters[i] = getReporter(&reportType, validatorConfig.output)
+	chosenReporters := make([]reporter.Reporter, 0)
+	for reportType, outputFile := range validatorConfig.reportType {
+		chosenReporters = append(chosenReporters, getReporter(&reportType, &outputFile))
 	}
 
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
