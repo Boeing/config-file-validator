@@ -120,13 +120,15 @@ optional flags:
 
 The config-file-validator supports setting options via environment variables. If both command-line flags and environment variables are set, the command-line flags will take precedence. The supported environment variables are as follows:
 
-- `CFV_DEPTH`: Equivalent to the `-depth` flag
-- `CFV_EXCLUDE_DIRS`: Equivalent to the `-exclude-dirs` flag
-- `CFV_EXCLUDE_FILE_TYPES`: Equivalent to the `-exclude-file-types` flag
-- `CFV_OUTPUT`: Equivalent to the `-output` flag
-- `CFV_REPORTER`: Equivalent to the `-reporter` flag
-- `CFV_GROUPBY`: Equivalent to the `-groupby` flag
-- `CFV_QUIET`: Equivalent to the `-quiet` flag
+| Environment Variable | Equivalent Flag |
+|----------------------|-----------------|
+| `CFV_DEPTH`          | `-depth`        |
+| `CFV_EXCLUDE_DIRS`   | `-exclude-dirs` |
+| `CFV_EXCLUDE_FILE_TYPES` | `-exclude-file-types` |
+| `CFV_OUTPUT`         | `-output`       |
+| `CFV_REPORTER`       | `-reporter`     |
+| `CFV_GROUPBY`        | `-groupby`      |
+| `CFV_QUIET`          | `-quiet`        |
 
 ### Examples
 #### Standard Run
