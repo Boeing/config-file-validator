@@ -34,6 +34,7 @@ func Test_flags(t *testing.T) {
 		{"incorrect group", []string{"-groupby=badgroup", "."}, 1},
 		{"correct group", []string{"-groupby=directory", "."}, 0},
 		{"grouped junit", []string{"-groupby=directory", "--reporter=junit", "."}, 1},
+		{"grouped sarif", []string{"-groupby=directory", "--reporter=sarif", "."}, 1},
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, 1},
 		{"quiet flag", []string{"--quiet=true", "."}, 0},
 	}
