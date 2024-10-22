@@ -118,16 +118,10 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, junit or sarif")
 	}
 
-	if *reportTypePtr == "junit" && *groupOutputPtr != "" {
-		fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+	if (*reportTypePtr == "junit" || *reportTypePtr == "sarif") && *groupOutputPtr != "" {
+		fmt.Println("Wrong parameter value for reporter, groupby is only supported for JSON reports")
 		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
-	}
-
-	if *reportTypePtr == "sarif" && *groupOutputPtr != "" {
-		fmt.Println("Wrong parameter value for reporter, groupby is not supported for SARIF reports")
-		flag.Usage()
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for SARIF reports")
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is only supported for JSON reports")
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
