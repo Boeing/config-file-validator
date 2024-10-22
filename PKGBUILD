@@ -8,17 +8,18 @@ arch=('x86_64')
 url="https://github.com/Boeing/config-file-validator"
 license=('Apache 2.0')
 depends=('glibc')
-makedepends=('go>=1.21')
-source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+makedepends=('go>=1.21' 'git' 'sed')
+source=("git+https://github.com/Boeing/config-file-validator.git")
 sha256sums=('SKIP')
+md5sums=('SKIP')
 
 pkgver() {
-  cd "$pkgname"
+  cd "$srcdir/$pkgname"
   git describe --tags | sed 's/^v//;s/-.*//'
 }
 
 build() {
-  cd "$pkgname-$pkgver"
+  cd "$srcdir/$pkgname"
   CGO_ENABLED=0 \
   GOOS=linux \
   GOARCH=amd64 \
@@ -31,6 +32,6 @@ build() {
 }
 
 package() {
-  cd "$pkgname-$pkgver"
+  cd "$srcdir/$pkgname"
   install -Dm755 validator "$pkgdir/usr/bin/validator"
 }
