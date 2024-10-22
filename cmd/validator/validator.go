@@ -151,7 +151,7 @@ Supported formats: standard, json, junit (default: "standard")`,
 	}
 
 	allowedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true}
-	for reportType, _ := range reporterConf {
+	for reportType := range reporterConf {
 		_, ok := allowedReportTypes[reportType]
 		if !ok {
 			return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, or junit")
