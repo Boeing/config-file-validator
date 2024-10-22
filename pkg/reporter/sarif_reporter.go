@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+const SARIFVersion = "2.1.0"
+const SARIFSchema = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
+const DriverName = "config-file-validator"
+const DriverInfoURI = "https://github.com/Boeing/config-file-validator"
+const DriverVersion = "1.7.1"
+
 type SARIFReporter struct {
 	outputDest string
 }
@@ -65,15 +71,15 @@ func createSARIFReport(reports []Report) (*SARIFLog, error) {
 
 	n := len(reports)
 
-	log.Version = "2.1.0"
-	log.Schema = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
+	log.Version = SARIFVersion
+	log.Schema = SARIFSchema
 
 	log.Runs = make([]runs, 1)
 	runs := &log.Runs[0]
 
-	runs.Tool.Driver.Name = "config-file-validator"
-	runs.Tool.Driver.InfoURI = "https://github.com/Boeing/config-file-validator"
-	runs.Tool.Driver.Version = "1.7.1"
+	runs.Tool.Driver.Name = DriverName
+	runs.Tool.Driver.InfoURI = DriverInfoURI
+	runs.Tool.Driver.Version = DriverVersion
 
 	runs.Results = make([]result, n)
 
