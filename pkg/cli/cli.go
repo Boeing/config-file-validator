@@ -59,7 +59,7 @@ func WithQuiet(quiet bool) Option {
 // Initialize the CLI object
 func Init(opts ...Option) *CLI {
 	defaultFsFinder := finder.FileSystemFinderInit()
-	defaultReporter := reporter.StdoutReporter{}
+	defaultReporter := reporter.NewStdoutReporter("")
 
 	cli := &CLI{
 		defaultFsFinder,

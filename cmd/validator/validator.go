@@ -214,7 +214,7 @@ func getReporter(reportType, outputDest *string) reporter.Reporter {
 	case "json":
 		return reporter.NewJSONReporter(*outputDest)
 	default:
-		return reporter.StdoutReporter{}
+		return reporter.NewStdoutReporter(*outputDest)
 	}
 }
 
@@ -245,7 +245,8 @@ func mainInit() int {
 
 	chosenReporters := make([]reporter.Reporter, 0)
 	for reportType, outputFile := range validatorConfig.reportType {
-		chosenReporters = append(chosenReporters, getReporter(&reportType, &outputFile))
+		rt, of := reportType, outputFile // avoid "Implicit memory aliasing in for loop"
+		chosenReporters = append(chosenReporters, getReporter(&rt, &of))
 	}
 
 	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")

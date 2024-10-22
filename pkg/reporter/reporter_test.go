@@ -37,7 +37,7 @@ func Test_stdoutReport(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-	stdoutReporter := StdoutReporter{}
+	stdoutReporter := NewStdoutReporter("")
 	err := stdoutReporter.Print(reports)
 	if err != nil {
 		t.Errorf("Reporting failed")

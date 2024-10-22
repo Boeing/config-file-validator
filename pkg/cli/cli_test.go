@@ -13,7 +13,7 @@ func Test_CLI(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
 	groupOutput := []string{""}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(searchPath),
@@ -109,7 +109,7 @@ func Test_CLIWithGroup(t *testing.T) {
 	searchPath := "../../test"
 	excludeDirs := []string{"subdir", "subdir2"}
 	groupOutput := []string{"pass-fail", "directory"}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(searchPath),

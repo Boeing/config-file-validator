@@ -15,7 +15,7 @@ func Test_NoGroupOutput(t *testing.T) {
 		"test2": {},
 		"test3": {},
 	}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	for i := range groupOutput {
 		fsFinder := finder.FileSystemFinderInit(
@@ -46,7 +46,7 @@ func Test_SingleGroupOutput(t *testing.T) {
 		"test2": {"filetype"},
 		"test3": {"pass-fail"},
 	}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	for i := range groupOutput {
 		fsFinder := finder.FileSystemFinderInit(
@@ -115,7 +115,7 @@ func Test_DoubleGroupOutput(t *testing.T) {
 		"test2": {"filetype", "directory"},
 		"test3": {"pass-fail", "filetype"},
 	}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	for i := range groupOutput {
 		fsFinder := finder.FileSystemFinderInit(
@@ -146,7 +146,7 @@ func Test_TripleGroupOutput(t *testing.T) {
 		"test2": {"filetype", "directory", "pass-fail"},
 		"test3": {"pass-fail", "filetype", "directory"},
 	}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	for i := range groupOutput {
 		fsFinder := finder.FileSystemFinderInit(
@@ -177,7 +177,7 @@ func Test_IncorrectSingleGroupOutput(t *testing.T) {
 		"test2": {"more bad"},
 		"test3": {"most bad"},
 	}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	for i := range groupOutput {
 		fsFinder := finder.FileSystemFinderInit(
@@ -209,7 +209,7 @@ func Test_IncorrectDoubleGroupOutput(t *testing.T) {
 		"test2": {"bad", "directory"},
 		"test3": {"pass-fail", "bad"},
 	}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	for i := range groupOutput {
 		fsFinder := finder.FileSystemFinderInit(
@@ -241,7 +241,7 @@ func Test_IncorrectTripleGroupOutput(t *testing.T) {
 		"test2": {"filetype", "bad", "directory"},
 		"test3": {"pass-fail", "filetype", "bad"},
 	}
-	stdoutReporter := reporter.StdoutReporter{}
+	stdoutReporter := reporter.NewStdoutReporter("")
 
 	for i := range groupOutput {
 		fsFinder := finder.FileSystemFinderInit(

@@ -106,12 +106,14 @@ optional flags:
     	A comma separated list of file types to ignore
   -groupby string
     	Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
-  -output string
-    	Destination to a file to output results
   -quiet
     	If quiet flag is set. It doesn't print any output to stdout.
   -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
+		A colon-separated string of report formats with optional output file paths.
+		Usage: --reporter <format>:<optional_file_path>
+		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
+		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
+		Supported formats: standard, json, junit (default: "standard")
   -version
     	Version prints the release version of validator
 ```
@@ -163,7 +165,7 @@ validator --depth=0 /path/to/search
 #### Customize report output
 You can customize the report output and save the results to a file (default name is result.{extension}). The available report types are `standard`, `junit`, and `json`. You can specify multiple report types by chaining the `--reporter` flags.
 
-Note that file output is supported only for `junit` and `json` report types. Providing an output file is optional, the results will be printed to stdout by default. To explicitly direct the output to stdout, use file path as `-`.
+Providing an output file is optional, the results will be printed to stdout by default. To explicitly direct the output to stdout, use file path as `-`.
 
 ```
 validator --reporter=json:- /path/to/search

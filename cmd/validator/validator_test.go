@@ -29,6 +29,7 @@ func Test_flags(t *testing.T) {
 		{"multiple paths", []string{"../../test/fixtures/subdir/good.json", "../../test/fixtures/good.json"}, 0},
 		{"version", []string{"--version"}, 0},
 		{"output set", []string{"--reporter=json:../../test/output", "."}, 0},
+		{"output set with standard reporter", []string{"--reporter=standard:../../test/output", "."}, 0},
 		{"wrong output set with json reporter", []string{"--reporter", "json:/path/not/exist", "."}, 1},
 		{"incorrect group", []string{"-groupby=badgroup", "."}, 1},
 		{"correct group", []string{"-groupby=directory", "."}, 0},
