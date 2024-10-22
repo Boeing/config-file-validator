@@ -116,6 +116,20 @@ optional flags:
     	Version prints the release version of validator
 ```
 
+### Environment Variables
+
+The config-file-validator supports setting options via environment variables. If both command-line flags and environment variables are set, the command-line flags will take precedence. The supported environment variables are as follows:
+
+| Environment Variable | Equivalent Flag |
+|----------------------|-----------------|
+| `CFV_DEPTH`          | `-depth`        |
+| `CFV_EXCLUDE_DIRS`   | `-exclude-dirs` |
+| `CFV_EXCLUDE_FILE_TYPES` | `-exclude-file-types` |
+| `CFV_OUTPUT`         | `-output`       |
+| `CFV_REPORTER`       | `-reporter`     |
+| `CFV_GROUPBY`        | `-groupby`      |
+| `CFV_QUIET`          | `-quiet`        |
+
 ### Examples
 #### Standard Run
 If the search path is omitted it will search the current directory

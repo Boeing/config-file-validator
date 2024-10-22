@@ -79,7 +79,24 @@ func getFlags() (validatorConfig, error) {
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
-	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+	quietPtr := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+
+	flagsEnvMap := map[string]string{
+		"depth":              "CFV_DEPTH",
+		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
+		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
+		"output":             "CFV_OUTPUT",
+		"reporter":           "CFV_REPORTER",
+		"groupby":            "CFV_GROUPBY",
+		"quiet":              "CFV_QUIET",
+	}
+
+	for flagName, envVar := range flagsEnvMap {
+		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
+			return validatorConfig{}, err
+		}
+	}
+
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
@@ -142,7 +159,7 @@ func getFlags() (validatorConfig, error) {
 		versionPtr,
 		outputPtr,
 		groupOutputPtr,
-		quietPrt,
+		quietPtr,
 	}
 
 	return config, nil
@@ -159,6 +176,20 @@ func isFlagSet(flagName string) bool {
 	})
 
 	return isSet
+}
+
+func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
+	if isFlagSet(flagName) {
+		return nil
+	}
+
+	if envVarValue, ok := os.LookupEnv(envVar); ok {
+		if err := flag.Set(flagName, envVarValue); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Return the reporter associated with the
