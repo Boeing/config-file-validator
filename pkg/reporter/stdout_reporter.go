@@ -25,15 +25,14 @@ func NewStdoutReporter(outputDest string) *StdoutReporter {
 // Print implements the Reporter interface by outputting
 // the report content to stdout
 func (sr StdoutReporter) Print(reports []Report) error {
-	if len(reports) > 0 && reports[0].IsQuiet {
-		return nil
-	}
-
 	stdoutReport := createStdoutReport(reports, 1)
-	fmt.Println(stdoutReport.Text)
 
 	if sr.outputDest != "" {
 		return outputBytesToFile(sr.outputDest, "result", "txt", []byte(stdoutReport.Text))
+	}
+
+	if len(reports) > 0 && !reports[0].IsQuiet {
+		fmt.Print(stdoutReport.Text)
 	}
 
 	return nil
