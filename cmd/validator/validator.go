@@ -102,6 +102,8 @@ Omit the file path to output to stdout: --reporter json or explicitly specify st
 Supported formats: standard, json, junit (default: "standard")`,
 	)
 
+	flag.Parse()
+
 	flagsEnvMap := map[string]string{
 		"depth":              "CFV_DEPTH",
 		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
@@ -110,14 +112,11 @@ Supported formats: standard, json, junit (default: "standard")`,
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
 	}
-
 	for flagName, envVar := range flagsEnvMap {
 		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
 			return validatorConfig{}, err
 		}
 	}
-
-	flag.Parse()
 
 	reporterConf := make(map[string]string)
 	for _, reportFlag := range reporterConfigFlags {
