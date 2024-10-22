@@ -91,8 +91,7 @@ func getFlags() (validatorConfig, error) {
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
 	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
-	quietPrt := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
-
+	quietPtr := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 	flag.Var(
 		&reporterConfigFlags,
 		"reporter",
@@ -102,6 +101,22 @@ Multiple reporters can be specified: --reporter json:file_path.json --reporter j
 Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
 Supported formats: standard, json, junit (default: "standard")`,
 	)
+
+	flagsEnvMap := map[string]string{
+		"depth":              "CFV_DEPTH",
+		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
+		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
+		"reporter":           "CFV_REPORTER",
+		"groupby":            "CFV_GROUPBY",
+		"quiet":              "CFV_QUIET",
+	}
+
+	for flagName, envVar := range flagsEnvMap {
+		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
+			return validatorConfig{}, err
+		}
+	}
+
 	flag.Parse()
 
 	reporterConf := make(map[string]string)
@@ -186,7 +201,7 @@ Supported formats: standard, json, junit (default: "standard")`,
 		depthPtr,
 		versionPtr,
 		groupOutputPtr,
-		quietPrt,
+		quietPtr,
 	}
 
 	return config, nil
@@ -203,6 +218,20 @@ func isFlagSet(flagName string) bool {
 	})
 
 	return isSet
+}
+
+func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
+	if isFlagSet(flagName) {
+		return nil
+	}
+
+	if envVarValue, ok := os.LookupEnv(envVar); ok {
+		if err := flag.Set(flagName, envVarValue); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Return the reporter associated with the
