@@ -58,7 +58,7 @@ type validatorConfig struct {
 type reporterFlags []string
 
 func (rf *reporterFlags) String() string {
-	return fmt.Sprintf("%v", *rf)
+	return fmt.Sprint(*rf)
 }
 
 func (rf *reporterFlags) Set(value string) error {
