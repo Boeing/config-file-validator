@@ -104,73 +104,21 @@ Supported formats: standard, json, junit (default: "standard")`,
 
 	flag.Parse()
 
-	flagsEnvMap := map[string]string{
-		"depth":              "CFV_DEPTH",
-		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
-		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
-		"reporter":           "CFV_REPORTER",
-		"groupby":            "CFV_GROUPBY",
-		"quiet":              "CFV_QUIET",
-	}
-	for flagName, envVar := range flagsEnvMap {
-		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
-			return validatorConfig{}, err
-		}
+	err := applyDefaultFlagsFromEnv()
+	if err != nil {
+		return validatorConfig{}, err
 	}
 
-	reporterConf := make(map[string]string)
-	for _, reportFlag := range reporterConfigFlags {
-		parts := strings.Split(reportFlag, ":")
-		switch len(parts) {
-		case 1:
-			reporterConf[parts[0]] = ""
-		case 2:
-			if parts[1] == "-" {
-				reporterConf[parts[0]] = ""
-			} else {
-				reporterConf[parts[0]] = parts[1]
-			}
-		default:
-			return validatorConfig{}, errors.New("Wrong parameter value format for reporter, expected format is `report_type:optional_file_path`")
-		}
+	reporterConf, err := parseReporterFlags(reporterConfigFlags)
+	if err != nil {
+		return validatorConfig{}, err
 	}
 
-	if len(reporterConf) == 0 {
-		reporterConf["standard"] = ""
-	}
+	searchPaths := parseSearchPath()
 
-	searchPaths := make([]string, 0)
-
-	// If search path arg is empty, set it to the cwd
-	// if not, set it to the arg. Supports n number of
-	// paths
-	if flag.NArg() == 0 {
-		searchPaths = append(searchPaths, ".")
-	} else {
-		searchPaths = append(searchPaths, flag.Args()...)
-	}
-
-	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
-	groupOutputReportTypes := map[string]bool{"standard": true, "json": true}
-	for reportType := range reporterConf {
-		_, ok := acceptedReportTypes[reportType]
-		if !ok {
-			fmt.Println("Wrong parameter value for reporter, only supports standard, json, junit, or sarif")
-			flag.Usage()
-			return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, junit, or sarif")
-		}
-
-		if reportType == "junit" && *groupOutputPtr != "" {
-			fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
-			flag.Usage()
-			return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
-		}
-
-		if !groupOutputReportTypes[reportType] && *groupOutputPtr != "" {
-			fmt.Println("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
-			flag.Usage()
-			return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
-		}
+	err = validateReporterConf(reporterConf, *groupOutputPtr)
+	if err != nil {
+		return validatorConfig{}, err
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
@@ -179,26 +127,9 @@ Supported formats: standard, json, junit (default: "standard")`,
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
 	}
 
-	groupByCleanString := cleanString("groupby")
-	groupByUserInput := strings.Split(groupByCleanString, ",")
-	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
-	seenValues := make(map[string]bool)
-
-	// Check that the groupby values are valid and not duplicates
-	if groupOutputPtr != nil && isFlagSet("groupby") {
-		for _, groupBy := range groupByUserInput {
-			if !slices.Contains(groupByAllowedValues, groupBy) {
-				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
-				flag.Usage()
-				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
-			}
-			if _, ok := seenValues[groupBy]; ok {
-				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
-				flag.Usage()
-				return validatorConfig{}, errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
-			}
-			seenValues[groupBy] = true
-		}
+	err = validateGroupByConf(groupOutputPtr)
+	if err != nil {
+		return validatorConfig{}, err
 	}
 
 	config := validatorConfig{
@@ -215,6 +146,100 @@ Supported formats: standard, json, junit (default: "standard")`,
 	return config, nil
 }
 
+func validateReporterConf(conf map[string]string, groupBy string) error {
+	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
+	groupOutputReportTypes := map[string]bool{"standard": true, "json": true}
+
+	for reportType := range conf {
+		_, ok := acceptedReportTypes[reportType]
+		if !ok {
+			fmt.Println("Wrong parameter value for reporter, only supports standard, json, junit, or sarif")
+			flag.Usage()
+			return errors.New("Wrong parameter value for reporter, only supports standard, json, junit, or sarif")
+		}
+
+		if reportType == "junit" && groupBy != "" {
+			fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+			flag.Usage()
+			return errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+		}
+
+		if !groupOutputReportTypes[reportType] && groupBy != "" {
+			fmt.Println("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
+			flag.Usage()
+			return errors.New("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
+		}
+	}
+
+	return nil
+}
+
+func validateGroupByConf(groupBy *string) error {
+	groupByCleanString := cleanString("groupby")
+	groupByUserInput := strings.Split(groupByCleanString, ",")
+	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
+	seenValues := make(map[string]bool)
+
+	// Check that the groupby values are valid and not duplicates
+	if groupBy != nil && isFlagSet("groupby") {
+		for _, groupBy := range groupByUserInput {
+			if !slices.Contains(groupByAllowedValues, groupBy) {
+				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+				flag.Usage()
+				return errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+			}
+			if _, ok := seenValues[groupBy]; ok {
+				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
+				flag.Usage()
+				return errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
+			}
+			seenValues[groupBy] = true
+		}
+	}
+
+	return nil
+}
+
+func parseSearchPath() []string {
+	searchPaths := make([]string, 0)
+
+	// If search path arg is empty, set it to the cwd
+	// if not, set it to the arg. Supports n number of
+	// paths
+	if flag.NArg() == 0 {
+		searchPaths = append(searchPaths, ".")
+	} else {
+		searchPaths = append(searchPaths, flag.Args()...)
+	}
+
+	return searchPaths
+}
+
+func parseReporterFlags(flags reporterFlags) (map[string]string, error) {
+	conf := make(map[string]string)
+	for _, reportFlag := range flags {
+		parts := strings.Split(reportFlag, ":")
+		switch len(parts) {
+		case 1:
+			conf[parts[0]] = ""
+		case 2:
+			if parts[1] == "-" {
+				conf[parts[0]] = ""
+			} else {
+				conf[parts[0]] = parts[1]
+			}
+		default:
+			return nil, errors.New("Wrong parameter value format for reporter, expected format is `report_type:optional_file_path`")
+		}
+	}
+
+	if len(conf) == 0 {
+		conf["standard"] = ""
+	}
+
+	return conf, nil
+}
+
 // isFlagSet verifies if a given flag has been set or not
 func isFlagSet(flagName string) bool {
 	var isSet bool
@@ -226,6 +251,25 @@ func isFlagSet(flagName string) bool {
 	})
 
 	return isSet
+}
+
+func applyDefaultFlagsFromEnv() error {
+	flagsEnvMap := map[string]string{
+		"depth":              "CFV_DEPTH",
+		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
+		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
+		"reporter":           "CFV_REPORTER",
+		"groupby":            "CFV_GROUPBY",
+		"quiet":              "CFV_QUIET",
+	}
+
+	for flagName, envVar := range flagsEnvMap {
+		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
