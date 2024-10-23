@@ -18,11 +18,15 @@ optional flags:
   -exclude-file-types string
     	A comma separated list of file types to ignore
   -reporter string
+<<<<<<< HEAD
 		A colon-separated string of report formats with optional output file paths.
 		Usage: --reporter <format>:<optional_file_path>
 		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
 		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
 		Supported formats: standard, json, junit (default: "standard")
+=======
+    	Format of the printed report. Options are standard, json, junit and sarif (default "standard")
+>>>>>>> main
   -version
     	Version prints the release version of validator
 */
@@ -150,17 +154,26 @@ Supported formats: standard, json, junit (default: "standard")`,
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
-	allowedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true}
+	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
+	groupOutputReportTypes := map[string]bool{"standard": true, "json": true}
 	for reportType := range reporterConf {
-		_, ok := allowedReportTypes[reportType]
+		_, ok := acceptedReportTypes[reportType]
 		if !ok {
-			return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, or junit")
+			fmt.Println("Wrong parameter value for reporter, only supports standard, json, junit, or sarif")
+			flag.Usage()
+			return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, junit, or sarif")
 		}
 
 		if reportType == "junit" && *groupOutputPtr != "" {
 			fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
 			flag.Usage()
 			return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+		}
+
+		if !groupOutputReportTypes[reportType] && *groupOutputPtr != "" {
+			fmt.Println("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
+			flag.Usage()
+			return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
 		}
 	}
 
@@ -241,6 +254,8 @@ func getReporter(reportType, outputDest *string) reporter.Reporter {
 		return reporter.NewJunitReporter(*outputDest)
 	case "json":
 		return reporter.NewJSONReporter(*outputDest)
+	case "sarif":
+		return reporter.NewSARIFReporter(*outputDest)
 	default:
 		return reporter.NewStdoutReporter(*outputDest)
 	}
