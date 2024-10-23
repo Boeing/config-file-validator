@@ -18,15 +18,11 @@ optional flags:
   -exclude-file-types string
     	A comma separated list of file types to ignore
   -reporter string
-<<<<<<< HEAD
 		A colon-separated string of report formats with optional output file paths.
 		Usage: --reporter <format>:<optional_file_path>
 		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
 		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
 		Supported formats: standard, json, junit (default: "standard")
-=======
-    	Format of the printed report. Options are standard, json, junit and sarif (default "standard")
->>>>>>> main
   -version
     	Version prints the release version of validator
 */
