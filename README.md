@@ -109,7 +109,7 @@ optional flags:
   -quiet
     	If quiet flag is set. It doesn't print any output to stdout.
   -reporter string
-		A colon-separated string of report formats with optional output file paths.
+		A string representing report format and optional output file path separated by colon if present.
 		Usage: --reporter <format>:<optional_file_path>
 		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
 		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-

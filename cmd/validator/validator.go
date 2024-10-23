@@ -18,7 +18,7 @@ optional flags:
   -exclude-file-types string
     	A comma separated list of file types to ignore
   -reporter string
-		A colon-separated string of report formats with optional output file paths.
+		A string representing report format and optional output file path separated by colon if present.
 		Usage: --reporter <format>:<optional_file_path>
 		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
 		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
@@ -95,7 +95,7 @@ func getFlags() (validatorConfig, error) {
 	flag.Var(
 		&reporterConfigFlags,
 		"reporter",
-		`A colon-separated string of report formats with optional output file paths.
+		`A string representing report format and optional output file path separated by colon if present.
 Usage: --reporter <format>:<optional_file_path>
 Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
 Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
