@@ -32,6 +32,7 @@ func Test_flags(t *testing.T) {
 		{"output set", []string{"--reporter=json:../../test/output", "."}, 0},
 		{"output set with standard reporter", []string{"--reporter=standard:../../test/output", "."}, 0},
 		{"wrong output set with json reporter", []string{"--reporter", "json:/path/not/exist", "."}, 1},
+		{"incorrect reporter param format with json reporter", []string{"--reporter", "json:/path/not/exist:/some/other/non-existent/path", "."}, 1},
 		{"incorrect group", []string{"-groupby=badgroup", "."}, 1},
 		{"correct group", []string{"-groupby=directory", "."}, 0},
 		{"grouped junit", []string{"-groupby=directory", "--reporter=junit", "."}, 1},
