@@ -2,6 +2,7 @@ package validator
 
 import (
 	_ "embed"
+	"os/exec"
 	"testing"
 )
 
@@ -55,6 +56,8 @@ var testData = []struct {
 	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
 	{"validProperties", []byte("key=value\nkey2=${key}"), true, PropValidator{}},
 	{"invalidProperties", []byte("key=${key}"), false, PropValidator{}},
+	{"validPkl", []byte(`name = "Swallow"`), true, PklValidator{}},
+	{"invalidPkl", []byte(`"name" = "Swallow"`), false, PklValidator{}},
 	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
 	{"invalidHcl", []byte(`"key" = "value"`), false, HclValidator{}},
 	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
@@ -70,6 +73,11 @@ var testData = []struct {
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
 }
 
+func isPklBinaryPresent() bool {
+	_, err := exec.LookPath("pkl")
+	return err == nil
+}
+
 func Test_ValidationInput(t *testing.T) {
 	t.Parallel()
 
@@ -78,6 +86,13 @@ func Test_ValidationInput(t *testing.T) {
 
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
+
+			// Skip PklValidator tests if the pkl binary is not present
+			if _, ok := tcase.validator.(PklValidator); ok {
+				if !isPklBinaryPresent() {
+					t.Skip("Skipping test: 'pkl' binary not found.")
+				}
+			}
 
 			valid, err := tcase.validator.Validate(tcase.testInput)
 			if valid != tcase.expectedResult {

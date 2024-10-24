@@ -46,6 +46,7 @@
 * INI
 * JSON
 * Properties
+* PKL _(requires that the `pkl` binary is installed; `.pkl` files will be ignored if the binary is not installed)_
 * TOML
 * XML
 * YAML
@@ -157,7 +158,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.png)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `pkl`, `toml`, `xml`, `yaml`, and `yml`
 
 ```
 validator --exclude-file-types=json /path/to/search
@@ -221,7 +222,7 @@ docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.6.0 /
 ![Docker Standard Run](./img/docker_run.png)
 
 ## Build
-The project can be downloaded and built from source using an environment with Go 1.21+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
+The project can be downloaded and built from source using an environment with Go 1.22.1+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
 
 ### macOS
 #### Build
