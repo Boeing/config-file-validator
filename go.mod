@@ -1,10 +1,12 @@
 module github.com/Boeing/config-file-validator
 
-go 1.21
+go 1.21.0
 
 require (
+	github.com/editorconfig/editorconfig-core-go/v2 v2.6.2
 	github.com/fatih/color v1.13.0
 	github.com/gurkankaymak/hocon v1.2.18
+	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.18.1
 	github.com/magiconair/properties v1.8.7
 	github.com/pelletier/go-toml/v2 v2.0.6
@@ -19,16 +21,12 @@ require (
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/editorconfig/editorconfig-core-go/v2 v2.6.2 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/hashicorp/go-envparse v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/zclconf/go-cty v1.13.0 // indirect
 	golang.org/x/mod v0.16.0 // indirect
-	golang.org/x/sync v0.2.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
 )
