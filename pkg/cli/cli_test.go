@@ -22,7 +22,7 @@ func Test_CLI(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters([]reporter.Reporter{stdoutReporter}),
+		WithReporters(stdoutReporter),
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
@@ -51,7 +51,7 @@ func Test_CLIWithMultipleReporters(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporters),
+		WithReporters(reporters...),
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
@@ -118,7 +118,7 @@ func Test_CLIWithGroup(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters([]reporter.Reporter{stdoutReporter}),
+		WithReporters(stdoutReporter),
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()
@@ -144,7 +144,7 @@ func Test_CLIReportErr(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters([]reporter.Reporter{jsonReporter}),
+		WithReporters(jsonReporter),
 		WithGroupOutput(groupOutput),
 	)
 	exitStatus, err := cli.Run()

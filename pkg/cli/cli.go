@@ -38,7 +38,7 @@ func WithFinder(f finder.FileFinder) Option {
 }
 
 // Set the reporter types
-func WithReporters(r []reporter.Reporter) Option {
+func WithReporters(r ...reporter.Reporter) Option {
 	return func(c *CLI) {
 		c.Reporters = r
 	}

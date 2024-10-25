@@ -116,7 +116,7 @@ Supported formats: standard, json, junit (default: "standard")`,
 
 	searchPaths := parseSearchPath()
 
-	err = validateReporterConf(reporterConf, *groupOutputPtr)
+	err = validateReporterConf(reporterConf, groupOutputPtr)
 	if err != nil {
 		return validatorConfig{}, err
 	}
@@ -146,7 +146,7 @@ Supported formats: standard, json, junit (default: "standard")`,
 	return config, nil
 }
 
-func validateReporterConf(conf map[string]string, groupBy string) error {
+func validateReporterConf(conf map[string]string, groupBy *string) error {
 	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
 	groupOutputReportTypes := map[string]bool{"standard": true, "json": true}
 
@@ -158,13 +158,7 @@ func validateReporterConf(conf map[string]string, groupBy string) error {
 			return errors.New("Wrong parameter value for reporter, only supports standard, json, junit, or sarif")
 		}
 
-		if reportType == "junit" && groupBy != "" {
-			fmt.Println("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
-			flag.Usage()
-			return errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
-		}
-
-		if !groupOutputReportTypes[reportType] && groupBy != "" {
+		if !groupOutputReportTypes[reportType] && groupBy != nil && *groupBy != "" {
 			fmt.Println("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
 			flag.Usage()
 			return errors.New("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
@@ -350,7 +344,7 @@ func mainInit() int {
 
 	// Initialize the CLI
 	c := cli.Init(
-		cli.WithReporters(chosenReporters),
+		cli.WithReporters(chosenReporters...),
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
