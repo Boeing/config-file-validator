@@ -17,6 +17,8 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+	-file-types string
+			A comma separated list of file types to validate. Mutually exclusive with -exclude-file-types
   -output
      	Destination of a file to outputting results
   -reporter string
@@ -38,7 +40,9 @@ import (
 
 	configfilevalidator "github.com/Boeing/config-file-validator"
 	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
 
@@ -75,6 +79,7 @@ func getFlags() (validatorConfig, error) {
 	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+	fileTypesPtr := flag.String("file-types", "", "A comma separated list of file types to validate. Mutually exclusive with --exclude-file-types")
 	outputPtr := flag.String("output", "", "Destination to a file to output results")
 	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard, json, junit and sarif")
 	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
@@ -85,6 +90,7 @@ func getFlags() (validatorConfig, error) {
 		"depth":              "CFV_DEPTH",
 		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
 		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
+		"file-types":         "CFV_FILE_TYPES",
 		"output":             "CFV_OUTPUT",
 		"reporter":           "CFV_REPORTER",
 		"groupby":            "CFV_GROUPBY",
@@ -130,6 +136,16 @@ func getFlags() (validatorConfig, error) {
 		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
 		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
+	}
+
+	if *excludeFileTypesPtr != "" && *fileTypesPtr != "" {
+		fmt.Println("Cannot use --exclude-file-types and --file-types together.")
+		flag.Usage()
+		return validatorConfig{}, errors.New("Cannot use --exclude-file-types and --file-types together")
+	}
+
+	if *fileTypesPtr != "" {
+		flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr))
 	}
 
 	groupByCleanString := cleanString("groupby")
@@ -194,6 +210,28 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 	}
 
 	return nil
+}
+
+func getExcludeFileTypesFromFileTypes(fileTypesPtr *string) string {
+	validTypes := make([]string, 0, len(filetype.FileTypes))
+
+	for _, t := range filetype.FileTypes {
+		validTypes = append(validTypes, t.Name)
+	}
+
+	validExcludeTypes := misc.ArrToMap(validTypes...)
+
+	for _, t := range strings.Split(*fileTypesPtr, ",") {
+		delete(validExcludeTypes, t)
+	}
+
+	excludeFileTypes := make([]string, 0, len(validExcludeTypes))
+
+	for fileType := range validExcludeTypes {
+		excludeFileTypes = append(excludeFileTypes, fileType)
+	}
+
+	return strings.Join(excludeFileTypes, ",")
 }
 
 // Return the reporter associated with the
