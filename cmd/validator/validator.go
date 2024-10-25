@@ -17,7 +17,7 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
-	-file-types string
+  -file-types string
     	A comma separated list of file types to validate. Mutually exclusive with -exclude-file-types
   -output
      	Destination of a file to outputting results
