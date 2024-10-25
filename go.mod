@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.2
 	github.com/fatih/color v1.13.0
-	github.com/gurkankaymak/hocon v1.2.18
+	github.com/gurkankaymak/hocon v1.2.20
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.18.1
 	github.com/magiconair/properties v1.8.7
