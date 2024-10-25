@@ -37,6 +37,8 @@ func Test_flags(t *testing.T) {
 		{"grouped sarif", []string{"-groupby=directory", "--reporter=sarif", "."}, 1},
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, 1},
 		{"quiet flag", []string{"--quiet=true", "."}, 0},
+		{"exclude file types and file types", []string{"--exclude-file-types=yaml", "--file-types=yaml"}, 1},
+		{"file types set", []string{"--file-types=yaml"}, 0},
 	}
 	for _, tc := range cases {
 		// this call is required because otherwise flags panics,

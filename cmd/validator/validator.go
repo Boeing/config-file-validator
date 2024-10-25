@@ -18,7 +18,7 @@ optional flags:
   -exclude-file-types string
     	A comma separated list of file types to ignore
 	-file-types string
-			A comma separated list of file types to validate. Mutually exclusive with -exclude-file-types
+    	A comma separated list of file types to validate. Mutually exclusive with -exclude-file-types
   -output
      	Destination of a file to outputting results
   -reporter string
@@ -145,29 +145,15 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	if *fileTypesPtr != "" {
-		flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr))
+		err := flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr))
+		if err != nil {
+			return validatorConfig{}, err
+		}
 	}
 
-	groupByCleanString := cleanString("groupby")
-	groupByUserInput := strings.Split(groupByCleanString, ",")
-	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
-	seenValues := make(map[string]bool)
-
-	// Check that the groupby values are valid and not duplicates
-	if groupOutputPtr != nil && isFlagSet("groupby") {
-		for _, groupBy := range groupByUserInput {
-			if !slices.Contains(groupByAllowedValues, groupBy) {
-				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
-				flag.Usage()
-				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
-			}
-			if _, ok := seenValues[groupBy]; ok {
-				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
-				flag.Usage()
-				return validatorConfig{}, errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
-			}
-			seenValues[groupBy] = true
-		}
+	err := checkValidGroupByValues(groupOutputPtr)
+	if err != nil {
+		return validatorConfig{}, err
 	}
 
 	config := validatorConfig{
@@ -183,6 +169,31 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	return config, nil
+}
+
+func checkValidGroupByValues(groupOutputPtr *string) error {
+	groupByCleanString := cleanString("groupby")
+	groupByUserInput := strings.Split(groupByCleanString, ",")
+	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
+	seenValues := make(map[string]bool)
+
+	// Check that the groupby values are valid and not duplicates
+	if groupOutputPtr != nil && isFlagSet("groupby") {
+		for _, groupBy := range groupByUserInput {
+			if !slices.Contains(groupByAllowedValues, groupBy) {
+				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+				flag.Usage()
+				return errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+			}
+			if _, ok := seenValues[groupBy]; ok {
+				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
+				flag.Usage()
+				return errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
+			}
+			seenValues[groupBy] = true
+		}
+	}
+	return nil
 }
 
 // isFlagSet verifies if a given flag has been set or not
@@ -212,6 +223,7 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 	return nil
 }
 
+// Build exclude-file-type list from file-type values
 func getExcludeFileTypesFromFileTypes(fileTypesPtr *string) string {
 	validTypes := make([]string, 0, len(filetype.FileTypes))
 
