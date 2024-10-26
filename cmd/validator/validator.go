@@ -20,7 +20,7 @@ optional flags:
   -output
      	Destination of a file to outputting results
   -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
+    	Format of the printed report. Options are standard, json, junit and sarif (default "standard")
   -version
     	Version prints the release version of validator
 */
@@ -103,11 +103,28 @@ func getFlags() (validatorConfig, error) {
 		excludeDirsPtr      = flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 		excludeFileTypesPtr = flag.String("exclude-file-types", "", "A comma separated list of file types to ignore.\nValid options: "+strings.Join(getFileTypes(), ", "))
 		outputPtr           = flag.String("output", "", "Destination to a file to output results")
-		reportTypePtr       = flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
+		reportTypePtr       = flag.String("reporter", "standard", "Format of the printed report. Options are standard, json, junit and sarif")
 		versionPtr          = flag.Bool("version", false, "Version prints the release version of validator")
 		groupOutputPtr      = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
-		quietPrt            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+		quietPtr            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 	)
+
+	flagsEnvMap := map[string]string{
+		"depth":              "CFV_DEPTH",
+		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
+		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
+		"output":             "CFV_OUTPUT",
+		"reporter":           "CFV_REPORTER",
+		"groupby":            "CFV_GROUPBY",
+		"quiet":              "CFV_QUIET",
+	}
+
+	for flagName, envVar := range flagsEnvMap {
+		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
+			return validatorConfig{}, err
+		}
+	}
+
 	flag.Parse()
 
 	searchPaths := make([]string, 0)
@@ -121,12 +138,16 @@ func getFlags() (validatorConfig, error) {
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
-	if *reportTypePtr != "standard" && *reportTypePtr != "json" && *reportTypePtr != "junit" {
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json or junit")
+	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
+
+	if !acceptedReportTypes[*reportTypePtr] {
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, junit or sarif")
 	}
 
-	if *reportTypePtr == "junit" && *groupOutputPtr != "" {
-		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is not supported for JUnit reports")
+	groupOutputReportTypes := map[string]bool{"standard": true, "json": true}
+
+	if !groupOutputReportTypes[*reportTypePtr] && *groupOutputPtr != "" {
+		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
@@ -166,7 +187,7 @@ func getFlags() (validatorConfig, error) {
 		versionPtr,
 		outputPtr,
 		groupOutputPtr,
-		quietPrt,
+		quietPtr,
 	}
 
 	return config, nil
@@ -185,6 +206,20 @@ func isFlagSet(flagName string) bool {
 	return isSet
 }
 
+func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
+	if isFlagSet(flagName) {
+		return nil
+	}
+
+	if envVarValue, ok := os.LookupEnv(envVar); ok {
+		if err := flag.Set(flagName, envVarValue); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Return the reporter associated with the
 // reportType string
 func getReporter(reportType, outputDest *string) reporter.Reporter {
@@ -193,6 +228,8 @@ func getReporter(reportType, outputDest *string) reporter.Reporter {
 		return reporter.NewJunitReporter(*outputDest)
 	case "json":
 		return reporter.NewJSONReporter(*outputDest)
+	case "sarif":
+		return reporter.NewSARIFReporter(*outputDest)
 	default:
 		return reporter.StdoutReporter{}
 	}
