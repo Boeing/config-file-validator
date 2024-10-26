@@ -34,6 +34,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 
 	configfilevalidator "github.com/Boeing/config-file-validator"
@@ -72,6 +73,7 @@ func getFileTypes() []string {
 	for _, typ := range filetype.FileTypes {
 		options = append(options, typ.Name)
 	}
+	sort.Strings(options)
 	return options
 }
 
@@ -99,7 +101,7 @@ func getFlags() (validatorConfig, error) {
 	var (
 		depthPtr            = flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 		excludeDirsPtr      = flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-		excludeFileTypesPtr = flag.String("exclude-file-types", "", "A comma separated list of file types to ignore.\nValid options: "+strings.Join(getFileTypes(), ","))
+		excludeFileTypesPtr = flag.String("exclude-file-types", "", "A comma separated list of file types to ignore.\nValid options: "+strings.Join(getFileTypes(), ", "))
 		outputPtr           = flag.String("output", "", "Destination to a file to output results")
 		reportTypePtr       = flag.String("reporter", "standard", "Format of the printed report. Options are standard and json")
 		versionPtr          = flag.Bool("version", false, "Version prints the release version of validator")
