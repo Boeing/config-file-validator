@@ -94,6 +94,19 @@ func validateFileTypeList(input []string) bool {
 	return true
 }
 
+func buildSearchPath(n int) []string {
+	searchPaths := make([]string, 0)
+	// If search path arg is empty, set it to the cwd
+	// if not, set it to the arg. Supports n number of
+	// paths
+	if n == 0 {
+		searchPaths = append(searchPaths, ".")
+	} else {
+		searchPaths = append(searchPaths, flag.Args()...)
+	}
+	return searchPaths
+}
+
 // Parses, validates, and returns the flags
 // flag.String returns a pointer
 // If a required parameter is missing the help
@@ -124,24 +137,13 @@ func getFlags() (validatorConfig, error) {
 		"quiet":              "CFV_QUIET",
 	}
 
-	for flagName, envVar := range flagsEnvMap {
-		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
-			return validatorConfig{}, err
-		}
+	if err := setFlagFromEnvIfNotSet(flagsEnvMap); err != nil {
+		return validatorConfig{}, err
 	}
 
 	flag.Parse()
 
-	searchPaths := make([]string, 0)
-
-	// If search path arg is empty, set it to the cwd
-	// if not, set it to the arg. Supports n number of
-	// paths
-	if flag.NArg() == 0 {
-		searchPaths = append(searchPaths, ".")
-	} else {
-		searchPaths = append(searchPaths, flag.Args()...)
-	}
+	searchPaths := buildSearchPath(flag.NArg())
 
 	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
 
@@ -172,14 +174,12 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	if *fileTypesPtr != "" {
-		err := flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr))
-		if err != nil {
+		if err := flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr)); err != nil {
 			return validatorConfig{}, err
 		}
 	}
 
-	err := checkValidGroupByValues(groupOutputPtr)
-	if err != nil {
+	if err := checkValidGroupByValues(groupOutputPtr); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -236,14 +236,16 @@ func isFlagSet(flagName string) bool {
 	return isSet
 }
 
-func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
-	if isFlagSet(flagName) {
-		return nil
-	}
+func setFlagFromEnvIfNotSet(flagsEnvMap map[string]string) error {
+	for flagName, envVar := range flagsEnvMap {
+		if isFlagSet(flagName) {
+			return nil
+		}
 
-	if envVarValue, ok := os.LookupEnv(envVar); ok {
-		if err := flag.Set(flagName, envVarValue); err != nil {
-			return err
+		if envVarValue, ok := os.LookupEnv(envVar); ok {
+			if err := flag.Set(flagName, envVarValue); err != nil {
+				return err
+			}
 		}
 	}
 
