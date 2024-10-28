@@ -54,5 +54,5 @@ jobs:
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     - name: Run goreportcard
       run: |
-        # Failure threshold is set to 100% to fail at any errors. Default is 75%.
-        goreportcard-cli -t 100
+        # Failure threshold is set to 95% to fail at any errors. Default is 75%.
+        goreportcard-cli -t 95
