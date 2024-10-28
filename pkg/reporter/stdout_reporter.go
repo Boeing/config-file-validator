@@ -117,7 +117,7 @@ func createStdoutReport(reports []Report, indentSize int) reportStdout {
 			result.Text += fmtRed.Sprintf("%serror: %v\n", errIndent, paddedString)
 			result.Summary.Failed++
 		} else {
-			result.Text += color.New(color.FgGreen).Sprintf("%s✓ %s", indent, report.FilePath)
+			result.Text += color.New(color.FgGreen).Sprintf("%s✓ %s\n", indent, report.FilePath)
 			result.Summary.Passed++
 		}
 	}
