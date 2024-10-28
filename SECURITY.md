@@ -1,4 +1,4 @@
-## Reporting Security Issues
+# Reporting Security Issues
 
 The config-file-validator admins and community take security bugs in the config-file-validator project seriously. We appreciate your efforts to responsibly disclose your findings and will make every effort to acknowledge your contributions.
 
