@@ -168,8 +168,6 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	if *excludeFileTypesPtr != "" && *fileTypesPtr != "" {
-		fmt.Println("Cannot use --exclude-file-types and --file-types together.")
-		flag.Usage()
 		return validatorConfig{}, errors.New("Cannot use --exclude-file-types and --file-types together")
 	}
 
@@ -208,13 +206,9 @@ func checkValidGroupByValues(groupOutputPtr *string) error {
 	if groupOutputPtr != nil && isFlagSet("groupby") {
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
-				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
-				flag.Usage()
 				return errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
 			}
 			if _, ok := seenValues[groupBy]; ok {
-				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
-				flag.Usage()
 				return errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
 			}
 			seenValues[groupBy] = true
