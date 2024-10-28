@@ -34,10 +34,12 @@ import (
 	"log"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 
 	configfilevalidator "github.com/Boeing/config-file-validator"
 	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
@@ -65,6 +67,30 @@ func validatorUsage() {
 	flag.PrintDefaults()
 }
 
+// Assemble pretty formatted list of file types
+func getFileTypes() []string {
+	options := make([]string, 0, len(filetype.FileTypes))
+	for _, typ := range filetype.FileTypes {
+		options = append(options, typ.Name)
+	}
+	sort.Strings(options)
+	return options
+}
+
+// Given a slice of strings, validates each is a valid file type
+func validateFileTypeList(input []string) bool {
+	types := getFileTypes()
+	for _, t := range input {
+		if len(t) == 0 {
+			continue
+		}
+		if !slices.Contains(types, t) {
+			return false
+		}
+	}
+	return true
+}
+
 // Parses, validates, and returns the flags
 // flag.String returns a pointer
 // If a required parameter is missing the help
@@ -72,14 +98,16 @@ func validatorUsage() {
 // will return with exit = 1
 func getFlags() (validatorConfig, error) {
 	flag.Usage = validatorUsage
-	depthPtr := flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
-	excludeDirsPtr := flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-	excludeFileTypesPtr := flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
-	outputPtr := flag.String("output", "", "Destination to a file to output results")
-	reportTypePtr := flag.String("reporter", "standard", "Format of the printed report. Options are standard, json, junit and sarif")
-	versionPtr := flag.Bool("version", false, "Version prints the release version of validator")
-	groupOutputPtr := flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
-	quietPtr := flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+	var (
+		depthPtr            = flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
+		excludeDirsPtr      = flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
+		excludeFileTypesPtr = flag.String("exclude-file-types", "", "A comma separated list of file types to ignore.\nValid options: "+strings.Join(getFileTypes(), ", "))
+		outputPtr           = flag.String("output", "", "Destination to a file to output results")
+		reportTypePtr       = flag.String("reporter", "standard", "Format of the printed report. Options are standard, json, junit and sarif")
+		versionPtr          = flag.Bool("version", false, "Version prints the release version of validator")
+		groupOutputPtr      = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
+		quietPtr            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+	)
 
 	flagsEnvMap := map[string]string{
 		"depth":              "CFV_DEPTH",
@@ -113,23 +141,23 @@ func getFlags() (validatorConfig, error) {
 	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
 
 	if !acceptedReportTypes[*reportTypePtr] {
-		fmt.Println("Wrong parameter value for reporter, only supports standard, json, junit or sarif")
-		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, only supports standard, json, junit or sarif")
 	}
 
 	groupOutputReportTypes := map[string]bool{"standard": true, "json": true}
 
 	if !groupOutputReportTypes[*reportTypePtr] && *groupOutputPtr != "" {
-		fmt.Println("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
-		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
-		fmt.Println("Wrong parameter value for depth, value cannot be negative.")
-		flag.Usage()
 		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
+	}
+
+	if *excludeFileTypesPtr != "" {
+		if !validateFileTypeList(strings.Split(*excludeFileTypesPtr, ",")) {
+			return validatorConfig{}, errors.New("Invalid exclude file type")
+		}
 	}
 
 	groupByCleanString := cleanString("groupby")
@@ -141,13 +169,9 @@ func getFlags() (validatorConfig, error) {
 	if groupOutputPtr != nil && isFlagSet("groupby") {
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
-				fmt.Println("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
-				flag.Usage()
 				return validatorConfig{}, errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
 			}
 			if _, ok := seenValues[groupBy]; ok {
-				fmt.Println("Wrong parameter value for groupby, duplicate values are not allowed")
-				flag.Usage()
 				return validatorConfig{}, errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
 			}
 			seenValues[groupBy] = true
@@ -224,6 +248,8 @@ func cleanString(command string) string {
 func mainInit() int {
 	validatorConfig, err := getFlags()
 	if err != nil {
+		fmt.Println(err.Error())
+		flag.Usage()
 		return 1
 	}
 
