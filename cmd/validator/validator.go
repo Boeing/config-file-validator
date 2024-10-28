@@ -71,7 +71,9 @@ func validatorUsage() {
 func getFileTypes() []string {
 	options := make([]string, 0, len(filetype.FileTypes))
 	for _, typ := range filetype.FileTypes {
-		options = append(options, typ.Name)
+		for extName := range typ.Extensions {
+			options = append(options, extName)
+		}
 	}
 	sort.Strings(options)
 	return options
