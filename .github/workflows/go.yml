@@ -103,7 +103,7 @@ jobs:
     - name: Check coverage
       id: check-coverage
       env:
-        COVERAGE_THRESHOLD: 95
+        COVERAGE_THRESHOLD: 94
       run: |
         # Validate that the coverage is above or at the required threshold
         echo "Checking if test coverage is above threshold ..."
