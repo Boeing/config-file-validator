@@ -86,7 +86,7 @@ func validateFileTypeList(input []string) bool {
 		if len(t) == 0 {
 			continue
 		}
-		if !slices.Contains(types, t) {
+		if !slices.Contains(types, strings.ToLower(t)) {
 			return false
 		}
 	}
