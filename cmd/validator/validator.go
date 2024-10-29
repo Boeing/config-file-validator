@@ -86,7 +86,7 @@ func validateFileTypeList(input []string) bool {
 		if len(t) == 0 {
 			continue
 		}
-		if !slices.Contains(types, strings.ToLower(t)) {
+		if !slices.Contains(types, t) {
 			return false
 		}
 	}
@@ -157,6 +157,7 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	if *excludeFileTypesPtr != "" {
+		*excludeFileTypesPtr = strings.ToLower(*excludeFileTypesPtr)
 		if !validateFileTypeList(strings.Split(*excludeFileTypesPtr, ",")) {
 			return validatorConfig{}, errors.New("Invalid exclude file type")
 		}
