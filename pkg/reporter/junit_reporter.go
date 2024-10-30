@@ -198,10 +198,14 @@ func (jr JunitReporter) Print(reports []Report) error {
 	}
 
 	results := Header + string(data)
-	fmt.Println(results)
 
 	if jr.outputDest != "" {
 		return outputBytesToFile(jr.outputDest, "result", "xml", []byte(results))
 	}
+
+	if len(reports) > 0 && !reports[0].IsQuiet {
+		fmt.Println(results)
+	}
+
 	return nil
 }
