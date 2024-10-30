@@ -193,7 +193,7 @@ Supported formats: standard, json, junit (default: "standard")`,
 
 func buildExcludeFileTypesFromFileTypes(excludeFileTypesPtr, fileTypesPtr *string) error {
 	if excludeFileTypesPtr != nil && fileTypesPtr != nil && *excludeFileTypesPtr != "" && *fileTypesPtr != "" {
-		return errors.New("Cannot use --exclude-file-types and --file-types together")
+		return errors.New("Cannot use exclude-file-types and file-types together")
 	}
 
 	if fileTypesPtr == nil || *fileTypesPtr == "" {
