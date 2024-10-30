@@ -19,8 +19,6 @@ optional flags:
     	A comma separated list of file types to ignore
   -file-types string
     	A comma separated list of file types to validate. Mutually exclusive with -exclude-file-types
-  -output
-     	Destination of a file to outputting results
   -reporter string
 		A string representing report format and optional output file path separated by colon if present.
 		Usage: --reporter <format>:<optional_file_path>
