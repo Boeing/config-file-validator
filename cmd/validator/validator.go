@@ -196,7 +196,7 @@ func buildExcludeFileTypesFromFileTypes(excludeFileTypesPtr, fileTypesPtr *strin
 		return errors.New("Cannot use --exclude-file-types and --file-types together")
 	}
 
-	if *fileTypesPtr != "" {
+	if fileTypesPtr != nil && *fileTypesPtr != "" {
 		if err := flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr)); err != nil {
 			return err
 		}
