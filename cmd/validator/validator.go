@@ -168,14 +168,8 @@ Supported formats: standard, json, junit (default: "standard")`,
 		}
 	}
 
-	if *excludeFileTypesPtr != "" && *fileTypesPtr != "" {
-		return validatorConfig{}, errors.New("Cannot use --exclude-file-types and --file-types together")
-	}
-
-	if *fileTypesPtr != "" {
-		if err := flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr)); err != nil {
-			return validatorConfig{}, err
-		}
+	if err := buildExcludeFileTypesFromFileTypes(excludeFileTypesPtr, fileTypesPtr); err != nil {
+		return validatorConfig{}, err
 	}
 
 	err = validateGroupByConf(groupOutputPtr)
@@ -195,6 +189,21 @@ Supported formats: standard, json, junit (default: "standard")`,
 	}
 
 	return config, nil
+}
+
+func buildExcludeFileTypesFromFileTypes(excludeFileTypesPtr, fileTypesPtr *string) error {
+	fmt.Println("ex: "+*excludeFileTypesPtr, " ft: "+*fileTypesPtr)
+	if excludeFileTypesPtr != nil && fileTypesPtr != nil && *excludeFileTypesPtr != "" && *fileTypesPtr != "" {
+		return errors.New("Cannot use --exclude-file-types and --file-types together")
+	}
+
+	if *fileTypesPtr != "" {
+		if err := flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr)); err != nil {
+			return err
+		}
+		fmt.Println("Final exclude :" + *excludeFileTypesPtr)
+	}
+	return nil
 }
 
 func validateReporterConf(conf map[string]string, groupBy *string) error {
@@ -276,8 +285,6 @@ func parseReporterFlags(flags reporterFlags) (map[string]string, error) {
 
 	return conf, nil
 }
-
-
 
 // isFlagSet verifies if a given flag has been set or not
 func isFlagSet(flagName string) bool {
