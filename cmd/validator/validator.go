@@ -45,7 +45,6 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
-	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
 
@@ -330,22 +329,15 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 // Build exclude-file-type list from file-type values
 func getExcludeFileTypesFromFileTypes(fileTypesPtr *string) string {
 	validTypes := make([]string, 0, len(filetype.FileTypes))
+	includeTypes := strings.Split(*fileTypesPtr, ",")
 
 	for _, t := range filetype.FileTypes {
 		validTypes = append(validTypes, t.Name)
 	}
 
-	validExcludeTypes := misc.ArrToMap(validTypes...)
-
-	for _, t := range strings.Split(*fileTypesPtr, ",") {
-		delete(validExcludeTypes, t)
-	}
-
-	excludeFileTypes := make([]string, 0, len(validExcludeTypes))
-
-	for fileType := range validExcludeTypes {
-		excludeFileTypes = append(excludeFileTypes, fileType)
-	}
+	excludeFileTypes := slices.DeleteFunc(validTypes, func(ty string) bool {
+		return slices.Contains(includeTypes, ty)
+	})
 
 	return strings.Join(excludeFileTypes, ",")
 }
