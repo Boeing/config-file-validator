@@ -43,6 +43,7 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
+	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
 
@@ -355,7 +356,7 @@ func mainInit() int {
 		chosenReporters = append(chosenReporters, getReporter(&rt, &of))
 	}
 
-	excludeFileTypes := strings.Split(*validatorConfig.excludeFileTypes, ",")
+	excludeFileTypes := getExcludeFileTypes(*validatorConfig.excludeFileTypes)
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	fsOpts := []finder.FSFinderOptions{
 		finder.WithPathRoots(validatorConfig.searchPaths...),
@@ -386,6 +387,31 @@ func mainInit() int {
 	}
 
 	return exitStatus
+}
+
+func getExcludeFileTypes(configExcludeFileTypes string) []string {
+	excludeFileTypes := strings.Split(configExcludeFileTypes, ",")
+	uniqueFileTypes := misc.ArrToMap(excludeFileTypes...)
+
+	for _, ft := range filetype.FileTypes {
+		for ext := range ft.Extensions {
+			if _, ok := uniqueFileTypes[ext]; !ok {
+				continue
+			}
+
+			for ext := range ft.Extensions {
+				uniqueFileTypes[ext] = struct{}{}
+			}
+			break
+		}
+	}
+
+	excludeFileTypes = make([]string, 0, len(uniqueFileTypes))
+	for ft := range uniqueFileTypes {
+		excludeFileTypes = append(excludeFileTypes, ft)
+	}
+
+	return excludeFileTypes
 }
 
 func main() {
