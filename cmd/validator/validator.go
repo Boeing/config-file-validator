@@ -390,7 +390,7 @@ func mainInit() int {
 }
 
 func getExcludeFileTypes(configExcludeFileTypes string) []string {
-	excludeFileTypes := strings.Split(configExcludeFileTypes, ",")
+	excludeFileTypes := strings.Split(strings.ToLower(configExcludeFileTypes), ",")
 	uniqueFileTypes := misc.ArrToMap(excludeFileTypes...)
 
 	for _, ft := range filetype.FileTypes {
