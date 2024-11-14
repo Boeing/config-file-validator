@@ -80,6 +80,14 @@ var PlistFileType = FileType{
 }
 
 // Instance of the FileType object to
+// represent a Sarif file
+var SarifFileType = FileType{
+	"sarif",
+	misc.ArrToMap("sarif"),
+	validator.SarifValidator{},
+}
+
+// Instance of the FileType object to
 // represent a CSV file
 var CsvFileType = FileType{
 	"csv",
@@ -122,6 +130,7 @@ var FileTypes = []FileType{
 	PropFileType,
 	HclFileType,
 	PlistFileType,
+	SarifFileType,
 	CsvFileType,
 	HoconFileType,
 	EnvFileType,
