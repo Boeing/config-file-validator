@@ -304,7 +304,7 @@ docker build . -t config-file-validator:v1.8.0
 </a>
 
 ## Contributing
-We welcome contributions! Please refer to our [contributing guide](/CONTRIBUTING.md)
+We welcome contributions! Please refer to our [contributing guide](./CONTRIBUTING.md)
 
 ## License
-The Config File Validator is released under the [Apache 2.0](/LICENSE) License
+The Config File Validator is released under the [Apache 2.0](./LICENSE) License
