@@ -4,50 +4,46 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/owenrumney/go-sarif/sarif"
+
 	"github.com/xeipuuv/gojsonschema"
-	"io"
-	"net/http"
 )
 
 type SarifValidator struct{}
 
 func (SarifValidator) Validate(b []byte) (bool, error) {
-	report, err := sarif.FromBytes(b)
+	var report map[string]interface{}
+	err := json.Unmarshal(b, &report)
 	if err != nil {
 		customErr := getCustomErr(b, err)
 		return false, customErr
 	}
 
-	// TODO: check if schema URLs are valid here (e.g. it is either v2.0 or v2.1.0)
-	if report.Schema == "" {
-		return false, errors.New("error: no schema specified")
+	schemaUrl, ok := report["$schema"]
+	if !ok {
+		return false, errors.New("error - no schema specified")
 	}
 
-	res, err := http.Get(report.Schema)
-	if err != nil || res.StatusCode != 200 {
-		return false, fmt.Errorf("error: invalid schema '%s' specified", report.Schema)
-	}
-	defer res.Body.Close()
-	schemaData, err := io.ReadAll(res.Body)
+	loadedSchema := gojsonschema.NewReferenceLoader(schemaUrl.(string))
+	loadedReport := gojsonschema.NewRawLoader(report)
+
+	schema, err := gojsonschema.NewSchema(loadedSchema)
 	if err != nil {
-		return false, err
+		return false, errors.New("error - schema isn't valid")
 	}
-	schemaMap, sarifMap := make(map[string]interface{}), make(map[string]interface{})
-	json.Unmarshal(schemaData, &schemaMap)
-	json.Unmarshal(b, &sarifMap)
-
-	schemaLoader, sarifLoader := gojsonschema.NewRawLoader(schemaMap), gojsonschema.NewRawLoader(sarifMap)
-
-	result, err := gojsonschema.Validate(sarifLoader, schemaLoader)
+	result, err := schema.Validate(loadedReport)
 	if err != nil {
-		return false, err
+		return false, errors.New("error - couldn't validate a report")
 	}
 	if !result.Valid() {
-		fmt.Println("not valid")
-		for _, desc := range result.Errors() {
-			fmt.Println("errors", desc)
-		}
+		return false, formatError(result.Errors())
 	}
 	return true, nil
+}
+
+func formatError(resultEerrors []gojsonschema.ResultError) error {
+	var errorDescription string
+	for _, err := range resultEerrors {
+		errorDescription = err.Description()
+	}
+	return fmt.Errorf("error - %s", errorDescription)
 }
