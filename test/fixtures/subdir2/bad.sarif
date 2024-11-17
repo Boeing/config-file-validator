@@ -4,7 +4,7 @@
   "properties": {
     "comment": "This sample contains a result in an artifact whose binary contents are embedded in the log file."
   },
-  "runs": [
+  "runss": [
     {
       "tool": {
         "driver": {
@@ -50,4 +50,4 @@
       "columnKind": "utf16CodeUnits"
     }
   ]
-}}
+}
