@@ -13,6 +13,7 @@ RUN CGO_ENABLED=0 \
   -o validator \
   cmd/validator/validator.go
 
-FROM $BASE_IMAGE
+FROM $BASE_IMAGE as base
+USER user
 COPY --from=go-builder /build/validator /
 ENTRYPOINT [ "/validator" ]

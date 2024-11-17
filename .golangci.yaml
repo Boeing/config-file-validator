@@ -78,7 +78,7 @@ linters-settings:
   nolintlint:
     # Disable to ensure that all nolint directives actually have an effect.
     # Default: false
-    allow-unused: true  # too many false positive reported
+    allow-unused: true # too many false positive reported
     # Exclude following linters from requiring an explanation.
     # Default: []
     allow-no-explanation: []
