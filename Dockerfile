@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=alpine:3.20@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5
+ARG BASE_IMAGE_TAG=3.20@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5
 
 FROM golang:1.22@sha256:f43c6f049f04cbbaeb28f0aad3eea15274a7d0a7899a617d0037aec48d7ab010 as go-builder
 ARG VALIDATOR_VERSION=unknown
@@ -13,6 +13,8 @@ RUN CGO_ENABLED=0 \
   -o validator \
   cmd/validator/validator.go
 
-FROM $BASE_IMAGE
+FROM alpine:$BASE_IMAGE_TAG
+USER user
 COPY --from=go-builder /build/validator /
+HEALTHCHECK NONE
 ENTRYPOINT [ "/validator" ]
