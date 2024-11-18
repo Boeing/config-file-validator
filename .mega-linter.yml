@@ -1,0 +1,22 @@
+# Configuration file for MegaLinter
+# See all available variables at https://megalinter.io/configuration/ and in linters documentation
+
+EXCLUDED_DIRECTORIES: 
+  - test/fixtures/
+
+DISABLE_LINTERS:
+  - REPOSITORY_KICS
+  - GO_GOLANGCI_LINT
+  - GO_REVIVE
+  - REPOSITORY_GRYPE
+
+DISABLE_ERRORS_LINTERS:
+  - SPELL_CSPELL
+  - COPYPASTE_JSCPD
+
+FILTER_REGEX_EXCLUDE: '(test/)'
+JSON_JSONLINT_FILTER_REGEX_EXCLUDE: '(test/)'
+YAML_YAMLLINT_FILTER_REGEX_EXCLUDE: '(test/)'
+YAML_PRETTIER_FILTER_REGEX_EXCLUDE: '(test/)'
+SHOW_ELAPSED_TIME: true
+REPORT_OUTPUT_FOLDER: megalinter-reports

@@ -36,12 +36,6 @@ jobs:
         id: megalinter
         env:
           VALIDATE_ALL_CODEBASE: true
-          EXCLUDED_DIRECTORIES: test/fixtures/
-
-          DISABLE_LINTERS: REPOSITORY_KICS, GO_GOLANGCI_LINT, GO_REVIVE
-          SPELL_CSPELL_DISABLE_ERRORS: true
-          COPYPASTE_JSCPD_DISABLE_ERRORS: true
-
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Upload MegaLinter artifacts
