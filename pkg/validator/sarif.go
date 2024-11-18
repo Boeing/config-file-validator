@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -18,17 +19,21 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 		return false, customErr
 	}
 
-	schemaUrl, ok := report["$schema"]
+	schemaURL, ok := report["$schema"]
 	if !ok {
-		return false, errors.New("error - no schema specified")
+		return false, errors.New("error - no schema found")
 	}
 
-	loadedSchema := gojsonschema.NewReferenceLoader(schemaUrl.(string))
+	if _, ok := schemaURL.(string); !ok {
+		return false, errors.New("error - schema isn't a string")
+	}
+
+	loadedSchema := gojsonschema.NewReferenceLoader(schemaURL.(string))
 	loadedReport := gojsonschema.NewRawLoader(report)
 
 	schema, err := gojsonschema.NewSchema(loadedSchema)
 	if err != nil {
-		return false, errors.New("error - schema isn't valid")
+		return false, fmt.Errorf("error - schema isn't valid: %s", schemaURL)
 	}
 	result, err := schema.Validate(loadedReport)
 	if err != nil {
@@ -40,10 +45,10 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 	return true, nil
 }
 
-func formatError(resultEerrors []gojsonschema.ResultError) error {
-	var errorDescription string
-	for _, err := range resultEerrors {
-		errorDescription = err.Description()
+func formatError(resultErrors []gojsonschema.ResultError) error {
+	var errorDescription []string
+	for _, err := range resultErrors {
+		errorDescription = append(errorDescription, err.Description())
 	}
-	return fmt.Errorf("error - %s", errorDescription)
+	return fmt.Errorf("error - %s", strings.Join(errorDescription, ", "))
 }

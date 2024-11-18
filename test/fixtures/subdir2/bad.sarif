@@ -1,17 +1,10 @@
 {
   "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
-  "version": "2.1.0",
   "properties": {
     "comment": "This sample contains a result in an artifact whose binary contents are embedded in the log file."
   },
-  "runss": [
+  "runs": [
     {
-      "tool": {
-        "driver": {
-          "name": "SarifSamples",
-          "version": "1.0"
-        }
-      },
       "results": [
         {
           "ruleId": "TUT1001",
