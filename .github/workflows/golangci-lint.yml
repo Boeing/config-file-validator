@@ -35,7 +35,7 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: false
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@d6238b002a20823d52840fda27e2d4891c5952dc # v4.0.1
+        uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1
         with:
           # Require: The version of golangci-lint to use.
           # When `install-mode` is `binary` (default) the value can be v1.2 or v1.2.3 or `latest` to use the latest version.
