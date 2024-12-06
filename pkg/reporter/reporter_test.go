@@ -37,7 +37,7 @@ func Test_stdoutReport(t *testing.T) {
 
 	reports := []Report{reportNoValidationError, reportWithValidationError, reportWithMultiLineValidationError}
 
-	stdoutReporter := StdoutReporter{}
+	stdoutReporter := NewStdoutReporter("")
 	err := stdoutReporter.Print(reports)
 	if err != nil {
 		t.Errorf("Reporting failed")
@@ -504,7 +504,7 @@ func assertRegexpError(regexp any) assert.ErrorAssertionFunc {
 		if h, ok := t.(interface{ Helper() }); ok {
 			h.Helper()
 		}
-		//nolint: testifylint // in this use case it's ok to use assert.Error
+		//nolint:testifylint // in this use case it's ok to use assert.Error
 		return assert.Error(t, got, msg...) && assert.Regexp(t, regexp, got.Error(), msg...)
 	}
 }

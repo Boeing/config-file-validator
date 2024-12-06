@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.2
 	github.com/fatih/color v1.18.0
-	github.com/gurkankaymak/hocon v1.2.18
+	github.com/gurkankaymak/hocon v1.2.20
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.18.1
 	github.com/magiconair/properties v1.8.7
@@ -13,7 +13,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
-	howett.net/plist v1.0.0
+	howett.net/plist v1.0.1
 )
 
 require (

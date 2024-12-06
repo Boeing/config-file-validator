@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-94.6%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-94.7%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -106,12 +106,14 @@ optional flags:
     	A comma separated list of file types to ignore
   -groupby string
     	Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
-  -output string
-    	Destination to a file to output results
   -quiet
     	If quiet flag is set. It doesn't print any output to stdout.
   -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
+		A string representing report format and optional output file path separated by colon if present.
+		Usage: --reporter <format>:<optional_file_path>
+		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
+		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
+		Supported formats: standard, json, junit (default: "standard")
   -version
     	Version prints the release version of validator
 ```
@@ -125,7 +127,6 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_DEPTH`          | `-depth`        |
 | `CFV_EXCLUDE_DIRS`   | `-exclude-dirs` |
 | `CFV_EXCLUDE_FILE_TYPES` | `-exclude-file-types` |
-| `CFV_OUTPUT`         | `-output`       |
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
@@ -175,10 +176,13 @@ validator --depth=0 /path/to/search
 ![Custom Recursion Run](./img/custom_recursion.gif)
 
 #### Customize report output
-Customize the report output. Available options are `standard`, `junit`, and `json`
+You can customize the report output and save the results to a file (default name is result.{extension}). The available report types are `standard`, `junit`, and `json`. You can specify multiple report types by chaining the `--reporter` flags.
+
+Providing an output file is optional, the results will be printed to stdout by default. To explicitly direct the output to stdout, use file path as `-`.
 
 ```
-validator --reporter=json /path/to/search
+validator --reporter=json:- /path/to/search
+validator --reporter=json:output.json --reporter=standard /path/to/search
 ```
 
 ![Exclude File Types Run](./img/custom_reporter.gif)
@@ -198,13 +202,6 @@ validator -groupby directory,pass-fail
 ```
 
 ![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.gif)
-
-### Output results to a file
-Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format. Available options are `junit` and `json`. If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
-
-```
-validator --reporter=json --output=/path/to/dir
-```
 
 ### Suppress output
 Passing the `--quiet` flag suppresses all output to stdout. If there are invalid config files the validator tool will exit with 1. Any errors in execution such as an invalid path will still be displayed.
