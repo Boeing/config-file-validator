@@ -7,7 +7,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/gurkankaymak/hocon v1.2.20
 	github.com/hashicorp/go-envparse v0.1.0
-	github.com/hashicorp/hcl/v2 v2.18.1
+	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/magiconair/properties v1.8.7
 	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/stretchr/testify v1.10.0
@@ -29,4 +29,5 @@ require (
 	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
 )
