@@ -8,7 +8,7 @@ require (
 	github.com/gurkankaymak/hocon v1.2.20
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.23.0
-	github.com/magiconair/properties v1.8.7
+	github.com/magiconair/properties v1.8.9
 	github.com/pelletier/go-toml/v2 v2.2.3
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/ini.v1 v1.67.0
