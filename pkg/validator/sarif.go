@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -26,6 +29,11 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 
 	if _, ok := schemaURL.(string); !ok {
 		return false, errors.New("error - schema isn't a string")
+	}
+
+	err = attemptToResolveAndConnect(schemaURL.(string))
+	if err != nil {
+		return false, fmt.Errorf("error - %s", err)
 	}
 
 	loadedSchema := gojsonschema.NewReferenceLoader(schemaURL.(string))
@@ -51,4 +59,25 @@ func formatError(resultErrors []gojsonschema.ResultError) error {
 		errorDescription = append(errorDescription, err.Description())
 	}
 	return fmt.Errorf("error - %s", strings.Join(errorDescription, ", "))
+}
+
+func attemptToResolveAndConnect(schema string) error {
+	u, err := url.ParseRequestURI(schema)
+	if err != nil {
+		return fmt.Errorf("schema URL isn't valid: %s", schema)
+	}
+	ips, err := net.LookupIP(u.Host)
+	if err != nil {
+		return fmt.Errorf("couldn't resolve host: %s", u.Host)
+	}
+	for _, ip := range ips {
+		addr := net.JoinHostPort(ip.String(), u.Scheme)
+		con, err := net.DialTimeout("tcp", addr, time.Millisecond*15)
+		if err == nil {
+			defer con.Close()
+			return nil
+		}
+		return fmt.Errorf("couldn't establish tcp connection - %s", err)
+	}
+	return nil
 }
