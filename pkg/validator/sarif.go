@@ -77,7 +77,6 @@ func attemptToResolveAndConnect(schema string) error {
 			defer con.Close()
 			return nil
 		}
-		return fmt.Errorf("couldn't establish tcp connection - %s", err)
 	}
-	return nil
+	return fmt.Errorf("couldn't establish tcp connection with the host %s", schema)
 }
