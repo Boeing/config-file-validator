@@ -33,7 +33,7 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 
 	err = attemptToResolveAndConnect(schemaURL.(string))
 	if err != nil {
-		return false, fmt.Errorf("error - %s", err)
+		return false, fmt.Errorf("error - %w", err)
 	}
 
 	loadedSchema := gojsonschema.NewReferenceLoader(schemaURL.(string))
@@ -74,9 +74,10 @@ func attemptToResolveAndConnect(schema string) error {
 		addr := net.JoinHostPort(ip.String(), u.Scheme)
 		con, err := net.DialTimeout("tcp", addr, time.Millisecond*15)
 		if err == nil {
-			defer con.Close()
+			con.Close()
 			return nil
 		}
+		defer con.Close()
 	}
 	return fmt.Errorf("couldn't establish tcp connection with the host: %s", u.Host)
 }
