@@ -15,7 +15,7 @@ import (
 type SarifValidator struct{}
 
 func (SarifValidator) Validate(b []byte) (bool, error) {
-	var report map[string]interface{}
+	var report map[string]any
 	err := json.Unmarshal(b, &report)
 	if err != nil {
 		customErr := getCustomErr(b, err)
