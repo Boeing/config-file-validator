@@ -78,5 +78,5 @@ func attemptToResolveAndConnect(schema string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("couldn't establish tcp connection with the host %s", schema)
+	return fmt.Errorf("couldn't establish tcp connection with the host: %s", u.Host)
 }
