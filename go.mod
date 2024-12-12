@@ -10,8 +10,8 @@ require (
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/magiconair/properties v1.8.9
 	github.com/pelletier/go-toml/v2 v2.2.3
-	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/stretchr/testify v1.10.0
+	github.com/xeipuuv/gojsonschema v1.2.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
