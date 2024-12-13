@@ -24,16 +24,16 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 
 	schemaURL, ok := report["$schema"]
 	if !ok {
-		return false, errors.New("error - no schema found")
+		return false, errors.New("no schema found")
 	}
 
 	if _, ok := schemaURL.(string); !ok {
-		return false, errors.New("error - schema isn't a string")
+		return false, errors.New("schema isn't a string")
 	}
 
 	err = attemptToResolveAndConnect(schemaURL.(string))
 	if err != nil {
-		return false, fmt.Errorf("error - %w", err)
+		return false, fmt.Errorf("%w", err)
 	}
 
 	loadedSchema := gojsonschema.NewReferenceLoader(schemaURL.(string))
@@ -41,11 +41,11 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 
 	schema, err := gojsonschema.NewSchema(loadedSchema)
 	if err != nil {
-		return false, fmt.Errorf("error - schema isn't valid: %s", schemaURL)
+		return false, fmt.Errorf("schema isn't valid: %s", schemaURL)
 	}
 	result, err := schema.Validate(loadedReport)
 	if err != nil {
-		return false, errors.New("error - couldn't validate a report")
+		return false, errors.New("couldn't validate a report")
 	}
 	if !result.Valid() {
 		return false, formatError(result.Errors())
@@ -58,7 +58,7 @@ func formatError(resultErrors []gojsonschema.ResultError) error {
 	for _, err := range resultErrors {
 		errorDescription = append(errorDescription, err.Description())
 	}
-	return fmt.Errorf("error - %s", strings.Join(errorDescription, ", "))
+	return fmt.Errorf("%s", strings.Join(errorDescription, ", "))
 }
 
 func attemptToResolveAndConnect(schema string) error {
@@ -72,12 +72,14 @@ func attemptToResolveAndConnect(schema string) error {
 	}
 	for _, ip := range ips {
 		addr := net.JoinHostPort(ip.String(), u.Scheme)
-		con, err := net.DialTimeout("tcp", addr, time.Millisecond*15)
+		con, err := net.DialTimeout("tcp", addr, time.Second*3)
 		if err == nil {
-			con.Close()
+			err = con.Close()
+			if err != nil {
+				return fmt.Errorf("connection was established, but couldn't be closed")
+			}
 			return nil
 		}
-		defer con.Close()
 	}
 	return fmt.Errorf("couldn't establish tcp connection with the host: %s", u.Host)
 }
