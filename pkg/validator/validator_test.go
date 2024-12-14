@@ -1,40 +1,10 @@
 package validator
 
 import (
-	_ "embed"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
-)
-
-var (
-	validPlistBytes = []byte(`<?xml version="1.0" encoding="UTF-8"?>
-	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-	<plist version="1.0">
-	<dict>
-		<key>CFBundleShortVersionString</key>
-		<string>1.0</string>
-		<key>CFBundleVersion</key>
-		<string>1</string>
-		<key>NSAppTransportSecurity</key>
-		<dict>
-			<key>NSAllowsArbitraryLoads</key>
-			<true/>
-		</dict>
-	</dict>
-	</plist>`)
-
-	invalidPlistBytes = []byte(`<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-	<plist version="1.0">
-	<dict>
-		<key>CFBundleShortVersionString</key>
-		<string>1.0</string>
-		<key>CFBundleVersion</key>
-		<string>1</string>
-		<key>NSAppTransporT-Security</key> <!-- The hyphen in the key name here is invalid -->
-		<dict>
-			<key>NSAllowsArbitraryLoads</key>
-		</dict> <!-- Missing value for the key 'NSAllowsArbitraryLoads' -->
-	</dict>
-	</plist>`)
 )
 
 var testData = []struct {
@@ -60,14 +30,16 @@ var testData = []struct {
 	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
 	{"validCSV", []byte(`first_name,last_name,username\nRob,Pike,rob\n`), true, CsvValidator{}},
 	{"invalidCSV", []byte(`This string has a \" in it`), false, CsvValidator{}},
-	{"validPlist", validPlistBytes, true, PlistValidator{}},
-	{"invalidPlist", invalidPlistBytes, false, PlistValidator{}},
+	{"validPlist", loadFile("good.plist"), true, PlistValidator{}},
+	{"invalidPlist", loadFile("bad.plist", "subdir2"), false, PlistValidator{}},
 	{"validHocon", []byte(`test = [1, 2, 3]`), true, HoconValidator{}},
 	{"invalidHocon", []byte(`test = [1, 2,, 3]`), false, HoconValidator{}},
 	{"validEnv", []byte("KEY=VALUE"), true, EnvValidator{}},
 	{"invalidEnv", []byte("=TEST"), false, EnvValidator{}},
 	{"validEditorConfig", []byte("working = true"), true, EditorConfigValidator{}},
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
+	{"validSarif", loadFile("good.sarif"), true, SarifValidator{}},
+	{"invalidSarif", loadFile("bad.sarif", "subdir"), false, SarifValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
@@ -93,4 +65,18 @@ func Test_ValidationInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+// loadFile function reads the contents of a file from a specified location,
+// if the file exists it returns its contents as a byte slice, otherwise it panics.
+// This function is useful for loading content of sample files from test/fixtures/ directory
+// and load them for validation.
+func loadFile(filename string, directories ...string) []byte {
+	sampleFilesLocationDir := "../../test/fixtures/"
+	fp := filepath.Join(sampleFilesLocationDir, strings.Join(directories, "/"), filename)
+	data, err := os.ReadFile(fp)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }

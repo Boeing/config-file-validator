@@ -14,6 +14,9 @@ import (
 
 type SarifValidator struct{}
 
+// Validate implements the Validator interface by attempting to
+// unmarshal a byte array of json, performing additional validation checks
+// in order to determine whether supplied SARIF report matches the SARIF schema.
 func (SarifValidator) Validate(b []byte) (bool, error) {
 	var report map[string]any
 	err := json.Unmarshal(b, &report)
@@ -31,6 +34,7 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 		return false, errors.New("schema isn't a string")
 	}
 
+	// Check if the program is executed in an air-gapped environment.
 	err = attemptToResolveAndConnect(schemaURL.(string))
 	if err != nil {
 		return false, fmt.Errorf("%w", err)
@@ -53,6 +57,8 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 	return true, nil
 }
 
+// formatError function concatenates errors found during schema validation
+// into a single formatted error message.
 func formatError(resultErrors []gojsonschema.ResultError) error {
 	var errorDescription []string
 	for _, err := range resultErrors {
@@ -61,6 +67,8 @@ func formatError(resultErrors []gojsonschema.ResultError) error {
 	return fmt.Errorf("%s", strings.Join(errorDescription, ", "))
 }
 
+// attemptToResolveAndConnect function is used to validate and attempt
+// to establish a TCP connection to a host specified by a schema URL.
 func attemptToResolveAndConnect(schema string) error {
 	u, err := url.ParseRequestURI(schema)
 	if err != nil {
