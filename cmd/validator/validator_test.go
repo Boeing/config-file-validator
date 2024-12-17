@@ -39,6 +39,12 @@ func Test_flags(t *testing.T) {
 		{"grouped sarif", []string{"-groupby=directory", "--reporter=sarif", "."}, 1},
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, 1},
 		{"quiet flag", []string{"--quiet=true", "."}, 0},
+		{"globbing flag set", []string{"--globbing=true", "."}, 0},
+		{"globbing flag with a pattern", []string{"--globbing=true", "../../test/**/[m-t]*.json"}, 0},
+		{"globbing flag with no matches", []string{"--globbing=true", "../../test/**/*.nomatch"}, 0},
+		{"globbing flag not set", []string{"test/**/*.json", "."}, 1},
+		{"globbing flag with exclude-dirs", []string{"-globbing", "--exclude-dirs=subdir", "test/**/*.json", "."}, 1},
+		{"globbing flag with exclude-file-types", []string{"-globbing", "--exclude-file-types=hcl", "test/**/*.json", "."}, 1},
 	}
 	for _, tc := range cases {
 		// this call is required because otherwise flags panics,

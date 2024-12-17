@@ -17,6 +17,8 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -globbing bool
+    	Set globbing to true to enable pattern matching for search paths
   -reporter string
 		A string representing report format and optional output file path separated by colon if present.
 		Usage: --reporter <format>:<optional_file_path>
@@ -39,6 +41,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
+
 	configfilevalidator "github.com/Boeing/config-file-validator"
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/filetype"
@@ -55,6 +59,7 @@ type validatorConfig struct {
 	versionQuery     *bool
 	groupOutput      *string
 	quiet            *bool
+	globbing         *bool
 }
 
 type reporterFlags []string
@@ -121,6 +126,7 @@ func getFlags() (validatorConfig, error) {
 		versionPtr          = flag.Bool("version", false, "Version prints the release version of validator")
 		groupOutputPtr      = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+		globbingPrt         = flag.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
 	)
 	flag.Var(
 		&reporterConfigFlags,
@@ -144,7 +150,14 @@ Supported formats: standard, json, junit (default: "standard")`,
 		return validatorConfig{}, err
 	}
 
-	searchPaths := parseSearchPath()
+	if err := validateGlobbing(globbingPrt); err != nil {
+		return validatorConfig{}, err
+	}
+
+	searchPaths, err := parseSearchPath(globbingPrt)
+	if err != nil {
+		return validatorConfig{}, err
+	}
 
 	err = validateReporterConf(reporterConf, groupOutputPtr)
 	if err != nil {
@@ -176,6 +189,7 @@ Supported formats: standard, json, junit (default: "standard")`,
 		versionPtr,
 		groupOutputPtr,
 		quietPtr,
+		globbingPrt,
 	}
 
 	return config, nil
@@ -221,19 +235,42 @@ func validateGroupByConf(groupBy *string) error {
 	return nil
 }
 
-func parseSearchPath() []string {
+func validateGlobbing(globbingPrt *bool) error {
+	if *globbingPrt && (isFlagSet("exclude-dirs") || isFlagSet("exclude-file-types")) {
+		fmt.Println("The -globbing flag cannot be used with --exclude-dirs or --exclude-file-types")
+		flag.Usage()
+		return errors.New("the -globbing flag cannot be used with --exclude-dirs or --exclude-file-types")
+	}
+	return nil
+}
+
+func parseSearchPath(globbingPrt *bool) ([]string, error) {
 	searchPaths := make([]string, 0)
 
-	// If search path arg is empty, set it to the cwd
-	// if not, set it to the arg. Supports n number of
-	// paths
 	if flag.NArg() == 0 {
 		searchPaths = append(searchPaths, ".")
+	} else if *globbingPrt {
+		return handleGlobbing(searchPaths)
 	} else {
 		searchPaths = append(searchPaths, flag.Args()...)
 	}
 
-	return searchPaths
+	return searchPaths, nil
+}
+
+func handleGlobbing(searchPaths []string) ([]string, error) {
+	for _, flagArg := range flag.Args() {
+		if isGlobPattern(flagArg) {
+			matches, err := doublestar.Glob(os.DirFS("."), flagArg)
+			if err != nil {
+				return nil, errors.New("Glob matching error")
+			}
+			searchPaths = append(searchPaths, matches...)
+		} else {
+			searchPaths = append(searchPaths, flagArg)
+		}
+	}
+	return searchPaths, nil
 }
 
 func parseReporterFlags(flags reporterFlags) (map[string]string, error) {
@@ -330,6 +367,11 @@ func cleanString(command string) string {
 	cleanedString = strings.TrimSpace(cleanedString)
 
 	return cleanedString
+}
+
+// Function to check if a string is a glob pattern
+func isGlobPattern(s string) bool {
+	return strings.ContainsAny(s, "*?[]")
 }
 
 func mainInit() int {
