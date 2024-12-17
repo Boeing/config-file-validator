@@ -107,6 +107,8 @@ optional flags:
     	A comma separated list of file types to ignore
   -groupby string
     	Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+  -globbing bool
+    	Set globbing to true to enable pattern matching for search paths. Enclose the pattern in double quotes. The flag is not compatible with -exclude-dirs and -exclude-file-types.
   -quiet
     	If quiet flag is set. It doesn't print any output to stdout.
   -reporter string
@@ -209,6 +211,23 @@ Passing the `--quiet` flag suppresses all output to stdout. If there are invalid
 
 ```
 validator --quiet /path/to/search
+```
+
+### Search files using a glob pattern
+
+Use the `-globbing` flag to validate files matching a specified pattern. Include the pattern as a positional argument in double quotes. Multiple glob patterns and direct file paths are supported. If invalid config files are detected, the validator tool exits with code 1, and errors (e.g., invalid patterns) are displayed.
+
+[Learn more about glob patterns](https://www.digitalocean.com/community/tools/glob)
+
+```
+# Validate all `.json` files in a directory
+validator -globbing "/path/to/files/*.json"
+
+# Recursively validate all `.json` files in subdirectories
+validator -globbing "/path/to/files/**/*.json"
+
+# Mix glob patterns and paths
+validator -globbing "/path/*.json" /path/to/search
 ```
 
 #### Container Run
