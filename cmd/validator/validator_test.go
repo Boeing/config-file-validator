@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_flags(t *testing.T) {
@@ -26,7 +28,7 @@ func Test_flags(t *testing.T) {
 		{"flags set, junit reporter", []string{"--exclude-dirs=subdir", "--reporter=junit", "."}, 0},
 		{"flags set, sarif reporter", []string{"--exclude-dirs=subdir", "--reporter=sarif", "."}, 0},
 		{"bad path", []string{"/path/does/not/exit"}, 1},
-		{"exclude file types set", []string{"--exclude-file-types=json", "."}, 0},
+		{"exclude file types set", []string{"--exclude-file-types=json,yaml", "."}, 0},
 		{"multiple paths", []string{"../../test/fixtures/subdir/good.json", "../../test/fixtures/good.json"}, 0},
 		{"version", []string{"--version"}, 0},
 		{"output set", []string{"--reporter=json:../../test/output", "."}, 0},
@@ -57,5 +59,48 @@ func Test_flags(t *testing.T) {
 		if tc.ExpectedExit != actualExit {
 			t.Errorf("Wrong exit code, expected: %v, got: %v", tc.ExpectedExit, actualExit)
 		}
+	}
+}
+
+func Test_getExcludeFileTypes(t *testing.T) {
+	type testCase struct {
+		name                     string
+		input                    string
+		expectedExcludeFileTypes []string
+	}
+
+	tcases := []testCase{
+		{
+			name:                     "exclude yaml",
+			input:                    "yaml",
+			expectedExcludeFileTypes: []string{"yaml", "yml"},
+		},
+		{
+			name:                     "exclude yml",
+			input:                    "yml",
+			expectedExcludeFileTypes: []string{"yaml", "yml"},
+		},
+		{
+			name:                     "exclude json",
+			input:                    "json",
+			expectedExcludeFileTypes: []string{"json"},
+		},
+		{
+			name:                     "exclude json and yaml",
+			input:                    "json,yaml",
+			expectedExcludeFileTypes: []string{"json", "yaml", "yml"},
+		},
+		{
+			name:                     "exclude jSon and YamL",
+			input:                    "jSon,YamL",
+			expectedExcludeFileTypes: []string{"json", "yaml", "yml"},
+		},
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			actual := getExcludeFileTypes(tcase.input)
+			require.ElementsMatch(t, tcase.expectedExcludeFileTypes, actual)
+		})
 	}
 }
