@@ -87,7 +87,19 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```
-go install github.com/Boeing/config-file-validator/cmd/validator@v1.7.1
+go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.0
+```
+
+### Github Action
+
+The config-file-validator is available as a [Github Action](https://github.com/kehoecj/validate-configs-action)
+
+```
+jobs:
+  validate-config-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: kehoe/validate-configs-action@v4.0.1
 ```
 
 ## Usage
@@ -99,25 +111,25 @@ positional arguments:
 
 optional flags:
   -depth int
-    	Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
+        Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
   -exclude-dirs string
-    	Subdirectories to exclude when searching for configuration files
+        Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
-    	A comma separated list of file types to ignore
+        A comma separated list of file types to ignore
+  -globbing
+        If globbing flag is set, check for glob patterns in the arguments.
   -groupby string
-    	Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
-  -globbing bool
-    	Set globbing to true to enable pattern matching for search paths. Enclose the pattern in double quotes. The flag is not compatible with -exclude-dirs and -exclude-file-types.
+        Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
   -quiet
-    	If quiet flag is set. It doesn't print any output to stdout.
-  -reporter string
-		A string representing report format and optional output file path separated by colon if present.
-		Usage: --reporter <format>:<optional_file_path>
-		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
-		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
-		Supported formats: standard, json, junit (default: "standard")
+        If quiet flag is set. It doesn't print any output to stdout.
+  -reporter value
+        A string representing report format and optional output file path separated by colon if present.
+        Usage: --reporter <format>:<optional_file_path>
+        Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
+        Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
+        Supported formats: standard, json, junit, and sarif (default: "standard")
   -version
-    	Version prints the release version of validator
+        Version prints the release version of validator
 ```
 
 ### Environment Variables
@@ -178,9 +190,9 @@ validator --depth=0 /path/to/search
 ![Custom Recursion Run](./img/custom_recursion.gif)
 
 #### Customize report output
-You can customize the report output and save the results to a file (default name is result.{extension}). The available report types are `standard`, `junit`, and `json`. You can specify multiple report types by chaining the `--reporter` flags.
+You can customize the report output and save the results to a file (default name is result.{extension}). The available report types are `standard`, `junit`, `json`, and `sarif`. You can specify multiple report types by chaining the `--reporter` flags.
 
-Providing an output file is optional, the results will be printed to stdout by default. To explicitly direct the output to stdout, use file path as `-`.
+You can specify a path to an output file for any reporter by appending `:<path>` the the name of the reporter. Providing an output file is optional and the results will be printed to stdout by default. To explicitly direct the output to stdout, use `:-` as the file path.
 
 ```
 validator --reporter=json:- /path/to/search
@@ -228,13 +240,6 @@ validator -globbing "/path/to/files/**/*.json"
 # Mix glob patterns and paths
 validator -globbing "/path/*.json" /path/to/search
 ```
-
-#### Container Run
-```
-docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.6.0 /test
-```
-
-![Docker Standard Run](./img/docker_run.png)
 
 ## Build
 The project can be downloaded and built from source using an environment with Go 1.21+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
@@ -301,7 +306,7 @@ cp .\validator.exe 'C:\Program Files\validator'
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```
-docker build . -t config-file-validator:v1.6.0
+docker build . -t config-file-validator:v1.8.0
 ```
 
 ## Contributors
