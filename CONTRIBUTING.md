@@ -19,3 +19,6 @@ Pull requests are the best way to propose changes to the codebase (we use [GitHu
 
 ## Report bugs using GitHub's [issues](https://github.com/boeing/config-file-validator/issues)
 We use GitHub issues to track public bugs. Report a bug by [opening a new issue](https://github.com/Boeing/config-file-validator/issues/new);
+
+## Functional Testing
+Until we can automate the functional testing, you must run through the [functional testing](./functional_test.md) procedures before submitting your PR for review.

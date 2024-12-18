@@ -57,7 +57,7 @@ func Test_flags(t *testing.T) {
 		os.Args = append([]string{tc.Name}, tc.Args...)
 		actualExit := mainInit()
 		if tc.ExpectedExit != actualExit {
-			t.Errorf("Wrong exit code, expected: %v, got: %v", tc.ExpectedExit, actualExit)
+			t.Errorf("Test Case %v: Wrong exit code, expected: %v, got: %v", tc.Name, tc.ExpectedExit, actualExit)
 		}
 	}
 }

@@ -7,7 +7,7 @@
         "driver": {
           "name": "config-file-validator",
           "informationUri": "https://github.com/Boeing/config-file-validator",
-          "version": "1.7.1"
+          "version": "1.8.0"
         }
       },
       "results": [
