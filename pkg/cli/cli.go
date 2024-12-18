@@ -151,7 +151,7 @@ func (c CLI) printGroupSingle(reports []reporter.Report) error {
 
 	// Check reporter type to determine how to print
 	for _, reporterObj := range c.Reporters {
-		if _, ok := reporterObj.(reporter.JSONReporter); ok {
+		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
 			return reporter.PrintSingleGroupJSON(reportGroup)
 		}
 	}
@@ -167,7 +167,7 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 
 	// Check reporter type to determine how to print
 	for _, reporterObj := range c.Reporters {
-		if _, ok := reporterObj.(reporter.JSONReporter); ok {
+		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
 			return reporter.PrintDoubleGroupJSON(reportGroup)
 		}
 	}
@@ -182,7 +182,7 @@ func (c CLI) printGroupTriple(reports []reporter.Report) error {
 	}
 
 	for _, reporterObj := range c.Reporters {
-		if _, ok := reporterObj.(reporter.JSONReporter); ok {
+		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
 			return reporter.PrintTripleGroupJSON(reportGroup)
 		}
 	}
