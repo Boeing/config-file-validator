@@ -320,6 +320,7 @@ func applyDefaultFlagsFromEnv() error {
 		"reporter":           "CFV_REPORTER",
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
+		"globbing":           "CFV_GLOBBING",
 	}
 
 	for flagName, envVar := range flagsEnvMap {

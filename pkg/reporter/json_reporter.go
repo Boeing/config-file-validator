@@ -151,7 +151,7 @@ func PrintDoubleGroupJSON(groupReports map[string]map[string][]Report) error {
 	return nil
 }
 
-// Prinnts the report for when three groups are passed in the groupby flag
+// Prints the report for when three groups are passed in the groupby flag
 func PrintTripleGroupJSON(groupReports map[string]map[string]map[string][]Report) error {
 	var jsonReport tripleGroupReportJSON
 	totalPassed := 0
