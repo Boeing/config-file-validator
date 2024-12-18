@@ -146,6 +146,7 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
+| `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
 #### Standard Run
