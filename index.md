@@ -104,18 +104,6 @@ If you have a go environment on your desktop you can use [go install](https://go
 go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.0
 ```
 
-### Github Action
-
-The config-file-validator is available as a [Github Action](https://github.com/kehoecj/validate-configs-action)
-
-```
-jobs:
-  validate-config-files:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: kehoe/validate-configs-action@v4.0.1
-```
-
 ## Usage
 ```
 Usage: validator [OPTIONS] [<search_path>...]
