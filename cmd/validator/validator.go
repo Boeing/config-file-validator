@@ -238,8 +238,6 @@ func validateGroupByConf(groupBy *string) error {
 
 func validateGlobbing(globbingPrt *bool) error {
 	if *globbingPrt && (isFlagSet("exclude-dirs") || isFlagSet("exclude-file-types")) {
-		fmt.Println("The -globbing flag cannot be used with --exclude-dirs or --exclude-file-types")
-		flag.Usage()
 		return errors.New("the -globbing flag cannot be used with --exclude-dirs or --exclude-file-types")
 	}
 	return nil
