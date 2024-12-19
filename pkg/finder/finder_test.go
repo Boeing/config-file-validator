@@ -173,7 +173,7 @@ func Test_FileSystemFinderDuplicateFiles(t *testing.T) {
 	files, err := fsFinder.Find()
 
 	if len(files) != 5 {
-		t.Errorf("No. files found don't match got:%v, want:%v", len(files), 4)
+		t.Errorf("No. files found don't match got:%v, want:%v", len(files), 5)
 	}
 
 	if err != nil {
