@@ -10,7 +10,7 @@ const SARIFVersion = "2.1.0"
 const SARIFSchema = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
 const DriverName = "config-file-validator"
 const DriverInfoURI = "https://github.com/Boeing/config-file-validator"
-const DriverVersion = "1.7.1"
+const DriverVersion = "1.8.0"
 
 type SARIFReporter struct {
 	outputDest string
@@ -121,12 +121,12 @@ func (sr SARIFReporter) Print(reports []Report) error {
 
 	sarifBytes = append(sarifBytes, '\n')
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
-		fmt.Print(string(sarifBytes))
-	}
-
 	if sr.outputDest != "" {
 		return outputBytesToFile(sr.outputDest, "result", "sarif", sarifBytes)
+	}
+
+	if len(reports) > 0 && !reports[0].IsQuiet {
+		fmt.Print(string(sarifBytes))
 	}
 
 	return nil
