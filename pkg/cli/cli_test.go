@@ -12,7 +12,7 @@ import (
 
 func Test_CLI(t *testing.T) {
 	searchPath := "../../test"
-	excludeDirs := []string{"subdir", "subdir2"}
+	excludeDirs := []string{"subdir", "subdir2", "bad-sarif"}
 	groupOutput := []string{""}
 	stdoutReporter := reporter.NewStdoutReporter("")
 
@@ -37,7 +37,7 @@ func Test_CLI(t *testing.T) {
 
 func Test_CLIWithMultipleReporters(t *testing.T) {
 	searchPath := "../../test"
-	excludeDirs := []string{"subdir", "subdir2"}
+	excludeDirs := []string{"subdir", "subdir2", "bad-sarif"}
 	groupOutput := []string{""}
 	output := "../../test/output/validator_result.json"
 	reporters := []reporter.Reporter{
@@ -108,7 +108,7 @@ func Test_CLIBadPath(t *testing.T) {
 
 func Test_CLIWithGroup(t *testing.T) {
 	searchPath := "../../test"
-	excludeDirs := []string{"subdir", "subdir2"}
+	excludeDirs := []string{"subdir", "subdir2", "bad-sarif"}
 	groupOutput := []string{"pass-fail", "directory"}
 	stdoutReporter := reporter.NewStdoutReporter("")
 
