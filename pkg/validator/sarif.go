@@ -47,10 +47,7 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("schema isn't valid: %s", schemaURL)
 	}
-	result, err := schema.Validate(loadedReport)
-	if err != nil {
-		return false, errors.New("couldn't validate a report")
-	}
+	result, _ := schema.Validate(loadedReport)
 	if !result.Valid() {
 		return false, formatError(result.Errors())
 	}

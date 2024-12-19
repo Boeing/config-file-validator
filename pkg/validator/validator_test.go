@@ -39,8 +39,13 @@ var testData = []struct {
 	{"validEditorConfig", []byte("working = true"), true, EditorConfigValidator{}},
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
 	{"validSarif", loadFile("good.sarif"), true, SarifValidator{}},
-	{"invalidSarif", loadFile("bad.sarif", "subdir"), false, SarifValidator{}},
+	{"invalidSarifMissingSchema", loadFile("bad.sarif", "subdir"), false, SarifValidator{}},
 	{"invalidSarifMissingVersion", loadFile("bad.sarif", "subdir2"), false, SarifValidator{}},
+	{"invalidSarifSchemaIsNotAString", loadFile("schema-not-a-string.sarif", "bad-sarif"), false, SarifValidator{}},
+	{"invalidSarifInvalidJson", loadFile("report-json-not-valid.sarif", "bad-sarif"), false, SarifValidator{}},
+	{"invalidSarifNotValidSchema", loadFile("schema-not-valid.sarif", "bad-sarif"), false, SarifValidator{}},
+	{"invalidSarifSchemaUrlDoesntExist", loadFile("schema-no-host.sarif", "bad-sarif"), false, SarifValidator{}},
+	{"invalidSarifMissingSchemaProtocol", loadFile("schema-missing-protocol.sarif", "bad-sarif"), false, SarifValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
