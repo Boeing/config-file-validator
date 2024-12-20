@@ -133,7 +133,7 @@ func Test_CLIWithGroup(t *testing.T) {
 
 func Test_CLIReportErr(t *testing.T) {
 	searchPath := "../../test"
-	excludeDirs := []string{"subdir", "subdir2"}
+	excludeDirs := []string{"subdir", "subdir2", "bad-sarif"}
 	groupOutput := []string{""}
 	output := "./wrong/path"
 	jsonReporter := reporter.NewJSONReporter(output)
