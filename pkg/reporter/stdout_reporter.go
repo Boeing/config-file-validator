@@ -50,7 +50,9 @@ func PrintSingleGroupStdout(groupReport map[string][]Report) error {
 		totalSuccessCount += stdoutReport.Summary.Passed
 		totalFailureCount += stdoutReport.Summary.Failed
 		fmt.Println(stdoutReport.Text)
-		fmt.Printf("Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+		if group != "Passed" && group != "Failed" {
+			fmt.Printf("Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+		}
 	}
 
 	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
@@ -70,7 +72,9 @@ func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 			totalSuccessCount += stdoutReport.Summary.Passed
 			totalFailureCount += stdoutReport.Summary.Failed
 			fmt.Println(stdoutReport.Text)
-			fmt.Printf("    Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+			if group != "Passed" && group != "Failed" && group2 != "Passed" && group2 != "Failed" {
+				fmt.Printf("    Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+			}
 		}
 	}
 
@@ -94,7 +98,9 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 				totalSuccessCount += stdoutReport.Summary.Passed
 				totalFailureCount += stdoutReport.Summary.Failed
 				fmt.Println(stdoutReport.Text)
-				fmt.Printf("        Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+				if groupOne != "Passed" && groupOne != "Failed" && groupTwo != "Passed" && groupTwo != "Failed" && groupThree != "Passed" && groupThree != "Failed" {
+					fmt.Printf("        Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+				}
 			}
 		}
 	}
