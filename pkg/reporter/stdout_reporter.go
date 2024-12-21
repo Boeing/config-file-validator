@@ -50,7 +50,7 @@ func PrintSingleGroupStdout(groupReport map[string][]Report) error {
 		totalSuccessCount += stdoutReport.Summary.Passed
 		totalFailureCount += stdoutReport.Summary.Failed
 		fmt.Println(stdoutReport.Text)
-		if group != "Passed" && group != "Failed" {
+		if checkGroupsForPassFail(group) {
 			fmt.Printf("Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
 		}
 	}
@@ -72,7 +72,7 @@ func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 			totalSuccessCount += stdoutReport.Summary.Passed
 			totalFailureCount += stdoutReport.Summary.Failed
 			fmt.Println(stdoutReport.Text)
-			if group != "Passed" && group != "Failed" && group2 != "Passed" && group2 != "Failed" {
+			if checkGroupsForPassFail(group, group2) {
 				fmt.Printf("    Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
 			}
 		}
@@ -98,7 +98,7 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 				totalSuccessCount += stdoutReport.Summary.Passed
 				totalFailureCount += stdoutReport.Summary.Failed
 				fmt.Println(stdoutReport.Text)
-				if groupOne != "Passed" && groupOne != "Failed" && groupTwo != "Passed" && groupTwo != "Failed" && groupThree != "Passed" && groupThree != "Failed" {
+				if checkGroupsForPassFail(groupOne, groupTwo, groupThree) {
 					fmt.Printf("        Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
 				}
 			}
