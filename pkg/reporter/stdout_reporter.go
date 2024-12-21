@@ -50,7 +50,9 @@ func PrintSingleGroupStdout(groupReport map[string][]Report) error {
 		totalSuccessCount += stdoutReport.Summary.Passed
 		totalFailureCount += stdoutReport.Summary.Failed
 		fmt.Println(stdoutReport.Text)
-		fmt.Printf("Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+		if checkGroupsForPassFail(group) {
+			fmt.Printf("Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+		}
 	}
 
 	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
@@ -70,7 +72,9 @@ func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 			totalSuccessCount += stdoutReport.Summary.Passed
 			totalFailureCount += stdoutReport.Summary.Failed
 			fmt.Println(stdoutReport.Text)
-			fmt.Printf("    Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+			if checkGroupsForPassFail(group, group2) {
+				fmt.Printf("    Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+			}
 		}
 	}
 
@@ -94,13 +98,25 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 				totalSuccessCount += stdoutReport.Summary.Passed
 				totalFailureCount += stdoutReport.Summary.Failed
 				fmt.Println(stdoutReport.Text)
-				fmt.Printf("        Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+				if checkGroupsForPassFail(groupOne, groupTwo, groupThree) {
+					fmt.Printf("        Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
+				}
 			}
 		}
 	}
 
 	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
 	return nil
+}
+
+// Checks if any of the provided groups are "Passed" or "Failed".
+func checkGroupsForPassFail(groups ...string) bool {
+	for _, group := range groups {
+		if group == "Passed" || group == "Failed" {
+			return false
+		}
+	}
+	return true
 }
 
 // Creates the standard text report
