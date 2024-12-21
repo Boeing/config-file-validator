@@ -109,6 +109,16 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 	return nil
 }
 
+// Checks if any of the provided groups are "Passed" or "Failed".
+func checkGroupsForPassFail(groups ...string) bool {
+	for _, group := range groups {
+		if group == "Passed" || group == "Failed" {
+			return false
+		}
+	}
+	return true
+}
+
 // Creates the standard text report
 func createStdoutReport(reports []Report, indentSize int) reportStdout {
 	result := reportStdout{}
