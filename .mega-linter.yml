@@ -4,15 +4,23 @@
 EXCLUDED_DIRECTORIES:
   - test/fixtures/
 
+# Disabled certain linters due to duplication and or redundancy.
 DISABLE_LINTERS:
+  # https://megalinter.io/latest/descriptors/repository_kics/
   - REPOSITORY_KICS
+  # already enabled as a dedicated linter for this repo
   - GO_GOLANGCI_LINT
+  # another linter, https://megalinter.io/latest/descriptors/go_revive/
   - GO_REVIVE
+  # Another vulnerability scanner, https://megalinter.io/latest/descriptors/repository_grype/
   - REPOSITORY_GRYPE
+  # Spell checker, https://megalinter.io/latest/descriptors/spell_lychee/
   - SPELL_LYCHEE
 
 DISABLE_ERRORS_LINTERS:
+  # To prevent unnecessary spelling errors (will spit out warnings)
   - SPELL_CSPELL
+  # copypaste checker (JSCPD), can be added in a separate PR as this will need test refactor
   - COPYPASTE_JSCPD
 
 FILTER_REGEX_EXCLUDE: "(test/)"
