@@ -1,6 +1,6 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
+---
 name: Go Pipeline
 
 # Enable this workflow to run for pull requests and
@@ -18,63 +18,63 @@ jobs:
   download:
     runs-on: ubuntu-latest
     steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
-      with:
-        egress-policy: audit
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
 
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-    - name: Set up Go
-      uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
-      with:
-        go-version: '1.22'
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: "1.22"
 
-    - name: Download dependencies
-      run: go mod download
+      - name: Download dependencies
+        run: go mod download
 
   lint:
     needs: download
     runs-on: ubuntu-latest
     steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
-      with:
-        egress-policy: audit
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
 
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-    - name: Set up Go
-      uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
-      with:
-        go-version: '1.22'
-        
-    - name: Static Analysis
-      run: go vet ./...
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: "1.22"
 
-    - name: Check Formatting
-      run: test -z "$(gofmt -s -l -e .)"
+      - name: Static Analysis
+        run: go vet ./...
+
+      - name: Check Formatting
+        run: test -z "$(gofmt -s -l -e .)"
 
   build:
     needs: download
     runs-on: ubuntu-latest
     steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
-      with:
-        egress-policy: audit
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
 
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-    - name: Set up Go
-      uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
-      with:
-        go-version: '1.22'
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: "1.22"
 
-    - name: Build
-      run: |
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-          go build -ldflags='-w -s -extldflags "-static"' -tags netgo -o validator cmd/validator/validator.go
+      - name: Build
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -ldflags='-w -s -extldflags "-static"' -tags netgo -o validator cmd/validator/validator.go
 
   test:
     needs: download
@@ -83,68 +83,68 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
-      with:
-        egress-policy: audit
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
 
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      with:
-        fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
-    - name: Set up Go
-      uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
-      with:
-        go-version: '1.22'
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: "1.22"
 
-    - name: Unit test
-      run: go test -v -cover -coverprofile coverage.out ./...
+      - name: Unit test
+        run: go test -v -cover -coverprofile coverage.out ./...
 
-    - name: Check coverage
-      id: check-coverage
-      env:
-        COVERAGE_THRESHOLD: 94
-      run: |
-        # Validate that the coverage is above or at the required threshold
-        echo "Checking if test coverage is above threshold ..."
-        echo "Coverage threshold: ${COVERAGE_THRESHOLD} %"
-        totalCoverage=$(go tool cover -func coverage.out | grep 'total' | grep -Eo '[0-9]+\.[0-9]+')
-        echo "Current test coverage : ${totalCoverage} %"
-        if (( $(echo "${COVERAGE_THRESHOLD} <= ${totalCoverage}" | bc -l) )); then
-          echo "Coverage OK"
-        else
-          echo "Current test coverage is below threshold"
-          exit 1
-        fi
-        echo "total_coverage=${totalCoverage}" >> "${GITHUB_OUTPUT}"
-    
-    - name: Create badge img tag and apply to README files
-      id: generate-badge
-      run: |
-        # Create Badge URL
-        # Badge will always be green because of coverage threshold check
-        # so we just have to populate the total coverage
-        totalCoverage=${{ steps.check-coverage.outputs.total_coverage }}
-        BADGE_URL="https://img.shields.io/badge/Coverage-${totalCoverage}%25-brightgreen"
-        BADGE_IMG_TAG="<img id=\"cov\" src=\"${BADGE_URL}\" alt=\"Code Coverage\">"
+      - name: Check coverage
+        id: check-coverage
+        env:
+          COVERAGE_THRESHOLD: 94
+        run: |
+          # Validate that the coverage is above or at the required threshold
+          echo "Checking if test coverage is above threshold ..."
+          echo "Coverage threshold: ${COVERAGE_THRESHOLD} %"
+          totalCoverage=$(go tool cover -func coverage.out | grep 'total' | grep -Eo '[0-9]+\.[0-9]+')
+          echo "Current test coverage : ${totalCoverage} %"
+          if (( $(echo "${COVERAGE_THRESHOLD} <= ${totalCoverage}" | bc -l) )); then
+            echo "Coverage OK"
+          else
+            echo "Current test coverage is below threshold"
+            exit 1
+          fi
+          echo "total_coverage=${totalCoverage}" >> "${GITHUB_OUTPUT}"
 
-        # Update README.md and index.md
-        for markdown_file in README.md index.md; do
-          sed -i "/id=\"cov\"/c\\${BADGE_IMG_TAG}" "${markdown_file}"
-        done
+      - name: Create badge img tag and apply to README files
+        id: generate-badge
+        run: |
+          # Create Badge URL
+          # Badge will always be green because of coverage threshold check
+          # so we just have to populate the total coverage
+          totalCoverage=${{ steps.check-coverage.outputs.total_coverage }}
+          BADGE_URL="https://img.shields.io/badge/Coverage-${totalCoverage}%25-brightgreen"
+          BADGE_IMG_TAG="<img id=\"cov\" src=\"${BADGE_URL}\" alt=\"Code Coverage\">"
 
-        # Check to see if files were updated
-        if git diff --quiet; then
-          echo "badge_updates=false" >> "${GITHUB_OUTPUT}"
-        else
-          echo "badge_updates=true" >> "${GITHUB_OUTPUT}"
-        fi
+          # Update README.md and index.md
+          for markdown_file in README.md index.md; do
+            sed -i "/id=\"cov\"/c\\${BADGE_IMG_TAG}" "${markdown_file}"
+          done
 
-    - name: Commit changes
-      if: steps.generate-badge.outputs.badge_updates == 'true' && github.event_name == 'push'
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add -- README.md index.md
-        git commit -m "chore: Updated coverage badge."
-        git push
+          # Check to see if files were updated
+          if git diff --quiet; then
+            echo "badge_updates=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "badge_updates=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Commit changes
+        if: steps.generate-badge.outputs.badge_updates == 'true' && github.event_name == 'push'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -- README.md index.md
+          git commit -m "chore: Updated coverage badge."
+          git push
