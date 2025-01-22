@@ -19,7 +19,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-94.7%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-94.6%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -221,6 +221,13 @@ validator -groupby directory,pass-fail
 
 ![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.gif)
 
+### Output results to a file
+Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format. Available options are `junit` and `json`. If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
+
+```
+validator --reporter=json --output=/path/to/dir
+```
+
 ### Suppress output
 Passing the `--quiet` flag suppresses all output to stdout. If there are invalid config files the validator tool will exit with 1. Any errors in execution such as an invalid path will still be displayed.
 
@@ -319,7 +326,7 @@ docker build . -t config-file-validator:v1.8.0
 </a>
 
 ## Contributing
-We welcome contributions! Please refer to our [contributing guide](/CONTRIBUTING.md)
+We welcome contributions! Please refer to our [contributing guide](./CONTRIBUTING.md)
 
 ## License
-The Config File Validator is released under the [Apache 2.0](/LICENSE) License
+The Config File Validator is released under the [Apache 2.0](./LICENSE) License
