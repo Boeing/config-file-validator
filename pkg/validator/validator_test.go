@@ -112,14 +112,15 @@ func Test_ValidationInput(t *testing.T) {
 }
 
 func addFuzzCases(f *testing.F) {
+	f.Helper()
 	for _, tc := range fuzzbank {
 		f.Add(tc)
 	}
 }
 
-func fuzzFunction(v Validator) func(t *testing.T, a []byte) {
-	return func(t *testing.T, a []byte) {
-		v.Validate(a)
+func fuzzFunction(v Validator) func(*testing.T, []byte) {
+	return func(_ *testing.T, a []byte) {
+		_, _ = v.Validate(a)
 	}
 }
 
