@@ -98,7 +98,7 @@ jobs:
           go-version: "1.22"
 
       - name: Unit test
-        run: go test -v -cover -parallel=1 -coverprofile coverage.out ./...
+        run: go test -v -cover -parallel=2 -coverprofile coverage.out ./...
 
       - name: Check coverage
         id: check-coverage
