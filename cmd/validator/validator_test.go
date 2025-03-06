@@ -41,6 +41,8 @@ func Test_flags(t *testing.T) {
 		{"grouped sarif", []string{"-groupby=directory", "--reporter=sarif", "."}, 1},
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, 1},
 		{"quiet flag", []string{"--quiet=true", "."}, 0},
+		{"exclude file types and file types", []string{"--exclude-file-types=yaml", "--file-types=yaml"}, 1},
+		{"file types set", []string{"--file-types=yaml"}, 0},
 		{"globbing flag set", []string{"--globbing=true", "."}, 0},
 		{"globbing flag with a pattern", []string{"--globbing=true", "../../test/**/[m-t]*.json"}, 0},
 		{"globbing flag with no matches", []string{"--globbing=true", "../../test/**/*.nomatch"}, 0},
