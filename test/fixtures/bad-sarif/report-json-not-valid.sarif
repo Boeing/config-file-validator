@@ -1,0 +1,12 @@
+{
+  "version": "2.1.0",
+              }
+            }
+          ],
+          "ruleId": "no-unused-vars",
+          "ruleIndex": 0
+        }
+      ]
+    }
+  ]
+}
