@@ -37,18 +37,18 @@
 </p>
 
 ## Supported config files formats:
-* Apple PList XML
-* CSV
-* EDITORCONFIG
-* ENV
-* HCL
-* HOCON
-* INI
-* JSON
-* Properties
-* TOML
-* XML
-* YAML
+* <img src="img/swift.png" width="20" height="20" style="vertical-align: middle;"> Apple PList XML
+* <img src="img/CSS.png" width="20" height="20" style="vertical-align: middle;"> CSV
+* <img src="img/EDITORCONFIG.webp" width="20" height="20" style="vertical-align: middle;"> EDITORCONFIG
+* <img src="img/ENV.png" width="20" height="20" style="vertical-align: middle;"> ENV
+* <img src="img/HCL.png" width="20" height="20" style="vertical-align: middle;"> HCL
+* <img src="img/HOCON.png" width="20" height="20" style="vertical-align: middle;"> HOCON
+* <img src="img/INI.png" width="20" height="20" style="vertical-align: middle;"> INI
+* <img src="img/JSON.png" width="20" height="20" style="vertical-align: middle;"> JSON
+* <img src="img/Properties.png" width="20" height="20" style="vertical-align: middle;"> Properties
+* <img src="img/TOML.png" width="20" height="20" style="vertical-align: middle;"> TOML
+* <img src="img/XML.webp" width="20" height="20" style="vertical-align: middle;"> XML
+* <img src="img/YAML.png" width="20" height="20" style="vertical-align: middle;"> YAML
 
 ## Demo
 
