@@ -1,4 +1,4 @@
-FROM golang:1.23@sha256:70031844b8c225351d0bb63e2c383f80db85d92ba894e3da7e13bcf80efa9a37 AS go-builder
+FROM golang:1.24@sha256:d9db32125db0c3a680cfb7a1afcaefb89c898a075ec148fdc2f0f646cc2ed509 AS go-builder
 ARG VALIDATOR_VERSION=unknown
 COPY . /build/
 WORKDIR /build
