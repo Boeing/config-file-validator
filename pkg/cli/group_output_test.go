@@ -9,7 +9,7 @@ import (
 
 func Test_NoGroupOutput(t *testing.T) {
 	searchPath := "../../test"
-	excludeDirs := []string{"subdir", "subdir2"}
+	excludeDirs := []string{"subdir", "subdir2", "bad-sarif"}
 	groupOutput := map[string][]string{
 		"test":  {},
 		"test2": {},
@@ -40,7 +40,7 @@ func Test_NoGroupOutput(t *testing.T) {
 
 func Test_SingleGroupOutput(t *testing.T) {
 	searchPath := "../../test"
-	excludeDirs := []string{"subdir", "subdir2"}
+	excludeDirs := []string{"subdir", "subdir2", "bad-sarif"}
 	groupOutput := map[string][]string{
 		"test":  {"directory"},
 		"test2": {"filetype"},
@@ -109,7 +109,7 @@ func Test_DirectoryGroupBy(t *testing.T) {
 
 func Test_DoubleGroupOutput(t *testing.T) {
 	searchPath := "../../test"
-	excludeDirs := []string{"subdir", "subdir2"}
+	excludeDirs := []string{"subdir", "subdir2", "bad-sarif"}
 	groupOutput := map[string][]string{
 		"test":  {"directory", "pass-fail"},
 		"test2": {"filetype", "directory"},
@@ -140,7 +140,7 @@ func Test_DoubleGroupOutput(t *testing.T) {
 
 func Test_TripleGroupOutput(t *testing.T) {
 	searchPath := "../../test"
-	excludeDirs := []string{"subdir", "subdir2"}
+	excludeDirs := []string{"subdir", "subdir2", "bad-sarif"}
 	groupOutput := map[string][]string{
 		"test":  {"directory", "pass-fail", "filetype"},
 		"test2": {"filetype", "directory", "pass-fail"},
