@@ -31,7 +31,7 @@ func Test_CLI(t *testing.T) {
 	}
 
 	if exitStatus != 0 {
-		t.Errorf("Exit status was not 0")
+		t.Error("Exit status was not 0")
 	}
 }
 
@@ -60,7 +60,7 @@ func Test_CLIWithMultipleReporters(t *testing.T) {
 	}
 
 	if exitStatus != 0 {
-		t.Errorf("Exit status was not 0")
+		t.Error("Exit status was not 0")
 	}
 
 	err = os.Remove(output)
@@ -83,7 +83,7 @@ func Test_CLIWithFailedValidation(t *testing.T) {
 	}
 
 	if exitStatus != 1 {
-		t.Errorf("Exit status was not 1")
+		t.Error("Exit status was not 1")
 	}
 }
 
@@ -98,11 +98,11 @@ func Test_CLIBadPath(t *testing.T) {
 	exitStatus, err := cli.Run()
 
 	if err == nil {
-		t.Errorf("A nil error was returned")
+		t.Error("A nil error was returned")
 	}
 
 	if exitStatus == 0 {
-		t.Errorf("Exit status was not 1")
+		t.Error("Exit status was not 1")
 	}
 }
 
@@ -127,7 +127,7 @@ func Test_CLIWithGroup(t *testing.T) {
 	}
 
 	if exitStatus != 0 {
-		t.Errorf("Exit status was not 0")
+		t.Error("Exit status was not 0")
 	}
 }
 

@@ -84,7 +84,7 @@ func (c CLI) Run() (int, error) {
 	var reports []reporter.Report
 	foundFiles, err := c.Finder.Find()
 	if err != nil {
-		return 1, fmt.Errorf("Unable to find files: %w", err)
+		return 1, fmt.Errorf("unable to find files: %w", err)
 	}
 
 	for _, fileToValidate := range foundFiles {

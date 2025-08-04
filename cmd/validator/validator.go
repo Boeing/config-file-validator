@@ -49,8 +49,8 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/cli"
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
-	"github.com/Boeing/config-file-validator/pkg/misc"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/tools"
 )
 
 type validatorConfig struct {
@@ -78,12 +78,13 @@ func (rf *reporterFlags) Set(value string) error {
 
 // Custom Usage function to cover
 func validatorUsage() {
-	fmt.Printf("Usage: validator [OPTIONS] [<search_path>...]\n\n")
-	fmt.Printf("positional arguments:\n")
+	fmt.Println("Usage: validator [OPTIONS] [<search_path>...]")
+	fmt.Println()
+	fmt.Println("positional arguments:")
 	fmt.Printf(
 		"    search_path: The search path on the filesystem for configuration files. " +
 			"Defaults to the current working directory if no search_path provided\n\n")
-	fmt.Printf("optional flags:\n")
+	fmt.Println("optional flags:")
 	flag.PrintDefaults()
 }
 
@@ -169,13 +170,13 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 	}
 
 	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
-		return validatorConfig{}, errors.New("Wrong parameter value for depth, value cannot be negative")
+		return validatorConfig{}, errors.New("wrong parameter value for depth, value cannot be negative")
 	}
 
 	if *excludeFileTypesPtr != "" {
 		*excludeFileTypesPtr = strings.ToLower(*excludeFileTypesPtr)
 		if !validateFileTypeList(strings.Split(*excludeFileTypesPtr, ",")) {
-			return validatorConfig{}, errors.New("Invalid exclude file type")
+			return validatorConfig{}, errors.New("invalid exclude file type")
 		}
 	}
 
@@ -221,11 +222,11 @@ func validateReporterConf(conf map[string]string, groupBy *string) error {
 	for reportType := range conf {
 		_, ok := acceptedReportTypes[reportType]
 		if !ok {
-			return errors.New("Wrong parameter value for reporter, only supports standard, json, junit, or sarif")
+			return errors.New("wrong parameter value for reporter, only supports standard, json, junit, or sarif")
 		}
 
 		if !groupOutputReportTypes[reportType] && groupBy != nil && *groupBy != "" {
-			return errors.New("Wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
+			return errors.New("wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
 		}
 	}
 
@@ -242,10 +243,10 @@ func validateGroupByConf(groupBy *string) error {
 	if groupBy != nil && isFlagSet("groupby") {
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
-				return errors.New("Wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+				return errors.New("wrong parameter value for groupby, only supports filetype, directory, pass-fail")
 			}
 			if _, ok := seenValues[groupBy]; ok {
-				return errors.New("Wrong parameter value for groupby, duplicate values are not allowed")
+				return errors.New("wrong parameter value for groupby, duplicate values are not allowed")
 			}
 			seenValues[groupBy] = true
 		}
@@ -280,7 +281,7 @@ func handleGlobbing(searchPaths []string) ([]string, error) {
 		if isGlobPattern(flagArg) {
 			matches, err := doublestar.Glob(os.DirFS("."), flagArg)
 			if err != nil {
-				return nil, errors.New("Glob matching error")
+				return nil, errors.New("glob matching error")
 			}
 			searchPaths = append(searchPaths, matches...)
 		} else {
@@ -304,7 +305,7 @@ func parseReporterFlags(flags reporterFlags) (map[string]string, error) {
 				conf[parts[0]] = parts[1]
 			}
 		default:
-			return nil, errors.New("Wrong parameter value format for reporter, expected format is `report_type:optional_file_path`")
+			return nil, errors.New("wrong parameter value format for reporter, expected format is `report_type:optional_file_path`")
 		}
 	}
 
@@ -467,7 +468,7 @@ func mainInit() int {
 
 func getExcludeFileTypes(configExcludeFileTypes string) []string {
 	excludeFileTypes := strings.Split(strings.ToLower(configExcludeFileTypes), ",")
-	uniqueFileTypes := misc.ArrToMap(excludeFileTypes...)
+	uniqueFileTypes := tools.ArrToMap(excludeFileTypes...)
 
 	for _, ft := range filetype.FileTypes {
 		for ext := range ft.Extensions {

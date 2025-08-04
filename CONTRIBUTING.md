@@ -15,7 +15,8 @@ Pull requests are the best way to propose changes to the codebase (we use [GitHu
 1. Fork the repository and create your branch from `main`.
 2. If you've added code that should be tested, add tests.
 3. Ensure the test suite passes.
-4. Submit that pull request!
+4. Ensure linters are happy, a CI pipeline will be run for your changes.
+5. Submit that pull request!
 
 ## Report bugs using GitHub's [issues](https://github.com/boeing/config-file-validator/issues)
 We use GitHub issues to track public bugs. Report a bug by [opening a new issue](https://github.com/Boeing/config-file-validator/issues/new);
