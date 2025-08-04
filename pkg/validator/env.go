@@ -19,7 +19,7 @@ func (EnvValidator) Validate(b []byte) (bool, error) {
 		var customError *envparse.ParseError
 		if errors.As(err, &customError) {
 			// we can wrap some useful information with the error
-			err = fmt.Errorf("Error at line %v: %w", customError.Line, customError.Err)
+			err = fmt.Errorf("error at line %v: %w", customError.Line, customError.Err)
 		}
 		return false, err
 	}
