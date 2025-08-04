@@ -1,4 +1,4 @@
-package misc
+package tools
 
 // ArrToMap converts a string array
 // to a map with keys from the array

@@ -23,7 +23,7 @@ func getCustomErr(input []byte, err error) error {
 	offset := int(jsonError.Offset)
 	line := 1 + strings.Count(string(input)[:offset], "\n")
 	column := 1 + offset - (strings.LastIndex(string(input)[:offset], "\n") + len("\n"))
-	return fmt.Errorf("Error at line %v column %v: %w", line, column, jsonError)
+	return fmt.Errorf("error at line %v column %v: %w", line, column, jsonError)
 }
 
 // Validate implements the Validator interface by attempting to
