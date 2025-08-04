@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
-	"github.com/Boeing/config-file-validator/pkg/misc"
+	"github.com/Boeing/config-file-validator/pkg/tools"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
@@ -18,11 +18,11 @@ func Test_fsFinder(t *testing.T) {
 	files, err := fsFinder.Find()
 
 	if len(files) < 1 {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -35,11 +35,11 @@ func Test_fsFinderExcludeDirs(t *testing.T) {
 	files, err := fsFinder.Find()
 
 	if len(files) < 1 {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -57,7 +57,7 @@ func Test_fsFinderExcludeFileTypes(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -103,7 +103,7 @@ func Test_fsFinderWithDepth(t *testing.T) {
 		}
 
 		if err != nil {
-			t.Errorf("Unable to find files")
+			t.Error("Unable to find files")
 		}
 	}
 }
@@ -111,7 +111,7 @@ func Test_fsFinderWithDepth(t *testing.T) {
 func Test_fsFinderCustomTypes(t *testing.T) {
 	jsonFileType := filetype.FileType{
 		Name:       "json",
-		Extensions: misc.ArrToMap("json"),
+		Extensions: tools.ArrToMap("json"),
 		Validator:  validator.JSONValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
@@ -123,11 +123,11 @@ func Test_fsFinderCustomTypes(t *testing.T) {
 	files, err := fsFinder.Find()
 
 	if len(files) < 1 {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -139,7 +139,7 @@ func Test_fsFinderPathNoExist(t *testing.T) {
 	_, err := fsFinder.Find()
 
 	if err == nil {
-		t.Errorf("Error not returned")
+		t.Error("Error not returned")
 	}
 }
 
@@ -159,7 +159,7 @@ func Test_FileSystemFinderMultipleFinder(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -177,7 +177,7 @@ func Test_FileSystemFinderDuplicateFiles(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -198,7 +198,7 @@ func Test_FileSystemFinderAbsPath(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -210,11 +210,11 @@ func Test_FileSystemFinderUpperCaseExtension(t *testing.T) {
 	files, err := fsFinder.Find()
 
 	if len(files) < 1 {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -226,11 +226,11 @@ func Test_FileSystemFinderMixedCaseExtension(t *testing.T) {
 	files, err := fsFinder.Find()
 
 	if len(files) < 1 {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 
 	if err != nil {
-		t.Errorf("Unable to find files")
+		t.Error("Unable to find files")
 	}
 }
 
@@ -245,7 +245,7 @@ func Test_FileFinderBadPath(t *testing.T) {
 	_, err := fsFinder.Find()
 
 	if err == nil {
-		t.Errorf("Error should be thrown for bad path")
+		t.Error("Error should be thrown for bad path")
 	}
 }
 
@@ -303,15 +303,15 @@ func Test_FileFinderPathWithWhitespaces(t *testing.T) {
 
 			if tt.expectErr {
 				if err == nil {
-					t.Errorf("Error should be thrown for bad path")
+					t.Error("Error should be thrown for bad path")
 				}
 			} else {
 				if len(files) < 1 {
-					t.Errorf("Unable to find file")
+					t.Error("Unable to find file")
 				}
 
 				if err != nil {
-					t.Errorf("Unable to find file")
+					t.Error("Unable to find file")
 				}
 			}
 		})

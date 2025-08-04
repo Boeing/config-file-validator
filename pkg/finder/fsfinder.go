@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Boeing/config-file-validator/pkg/filetype"
-	"github.com/Boeing/config-file-validator/pkg/misc"
+	"github.com/Boeing/config-file-validator/pkg/tools"
 )
 
 type FileSystemFinder struct {
@@ -37,14 +37,14 @@ func WithFileTypes(fileTypes []filetype.FileType) FSFinderOptions {
 // Add a custom list of file types to the FSFinder
 func WithExcludeDirs(excludeDirs []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeDirs = misc.ArrToMap(excludeDirs...)
+		fsf.ExcludeDirs = tools.ArrToMap(excludeDirs...)
 	}
 }
 
 // WithExcludeFileTypes adds excluded file types to FSFinder.
 func WithExcludeFileTypes(types []string) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.ExcludeFileTypes = misc.ArrToMap(types...)
+		fsf.ExcludeFileTypes = tools.ArrToMap(types...)
 	}
 }
 

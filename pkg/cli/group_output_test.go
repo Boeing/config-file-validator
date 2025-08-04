@@ -33,7 +33,7 @@ func Test_NoGroupOutput(t *testing.T) {
 		}
 
 		if exitStatus != 0 {
-			t.Errorf("Exit status was not 0")
+			t.Error("Exit status was not 0")
 		}
 	}
 }
@@ -64,7 +64,7 @@ func Test_SingleGroupOutput(t *testing.T) {
 		}
 
 		if exitStatus != 0 {
-			t.Errorf("Exit status was not 0")
+			t.Error("Exit status was not 0")
 		}
 	}
 }
@@ -84,7 +84,7 @@ func Test_WindowsDirectoryGroupBy(t *testing.T) {
 	groupDirectory := GroupByDirectory(reports)
 
 	if len(groupDirectory) != 2 {
-		t.Errorf("GroupByDirectory did not group correctly")
+		t.Error("GroupByDirectory did not group correctly")
 	}
 }
 
@@ -103,7 +103,7 @@ func Test_DirectoryGroupBy(t *testing.T) {
 	groupDirectory := GroupByDirectory(reports)
 
 	if len(groupDirectory) != 2 {
-		t.Errorf("GroupByDirectory did not group correctly")
+		t.Error("GroupByDirectory did not group correctly")
 	}
 }
 
@@ -133,7 +133,7 @@ func Test_DoubleGroupOutput(t *testing.T) {
 		}
 
 		if exitStatus != 0 {
-			t.Errorf("Exit status was not 0")
+			t.Error("Exit status was not 0")
 		}
 	}
 }
@@ -164,7 +164,7 @@ func Test_TripleGroupOutput(t *testing.T) {
 		}
 
 		if exitStatus != 0 {
-			t.Errorf("Exit status was not 0")
+			t.Error("Exit status was not 0")
 		}
 	}
 }
@@ -192,11 +192,11 @@ func Test_IncorrectSingleGroupOutput(t *testing.T) {
 		exitStatus, err := cli.Run()
 
 		if err == nil {
-			t.Errorf("An error was not returned")
+			t.Error("An error was not returned")
 		}
 
 		if exitStatus != 1 {
-			t.Errorf("Exit status was not 1")
+			t.Error("Exit status was not 1")
 		}
 	}
 }
@@ -224,11 +224,11 @@ func Test_IncorrectDoubleGroupOutput(t *testing.T) {
 		exitStatus, err := cli.Run()
 
 		if err == nil {
-			t.Errorf("An error was not returned")
+			t.Error("An error was not returned")
 		}
 
 		if exitStatus != 1 {
-			t.Errorf("Exit status was not 1")
+			t.Error("Exit status was not 1")
 		}
 	}
 }
@@ -256,11 +256,11 @@ func Test_IncorrectTripleGroupOutput(t *testing.T) {
 		exitStatus, err := cli.Run()
 
 		if err == nil {
-			t.Errorf("An error was not returned")
+			t.Error("An error was not returned")
 		}
 
 		if exitStatus != 1 {
-			t.Errorf("Exit status was not 0")
+			t.Error("Exit status was not 0")
 		}
 	}
 }
