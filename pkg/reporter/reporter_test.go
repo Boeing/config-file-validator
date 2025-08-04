@@ -40,7 +40,7 @@ func Test_stdoutReport(t *testing.T) {
 	stdoutReporter := NewStdoutReporter("")
 	err := stdoutReporter.Print(reports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -74,7 +74,7 @@ func Test_jsonReport(t *testing.T) {
 	jsonReporter := JSONReporter{}
 	err := jsonReporter.Print(reports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -87,7 +87,7 @@ func Test_junitReport(t *testing.T) {
 
 	_, err := ts.getReport()
 	if err == nil {
-		t.Errorf("Reporting failed on getReport")
+		t.Error("reporting failed on getReport")
 	}
 
 	prop2 := Property{Name: "property2", Value: "value"}
@@ -98,7 +98,7 @@ func Test_junitReport(t *testing.T) {
 
 	_, err = ts.getReport()
 	if err != nil {
-		t.Errorf("Reporting failed on getReport")
+		t.Error("reporting failed on getReport")
 	}
 
 	tc1 := Testcase{Name: "testcase2", ClassName: "config-file-validator", Properties: &properties}
@@ -109,7 +109,7 @@ func Test_junitReport(t *testing.T) {
 
 	_, err = ts3.getReport()
 	if err == nil {
-		t.Errorf("Reporting failed on getReport")
+		t.Error("reporting failed on getReport")
 	}
 
 	reportNoValidationError := Report{
@@ -141,7 +141,7 @@ func Test_junitReport(t *testing.T) {
 	junitReporter := JunitReporter{}
 	err = junitReporter.Print(reports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -175,7 +175,7 @@ func Test_sarifReport(t *testing.T) {
 	sarifReporter := SARIFReporter{}
 	err := sarifReporter.Print(reports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -562,7 +562,7 @@ func Test_stdoutReportSingleGroup(t *testing.T) {
 
 	err := PrintSingleGroupStdout(groupReports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -597,7 +597,7 @@ func Test_stdoutReportDoubleGroup(t *testing.T) {
 
 	err := PrintDoubleGroupStdout(groupReports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -636,7 +636,7 @@ func Test_stdoutReportTripleGroup(t *testing.T) {
 
 	err := PrintTripleGroupStdout(groupReports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -671,7 +671,7 @@ func Test_jsonReportSingleGroup(t *testing.T) {
 
 	err := PrintSingleGroupJSON(groupReports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -706,7 +706,7 @@ func Test_jsonReportDoubleGroup(t *testing.T) {
 
 	err := PrintDoubleGroupJSON(groupReports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
 
@@ -745,6 +745,6 @@ func Test_jsonReportTripleGroup(t *testing.T) {
 
 	err := PrintTripleGroupJSON(groupReports)
 	if err != nil {
-		t.Errorf("Reporting failed")
+		t.Error("reporting failed")
 	}
 }
