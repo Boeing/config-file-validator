@@ -80,7 +80,6 @@ You can install the validator using [Scoop](https://scoop.sh/).
 
 ```
 scoop install config-file-validator
-
 ```
 
 ### Arch Linux
