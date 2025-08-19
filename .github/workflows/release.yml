@@ -56,33 +56,15 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@f086349bfa2bd1361f7909c78558e816508cdc10 # v2.8.0
-        with:
-          egress-policy: audit
-
-      - uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f # main
-        with:
-          identifier: Boeing.config-file-validator
-          installers-regex: '-windows-\w+\.zip$'
-          token: ${{ secrets.WINGET_TOKEN }}
-
-      - name: Harden Runner
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: wangyoucao577/go-release-action@481a2c1a0f1be199722e3e9b74d7199acafc30a8 # v1.53
+      - uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f # v2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
-          go_version: 1.25
-          binary_name: "validator"
-          ldflags: -w -s -extldflags "-static" -X github.com/Boeing/config-file-validator.version=${{ github.event.release.tag_name }}
-          build_tags: -tags netgo
-          project_path: cmd/validator
-          extra_files: LICENSE README.md
+          identifier: Boeing.config-file-validator
+          installers-regex: '-windows-\w+\.zip$'
+          token: ${{ secrets.WINGET_TOKEN }}
 
   aur-publish:
     runs-on: ubuntu-latest
