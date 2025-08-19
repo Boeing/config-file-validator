@@ -60,7 +60,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f # v2
+      - uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f # main
         with:
           identifier: Boeing.config-file-validator
           installers-regex: '-windows-\w+\.zip$'
