@@ -81,6 +81,13 @@ You can install the validator using [aqua](https://aquaproj.github.io/).
 aqua g -i Boeing/config-file-validator
 ```
 
+### Winget
+We release a Winget package for the config-file-validator
+
+```
+winget install Boeing.config-file-validator
+```
+
 ### Scoop
 You can install the validator using [Scoop](https://scoop.sh/).
 
