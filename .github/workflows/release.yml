@@ -36,7 +36,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: wangyoucao577/go-release-action@481a2c1a0f1be199722e3e9b74d7199acafc30a8 # v1.53
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
