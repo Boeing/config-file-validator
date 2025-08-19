@@ -16,3 +16,12 @@ USER user
 COPY --from=go-builder /build/validator /
 HEALTHCHECK NONE
 ENTRYPOINT [ "/validator" ]
+
+CGO_ENABLED=0 \
+  GOOS=darwin \
+  GOARCH=arm64 \
+  go build \
+  -ldflags="-w -s -extldflags '-static' -X github.com/Boeing/config-file-validator.version=$VALIDATOR_VERSION" \
+  -tags netgo \
+  -o validator \
+  cmd/validator/validator.go
