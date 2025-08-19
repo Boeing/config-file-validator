@@ -22,7 +22,7 @@ type CLI struct {
 	Finder finder.FileFinder
 	// Reporter interface for outputting the results of
 	// the CLI run
-	Reporter reporter.Reporter
+	Reporters []reporter.Reporter
 }
 
 // Implement the go options pattern to be able to
@@ -37,10 +37,10 @@ func WithFinder(f finder.FileFinder) Option {
 	}
 }
 
-// Set the reporter type
-func WithReporter(r reporter.Reporter) Option {
+// Set the reporter types
+func WithReporters(r ...reporter.Reporter) Option {
 	return func(c *CLI) {
-		c.Reporter = r
+		c.Reporters = r
 	}
 }
 
@@ -59,11 +59,11 @@ func WithQuiet(quiet bool) Option {
 // Initialize the CLI object
 func Init(opts ...Option) *CLI {
 	defaultFsFinder := finder.FileSystemFinderInit()
-	defaultReporter := reporter.StdoutReporter{}
+	defaultReporter := reporter.NewStdoutReporter("")
 
 	cli := &CLI{
 		defaultFsFinder,
-		defaultReporter,
+		[]reporter.Reporter{defaultReporter},
 	}
 
 	for _, opt := range opts {
@@ -78,13 +78,13 @@ func Init(opts ...Option) *CLI {
 // return a list of files
 // - Reads each file that was found
 // - Calls the Validate method from the Validator interface to validate the file
-// - Outputs the results using the Reporter
+// - Outputs the results using the Reporters
 func (c CLI) Run() (int, error) {
 	errorFound = false
 	var reports []reporter.Report
 	foundFiles, err := c.Finder.Find()
 	if err != nil {
-		return 1, fmt.Errorf("Unable to find files: %w", err)
+		return 1, fmt.Errorf("unable to find files: %w", err)
 	}
 
 	for _, fileToValidate := range foundFiles {
@@ -132,10 +132,12 @@ func (c CLI) printReports(reports []reporter.Report) error {
 		return c.printGroupTriple(reports)
 	}
 
-	err := c.Reporter.Print(reports)
-	if err != nil {
-		fmt.Println("failed to report:", err)
-		errorFound = true
+	for _, reporterObj := range c.Reporters {
+		err := reporterObj.Print(reports)
+		if err != nil {
+			fmt.Println("failed to report:", err)
+			errorFound = true
+		}
 	}
 
 	return nil
@@ -148,8 +150,10 @@ func (c CLI) printGroupSingle(reports []reporter.Report) error {
 	}
 
 	// Check reporter type to determine how to print
-	if _, ok := c.Reporter.(reporter.JSONReporter); ok {
-		return reporter.PrintSingleGroupJSON(reportGroup)
+	for _, reporterObj := range c.Reporters {
+		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
+			return reporter.PrintSingleGroupJSON(reportGroup)
+		}
 	}
 
 	return reporter.PrintSingleGroupStdout(reportGroup)
@@ -162,8 +166,10 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 	}
 
 	// Check reporter type to determine how to print
-	if _, ok := c.Reporter.(reporter.JSONReporter); ok {
-		return reporter.PrintDoubleGroupJSON(reportGroup)
+	for _, reporterObj := range c.Reporters {
+		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
+			return reporter.PrintDoubleGroupJSON(reportGroup)
+		}
 	}
 
 	return reporter.PrintDoubleGroupStdout(reportGroup)
@@ -175,8 +181,10 @@ func (c CLI) printGroupTriple(reports []reporter.Report) error {
 		return fmt.Errorf("unable to group by triple value: %w", err)
 	}
 
-	if _, ok := c.Reporter.(reporter.JSONReporter); ok {
-		return reporter.PrintTripleGroupJSON(reportGroup)
+	for _, reporterObj := range c.Reporters {
+		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
+			return reporter.PrintTripleGroupJSON(reportGroup)
+		}
 	}
 
 	return reporter.PrintTripleGroupStdout(reportGroup)

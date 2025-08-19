@@ -7,34 +7,32 @@ import (
 	"github.com/fatih/color"
 )
 
-type StdoutReporter struct{}
+type StdoutReporter struct {
+	outputDest string
+}
+
+type reportStdout struct {
+	Text    string
+	Summary summary
+}
+
+func NewStdoutReporter(outputDest string) *StdoutReporter {
+	return &StdoutReporter{
+		outputDest: outputDest,
+	}
+}
 
 // Print implements the Reporter interface by outputting
 // the report content to stdout
 func (sr StdoutReporter) Print(reports []Report) error {
-	if len(reports) > 0 && reports[0].IsQuiet {
-		return nil
+	stdoutReport := createStdoutReport(reports, 1)
+
+	if sr.outputDest != "" {
+		return outputBytesToFile(sr.outputDest, "result", "txt", []byte(stdoutReport.Text))
 	}
 
-	var results string
-	successCount := 0
-	failureCount := 0
-	for _, report := range reports {
-		if !report.IsValid {
-			color.Set(color.FgRed)
-			tmp := fmt.Sprintln("    × " + report.FilePath)
-			paddedString := sr.padErrorString(report.ValidationError.Error())
-			tmp += fmt.Sprintf("        error: %v\n", paddedString)
-			fmt.Print(tmp)
-			color.Unset()
-			results += tmp
-			failureCount = failureCount + 1
-		} else {
-			tmp := fmt.Sprintln("    ✓ " + report.FilePath)
-			color.Green(tmp)
-			results += tmp
-			successCount = successCount + 1
-		}
+	if len(reports) > 0 && !reports[0].IsQuiet {
+		fmt.Print(stdoutReport.Text)
 	}
 
 	return nil
@@ -45,28 +43,16 @@ func (sr StdoutReporter) Print(reports []Report) error {
 func PrintSingleGroupStdout(groupReport map[string][]Report) error {
 	totalSuccessCount := 0
 	totalFailureCount := 0
-	sr := StdoutReporter{}
 
 	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
-		successCount := 0
-		failureCount := 0
-		for _, report := range reports {
-			if !report.IsValid {
-				color.Set(color.FgRed)
-				fmt.Println("    × " + report.FilePath)
-				paddedString := sr.padErrorString(report.ValidationError.Error())
-				fmt.Printf("        error: %v\n", paddedString)
-				color.Unset()
-				failureCount = failureCount + 1
-				totalFailureCount = totalFailureCount + 1
-			} else {
-				color.Green("    ✓ " + report.FilePath)
-				successCount = successCount + 1
-				totalSuccessCount = totalSuccessCount + 1
-			}
+		stdoutReport := createStdoutReport(reports, 1)
+		totalSuccessCount += stdoutReport.Summary.Passed
+		totalFailureCount += stdoutReport.Summary.Failed
+		fmt.Println(stdoutReport.Text)
+		if checkGroupsForPassFail(group) {
+			fmt.Printf("Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
 		}
-		fmt.Printf("Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 	}
 
 	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
@@ -77,30 +63,18 @@ func PrintSingleGroupStdout(groupReport map[string][]Report) error {
 func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 	totalSuccessCount := 0
 	totalFailureCount := 0
-	sr := StdoutReporter{}
 
 	for group, reports := range groupReport {
 		fmt.Printf("%s\n", group)
 		for group2, reports2 := range reports {
 			fmt.Printf("    %s\n", group2)
-			successCount := 0
-			failureCount := 0
-			for _, report := range reports2 {
-				if !report.IsValid {
-					color.Set(color.FgRed)
-					fmt.Println("        × " + report.FilePath)
-					paddedString := sr.padErrorString(report.ValidationError.Error())
-					fmt.Printf("            error: %v\n", paddedString)
-					color.Unset()
-					failureCount = failureCount + 1
-					totalFailureCount = totalFailureCount + 1
-				} else {
-					color.Green("        ✓ " + report.FilePath)
-					successCount = successCount + 1
-					totalSuccessCount = totalSuccessCount + 1
-				}
+			stdoutReport := createStdoutReport(reports2, 2)
+			totalSuccessCount += stdoutReport.Summary.Passed
+			totalFailureCount += stdoutReport.Summary.Failed
+			fmt.Println(stdoutReport.Text)
+			if checkGroupsForPassFail(group, group2) {
+				fmt.Printf("    Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
 			}
-			fmt.Printf("    Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 		}
 	}
 
@@ -113,7 +87,6 @@ func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
 func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Report) error {
 	totalSuccessCount := 0
 	totalFailureCount := 0
-	sr := StdoutReporter{}
 
 	for groupOne, header := range groupReport {
 		fmt.Printf("%s\n", groupOne)
@@ -121,24 +94,13 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 			fmt.Printf("    %s\n", groupTwo)
 			for groupThree, reports := range subheader {
 				fmt.Printf("        %s\n", groupThree)
-				successCount := 0
-				failureCount := 0
-				for _, report := range reports {
-					if !report.IsValid {
-						color.Set(color.FgRed)
-						fmt.Println("            × " + report.FilePath)
-						paddedString := sr.padErrorString(report.ValidationError.Error())
-						fmt.Printf("                error: %v\n", paddedString)
-						color.Unset()
-						failureCount = failureCount + 1
-						totalFailureCount = totalFailureCount + 1
-					} else {
-						color.Green("            ✓ " + report.FilePath)
-						successCount = successCount + 1
-						totalSuccessCount = totalSuccessCount + 1
-					}
+				stdoutReport := createStdoutReport(reports, 3)
+				totalSuccessCount += stdoutReport.Summary.Passed
+				totalFailureCount += stdoutReport.Summary.Failed
+				fmt.Println(stdoutReport.Text)
+				if checkGroupsForPassFail(groupOne, groupTwo, groupThree) {
+					fmt.Printf("        Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
 				}
-				fmt.Printf("        Summary: %d succeeded, %d failed\n\n", successCount, failureCount)
 			}
 		}
 	}
@@ -147,10 +109,42 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 	return nil
 }
 
+// Checks if any of the provided groups are "Passed" or "Failed".
+func checkGroupsForPassFail(groups ...string) bool {
+	for _, group := range groups {
+		if group == "Passed" || group == "Failed" {
+			return false
+		}
+	}
+	return true
+}
+
+// Creates the standard text report
+func createStdoutReport(reports []Report, indentSize int) reportStdout {
+	result := reportStdout{}
+	baseIndent := "    "
+	indent, errIndent := strings.Repeat(baseIndent, indentSize), strings.Repeat(baseIndent, indentSize+1)
+
+	for _, report := range reports {
+		if !report.IsValid {
+			fmtRed := color.New(color.FgRed)
+			paddedString := padErrorString(report.ValidationError.Error())
+			result.Text += fmtRed.Sprintf("%s× %s\n", indent, report.FilePath)
+			result.Text += fmtRed.Sprintf("%serror: %v\n", errIndent, paddedString)
+			result.Summary.Failed++
+		} else {
+			result.Text += color.New(color.FgGreen).Sprintf("%s✓ %s\n", indent, report.FilePath)
+			result.Summary.Passed++
+		}
+	}
+
+	return result
+}
+
 // padErrorString adds padding to every newline in the error
 // string, except the first line and removes any trailing newlines
 // or spaces
-func (StdoutReporter) padErrorString(errS string) string {
+func padErrorString(errS string) string {
 	errS = strings.TrimSpace(errS)
 	lines := strings.Split(errS, "\n")
 	for idx := 1; idx < len(lines); idx++ {
