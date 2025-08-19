@@ -42,7 +42,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
-          go_version: 1.22
+          go_version: 1.25
           binary_name: "validator"
           ldflags: -w -s -extldflags "-static" -X github.com/Boeing/config-file-validator.version=${{ github.event.release.tag_name }}
           build_tags: -tags netgo

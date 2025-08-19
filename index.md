@@ -252,7 +252,7 @@ validator -globbing "/path/*.json" /path/to/search
 ```
 
 ## Build
-The project can be downloaded and built from source using an environment with Go 1.21+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
+The project can be downloaded and built from source using an environment with Go 1.25+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
 
 ### macOS
 #### Build
