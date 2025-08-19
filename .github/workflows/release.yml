@@ -63,6 +63,7 @@ jobs:
       - uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f # main
         with:
           identifier: Boeing.config-file-validator
+          fork-user: kehoecj
           installers-regex: '-windows-\w+\.zip$'
           token: ${{ secrets.WINGET_TOKEN }}
 
