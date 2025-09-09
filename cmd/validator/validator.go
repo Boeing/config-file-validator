@@ -17,6 +17,8 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -file-types string
+    	A comma separated list of file types to validate. Mutually exclusive with -exclude-file-types
   -globbing bool
     	Set globbing to true to enable pattern matching for search paths
   -reporter string
@@ -125,6 +127,7 @@ func getFlags() (validatorConfig, error) {
 		depthPtr            = flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 		excludeDirsPtr      = flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 		excludeFileTypesPtr = flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+		fileTypesPtr        = flag.String("file-types", "", "A comma separated list of file types to validate. Mutually exclusive with --exclude-file-types")
 		versionPtr          = flag.Bool("version", false, "Version prints the release version of validator")
 		groupOutputPtr      = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
@@ -177,6 +180,10 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 		}
 	}
 
+	if err := buildExcludeFileTypesFromFileTypes(excludeFileTypesPtr, fileTypesPtr); err != nil {
+		return validatorConfig{}, err
+	}
+
 	err = validateGroupByConf(groupOutputPtr)
 	if err != nil {
 		return validatorConfig{}, err
@@ -195,6 +202,17 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 	}
 
 	return config, nil
+}
+
+func buildExcludeFileTypesFromFileTypes(excludeFileTypesPtr, fileTypesPtr *string) error {
+	if excludeFileTypesPtr != nil && fileTypesPtr != nil && *excludeFileTypesPtr != "" && *fileTypesPtr != "" {
+		return errors.New("Cannot use exclude-file-types and file-types together")
+	}
+
+	if fileTypesPtr == nil || *fileTypesPtr == "" {
+		return nil
+	}
+	return flag.Set("exclude-file-types", getExcludeFileTypesFromFileTypes(fileTypesPtr))
 }
 
 func validateReporterConf(conf map[string]string, groupBy *string) error {
@@ -316,6 +334,7 @@ func applyDefaultFlagsFromEnv() error {
 		"depth":              "CFV_DEPTH",
 		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
 		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
+		"file-types":         "CFV_FILE_TYPES",
 		"reporter":           "CFV_REPORTER",
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
@@ -343,6 +362,22 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 	}
 
 	return nil
+}
+
+// Build exclude-file-type list from file-type values
+func getExcludeFileTypesFromFileTypes(fileTypesPtr *string) string {
+	validTypes := make([]string, 0, len(filetype.FileTypes))
+	includeTypes := strings.Split(*fileTypesPtr, ",")
+
+	for _, t := range filetype.FileTypes {
+		validTypes = append(validTypes, t.Name)
+	}
+
+	excludeFileTypes := slices.DeleteFunc(validTypes, func(ty string) bool {
+		return slices.Contains(includeTypes, ty)
+	})
+
+	return strings.Join(excludeFileTypes, ",")
 }
 
 // Return the reporter associated with the
