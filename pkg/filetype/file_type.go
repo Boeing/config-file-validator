@@ -67,7 +67,7 @@ var PropFileType = FileType{
 // represent a Pkl file
 var PklFileType = FileType{
 	"pkl",
-	misc.ArrToMap("pkl"),
+	tools.ArrToMap("pkl"),
 	validator.PklValidator{},
 }
 

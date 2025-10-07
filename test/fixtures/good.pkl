@@ -1,11 +1,11 @@
-amends "pkl:Project"
+
 
 name = "PhoenixWebApp"
 
 package {
   name = "phoenix"
   version = "2.1.0"
-  authors = ["Phoenix Engineering <contact@phoenix.example>"]
+  authors = List("Phoenix Engineering <contact@phoenix.dev>")
 }
 
 database {
@@ -30,19 +30,19 @@ features {
 }
 
 // --- Service Replica Configuration ---
-class Replica {
+local class Replica {
   region: "us-east-1" | "us-west-2" | "eu-central-1"
   instanceType: String
   count: Int
 }
 
-replicas: List<Replica> = List(
-  new {
+replicas = List(
+  new Replica {
     region = "us-east-1"
     instanceType = "t3.medium"
     count = 3
   },
-  new {
+  new Replica {
     region = "us-west-2"
     instanceType = "t3.medium"
     count = 2
