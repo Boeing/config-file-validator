@@ -5,6 +5,7 @@ import (
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
 func Test_CLI(t *testing.T) {
@@ -123,12 +124,11 @@ func Test_CLIRepoertErr(t *testing.T) {
 }
 
 func Test_CLI_IgnoreBadPklFileWhenBinaryNotFound(t *testing.T) {
-	// Save the original function before mocking and restore it after the test
-	originalIsPklBinaryPresent := isPklBinaryPresent
-	isPklBinaryPresent = func() bool {
+	// Override the binary checker for this test and restore it afterward
+	previousChecker := validator.SetPklBinaryChecker(func() bool {
 		return false
-	}
-	defer func() { isPklBinaryPresent = originalIsPklBinaryPresent }()
+	})
+	defer validator.SetPklBinaryChecker(previousChecker)
 
 	searchPath := "../../test/fixtures/subdir2/bad.pkl"
 	fsFinder := finder.FileSystemFinderInit(
