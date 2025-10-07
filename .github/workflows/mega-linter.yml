@@ -1,0 +1,54 @@
+# MegaLinter GitHub Action configuration file
+# More info at https://megalinter.io
+---
+name: MegaLinter
+
+on: # yamllint disable-line rule:truthy - false positive
+  push:
+
+  pull_request:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions: # added using https://github.com/step-security/secure-repo
+  contents: read
+
+jobs:
+  megalinter:
+    name: MegaLinter
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+
+      # Git Checkout
+      - name: Checkout Code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+
+      # MegaLinter
+      - name: MegaLinter
+        uses: oxsecurity/megalinter@0dcbedd66ea456ba2d54fd350affaa15df8a0da3 # v9.0.1
+        id: megalinter
+        env:
+          VALIDATE_ALL_CODEBASE: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload MegaLinter artifacts
+      - name: Archive production artifacts
+        if: success() || failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: MegaLinter reports
+          path: |
+            megalinter-reports
+            mega-linter.log

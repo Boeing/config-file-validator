@@ -19,7 +19,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-95.6%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-94.6%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -82,6 +82,13 @@ You can install the validator using [aqua](https://aquaproj.github.io/).
 aqua g -i Boeing/config-file-validator
 ```
 
+### Winget
+We release a Winget package for the config-file-validator
+
+```
+winget install Boeing.config-file-validator
+```
+
 ### Scoop
 You can install the validator using [Scoop](https://scoop.sh/).
 
@@ -102,7 +109,7 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```
-go install github.com/Boeing/config-file-validator/cmd/validator@v1.6.0
+go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.0
 ```
 
 ## Usage
@@ -114,22 +121,40 @@ positional arguments:
 
 optional flags:
   -depth int
-    	Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
+        Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
   -exclude-dirs string
-    	Subdirectories to exclude when searching for configuration files
+        Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
-    	A comma separated list of file types to ignore
+        A comma separated list of file types to ignore
+  -globbing
+        If globbing flag is set, check for glob patterns in the arguments.
   -groupby string
-    	Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
-  -output string
-    	Destination to a file to output results
+        Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
   -quiet
-    	If quiet flag is set. It doesn't print any output to stdout.
-  -reporter string
-    	Format of the printed report. Options are standard and json (default "standard")
+        If quiet flag is set. It doesn't print any output to stdout.
+  -reporter value
+        A string representing report format and optional output file path separated by colon if present.
+        Usage: --reporter <format>:<optional_file_path>
+        Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
+        Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
+        Supported formats: standard, json, junit, and sarif (default: "standard")
   -version
-    	Version prints the release version of validator
+        Version prints the release version of validator
 ```
+
+### Environment Variables
+
+The config-file-validator supports setting options via environment variables. If both command-line flags and environment variables are set, the command-line flags will take precedence. The supported environment variables are as follows:
+
+| Environment Variable | Equivalent Flag |
+|----------------------|-----------------|
+| `CFV_DEPTH`          | `-depth`        |
+| `CFV_EXCLUDE_DIRS`   | `-exclude-dirs` |
+| `CFV_EXCLUDE_FILE_TYPES` | `-exclude-file-types` |
+| `CFV_REPORTER`       | `-reporter`     |
+| `CFV_GROUPBY`        | `-groupby`      |
+| `CFV_QUIET`          | `-quiet`        |
+| `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
 #### Standard Run
@@ -138,7 +163,7 @@ If the search path is omitted it will search the current directory
 validator /path/to/search
 ```
 
-![Standard Run](./img/standard_run.png)
+![Standard Run](./img/standard_run.gif)
 
 #### Multiple search paths
 Multiple search paths are supported, and the results will be merged into a single report
@@ -146,7 +171,7 @@ Multiple search paths are supported, and the results will be merged into a singl
 validator /path/to/search /another/path/to/search
 ```
 
-![Multiple Search Paths Run](./img/multiple_paths.png)
+![Multiple Search Paths Run](./img/multiple_paths.gif)
 
 #### Exclude directories
 Exclude subdirectories in the search path
@@ -155,7 +180,7 @@ Exclude subdirectories in the search path
 validator --exclude-dirs=/path/to/search/tests /path/to/search
 ```
 
-![Exclude Dirs Run](./img/exclude_dirs.png)
+![Exclude Dirs Run](./img/exclude_dirs.gif)
 
 #### Exclude file types
 Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `pkl`, `toml`, `xml`, `yaml`, and `yml`
@@ -164,7 +189,7 @@ Exclude file types in the search path. Available file types are `csv`, `env`, `h
 validator --exclude-file-types=json /path/to/search
 ```
 
-![Exclude File Types Run](./img/exclude_file_types.png)
+![Exclude File Types Run](./img/exclude_file_types.gif)
 
 #### Customize recursion depth
 By default there is no recursion limit. If desired, the recursion depth can be set to an integer value. If depth is set to `0` recursion will be disabled and only the files in the search path will be validated.
@@ -173,16 +198,19 @@ By default there is no recursion limit. If desired, the recursion depth can be s
 validator --depth=0 /path/to/search
 ```
 
-![Custom Recursion Run](./img/custom_recursion.png)
+![Custom Recursion Run](./img/custom_recursion.gif)
 
 #### Customize report output
-Customize the report output. Available options are `standard`, `junit`, and `json`
+You can customize the report output and save the results to a file (default name is result.{extension}). The available report types are `standard`, `junit`, `json`, and `sarif`. You can specify multiple report types by chaining the `--reporter` flags.
+
+You can specify a path to an output file for any reporter by appending `:<path>` the the name of the reporter. Providing an output file is optional and the results will be printed to stdout by default. To explicitly direct the output to stdout, use `:-` as the file path.
 
 ```
-validator --reporter=json /path/to/search
+validator --reporter=json:- /path/to/search
+validator --reporter=json:output.json --reporter=standard /path/to/search
 ```
 
-![Exclude File Types Run](./img/custom_reporter.png)
+![Exclude File Types Run](./img/custom_reporter.gif)
 
 ### Group report output
 Group the report output by file type, directory, or pass-fail. Supports one or more groupings.
@@ -191,14 +219,14 @@ Group the report output by file type, directory, or pass-fail. Supports one or m
 validator -groupby filetype
 ```
 
-![Groupby File Type](./img/gb-filetype.png)
+![Groupby File Type](./img/gb-filetype.gif)
 
 #### Multiple groups
 ```
 validator -groupby directory,pass-fail
 ```
 
-![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.png)
+![Groupby File Type and Pass/Fail](./img/gb-filetype-and-pass-fail.gif)
 
 ### Output results to a file
 Output report results to a file (default name is `result.{extension}`). Must provide reporter flag with a supported extension format. Available options are `junit` and `json`. If an existing directory is provided, create a file named default name in the given directory. If a file name is provided, create a file named the given name at the current working directory.
@@ -214,15 +242,25 @@ Passing the `--quiet` flag suppresses all output to stdout. If there are invalid
 validator --quiet /path/to/search
 ```
 
-#### Container Run
-```
-docker run -it --rm -v /path/to/config/files:/test config-file-validator:1.6.0 /test
-```
+### Search files using a glob pattern
 
-![Docker Standard Run](./img/docker_run.png)
+Use the `-globbing` flag to validate files matching a specified pattern. Include the pattern as a positional argument in double quotes. Multiple glob patterns and direct file paths are supported. If invalid config files are detected, the validator tool exits with code 1, and errors (e.g., invalid patterns) are displayed.
+
+[Learn more about glob patterns](https://www.digitalocean.com/community/tools/glob)
+
+```
+# Validate all `.json` files in a directory
+validator -globbing "/path/to/files/*.json"
+
+# Recursively validate all `.json` files in subdirectories
+validator -globbing "/path/to/files/**/*.json"
+
+# Mix glob patterns and paths
+validator -globbing "/path/*.json" /path/to/search
+```
 
 ## Build
-The project can be downloaded and built from source using an environment with Go 1.22.1+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
+The project can be downloaded and built from source using an environment with Go 1.25+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
 
 ### macOS
 #### Build
@@ -286,7 +324,7 @@ cp .\validator.exe 'C:\Program Files\validator'
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```
-docker build . -t config-file-validator:v1.6.0
+docker build . -t config-file-validator:v1.8.0
 ```
 
 ## Contributors
@@ -295,7 +333,7 @@ docker build . -t config-file-validator:v1.6.0
 </a>
 
 ## Contributing
-We welcome contributions! Please refer to our [contributing guide](/CONTRIBUTING.md)
+We welcome contributions! Please refer to our [contributing guide](./CONTRIBUTING.md)
 
 ## License
-The Config File Validator is released under the [Apache 2.0](/LICENSE) License
+The Config File Validator is released under the [Apache 2.0](./LICENSE) License

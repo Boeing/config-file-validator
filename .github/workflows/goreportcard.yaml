@@ -1,3 +1,4 @@
+---
 name: Go Report Card
 
 on:
@@ -6,53 +7,53 @@ on:
       - main
   pull_request:
 
-permissions:  # added using https://github.com/step-security/secure-repo
+permissions: # added using https://github.com/step-security/secure-repo
   contents: read
 
 jobs:
   goreportcard:
     strategy:
       matrix:
-        go: ['stable']
+        go: ["stable"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@f086349bfa2bd1361f7909c78558e816508cdc10 # v2.8.0
-      with:
-        egress-policy: audit
+      - name: Harden Runner
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
 
-    - name: Setup Go ${{ matrix.go }}
-      uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
-      with:
-        go-version: ${{ matrix.go }}
-        cache: false
-    - name: Checkout gojp/goreportcard repo
-      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
-      with:
-        repository: gojp/goreportcard
-        path: goreportcard
-    - name: Install goreportcard-cli
-      # goreportcard-cli requires the following linters:
-      #  1. gometalinter
-      #  2. golint
-      #  3. gocyclo
-      #  4. ineffassign
-      #  5. misspell
-      # among which, the linter gometalinter is deprecated. However, goreportcard repo has a vendor version of it.
-      # Hence installing from the repo instead of `go install`. Refer https://github.com/gojp/goreportcard/issues/301
-      run: |
-        cd goreportcard
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Checkout gojp/goreportcard repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: gojp/goreportcard
+          path: goreportcard
+      - name: Install goreportcard-cli
+        # goreportcard-cli requires the following linters:
+        #  1. gometalinter
+        #  2. golint
+        #  3. gocyclo
+        #  4. ineffassign
+        #  5. misspell
+        # among which, the linter gometalinter is deprecated. However, goreportcard repo has a vendor version of it.
+        # Hence installing from the repo instead of `go install`. Refer https://github.com/gojp/goreportcard/issues/301
+        run: |
+          cd goreportcard
 
-        # Install prerequisite linter binaries: gometalinter, golint, gocyclo, ineffassign & misspell
-        # Refer: https://github.com/gojp/goreportcard?tab=readme-ov-file#command-line-interface
-        make install
+          # Install prerequisite linter binaries: gometalinter, golint, gocyclo, ineffassign & misspell
+          # Refer: https://github.com/gojp/goreportcard?tab=readme-ov-file#command-line-interface
+          make install
 
-        # Install goreportcard-cli binary
-        go install ./cmd/goreportcard-cli
-    - name: Checkout Boeing/config-file-validator repo
-      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
-    - name: Run goreportcard
-      run: |
-        # Failure threshold is set to 100% to fail at any errors. Default is 75%.
-        goreportcard-cli -t 100
+          # Install goreportcard-cli binary
+          go install ./cmd/goreportcard-cli
+      - name: Checkout Boeing/config-file-validator repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Run goreportcard
+        run: |
+          # Failure threshold is set to 95% to fail at any errors. Default is 75%.
+          goreportcard-cli -t 95

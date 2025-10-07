@@ -1,7 +1,7 @@
 package filetype
 
 import (
-	"github.com/Boeing/config-file-validator/pkg/misc"
+	"github.com/Boeing/config-file-validator/pkg/tools"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
@@ -19,7 +19,7 @@ type FileType struct {
 // represent a JSON file
 var JSONFileType = FileType{
 	"json",
-	misc.ArrToMap("json"),
+	tools.ArrToMap("json"),
 	validator.JSONValidator{},
 }
 
@@ -27,7 +27,7 @@ var JSONFileType = FileType{
 // represent a YAML file
 var YAMLFileType = FileType{
 	"yaml",
-	misc.ArrToMap("yml", "yaml"),
+	tools.ArrToMap("yml", "yaml"),
 	validator.YAMLValidator{},
 }
 
@@ -35,7 +35,7 @@ var YAMLFileType = FileType{
 // represent a XML file
 var XMLFileType = FileType{
 	"xml",
-	misc.ArrToMap("xml"),
+	tools.ArrToMap("xml"),
 	validator.XMLValidator{},
 }
 
@@ -43,7 +43,7 @@ var XMLFileType = FileType{
 // represent a Toml file
 var TomlFileType = FileType{
 	"toml",
-	misc.ArrToMap("toml"),
+	tools.ArrToMap("toml"),
 	validator.TomlValidator{},
 }
 
@@ -51,7 +51,7 @@ var TomlFileType = FileType{
 // represent a Ini file
 var IniFileType = FileType{
 	"ini",
-	misc.ArrToMap("ini"),
+	tools.ArrToMap("ini"),
 	validator.IniValidator{},
 }
 
@@ -59,7 +59,7 @@ var IniFileType = FileType{
 // represent a Properties file
 var PropFileType = FileType{
 	"properties",
-	misc.ArrToMap("properties"),
+	tools.ArrToMap("properties"),
 	validator.PropValidator{},
 }
 
@@ -75,7 +75,7 @@ var PklFileType = FileType{
 // represent a HCL file
 var HclFileType = FileType{
 	"hcl",
-	misc.ArrToMap("hcl"),
+	tools.ArrToMap("hcl"),
 	validator.HclValidator{},
 }
 
@@ -83,7 +83,7 @@ var HclFileType = FileType{
 // represent a Plist file
 var PlistFileType = FileType{
 	"plist",
-	misc.ArrToMap("plist"),
+	tools.ArrToMap("plist"),
 	validator.PlistValidator{},
 }
 
@@ -91,7 +91,7 @@ var PlistFileType = FileType{
 // represent a CSV file
 var CsvFileType = FileType{
 	"csv",
-	misc.ArrToMap("csv"),
+	tools.ArrToMap("csv"),
 	validator.CsvValidator{},
 }
 
@@ -99,7 +99,7 @@ var CsvFileType = FileType{
 // represent a HOCON file
 var HoconFileType = FileType{
 	"hocon",
-	misc.ArrToMap("hocon"),
+	tools.ArrToMap("hocon"),
 	validator.HoconValidator{},
 }
 
@@ -107,7 +107,7 @@ var HoconFileType = FileType{
 // represent a ENV file
 var EnvFileType = FileType{
 	"env",
-	misc.ArrToMap("env"),
+	tools.ArrToMap("env"),
 	validator.EnvValidator{},
 }
 
@@ -115,7 +115,7 @@ var EnvFileType = FileType{
 // represent an EDITORCONFIG file
 var EditorConfigFileType = FileType{
 	"editorconfig",
-	misc.ArrToMap("editorconfig"),
+	tools.ArrToMap("editorconfig"),
 	validator.EditorConfigValidator{},
 }
 

@@ -5,6 +5,7 @@
 *.so
 *.dylib
 cmd/validator/validator
+validator
 bin/
 
 # Test binary, built with `go test -c`
@@ -14,6 +15,7 @@ bin/
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
 .vscode
 .idea
+megalinter-reports/

@@ -69,12 +69,12 @@ func (jr JSONReporter) Print(reports []Report) error {
 
 	jsonBytes = append(jsonBytes, '\n')
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
-		fmt.Print(string(jsonBytes))
-	}
-
 	if jr.outputDest != "" {
 		return outputBytesToFile(jr.outputDest, "result", "json", jsonBytes)
+	}
+
+	if len(reports) > 0 && !reports[0].IsQuiet {
+		fmt.Print(string(jsonBytes))
 	}
 
 	return nil
@@ -151,7 +151,7 @@ func PrintDoubleGroupJSON(groupReports map[string]map[string][]Report) error {
 	return nil
 }
 
-// Prinnts the report for when three groups are passed in the groupby flag
+// Prints the report for when three groups are passed in the groupby flag
 func PrintTripleGroupJSON(groupReports map[string]map[string]map[string][]Report) error {
 	var jsonReport tripleGroupReportJSON
 	totalPassed := 0
