@@ -55,35 +55,41 @@
 <img src="./img/demo.gif" alt="demo" />
 
 ## Installation
-There are several ways to install the config file validator tool
+There are several options to install the config file validator tool
 
 ### Binary Releases
 Download and unpack from https://github.com/Boeing/config-file-validator/releases
 
-### Aqua
-You can install the validator using [aqua](https://aquaproj.github.io/).
+
+### Package Managers
+#### [Homebrew](https://brew.sh/)
+
+```
+brew install config-file-validator
+```
+
+#### [Aqua](https://aquaproj.github.io/)
+
 
 ```
 aqua g -i Boeing/config-file-validator
 ```
 
-
-### Winget
-We release a Winget package for the config-file-validator
+#### [Winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/)
 
 ```
 winget install Boeing.config-file-validator
 ```
 
-### Scoop
-You can install the validator using [Scoop](https://scoop.sh/).
+#### [Scoop](https://scoop.sh/)
+
 
 ```
 scoop install config-file-validator
 ```
 
 ### Arch Linux
-We release an [AUR package](https://aur.archlinux.org/packages/config-file-validator) for the config-file-validator
+We maintain and release an [AUR package](https://aur.archlinux.org/packages/config-file-validator) for the config-file-validator
 
 ```
 git clone https://aur.archlinux.org/config-file-validator.git
@@ -95,7 +101,7 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```
-go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.0
+go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.1
 ```
 
 ## Usage
@@ -303,7 +309,7 @@ cp .\validator.exe 'C:\Program Files\validator'
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```
-docker build . -t config-file-validator:v1.8.0
+docker build . -t config-file-validator:v1.8.1
 ```
 
 ## Contributors
