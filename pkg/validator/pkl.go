@@ -34,11 +34,13 @@ func SetPklBinaryChecker(checker func() bool) func() bool {
 
 // PklValidator is used to validate a byte slice that is intended to represent a
 // PKL file.
-type PklValidator struct{}
+type PklValidator struct {
+	evaluatorFactory func(context.Context, ...func(*pkl.EvaluatorOptions)) (pkl.Evaluator, error)
+}
 
 // Validate attempts to evaluate the provided byte slice as a PKL file.
 // If the 'pkl' binary is not found, it returns ErrSkipped.
-func (PklValidator) Validate(b []byte) (bool, error) {
+func (v PklValidator) Validate(b []byte) (bool, error) {
 	mu.Lock()
 	checker := isPklBinaryPresent
 	mu.Unlock()
@@ -52,7 +54,12 @@ func (PklValidator) Validate(b []byte) (bool, error) {
 	// Convert the byte slice to a ModuleSource using TextSource
 	source := pkl.TextSource(string(b))
 
-	evaluator, err := pkl.NewEvaluator(ctx, pkl.PreconfiguredOptions)
+	evaluatorFactory := v.evaluatorFactory
+	if evaluatorFactory == nil {
+		evaluatorFactory = pkl.NewEvaluator
+	}
+
+	evaluator, err := evaluatorFactory(ctx, pkl.PreconfiguredOptions)
 	if err != nil {
 		return false, fmt.Errorf("failed to create evaluator: %w", err)
 	}
