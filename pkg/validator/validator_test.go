@@ -111,7 +111,6 @@ func Test_ValidationInput(t *testing.T) {
 }
 
 func TestPklValidator_BinaryMissing(t *testing.T) {
-	t.Parallel()
 
 	// Override the binary checker to simulate the 'pkl' binary being absent.
 	previousChecker := SetPklBinaryChecker(func() bool {
@@ -129,7 +128,10 @@ func TestPklValidator_BinaryMissing(t *testing.T) {
 }
 
 func TestPklValidator_EvaluatorCreationError(t *testing.T) {
-	t.Parallel()
+
+	// Ensure the binary check passes for this test.
+	previousChecker := SetPklBinaryChecker(func() bool { return true })
+	defer SetPklBinaryChecker(previousChecker)
 
 	expectedErr := errors.New("evaluator creation failed")
 
