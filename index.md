@@ -70,8 +70,7 @@
 <img src="./img/demo.gif" alt="demo" />
 
 ## Installation
-
-There are several options to install the config file validator tool
+There are several ways to install the config file validator tool
 
 ### Binary Releases
 
