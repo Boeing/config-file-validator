@@ -8,7 +8,7 @@ import (
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
-	"github.com/Boeing/config-file-validator/pkg/validator"
+
 )
 
 func Test_CLI(t *testing.T) {
@@ -158,28 +158,4 @@ func Test_CLIReportErr(t *testing.T) {
 	}
 }
 
-func Test_CLI_IgnoreBadPklFileWhenBinaryNotFound(t *testing.T) {
-	// Override the binary checker for this test and restore it afterward
-	previousChecker := validator.SetPklBinaryChecker(func() bool {
-		return false
-	})
-	defer validator.SetPklBinaryChecker(previousChecker)
 
-	searchPath := "../../test/fixtures/subdir2/bad.pkl"
-	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoots(searchPath),
-	)
-	cli := Init(
-		WithFinder(fsFinder),
-	)
-	exitStatus, err := cli.Run()
-	if err != nil {
-		t.Errorf("An error was returned: %v", err)
-	}
-
-	// Since the pkl binary is not found, the bad pkl file should be ignored
-	// So the exit status should be 0
-	if exitStatus != 0 {
-		t.Errorf("Expected exit status 0, but got: %d", exitStatus)
-	}
-}

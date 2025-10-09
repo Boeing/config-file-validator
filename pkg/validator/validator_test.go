@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -111,28 +112,19 @@ func Test_ValidationInput(t *testing.T) {
 }
 
 func TestPklValidator_BinaryMissing(t *testing.T) {
-
-	// Override the binary checker to simulate the 'pkl' binary being absent.
-	previousChecker := SetPklBinaryChecker(func() bool {
-		return false
-	})
-	// Restore the original checker after the test.
-	defer SetPklBinaryChecker(previousChecker)
-
-	validator := PklValidator{}
+	validator := PklValidator{
+		evaluatorFactory: func(ctx context.Context, options ...func(options *pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
+			return nil, &exec.Error{Err: exec.ErrNotFound}
+		},
+	}
 	_, err := validator.Validate([]byte(`name = "test"`))
 
 	if !errors.Is(err, ErrPklSkipped) {
-		t.Errorf("expected ErrSkipped, got %v", err)
+		t.Errorf("expected ErrPklSkipped, got %v", err)
 	}
 }
 
 func TestPklValidator_EvaluatorCreationError(t *testing.T) {
-
-	// Ensure the binary check passes for this test.
-	previousChecker := SetPklBinaryChecker(func() bool { return true })
-	defer SetPklBinaryChecker(previousChecker)
-
 	expectedErr := errors.New("evaluator creation failed")
 
 	validator := PklValidator{
