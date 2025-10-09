@@ -8,7 +8,6 @@ import (
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
-
 )
 
 func Test_CLI(t *testing.T) {
@@ -157,5 +156,3 @@ func Test_CLIReportErr(t *testing.T) {
 		t.Errorf("should return err status code: %d", exitStatus)
 	}
 }
-
-
