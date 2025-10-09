@@ -130,6 +130,8 @@ optional flags:
         Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
   -quiet
         If quiet flag is set. It doesn't print any output to stdout.
+  -format
+        If format flag is set, it will attempt to format the provided JSON files in place.
   -reporter value
         A string representing report format and optional output file path separated by colon if present.
         Usage: --reporter <format>:<optional_file_path>
@@ -152,6 +154,7 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
+| `CFV_FORMAT`        | `-format`      |
 | `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
@@ -252,6 +255,14 @@ Passing the `--quiet` flag suppresses all output to stdout. If there are invalid
 ```shell
 validator --quiet /path/to/search
 ```
+
+### Format files in place
+Use the `-format` flag to format files in place. This will attempt to read each file, format it with indentation, and overwrite the original file with the formatted content. If a file is not valid JSON, an error message will be displayed for that file, and it will not be modified. The tool will exit with code 1 if any files could not be formatted due to errors.
+
+```shell
+validator -format /path/to/search
+```
+> Only JSON files are formatted currently.
 
 ### Search files using a glob pattern
 

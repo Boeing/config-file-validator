@@ -47,6 +47,11 @@ func Test_flags(t *testing.T) {
 		{"globbing flag not set", []string{"test/**/*.json", "."}, 1},
 		{"globbing flag with exclude-dirs", []string{"-globbing", "--exclude-dirs=subdir", "test/**/*.json", "."}, 1},
 		{"globbing flag with exclude-file-types", []string{"-globbing", "--exclude-file-types=hcl", "test/**/*.json", "."}, 1},
+		{"format flag", []string{"--format=true", "../../test/fixtures/good.json"}, 0},
+		{"format flag with invalid file", []string{"--format=true", "/path/does/not/exist"}, 1},
+		{"format flag with multiple files", []string{"--format=true", "../../test/fixtures/good.json", "../../test/fixtures/good.toml"}, 0},
+		{"format flag with exclude-dirs", []string{"--format=true", "--exclude-dirs=subdir", "."}, 0},
+		{"format flag with json reporter", []string{"--format=true", "--reporter=json", "../../test/fixtures/good.json"}, 0},
 	}
 	for _, tc := range cases {
 		// this call is required because otherwise flags panics,
