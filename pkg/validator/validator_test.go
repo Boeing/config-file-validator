@@ -90,7 +90,7 @@ func Test_ValidationInput(t *testing.T) {
 
 			// If the validator is PklValidator and it returns ErrSkipped, skip the test.
 			if _, ok := tcase.validator.(PklValidator); ok {
-				if errors.Is(err, ErrSkipped) {
+				if errors.Is(err, ErrPklSkipped) {
 					t.Skip("Skipping test: 'pkl' binary not found.")
 				}
 			}
@@ -122,7 +122,7 @@ func TestPklValidator_BinaryMissing(t *testing.T) {
 	validator := PklValidator{}
 	_, err := validator.Validate([]byte(`name = "test"`))
 
-	if !errors.Is(err, ErrSkipped) {
+	if !errors.Is(err, ErrPklSkipped) {
 		t.Errorf("expected ErrSkipped, got %v", err)
 	}
 }

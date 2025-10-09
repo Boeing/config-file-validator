@@ -97,7 +97,7 @@ func (c CLI) Run() (int, error) {
 		}
 
 		isValid, err := fileToValidate.FileType.Validator.Validate(fileContent)
-		if errors.Is(err, validator.ErrSkipped) {
+		if errors.Is(err, validator.ErrPklSkipped) {
 			fmt.Printf("Warning: 'pkl' binary not found, file %s will be ignored.\n", fileToValidate.Path)
 			continue
 		}

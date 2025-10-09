@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	// ErrSkipped is returned when a validation is skipped due to a missing dependency.
-	ErrSkipped = errors.New("validation skipped")
+	// ErrPklSkipped is returned when a validation is skipped due to a missing dependency.
+	ErrPklSkipped = errors.New("validation skipped")
 
 	isPklBinaryPresent = func() bool {
 		_, err := exec.LookPath("pkl")
@@ -46,7 +46,7 @@ func (v PklValidator) Validate(b []byte) (bool, error) {
 	mu.Unlock()
 
 	if !checker() {
-		return false, ErrSkipped
+		return false, ErrPklSkipped
 	}
 
 	ctx := context.Background()
