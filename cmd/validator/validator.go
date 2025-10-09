@@ -61,6 +61,7 @@ type validatorConfig struct {
 	groupOutput      *string
 	quiet            *bool
 	globbing         *bool
+	format           *bool
 }
 
 type reporterFlags []string
@@ -129,6 +130,7 @@ func getFlags() (validatorConfig, error) {
 		groupOutputPtr      = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flag.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
+		formatPtr           = flag.Bool("format", false, "Format all supported file types in place. Only json is supported currently.")
 	)
 	flag.Var(
 		&reporterConfigFlags,
@@ -192,6 +194,7 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 		groupOutputPtr,
 		quietPtr,
 		globbingPrt,
+		formatPtr,
 	}
 
 	return config, nil
@@ -319,6 +322,7 @@ func applyDefaultFlagsFromEnv() error {
 		"reporter":           "CFV_REPORTER",
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
+		"format":             "CFV_FORMAT",
 		"globbing":           "CFV_GLOBBING",
 	}
 
@@ -420,6 +424,7 @@ func mainInit() int {
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
+		cli.WithFormatEnabled(*validatorConfig.format),
 	)
 
 	// Run the config file validation

@@ -11,9 +11,10 @@ import (
 // GroupOutput is a global variable that is used to
 // store the group by options that the user specifies
 var (
-	GroupOutput []string
-	Quiet       bool
-	errorFound  bool
+	GroupOutput  []string
+	Quiet        bool
+	errorFound   bool
+	ShouldFormat bool
 )
 
 type CLI struct {
@@ -56,6 +57,12 @@ func WithQuiet(quiet bool) Option {
 	}
 }
 
+func WithFormatEnabled(format bool) Option {
+	return func(_ *CLI) {
+		ShouldFormat = format
+	}
+}
+
 // Initialize the CLI object
 func Init(opts ...Option) *CLI {
 	defaultFsFinder := finder.FileSystemFinderInit()
@@ -87,6 +94,8 @@ func (c CLI) Run() (int, error) {
 		return 1, fmt.Errorf("unable to find files: %w", err)
 	}
 
+	filesToFormat := []finder.FileMetadata{}
+
 	for _, fileToValidate := range foundFiles {
 		// read it
 		fileContent, err := os.ReadFile(fileToValidate.Path)
@@ -97,6 +106,8 @@ func (c CLI) Run() (int, error) {
 		isValid, err := fileToValidate.FileType.Validator.Validate(fileContent)
 		if !isValid {
 			errorFound = true
+		} else {
+			filesToFormat = append(filesToFormat, fileToValidate)
 		}
 		report := reporter.Report{
 			FileName:        fileToValidate.Name,
@@ -109,6 +120,12 @@ func (c CLI) Run() (int, error) {
 
 	}
 
+	if ShouldFormat {
+		if exitCode, err := c.formatFiles(filesToFormat); err != nil {
+			return exitCode, fmt.Errorf("unable to format files: %w", err)
+		}
+	}
+
 	err = c.printReports(reports)
 	if err != nil {
 		return 1, err
@@ -118,6 +135,32 @@ func (c CLI) Run() (int, error) {
 		return 1, nil
 	}
 
+	return 0, nil
+}
+
+func (c CLI) formatFiles(files []finder.FileMetadata) (int, error) {
+	for _, fileToFormat := range files {
+		if fileToFormat.FileType.Formatter != nil {
+			fileContent, err := os.ReadFile(fileToFormat.Path)
+			if err != nil {
+				return 1, fmt.Errorf("unable to read file: %w", err)
+			}
+			fileInfo, err := os.Stat(fileToFormat.Path)
+			if err != nil {
+				return 1, fmt.Errorf("unable to get file info: %w", err)
+			}
+			// Extract the permission bits
+			permissions := fileInfo.Mode().Perm()
+			formattedContent, err := fileToFormat.FileType.Formatter.Format(fileContent)
+			if err != nil {
+				return 1, fmt.Errorf("unable to format file: %w", err)
+			}
+			err = os.WriteFile(fileToFormat.Path, formattedContent, permissions)
+			if err != nil {
+				return 1, fmt.Errorf("unable to write file: %w", err)
+			}
+		}
+	}
 	return 0, nil
 }
 
