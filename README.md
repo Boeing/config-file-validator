@@ -46,6 +46,8 @@
 * HOCON
 * INI
 * JSON
+* Justfile
+* Makefile
 * Properties
 * TOML
 * XML

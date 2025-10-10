@@ -2,8 +2,8 @@
 Validator recursively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
-Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, TOML, XML, and YAML.
-configuration file types are supported.
+Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Makefile, Justfile,
+Properties, TOML, XML, and YAML configuration file types are supported.
 
 Usage: validator [OPTIONS] [<search_path>...]
 
