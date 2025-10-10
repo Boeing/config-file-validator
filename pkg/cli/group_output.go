@@ -12,7 +12,15 @@ func GroupByFileType(reports []reporter.Report) map[string][]reporter.Report {
 	reportByFile := make(map[string][]reporter.Report)
 
 	for _, report := range reports {
-		fileType := strings.Split(report.FileName, ".")[1]
+		// Safely determine file type: prefer extension after the last dot.
+		// If no dot is present, use the whole filename (lowercased) to allow
+		// matching names like "Makefile" or "Justfile".
+		var fileType string
+		if idx := strings.LastIndex(report.FileName, "."); idx != -1 && idx < len(report.FileName)-1 {
+			fileType = report.FileName[idx+1:]
+		} else {
+			fileType = report.FileName
+		}
 		fileType = strings.ToLower(fileType)
 		if fileType == "yml" {
 			fileType = "yaml"

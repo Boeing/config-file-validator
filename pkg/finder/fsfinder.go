@@ -127,16 +127,40 @@ func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}
 
 			if !dirEntry.IsDir() {
 				// filepath.Ext() returns the extension name with a dot so it
-				// needs to be removed.
+				// needs to be removed. For files without an extension (e.g., Makefile)
+				// also attempt to match by the full filename lowercased.
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 				extensionLowerCase := strings.ToLower(walkFileExtension)
+				filenameLower := strings.ToLower(dirEntry.Name())
 
-				if _, isExcluded := fsf.ExcludeFileTypes[extensionLowerCase]; isExcluded {
-					return nil
+				// If an extension is present, check exclude list first
+				if extensionLowerCase != "" {
+					if _, isExcluded := fsf.ExcludeFileTypes[extensionLowerCase]; isExcluded {
+						return nil
+					}
 				}
 
 				for _, fileType := range fsf.FileTypes {
-					if _, isMatched := fileType.Extensions[extensionLowerCase]; isMatched {
+					// match by extension if present
+					if extensionLowerCase != "" {
+						if _, isMatched := fileType.Extensions[extensionLowerCase]; isMatched {
+							absPath, err := filepath.Abs(path)
+							if err != nil {
+								return err
+							}
+
+							if _, seen := seenMap[absPath]; !seen {
+								fileMetadata := FileMetadata{dirEntry.Name(), absPath, fileType}
+								matchingFiles = append(matchingFiles, fileMetadata)
+								seenMap[absPath] = struct{}{}
+							}
+
+							return nil
+						}
+					}
+
+					// match by exact filename (useful for files without extension)
+					if _, isMatched := fileType.Extensions[filenameLower]; isMatched {
 						absPath, err := filepath.Abs(path)
 						if err != nil {
 							return err
@@ -151,7 +175,11 @@ func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}
 						return nil
 					}
 				}
-				fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
+
+				// if there was an extension that didn't match any file type, add to excluded list
+				if extensionLowerCase != "" {
+					fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
+				}
 			}
 
 			return nil

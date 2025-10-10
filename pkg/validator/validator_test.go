@@ -68,6 +68,10 @@ var testData = []struct {
 	{"invalidEnv", []byte("=TEST"), false, EnvValidator{}},
 	{"validEditorConfig", []byte("working = true"), true, EditorConfigValidator{}},
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
+	{"validMakefile", []byte("all:\n\t@echo hi\n"), true, MakefileValidator{}},
+	{"invalidMakefile_no_recipe", []byte("all:\n"), false, MakefileValidator{}},
+	{"validJustfile", []byte("build:\n\techo hi\n"), true, JustfileValidator{}},
+	{"invalidJustfile_no_rule", []byte("echo hi\n"), false, JustfileValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {

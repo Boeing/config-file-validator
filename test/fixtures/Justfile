@@ -1,0 +1,3 @@
+# justfile sample
+default:
+	echo "hello"
