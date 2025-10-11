@@ -47,6 +47,7 @@
 * INI
 * JSON
 * Properties
+* PKL _(requires that the `pkl` binary is installed; `.pkl` files will be ignored if the binary is not installed)_
 * TOML
 * XML
 * YAML
@@ -187,8 +188,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.gif)
 
 #### Exclude file types
-
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `pkl`, `toml`, `xml`, `yaml`, and `yml`
 
 ```shell
 validator --exclude-file-types=json /path/to/search
