@@ -113,7 +113,7 @@ func Test_ValidationInput(t *testing.T) {
 
 func TestPklValidator_BinaryMissing(t *testing.T) {
 	validator := PklValidator{
-		evaluatorFactory: func(ctx context.Context, options ...func(options *pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
+		evaluatorFactory: func(_ context.Context, _ ...func(*pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
 			return nil, &exec.Error{Err: exec.ErrNotFound}
 		},
 	}
@@ -128,7 +128,7 @@ func TestPklValidator_EvaluatorCreationError(t *testing.T) {
 	expectedErr := errors.New("evaluator creation failed")
 
 	validator := PklValidator{
-		evaluatorFactory: func(_ context.Context, _ ...func(options *pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
+		evaluatorFactory: func(_ context.Context, _ ...func(*pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
 			return nil, expectedErr
 		},
 	}
