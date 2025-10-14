@@ -57,7 +57,7 @@
 
 ## Installation
 
-There are several options to install the config file validator tool
+There are several options to install the config file validator tool. We're constantly
 
 ### Binary Releases
 
@@ -72,8 +72,13 @@ Download and unpack from https://github.com/Boeing/config-file-validator/release
 brew install config-file-validator
 ```
 
-#### [Aqua](https://aquaproj.github.io/)
+#### [Mac Ports](https://ports.macports.org)
 
+```shell
+sudo port install config-file-validator
+```
+
+#### [Aqua](https://aquaproj.github.io/)
 
 ```shell
 aqua g -i Boeing/config-file-validator
@@ -268,6 +273,115 @@ validator -globbing "/path/to/files/**/*.json"
 
 # Mix glob patterns and paths
 validator -globbing "/path/*.json" /path/to/search
+```
+
+## Calling the config-file-validator programatically
+
+The config-file-validator can be called programatically from within a Go program through the `cli` package.
+
+### Default configuration
+
+The default configuration will perform the following actions:
+
+* Search for all supported configuration file types at the cwd
+* Uses the default stdout reporter which will output validation results to stdout
+
+```go
+package main
+
+import (
+	"os"
+	"log"
+
+	"github.com/Boeing/config-file-validator/pkg/cli"
+)
+
+func main() {
+
+	// Initialize the CLI
+	c := cli.Init()
+	
+	// Run the config file validation
+	exitStatus, err := c.Run()
+	if err != nil {
+	  log.Printf("Errors occurred during execution: %v", err)
+	}
+	
+	os.Exit(exitStatus)
+}
+```
+
+### Custom Search Paths
+
+The below example will search the provided search paths.
+
+```go
+package main
+
+import (
+	"os"
+	"log"
+
+	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/finder"
+)
+
+func main() {
+
+	// Initialize a file system finder
+	fileSystemFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots("/path/to/search", "/another/path/to/search"),
+	)
+
+	// Initialize the CLI
+	c := cli.Init(
+		cli.WithFinder(fileSystemFinder),
+	)
+	
+	// Run the config file validation
+	exitStatus, err := c.Run()
+	if err != nil {
+	  log.Printf("Errors occurred during execution: %v", err)
+	}
+	
+	os.Exit(exitStatus)
+}
+```
+
+### Custom Reporter
+
+Will output JSON to stdout. To output to a file, pass a value to the `reporter.NewJSONReporter` constructor.
+
+```go
+package main
+
+import (
+	"os"
+	"log"
+
+	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/reporter"
+)
+
+func main() {
+	// Initialize reporter type
+	var outputDir string
+	jsonReporter := reporter.NewJSONReporter(outputDir)
+
+	// Initialize the CLI
+	c := cli.Init(
+		cli.WithFinder(fileSystemFinder),
+		cli.WithReporters(jsonReporter),
+	)
+	
+	// Run the config file validation
+	exitStatus, err := c.Run()
+	if err != nil {
+	  log.Printf("Errors occurred during execution: %v", err)
+	}
+	
+	os.Exit(exitStatus)
+}
 ```
 
 ## Build
