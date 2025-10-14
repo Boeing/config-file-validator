@@ -57,7 +57,7 @@
 
 ## Installation
 
-There are several options to install the config file validator tool. We're constantly
+There are several options to install the config file validator tool.
 
 ### Binary Releases
 
@@ -299,10 +299,10 @@ import (
 func main() {
 
 	// Initialize the CLI
-	c := cli.Init()
+	cfv := cli.Init()
 	
 	// Run the config file validation
-	exitStatus, err := c.Run()
+	exitStatus, err := cfv.Run()
 	if err != nil {
 	  log.Printf("Errors occurred during execution: %v", err)
 	}
@@ -334,12 +334,12 @@ func main() {
 	)
 
 	// Initialize the CLI
-	c := cli.Init(
+	cfv := cli.Init(
 		cli.WithFinder(fileSystemFinder),
 	)
 	
 	// Run the config file validation
-	exitStatus, err := c.Run()
+	exitStatus, err := cfv.Run()
 	if err != nil {
 	  log.Printf("Errors occurred during execution: %v", err)
 	}
@@ -369,19 +369,73 @@ func main() {
 	jsonReporter := reporter.NewJSONReporter(outputDir)
 
 	// Initialize the CLI
-	c := cli.Init(
+	cfv := cli.Init(
 		cli.WithFinder(fileSystemFinder),
 		cli.WithReporters(jsonReporter),
 	)
 	
 	// Run the config file validation
-	exitStatus, err := c.Run()
+	exitStatus, err := cfv.Run()
 	if err != nil {
 	  log.Printf("Errors occurred during execution: %v", err)
 	}
 	
 	os.Exit(exitStatus)
 }
+```
+
+### Additional Configuration Options
+
+#### Exclude Directories
+
+```go
+excludeDirs := []string{"test", "subdir"}
+fileSystemFinder := finder.FileSystemFinderInit(
+	finder.WithExcludeDirs(excludeDirs),
+)
+cfv := cli.Init(
+      cli.WithFinder(fileSystemFinder),
+)
+```
+
+#### Exclude File Types
+
+```go
+excludeFileTypes := []string{"yaml", "json"}
+fileSystemFinder := finder.FileSystemFinderInit(
+      finder.WithExcludeFileTypes(excludeFileTypes),
+)
+cfv := cli.Init(
+      cli.WithFinder(fileSystemFinder),
+)
+```
+
+#### Set Recursion Depth
+
+```go
+fileSystemFinder := finder.FileSystemFinderInit(
+      finder.WithDepth(0)
+)
+cfv := cli.Init(
+      cli.WithFinder(fileSystemFinder),
+)
+```
+
+### Suppress Output
+
+```go
+cfv := cli.Init(
+      cli.WithQuiet(true),
+)
+```
+
+### Group Output
+
+```go
+groupOutput := []string{"pass-fail"} 
+cfv := cli.Init(
+      cli.WithGroupOutput(groupOutput),
+)
 ```
 
 ## Build
