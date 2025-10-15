@@ -111,6 +111,22 @@ var EditorConfigFileType = FileType{
 	validator.EditorConfigValidator{},
 }
 
+// Instance of the FileType object to
+// represent a Makefile
+var MakefileFileType = FileType{
+	"makefile",
+	tools.ArrToMap("makefile", "Makefile", "mk"),
+	validator.MakefileValidator{},
+}
+
+// Instance of the FileType object to
+// represent a justfile
+var JustfileFileType = FileType{
+	"justfile",
+	tools.ArrToMap("justfile", "Justfile"),
+	validator.JustfileValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -126,4 +142,6 @@ var FileTypes = []FileType{
 	HoconFileType,
 	EnvFileType,
 	EditorConfigFileType,
+	MakefileFileType,
+	JustfileFileType,
 }

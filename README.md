@@ -50,6 +50,8 @@
 * <img src="./img/logos/toml.svg" alt="TOML" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> TOML
 * <img src="./img/logos/xml.svg" alt="XML" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> XML
 * <img src="./img/logos/yaml.svg" alt="YAML" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> YAML
+* <img src="./img/logos/makefile.svg" alt="Makefile" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> Makefile
+* <img src="./img/logos/justfile.svg" alt="Justfile" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> Justfile
 
 ## Demo
 
