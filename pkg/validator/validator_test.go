@@ -1,8 +1,14 @@
 package validator
 
 import (
+	"context"
 	_ "embed"
+	"errors"
+	"os/exec"
+	"strings"
 	"testing"
+
+	"github.com/apple/pkl-go/pkl"
 )
 
 var (
@@ -55,6 +61,8 @@ var testData = []struct {
 	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
 	{"validProperties", []byte("key=value\nkey2=${key}"), true, PropValidator{}},
 	{"invalidProperties", []byte("key=${key}"), false, PropValidator{}},
+	{"validPkl", []byte(`name = "Swallow"`), true, PklValidator{}},
+	{"invalidPkl", []byte(`"name" = "Swallow"`), false, PklValidator{}},
 	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
 	{"invalidHcl", []byte(`"key" = "value"`), false, HclValidator{}},
 	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
@@ -80,6 +88,14 @@ func Test_ValidationInput(t *testing.T) {
 			t.Parallel()
 
 			valid, err := tcase.validator.Validate(tcase.testInput)
+
+			// If the validator is PklValidator and it returns ErrSkipped, skip the test.
+			if _, ok := tcase.validator.(PklValidator); ok {
+				if errors.Is(err, ErrPklSkipped) {
+					t.Skip("Skipping test: 'pkl' binary not found.")
+				}
+			}
+
 			if valid != tcase.expectedResult {
 				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
 			}
@@ -92,5 +108,38 @@ func Test_ValidationInput(t *testing.T) {
 				t.Error("incorrect result: function returned a nil error")
 			}
 		})
+	}
+}
+
+func TestPklValidator_BinaryMissing(t *testing.T) {
+	validator := PklValidator{
+		evaluatorFactory: func(_ context.Context, _ ...func(*pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
+			return nil, &exec.Error{Err: exec.ErrNotFound}
+		},
+	}
+	_, err := validator.Validate([]byte(`name = "test"`))
+
+	if !errors.Is(err, ErrPklSkipped) {
+		t.Errorf("expected ErrPklSkipped, got %v", err)
+	}
+}
+
+func TestPklValidator_EvaluatorCreationError(t *testing.T) {
+	expectedErr := errors.New("evaluator creation failed")
+
+	validator := PklValidator{
+		evaluatorFactory: func(_ context.Context, _ ...func(*pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
+			return nil, expectedErr
+		},
+	}
+
+	_, err := validator.Validate([]byte(`name = "test"`))
+
+	if !strings.Contains(err.Error(), "failed to create evaluator") {
+		t.Errorf("expected error to contain 'failed to create evaluator', got %v", err)
+	}
+
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("expected error to wrap %v, got %v", expectedErr, err)
 	}
 }
