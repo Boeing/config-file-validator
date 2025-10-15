@@ -19,3 +19,6 @@ vendor/
 .vscode
 .idea
 megalinter-reports/
+
+# Chocolatey package files (maintained separately)
+chocolatey/
