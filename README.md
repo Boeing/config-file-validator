@@ -72,7 +72,7 @@ Download and unpack from https://github.com/Boeing/config-file-validator/release
 brew install config-file-validator
 ```
 
-#### [Mac Ports](https://ports.macports.org)
+#### [MacPorts](https://ports.macports.org)
 
 ```shell
 sudo port install config-file-validator
@@ -283,8 +283,8 @@ The config-file-validator can be called programatically from within a Go program
 
 The default configuration will perform the following actions:
 
-* Search for all supported configuration file types at the cwd
-* Uses the default stdout reporter which will output validation results to stdout
+* Search for all supported configuration file types in the current directory and its subdirectories 
+* Uses the default reporter which will output validation results to console (stdout)
 
 ```go
 package main
