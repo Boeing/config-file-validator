@@ -38,20 +38,18 @@
 
 ## Supported config files formats:
 
-<div align="center">
-  <img src="./img/logos/plist.svg" alt="Apple PList XML" title="Apple PList XML" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/csv.svg" alt="CSV" title="CSV" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/editorconfig.svg" alt="EDITORCONFIG" title="EDITORCONFIG" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/env.svg" alt="ENV" title="ENV" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/hcl.svg" alt="HCL" title="HCL" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/hocon.svg" alt="HOCON" title="HOCON" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/ini.svg" alt="INI" title="INI" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/json.svg" alt="JSON" title="JSON" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/properties.svg" alt="Properties" title="Properties" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/toml.svg" alt="TOML" title="TOML" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/xml.svg" alt="XML" title="XML" width="40" height="40" style="margin: 5px;">
-  <img src="./img/logos/yaml.svg" alt="YAML" title="YAML" width="40" height="40" style="margin: 5px;">
-</div>
+* <img src="./img/logos/plist.svg" alt="Apple PList XML" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> Apple PList XML
+* <img src="./img/logos/csv.svg" alt="CSV" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> CSV
+* <img src="./img/logos/editorconfig.svg" alt="EDITORCONFIG" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> EDITORCONFIG
+* <img src="./img/logos/env.svg" alt="ENV" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> ENV
+* <img src="./img/logos/hcl.svg" alt="HCL" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> HCL
+* <img src="./img/logos/hocon.svg" alt="HOCON" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> HOCON
+* <img src="./img/logos/ini.svg" alt="INI" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> INI
+* <img src="./img/logos/json.svg" alt="JSON" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> JSON
+* <img src="./img/logos/properties.svg" alt="Properties" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> Properties
+* <img src="./img/logos/toml.svg" alt="TOML" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> TOML
+* <img src="./img/logos/xml.svg" alt="XML" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> XML
+* <img src="./img/logos/yaml.svg" alt="YAML" width="20" height="20" style="vertical-align: middle; margin-right: 8px;"> YAML
 
 ## Demo
 
