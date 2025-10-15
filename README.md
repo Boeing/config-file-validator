@@ -38,18 +38,20 @@
 
 ## Supported config files formats:
 
-* Apple PList XML
-* CSV
-* EDITORCONFIG
-* ENV
-* HCL
-* HOCON
-* INI
-* JSON
-* Properties
-* TOML
-* XML
-* YAML
+<div align="center">
+  <img src="./img/logos/plist.svg" alt="Apple PList XML" title="Apple PList XML" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/csv.svg" alt="CSV" title="CSV" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/editorconfig.svg" alt="EDITORCONFIG" title="EDITORCONFIG" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/env.svg" alt="ENV" title="ENV" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/hcl.svg" alt="HCL" title="HCL" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/hocon.svg" alt="HOCON" title="HOCON" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/ini.svg" alt="INI" title="INI" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/json.svg" alt="JSON" title="JSON" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/properties.svg" alt="Properties" title="Properties" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/toml.svg" alt="TOML" title="TOML" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/xml.svg" alt="XML" title="XML" width="40" height="40" style="margin: 5px;">
+  <img src="./img/logos/yaml.svg" alt="YAML" title="YAML" width="40" height="40" style="margin: 5px;">
+</div>
 
 ## Demo
 
