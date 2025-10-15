@@ -21,7 +21,7 @@
 
   <a href="https://github.com/avelino/awesome-go">
   <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
-  </a>  
+  </a>
 
   <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator">
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator.svg" alt="Go Reference">
@@ -38,18 +38,18 @@
 
 ## Supported config files formats:
 
-* Apple PList XML
-* CSV
-* EDITORCONFIG
-* ENV
-* HCL
-* HOCON
-* INI
-* JSON
-* Properties
-* TOML
-* XML
-* YAML
+- Apple PList XML
+- CSV
+- EDITORCONFIG
+- ENV
+- HCL
+- HOCON
+- INI
+- JSON
+- Properties
+- TOML
+- XML
+- YAML
 
 ## Demo
 
@@ -62,7 +62,6 @@ There are several options to install the config file validator tool.
 ### Binary Releases
 
 Download and unpack from https://github.com/Boeing/config-file-validator/releases
-
 
 ### Package Managers
 
@@ -94,6 +93,12 @@ winget install Boeing.config-file-validator
 
 ```shell
 scoop install config-file-validator
+```
+
+#### [Chocolatey](https://chocolatey.org/)
+
+```shell
+choco install config-file-validator
 ```
 
 ### Arch Linux
@@ -149,15 +154,15 @@ optional flags:
 
 The config-file-validator supports setting options via environment variables. If both command-line flags and environment variables are set, the command-line flags will take precedence. The supported environment variables are as follows:
 
-| Environment Variable | Equivalent Flag |
-|----------------------|-----------------|
-| `CFV_DEPTH`          | `-depth`        |
-| `CFV_EXCLUDE_DIRS`   | `-exclude-dirs` |
+| Environment Variable     | Equivalent Flag       |
+| ------------------------ | --------------------- |
+| `CFV_DEPTH`              | `-depth`              |
+| `CFV_EXCLUDE_DIRS`       | `-exclude-dirs`       |
 | `CFV_EXCLUDE_FILE_TYPES` | `-exclude-file-types` |
-| `CFV_REPORTER`       | `-reporter`     |
-| `CFV_GROUPBY`        | `-groupby`      |
-| `CFV_QUIET`          | `-quiet`        |
-| `CFV_GLOBBING`          | `-globbing`  |
+| `CFV_REPORTER`           | `-reporter`           |
+| `CFV_GROUPBY`            | `-groupby`            |
+| `CFV_QUIET`              | `-quiet`              |
+| `CFV_GLOBBING`           | `-globbing`           |
 
 ### Examples
 
@@ -283,8 +288,8 @@ The config-file-validator can be called programatically from within a Go program
 
 The default configuration will perform the following actions:
 
-* Search for all supported configuration file types in the current directory and its subdirectories 
-* Uses the default reporter which will output validation results to console (stdout)
+- Search for all supported configuration file types in the current directory and its subdirectories
+- Uses the default reporter which will output validation results to console (stdout)
 
 ```go
 package main
@@ -300,13 +305,13 @@ func main() {
 
 	// Initialize the CLI
 	cfv := cli.Init()
-	
+
 	// Run the config file validation
 	exitStatus, err := cfv.Run()
 	if err != nil {
 	  log.Printf("Errors occurred during execution: %v", err)
 	}
-	
+
 	os.Exit(exitStatus)
 }
 ```
@@ -337,13 +342,13 @@ func main() {
 	cfv := cli.Init(
 		cli.WithFinder(fileSystemFinder),
 	)
-	
+
 	// Run the config file validation
 	exitStatus, err := cfv.Run()
 	if err != nil {
 	  log.Printf("Errors occurred during execution: %v", err)
 	}
-	
+
 	os.Exit(exitStatus)
 }
 ```
@@ -373,13 +378,13 @@ func main() {
 		cli.WithFinder(fileSystemFinder),
 		cli.WithReporters(jsonReporter),
 	)
-	
+
 	// Run the config file validation
 	exitStatus, err := cfv.Run()
 	if err != nil {
 	  log.Printf("Errors occurred during execution: %v", err)
 	}
-	
+
 	os.Exit(exitStatus)
 }
 ```
@@ -432,7 +437,7 @@ cfv := cli.Init(
 ### Group Output
 
 ```go
-groupOutput := []string{"pass-fail"} 
+groupOutput := []string{"pass-fail"}
 cfv := cli.Init(
       cli.WithGroupOutput(groupOutput),
 )

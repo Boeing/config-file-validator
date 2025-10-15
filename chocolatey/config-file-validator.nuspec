@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>config-file-validator</id>
+    <version>1.8.1</version>
+    <packageSourceUrl>https://github.com/Boeing/config-file-validator/tree/main/chocolatey</packageSourceUrl>
+    <owners>Boeing</owners>
+    <title>Config File Validator</title>
+    <authors>Boeing</authors>
+    <projectUrl>https://github.com/Boeing/config-file-validator</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/Boeing/config-file-validator/main/img/logo.png</iconUrl>
+    <copyright>Copyright (c) Boeing</copyright>
+    <licenseUrl>https://github.com/Boeing/config-file-validator/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/Boeing/config-file-validator</projectSourceUrl>
+    <docsUrl>https://github.com/Boeing/config-file-validator#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/Boeing/config-file-validator/issues</bugTrackerUrl>
+    <tags>config configuration file validation validator cli go golang json yaml toml xml ini csv plist editorconfig env hcl hocon properties</tags>
+    <summary>Single cross-platform CLI tool to validate different configuration file types</summary>
+    <description><![CDATA[
+Config File Validator is a cross-platform CLI tool to validate the syntax of configuration files. Using the tool provides quick feedback to help avoid configuration errors in production.
+
+## Supported Configuration File Formats
+
+* Apple PList XML
+* CSV
+* EDITORCONFIG
+* ENV
+* HCL
+* HOCON
+* INI
+* JSON
+* Properties
+* TOML
+* XML
+* YAML
+
+## Features
+
+* **Cross-platform**: Works on Windows, macOS, and Linux
+* **Multiple file format support**: Validates 12+ different configuration file formats
+* **Recursive directory scanning**: Can validate entire directory trees
+* **Flexible output formats**: Supports standard, JSON, JUnit, and SARIF report formats
+* **Customizable exclusions**: Exclude specific file types or directories
+* **Group reporting**: Group output by file type, directory, or pass/fail status
+* **Environment variable support**: Configure options via environment variables
+
+## Installation Location
+
+By default, the validator executable will be installed to `C:\ProgramData\chocolatey\lib\config-file-validator\tools` and will be available on the PATH as `validator.exe`.
+
+## Usage
+
+Basic usage:
+```
+validator [path/to/validate]
+```
+
+For more advanced usage and options, run:
+```
+validator -h
+```
+
+## Documentation
+
+Full documentation is available at: https://github.com/Boeing/config-file-validator#readme
+    ]]></description>
+    <releaseNotes>https://github.com/Boeing/config-file-validator/releases/tag/v1.8.1</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
