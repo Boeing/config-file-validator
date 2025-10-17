@@ -14,8 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Build instructions for MacOS were updated to default to arm64 
-- README.md now includes a table of contents
+- Build instructions for MacOS were updated to default to arm64
 
 ### Fixed
 
