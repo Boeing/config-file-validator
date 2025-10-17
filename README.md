@@ -449,7 +449,7 @@ The project can be downloaded and built from source using an environment with Go
 ```shell
 CGO_ENABLED=0 \
 GOOS=darwin \
-GOARCH=amd64 \ # for Apple Silicon use arm64
+GOARCH=arm64 \ # for Intel use amd64
 go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
