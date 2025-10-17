@@ -1,3 +1,4 @@
+---
 name: Check Changelog
 on:
   pull_request:
