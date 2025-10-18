@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
@@ -14,6 +15,7 @@ var (
 	GroupOutput []string
 	Quiet       bool
 	errorFound  bool
+	Formatters  []string
 )
 
 type CLI struct {
@@ -56,6 +58,12 @@ func WithQuiet(quiet bool) Option {
 	}
 }
 
+func WithFormatters(types []string) Option {
+	return func(_ *CLI) {
+		Formatters = types
+	}
+}
+
 // Initialize the CLI object
 func Init(opts ...Option) *CLI {
 	defaultFsFinder := finder.FileSystemFinderInit()
@@ -88,6 +96,11 @@ func (c CLI) Run() (int, error) {
 	}
 
 	for _, fileToValidate := range foundFiles {
+		shouldFormat := false
+		if fileToValidate.FileType.Formatter != nil &&
+			slices.Contains(Formatters, fileToValidate.FileType.Name) {
+			shouldFormat = true
+		}
 		// read it
 		fileContent, err := os.ReadFile(fileToValidate.Path)
 		if err != nil {
@@ -97,6 +110,11 @@ func (c CLI) Run() (int, error) {
 		isValid, err := fileToValidate.FileType.Validator.Validate(fileContent)
 		if !isValid {
 			errorFound = true
+		} else if shouldFormat {
+			err := fileToValidate.FileType.Formatter.Format(fileToValidate.Path)
+			if err != nil {
+				return 1, fmt.Errorf("unable to format file %q: %w", fileToValidate.Path, err)
+			}
 		}
 		report := reporter.Report{
 			FileName:        fileToValidate.Name,
