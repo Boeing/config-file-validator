@@ -449,7 +449,7 @@ The project can be downloaded and built from source using an environment with Go
 ```shell
 CGO_ENABLED=0 \
 GOOS=darwin \
-GOARCH=amd64 \ # for Apple Silicon use arm64
+GOARCH=arm64 \ # for Intel use amd64
 go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
@@ -491,22 +491,32 @@ chmod +x /usr/local/bin/validator
 #### Build
 
 ```powershell
-CGO_ENABLED=0 \
-GOOS=windows \
-GOARCH=amd64 \
-go build \
--ldflags='-w -s -extldflags "-static"' \
--tags netgo \
--o validator.exe \
+$env:CGO_ENABLED = '0'; `
+$env:GOOS = 'windows'; `
+$env:GOARCH = 'amd64'; `
+go build `
+-ldflags='-w -s -extldflags "-static"' `
+-tags netgo `
+-o validator.exe `
 cmd/validator/validator.go
 ```
 
 #### Install
 
+The below script will install the config-file-validator as a user to Local App Data:
+
 ```powershell
-mkdir -p 'C:\Program Files\validator'
-cp .\validator.exe 'C:\Program Files\validator'
-[Environment]::SetEnvironmentVariable("C:\Program Files\validator", $env:Path, [System.EnvironmentVariableTarget]::Machine)
+$install = Join-Path $env:LOCALAPPDATA 'Programs\validator'; `
+New-Item -Path $install -ItemType Directory -Force | Out-Null; `
+Copy-Item -Path .\validator.exe -Destination $install -Force; `
+$up = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::User); `
+if (-not ($up.Split(';') -contains $install)) { `
+  $new = if ([string]::IsNullOrEmpty($up)) { $install } else { $up + ';' + $install }; `
+  [Environment]::SetEnvironmentVariable('Path', $new, [EnvironmentVariableTarget]::User); `
+  Write-Host "Added $install to User PATH. Open a new shell to pick up the change."; `
+} else { `
+  Write-Host "$install is already in the User PATH."; `
+}
 ```
 
 ### Docker
