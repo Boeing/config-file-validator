@@ -2,7 +2,7 @@ package validator
 
 import (
 	_ "embed"
-  "strings"
+	"strings"
 	"testing"
 )
 
@@ -142,11 +142,11 @@ var testData = []struct {
 	{"validEnv", []byte("KEY=VALUE"), true, EnvValidator{}},
 	{"invalidEnv", []byte("=TEST"), false, EnvValidator{}},
 	{"validEditorConfig", []byte("working = true"), true, EditorConfigValidator{}},
-  {"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
-  {"validSarif210", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.1.0")), true, SarifValidator{}},
-  {"validSarif22", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.2")), true, SarifValidator{}},
-  {"invalidSarifBadVersion", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.5.0")), false, SarifValidator{}},
-  {"invalidSarifInvalidSyntax", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "[\"2.5.0\"]")), false, SarifValidator{}},
+	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
+	{"validSarif210", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.1.0")), true, SarifValidator{}},
+	{"validSarif22", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.2")), true, SarifValidator{}},
+	{"invalidSarifBadVersion", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.5.0")), false, SarifValidator{}},
+	{"invalidSarifInvalidSyntax", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "[\"2.5.0\"]")), false, SarifValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
