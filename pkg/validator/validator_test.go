@@ -2,8 +2,67 @@ package validator
 
 import (
 	_ "embed"
+  "strings"
 	"testing"
 )
+
+const sarifTemplate = `{
+  "version": "${VERSION}",
+  "$schema": "(https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json)",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ESLint",
+          "informationUri": "https://eslint.org",
+          "rules": [
+            {
+              "id": "no-unused-vars",
+              "shortDescription": {
+                "text": "disallow unused variables"
+              },
+              "helpUri": "https://eslint.org/docs/rules/no-unused-vars",
+              "properties": {
+                "category": "Variables"
+              }
+            }
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "location": {
+            "uri": "file:///C:/dev/sarif/sarif-tutorials/samples/Introduction/simple-example.js"
+          }
+        }
+      ],
+      "results": [
+        {
+          "level": "error",
+          "message": {
+            "text": "'x' is assigned a value but never used."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/dev/sarif/sarif-tutorials/samples/Introduction/simple-example.js",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 5
+                }
+              }
+            }
+          ],
+          "ruleId": "no-unused-vars",
+          "ruleIndex": 0
+        }
+      ]
+    }
+  ]
+}`
 
 var (
 	validPlistBytes = []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -83,7 +142,11 @@ var testData = []struct {
 	{"validEnv", []byte("KEY=VALUE"), true, EnvValidator{}},
 	{"invalidEnv", []byte("=TEST"), false, EnvValidator{}},
 	{"validEditorConfig", []byte("working = true"), true, EditorConfigValidator{}},
-	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
+  {"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
+  {"validSarif210", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.1.0")), true, SarifValidator{}},
+  {"validSarif22", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.2")), true, SarifValidator{}},
+  {"invalidSarifBadVersion", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "2.5.0")), false, SarifValidator{}},
+  {"invalidSarifInvalidSyntax", []byte(strings.ReplaceAll(sarifTemplate, "${VERSION}", "[\"2.5.0\"]")), false, SarifValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
