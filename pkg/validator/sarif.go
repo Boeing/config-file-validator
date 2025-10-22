@@ -22,7 +22,7 @@ func (SarifValidator) Validate(b []byte) (bool, error) {
 			return false, err
 		}
 	} else {
-		return false, errors.New("Unable to determine sarif version")
+		return false, errors.New("unable to determine sarif version")
 	}
 
 	return true, nil
