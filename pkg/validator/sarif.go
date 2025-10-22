@@ -2,6 +2,7 @@ package validator
 
 import (
 	"bytes"
+	"errors"
 	v210 "github.com/owenrumney/go-sarif/v3/pkg/report/v210/sarif"
 	v22 "github.com/owenrumney/go-sarif/v3/pkg/report/v22/sarif"
 )
