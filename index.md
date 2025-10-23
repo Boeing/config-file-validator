@@ -61,6 +61,7 @@
 * INI
 * JSON
 * Properties
+* Sarif
 * TOML
 * XML
 * YAML

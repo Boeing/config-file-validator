@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/SARIF 2.1.0.json",
+  "versions": [
+    "2.1.0"
+  ]
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ExampleTool",
+          "informationUri": "https://example.com/tools/exampletool",
+          "rules": [
+            {
+              "id": "EX001",
+              "shortDescription": { "text": "Example rule" },
+              "helpUri": "https://example.com/docs/rules/EX001",
+              "properties": {
+                "precision": "high"
+              }
+            }
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "location": {
+            "uri": "file:///C:/projects/sample.js"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "EX001",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": { "text": "This is a sample SARIF result." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/projects/sample.js",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 42,
+                  "startColumn": 5
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
