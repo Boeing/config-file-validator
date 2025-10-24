@@ -57,7 +57,7 @@
 
 ## Installation
 
-There are several options to install the config file validator tool
+There are several options to install the config file validator tool.
 
 ### Binary Releases
 
@@ -72,8 +72,13 @@ Download and unpack from https://github.com/Boeing/config-file-validator/release
 brew install config-file-validator
 ```
 
-#### [Aqua](https://aquaproj.github.io/)
+#### [MacPorts](https://ports.macports.org)
 
+```shell
+sudo port install config-file-validator
+```
+
+#### [Aqua](https://aquaproj.github.io/)
 
 ```shell
 aqua g -i Boeing/config-file-validator
@@ -210,7 +215,7 @@ validator --depth=0 /path/to/search
 
 You can customize the report output and save the results to a file (default name is result.{extension}). The available report types are `standard`, `junit`, `json`, and `sarif`. You can specify multiple report types by chaining the `--reporter` flags.
 
-You can specify a path to an output file for any reporter by appending `:<path>` the the name of the reporter. Providing an output file is optional and the results will be printed to stdout by default. To explicitly direct the output to stdout, use `:-` as the file path.
+You can specify a path to an output file for any reporter by appending `:<path>` to the name of the reporter. Providing an output file is optional and the results will be printed to stdout by default. To explicitly direct the output to stdout, use `:-` as the file path.
 
 ```shell
 validator --reporter=json:- /path/to/search
@@ -270,6 +275,169 @@ validator -globbing "/path/to/files/**/*.json"
 validator -globbing "/path/*.json" /path/to/search
 ```
 
+## Calling the config-file-validator programatically
+
+The config-file-validator can be called programatically from within a Go program through the `cli` package.
+
+### Default configuration
+
+The default configuration will perform the following actions:
+
+* Search for all supported configuration file types in the current directory and its subdirectories 
+* Uses the default reporter which will output validation results to console (stdout)
+
+```go
+package main
+
+import (
+	"os"
+	"log"
+
+	"github.com/Boeing/config-file-validator/pkg/cli"
+)
+
+func main() {
+
+	// Initialize the CLI
+	cfv := cli.Init()
+	
+	// Run the config file validation
+	exitStatus, err := cfv.Run()
+	if err != nil {
+	  log.Printf("Errors occurred during execution: %v", err)
+	}
+	
+	os.Exit(exitStatus)
+}
+```
+
+### Custom Search Paths
+
+The below example will search the provided search paths.
+
+```go
+package main
+
+import (
+	"os"
+	"log"
+
+	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/finder"
+)
+
+func main() {
+
+	// Initialize a file system finder
+	fileSystemFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots("/path/to/search", "/another/path/to/search"),
+	)
+
+	// Initialize the CLI
+	cfv := cli.Init(
+		cli.WithFinder(fileSystemFinder),
+	)
+	
+	// Run the config file validation
+	exitStatus, err := cfv.Run()
+	if err != nil {
+	  log.Printf("Errors occurred during execution: %v", err)
+	}
+	
+	os.Exit(exitStatus)
+}
+```
+
+### Custom Reporter
+
+Will output JSON to stdout. To output to a file, pass a value to the `reporter.NewJSONReporter` constructor.
+
+```go
+package main
+
+import (
+	"os"
+	"log"
+
+	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/pkg/reporter"
+)
+
+func main() {
+	// Initialize reporter type
+	var outputDir string
+	jsonReporter := reporter.NewJSONReporter(outputDir)
+
+	// Initialize the CLI
+	cfv := cli.Init(
+		cli.WithFinder(fileSystemFinder),
+		cli.WithReporters(jsonReporter),
+	)
+	
+	// Run the config file validation
+	exitStatus, err := cfv.Run()
+	if err != nil {
+	  log.Printf("Errors occurred during execution: %v", err)
+	}
+	
+	os.Exit(exitStatus)
+}
+```
+
+### Additional Configuration Options
+
+#### Exclude Directories
+
+```go
+excludeDirs := []string{"test", "subdir"}
+fileSystemFinder := finder.FileSystemFinderInit(
+	finder.WithExcludeDirs(excludeDirs),
+)
+cfv := cli.Init(
+      cli.WithFinder(fileSystemFinder),
+)
+```
+
+#### Exclude File Types
+
+```go
+excludeFileTypes := []string{"yaml", "json"}
+fileSystemFinder := finder.FileSystemFinderInit(
+      finder.WithExcludeFileTypes(excludeFileTypes),
+)
+cfv := cli.Init(
+      cli.WithFinder(fileSystemFinder),
+)
+```
+
+#### Set Recursion Depth
+
+```go
+fileSystemFinder := finder.FileSystemFinderInit(
+      finder.WithDepth(0)
+)
+cfv := cli.Init(
+      cli.WithFinder(fileSystemFinder),
+)
+```
+
+### Suppress Output
+
+```go
+cfv := cli.Init(
+      cli.WithQuiet(true),
+)
+```
+
+### Group Output
+
+```go
+groupOutput := []string{"pass-fail"} 
+cfv := cli.Init(
+      cli.WithGroupOutput(groupOutput),
+)
+```
+
 ## Build
 
 The project can be downloaded and built from source using an environment with Go 1.25+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
@@ -281,7 +449,7 @@ The project can be downloaded and built from source using an environment with Go
 ```shell
 CGO_ENABLED=0 \
 GOOS=darwin \
-GOARCH=amd64 \ # for Apple Silicon use arm64
+GOARCH=arm64 \ # for Intel use amd64
 go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
@@ -323,22 +491,32 @@ chmod +x /usr/local/bin/validator
 #### Build
 
 ```powershell
-CGO_ENABLED=0 \
-GOOS=windows \
-GOARCH=amd64 \
-go build \
--ldflags='-w -s -extldflags "-static"' \
--tags netgo \
--o validator.exe \
+$env:CGO_ENABLED = '0'; `
+$env:GOOS = 'windows'; `
+$env:GOARCH = 'amd64'; `
+go build `
+-ldflags='-w -s -extldflags "-static"' `
+-tags netgo `
+-o validator.exe `
 cmd/validator/validator.go
 ```
 
 #### Install
 
+The below script will install the config-file-validator as a user to Local App Data:
+
 ```powershell
-mkdir -p 'C:\Program Files\validator'
-cp .\validator.exe 'C:\Program Files\validator'
-[Environment]::SetEnvironmentVariable("C:\Program Files\validator", $env:Path, [System.EnvironmentVariableTarget]::Machine)
+$install = Join-Path $env:LOCALAPPDATA 'Programs\validator'; `
+New-Item -Path $install -ItemType Directory -Force | Out-Null; `
+Copy-Item -Path .\validator.exe -Destination $install -Force; `
+$up = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::User); `
+if (-not ($up.Split(';') -contains $install)) { `
+  $new = if ([string]::IsNullOrEmpty($up)) { $install } else { $up + ';' + $install }; `
+  [Environment]::SetEnvironmentVariable('Path', $new, [EnvironmentVariableTarget]::User); `
+  Write-Host "Added $install to User PATH. Open a new shell to pick up the change."; `
+} else { `
+  Write-Host "$install is already in the User PATH."; `
+}
 ```
 
 ### Docker
