@@ -2,7 +2,7 @@ package validator
 
 import "errors"
 
-var ErrMethodUnimplemented = errors.New("Method Unimplemented")
+var ErrMethodUnimplemented = errors.New("method unimplemented")
 
 // SyntaxValidator is the interface that wraps the ValidateSyntax method
 // It accepts a byte array of a file or string to be validated for syntax
