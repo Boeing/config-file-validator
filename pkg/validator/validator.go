@@ -1,8 +1,8 @@
 package validator
 
-import "fmt"
+import "errors"
 
-var ErrMethodUnimplemented = fmt.Errorf("Method Unimplemented")
+var ErrMethodUnimplemented = errors.New("Method Unimplemented")
 
 // SyntaxValidator is the interface that wraps the ValidateSyntax method
 // It accepts a byte array of a file or string to be validated for syntax

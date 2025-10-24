@@ -49,7 +49,7 @@ func (JSONValidator) ValidateFormat(b []byte, _ any) (bool, error) {
 	}
 	result := bytes.Equal(b, dst.Bytes())
 	if !result {
-		return false, fmt.Errorf("format check failed")
+		return false, errors.New("format check failed")
 	}
 	return true, nil
 }
