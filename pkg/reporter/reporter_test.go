@@ -276,7 +276,7 @@ func Test_jsonReporterWriter(t *testing.T) {
 				}
 				bytes, err := os.ReadFile(filePath)
 				require.NoError(t, err)
-				assert.Equal(t, tt.want.data, bytes)
+				assert.JSONEq(t, string(tt.want.data), string(bytes))
 				err = os.Remove(filePath)
 				require.NoError(t, err)
 			}

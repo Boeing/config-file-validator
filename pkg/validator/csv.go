@@ -11,9 +11,11 @@ import (
 // CSV file.
 type CsvValidator struct{}
 
+var _ Validator = CsvValidator{}
+
 // Validate checks if the provided byte slice represents a valid .csv file.
 // https://pkg.go.dev/encoding/csv
-func (CsvValidator) Validate(b []byte) (bool, error) {
+func (CsvValidator) ValidateSyntax(b []byte) (bool, error) {
 	csvReader := csv.NewReader(bytes.NewReader(b))
 	csvReader.TrimLeadingSpace = true
 
@@ -29,4 +31,8 @@ func (CsvValidator) Validate(b []byte) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (CsvValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
+	return false, ErrMethodUnimplemented
 }

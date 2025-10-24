@@ -47,18 +47,26 @@ func Test_flags(t *testing.T) {
 		{"globbing flag not set", []string{"test/**/*.json", "."}, 1},
 		{"globbing flag with exclude-dirs", []string{"-globbing", "--exclude-dirs=subdir", "test/**/*.json", "."}, 1},
 		{"globbing flag with exclude-file-types", []string{"-globbing", "--exclude-file-types=hcl", "test/**/*.json", "."}, 1},
+		{"format flag", []string{"--check-format=all", "../../test/fixtures/good.json"}, 0},
+		{"format flag", []string{"--check-format=json,yaml,ini", "../../test/fixtures/good.json"}, 0},
+		{"format flag with invalid file", []string{"--check-format=all", "/path/does/not/exist"}, 1},
+		{"format flag with multiple files", []string{"--check-format=json", "../../test/fixtures/good.json", "../../test/fixtures/good.toml"}, 0},
+		{"format flag with exclude-dirs", []string{"--check-format=all", "--exclude-dirs=subdir", "."}, 0},
+		{"format flag with json reporter", []string{"--check-format=all", "--reporter=json", "../../test/fixtures/good.json"}, 0},
 	}
 	for _, tc := range cases {
-		// this call is required because otherwise flags panics,
-		// if args are set between flag.Parse call
-		fmt.Printf("Testing args: %v = %v\n", tc.Name, tc.Args)
-		flag.CommandLine = flag.NewFlagSet(tc.Name, flag.ExitOnError)
-		// we need a value to set Args[0] to cause flag begins parsing at Args[1]
-		os.Args = append([]string{tc.Name}, tc.Args...)
-		actualExit := mainInit()
-		if tc.ExpectedExit != actualExit {
-			t.Errorf("Test Case %v: Wrong exit code, expected: %v, got: %v", tc.Name, tc.ExpectedExit, actualExit)
-		}
+		t.Run(tc.Name, func(t *testing.T) {
+			// this call is required because otherwise flags panics,
+			// if args are set between flag.Parse call
+			fmt.Printf("Testing args: %v = %v\n", tc.Name, tc.Args)
+			flag.CommandLine = flag.NewFlagSet(tc.Name, flag.ExitOnError)
+			// we need a value to set Args[0] to cause flag begins parsing at Args[1]
+			os.Args = append([]string{tc.Name}, tc.Args...)
+			actualExit := mainInit()
+			if tc.ExpectedExit != actualExit {
+				t.Errorf("Test Case %v: Wrong exit code, expected: %v, got: %v", tc.Name, tc.ExpectedExit, actualExit)
+			}
+		})
 	}
 }
 
@@ -101,6 +109,63 @@ func Test_getExcludeFileTypes(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			actual := getExcludeFileTypes(tcase.input)
 			require.ElementsMatch(t, tcase.expectedExcludeFileTypes, actual)
+		})
+	}
+}
+
+func Test_getFormatFileTypes(t *testing.T) {
+	type testCase struct {
+		name               string
+		input              string
+		expectedFormatters []string
+	}
+
+	tcases := []testCase{
+		{
+			name:               "empty",
+			input:              "",
+			expectedFormatters: []string{},
+		},
+		{
+			name:               "format check json",
+			input:              "json",
+			expectedFormatters: []string{"json"},
+		},
+		{
+			name:               "double input",
+			input:              "json,json",
+			expectedFormatters: []string{"json"},
+		},
+
+		{
+			name:               "format check json and yaml",
+			input:              "json,yaml",
+			expectedFormatters: []string{"json", "yaml"},
+		},
+		{
+			name:  "format check all",
+			input: "all,json",
+			expectedFormatters: []string{
+				"json",
+				"yaml",
+				"xml",
+				"toml",
+				"ini",
+				"properties",
+				"hcl",
+				"plist",
+				"csv",
+				"hocon",
+				"env",
+				"editorconfig",
+			},
+		},
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			actual := getFormatFileTypes(tcase.input)
+			require.ElementsMatch(t, tcase.expectedFormatters, actual)
 		})
 	}
 }
