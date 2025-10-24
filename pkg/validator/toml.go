@@ -22,6 +22,6 @@ func (TomlValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (v TomlValidator) ValidateFormat(b []byte, options interface{}) (bool, error) {
+func (v TomlValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
 	return false, ErrMethodUnimplemented
 }

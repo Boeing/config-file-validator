@@ -19,6 +19,6 @@ func (EditorConfigValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (v EditorConfigValidator) ValidateFormat(b []byte, options interface{}) (bool, error) {
+func (v EditorConfigValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
 	return false, ErrMethodUnimplemented
 }

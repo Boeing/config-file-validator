@@ -135,8 +135,8 @@ optional flags:
         Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
   -quiet
         If quiet flag is set. It doesn't print any output to stdout.
-  -format
-        If format flag is set, it will attempt to format the provided JSON files in place.
+  -check-format string
+        If check format flag is set, it will attempt to check the format of the provided file types. Currenly supported file types are json. Provide a comma separated list of file types or "all" to format all supported file types.
   -reporter value
         A string representing report format and optional output file path separated by colon if present.
         Usage: --reporter <format>:<optional_file_path>
