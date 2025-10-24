@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -112,7 +113,7 @@ func (c CLI) Run() (int, error) {
 			errorFound = true
 		} else if checkFormat {
 			isValid, err = fileToValidate.FileType.Validator.ValidateFormat(fileContent, nil)
-			if err == validator.ErrMethodUnimplemented {
+			if errors.Is(err, validator.ErrMethodUnimplemented) {
 				// Format validation not implemented for this type
 				isValid = true
 				err = nil

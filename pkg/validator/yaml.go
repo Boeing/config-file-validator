@@ -19,6 +19,6 @@ func (YAMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (v YAMLValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
+func (YAMLValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
 	return false, ErrMethodUnimplemented
 }

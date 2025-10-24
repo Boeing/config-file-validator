@@ -19,6 +19,6 @@ func (PropValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (v PropValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
+func (PropValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
 	return false, ErrMethodUnimplemented
 }

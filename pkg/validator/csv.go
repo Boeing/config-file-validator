@@ -33,6 +33,6 @@ func (CsvValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (v CsvValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
+func (CsvValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
 	return false, ErrMethodUnimplemented
 }

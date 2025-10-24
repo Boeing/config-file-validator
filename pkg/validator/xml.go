@@ -19,6 +19,6 @@ func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (v XMLValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
+func (XMLValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
 	return false, ErrMethodUnimplemented
 }
