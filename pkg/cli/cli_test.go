@@ -164,8 +164,8 @@ func Test_CLIWithFormattingCheckEnabled(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tempFile.Name())
 
-	unformattedJSON := []byte(`{"name":"test","values":[1,2,3],"nested":{"key":"value"}}`)
-	err = os.WriteFile(tempFile.Name(), unformattedJSON, 0600)
+	unformattedBytes := []byte(`{"name":"test","values":[1,2,3],"nested":{"key":"value"}}`)
+	err = os.WriteFile(tempFile.Name(), unformattedBytes, 0600)
 	require.NoError(t, err)
 
 	// Setup CLI with formatting enabled
@@ -185,7 +185,7 @@ func Test_CLIWithFormattingCheckEnabled(t *testing.T) {
 	formattedContent, err := os.ReadFile(tempFile.Name())
 	require.NoError(t, err)
 
-	require.Equal(t, unformattedJSON, formattedContent)
+	require.Equal(t, unformattedBytes, formattedContent)
 	require.Equal(t, 0, exitStatus)
 }
 

@@ -41,7 +41,7 @@ func (JSONValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (JSONValidator) ValidateFormat(b []byte, _ interface{}) (bool, error) {
+func (JSONValidator) ValidateFormat(b []byte, _ any) (bool, error) {
 	var dst bytes.Buffer
 	err := json.Indent(&dst, b, "", "  ")
 	if err != nil {

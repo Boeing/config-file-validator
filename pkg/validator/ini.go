@@ -18,6 +18,6 @@ func (IniValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (IniValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
+func (IniValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
 	return false, ErrMethodUnimplemented
 }

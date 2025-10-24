@@ -36,6 +36,6 @@ func (HclValidator) ValidateSyntax(b []byte) (bool, error) {
 	return false, fmt.Errorf("error at line %v column %v: %w", row, col, diags)
 }
 
-func (HclValidator) ValidateFormat(_ []byte, _ interface{}) (bool, error) {
+func (HclValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
 	return false, ErrMethodUnimplemented
 }

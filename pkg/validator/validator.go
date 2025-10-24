@@ -19,7 +19,7 @@ type SyntaxValidator interface {
 // valid in the specified format or not. If it is not valid, the error return value
 // will be populated.
 type FormatValidator interface {
-	ValidateFormat(b []byte, options interface{}) (bool, error)
+	ValidateFormat(b []byte, options any) (bool, error)
 }
 
 type Validator interface {
