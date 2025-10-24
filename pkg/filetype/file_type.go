@@ -1,7 +1,6 @@
 package filetype
 
 import (
-	"github.com/Boeing/config-file-validator/pkg/formatter"
 	"github.com/Boeing/config-file-validator/pkg/tools"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
@@ -14,7 +13,6 @@ type FileType struct {
 	Name       string
 	Extensions map[string]struct{}
 	Validator  validator.Validator
-	Formatter  formatter.Formatter
 }
 
 // Instance of the FileType object to
@@ -23,7 +21,6 @@ var JSONFileType = FileType{
 	"json",
 	tools.ArrToMap("json"),
 	validator.JSONValidator{},
-	formatter.JSONFormatter{},
 }
 
 // Instance of the FileType object to
@@ -32,7 +29,6 @@ var YAMLFileType = FileType{
 	"yaml",
 	tools.ArrToMap("yml", "yaml"),
 	validator.YAMLValidator{},
-	nil,
 }
 
 // Instance of FileType object to
@@ -41,7 +37,6 @@ var XMLFileType = FileType{
 	"xml",
 	tools.ArrToMap("xml"),
 	validator.XMLValidator{},
-	nil,
 }
 
 // Instance of FileType object to
@@ -50,7 +45,6 @@ var TomlFileType = FileType{
 	"toml",
 	tools.ArrToMap("toml"),
 	validator.TomlValidator{},
-	nil,
 }
 
 // Instance of FileType object to
@@ -59,7 +53,6 @@ var IniFileType = FileType{
 	"ini",
 	tools.ArrToMap("ini"),
 	validator.IniValidator{},
-	nil,
 }
 
 // Instance of FileType object to
@@ -68,7 +61,6 @@ var PropFileType = FileType{
 	"properties",
 	tools.ArrToMap("properties"),
 	validator.PropValidator{},
-	nil,
 }
 
 // Instance of the FileType object to
@@ -77,7 +69,6 @@ var HclFileType = FileType{
 	"hcl",
 	tools.ArrToMap("hcl"),
 	validator.HclValidator{},
-	nil,
 }
 
 // Instance of the FileType object to
@@ -86,7 +77,6 @@ var PlistFileType = FileType{
 	"plist",
 	tools.ArrToMap("plist"),
 	validator.PlistValidator{},
-	nil,
 }
 
 // Instance of the FileType object to
@@ -95,7 +85,6 @@ var CsvFileType = FileType{
 	"csv",
 	tools.ArrToMap("csv"),
 	validator.CsvValidator{},
-	nil,
 }
 
 // Instance of the FileType object to
@@ -104,7 +93,6 @@ var HoconFileType = FileType{
 	"hocon",
 	tools.ArrToMap("hocon"),
 	validator.HoconValidator{},
-	nil,
 }
 
 // Instance of the FileType object to
@@ -113,7 +101,6 @@ var EnvFileType = FileType{
 	"env",
 	tools.ArrToMap("env"),
 	validator.EnvValidator{},
-	nil,
 }
 
 // Instance of the FileType object to
@@ -122,7 +109,6 @@ var EditorConfigFileType = FileType{
 	"editorconfig",
 	tools.ArrToMap("editorconfig"),
 	validator.EditorConfigValidator{},
-	nil,
 }
 
 // An array of files types that are supported

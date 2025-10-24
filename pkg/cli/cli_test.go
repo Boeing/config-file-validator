@@ -158,7 +158,7 @@ func Test_CLIReportErr(t *testing.T) {
 	}
 }
 
-func Test_CLIWithFormattingEnabled(t *testing.T) {
+func Test_CLIWithFormattingCheckEnabled(t *testing.T) {
 	// Create a temporary JSON file with unformatted content
 	tempFile, err := os.CreateTemp("", "test_format_*.json")
 	require.NoError(t, err)
@@ -174,7 +174,7 @@ func Test_CLIWithFormattingEnabled(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithFormatters([]string{"json"}),
+		WithFormatCheckTypes([]string{"json"}),
 	)
 
 	exitStatus, err := cli.Run()
@@ -185,18 +185,8 @@ func Test_CLIWithFormattingEnabled(t *testing.T) {
 	formattedContent, err := os.ReadFile(tempFile.Name())
 	require.NoError(t, err)
 
-	expectedFormatted := `{
-  "name": "test",
-  "values": [
-    1,
-    2,
-    3
-  ],
-  "nested": {
-    "key": "value"
-  }
-}`
-	require.Equal(t, expectedFormatted, string(formattedContent))
+	require.Equal(t, unformattedJSON, formattedContent)
+	require.Equal(t, 0, exitStatus)
 }
 
 func Test_CLIWithFormattingDisabled(t *testing.T) {
@@ -215,7 +205,7 @@ func Test_CLIWithFormattingDisabled(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithFormatters([]string{}),
+		WithFormatCheckTypes([]string{}),
 	)
 
 	exitStatus, err := cli.Run()
@@ -244,7 +234,7 @@ func Test_CLIFormattingWithInvalidJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithFormatters([]string{"json"}),
+		WithFormatCheckTypes([]string{"json"}),
 	)
 
 	exitStatus, err := cli.Run()
@@ -256,74 +246,4 @@ func Test_CLIFormattingWithInvalidJSON(t *testing.T) {
 	content, err := os.ReadFile(tempFile.Name())
 	require.NoError(t, err)
 	require.True(t, bytes.Equal(invalidJSON, content))
-}
-
-func Test_CLIFormattingWithNonJSONFile(t *testing.T) {
-	// Create a temporary YAML file (no formatter available)
-	tempFile, err := os.CreateTemp("", "test_yaml_*.yaml")
-	require.NoError(t, err)
-	defer os.Remove(tempFile.Name())
-
-	yamlContent := []byte(`name: test
-values:
-  - 1
-  - 2
-  - 3`)
-	err = os.WriteFile(tempFile.Name(), yamlContent, 0600)
-	require.NoError(t, err)
-
-	// Setup CLI with formatting enabled
-	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoots(tempFile.Name()),
-	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithFormatters([]string{"json"}),
-	)
-
-	exitStatus, err := cli.Run()
-	require.NoError(t, err)
-	require.Equal(t, 0, exitStatus)
-
-	// Verify the YAML file was NOT changed (no formatter available)
-	content, err := os.ReadFile(tempFile.Name())
-	require.NoError(t, err)
-	require.True(t, bytes.Equal(yamlContent, content))
-}
-
-func Test_CLIFormattingFilePermissions(t *testing.T) {
-	// Create a temporary JSON file with specific permissions
-	tempFile, err := os.CreateTemp("", "test_perms_*.json")
-	require.NoError(t, err)
-	defer os.Remove(tempFile.Name())
-
-	unformattedJSON := []byte(`{"test":"value"}`)
-	err = os.WriteFile(tempFile.Name(), unformattedJSON, 0600) // Read-write for owner only
-	require.NoError(t, err)
-
-	// Setup CLI with formatting enabled
-	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoots(tempFile.Name()),
-	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithFormatters([]string{"json"}),
-	)
-
-	exitStatus, err := cli.Run()
-	require.NoError(t, err)
-	require.Equal(t, 0, exitStatus)
-
-	// Verify the file permissions were preserved
-	fileInfo, err := os.Stat(tempFile.Name())
-	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0600), fileInfo.Mode().Perm())
-
-	// Verify the file was formatted
-	formattedContent, err := os.ReadFile(tempFile.Name())
-	require.NoError(t, err)
-	expectedFormatted := `{
-  "test": "value"
-}`
-	require.Equal(t, expectedFormatted, string(formattedContent))
 }

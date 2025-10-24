@@ -47,12 +47,12 @@ func Test_flags(t *testing.T) {
 		{"globbing flag not set", []string{"test/**/*.json", "."}, 1},
 		{"globbing flag with exclude-dirs", []string{"-globbing", "--exclude-dirs=subdir", "test/**/*.json", "."}, 1},
 		{"globbing flag with exclude-file-types", []string{"-globbing", "--exclude-file-types=hcl", "test/**/*.json", "."}, 1},
-		{"format flag", []string{"--format=all", "../../test/fixtures/good.json"}, 0},
-		{"format flag", []string{"--format=json,yaml,ini", "../../test/fixtures/good.json"}, 0},
-		{"format flag with invalid file", []string{"--format=all", "/path/does/not/exist"}, 1},
-		{"format flag with multiple files", []string{"--format=json", "../../test/fixtures/good.json", "../../test/fixtures/good.toml"}, 0},
-		{"format flag with exclude-dirs", []string{"--format=all", "--exclude-dirs=subdir", "."}, 0},
-		{"format flag with json reporter", []string{"--format=all", "--reporter=json", "../../test/fixtures/good.json"}, 0},
+		{"format flag", []string{"--check-format=all", "../../test/fixtures/good.json"}, 0},
+		{"format flag", []string{"--check-format=json,yaml,ini", "../../test/fixtures/good.json"}, 0},
+		{"format flag with invalid file", []string{"--check-format=all", "/path/does/not/exist"}, 1},
+		{"format flag with multiple files", []string{"--check-format=json", "../../test/fixtures/good.json", "../../test/fixtures/good.toml"}, 0},
+		{"format flag with exclude-dirs", []string{"--check-format=all", "--exclude-dirs=subdir", "."}, 0},
+		{"format flag with json reporter", []string{"--check-format=all", "--reporter=json", "../../test/fixtures/good.json"}, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -127,7 +127,7 @@ func Test_getFormatFileTypes(t *testing.T) {
 			expectedFormatters: []string{},
 		},
 		{
-			name:               "format json",
+			name:               "format check json",
 			input:              "json",
 			expectedFormatters: []string{"json"},
 		},
@@ -138,12 +138,12 @@ func Test_getFormatFileTypes(t *testing.T) {
 		},
 
 		{
-			name:               "format json and yaml",
+			name:               "format check json and yaml",
 			input:              "json,yaml",
 			expectedFormatters: []string{"json", "yaml"},
 		},
 		{
-			name:  "format all",
+			name:  "format check all",
 			input: "all,json",
 			expectedFormatters: []string{
 				"json",

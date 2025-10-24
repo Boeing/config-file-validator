@@ -79,7 +79,40 @@ func Test_ValidationInput(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			valid, err := tcase.validator.Validate(tcase.testInput)
+			valid, err := tcase.validator.ValidateSyntax(tcase.testInput)
+			if valid != tcase.expectedResult {
+				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
+			}
+
+			if valid && err != nil {
+				t.Error("incorrect result: err was not nil", err)
+			}
+
+			if !valid && err == nil {
+				t.Error("incorrect result: function returned a nil error")
+			}
+		})
+	}
+}
+
+func TestValidateFormat(t *testing.T) {
+	t.Parallel()
+
+	for _, tcase := range []struct {
+		name           string
+		testInput      []byte
+		expectedResult bool
+		validator      Validator
+	}{
+		{"validJsonFormat", []byte(`{
+  "test": "test"
+}`), true, JSONValidator{}},
+		{"invalidJsonFormat", []byte(`{"test": "test"}`), false, JSONValidator{}},
+	} {
+
+		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+			valid, err := tcase.validator.ValidateFormat(tcase.testInput, nil)
 			if valid != tcase.expectedResult {
 				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
 			}

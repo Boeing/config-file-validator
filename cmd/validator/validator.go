@@ -130,7 +130,7 @@ func getFlags() (validatorConfig, error) {
 		groupOutputPtr      = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flag.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
-		formatPtr           = flag.String("format", "", "A comma separated list of file types to format. A value of 'all' will format all supported file types. For example, -format=json,yaml,ini or -format=all. Only json is supported currently.")
+		formatPtr           = flag.String("check-format", "", "A comma separated list of file types for which to check formattingt. A value of 'all' will check all supported file types. For example, -check-format=json,yaml,ini or -check-format=all. Only json is supported currently.")
 	)
 	flag.Var(
 		&reporterConfigFlags,
@@ -426,7 +426,7 @@ func mainInit() int {
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
-		cli.WithFormatters(formatFileTypes),
+		cli.WithFormatCheckTypes(formatFileTypes),
 	)
 
 	// Run the config file validation
