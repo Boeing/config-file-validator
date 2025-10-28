@@ -35,6 +35,22 @@ var (
 		</dict> <!-- Missing value for the key 'NSAllowsArbitraryLoads' -->
 	</dict>
 	</plist>`)
+
+	fuzzbank = [][]byte{
+		[]byte(`{test": "test"}`), []byte(`{"test": "test"}`),
+		[]byte(`{}`), []byte(`[]`), []byte(`{]'{}}`), []byte("no_rizz"),
+		[]byte(`{"hows_the_market": "full_of_crabs"}`), []byte("a: 1\nb: 2"),
+		[]byte("a: b\nc: d:::::::::::::::"),
+		[]byte("<test>\n</test>"), []byte("<xml\n"), []byte("name = 123__456"),
+		[]byte("name = 123"), []byte(`{[Version]\nCatalog=hidden\n}`),
+		[]byte(`\nCatalog hidden\n`), []byte("key=value\nkey2=${key}"),
+		[]byte("key=${key}"), []byte(`key = "value"`),
+		[]byte(`"key" = "value"`), []byte(`"key1" = "value1"\n"key2"="value2"`),
+		[]byte(`first_name,last_name,username\nRob,Pike,rob\n`),
+		[]byte(`This string has a \" in it`), validPlistBytes, invalidPlistBytes,
+		[]byte(`test = [1, 2, 3]`), []byte(`test = [1, 2,, 3]`), []byte("KEY=VALUE"),
+		[]byte("=TEST"), []byte("working = true"), []byte("[*.md\nworking=false"),
+	}
 )
 
 var testData = []struct {
@@ -79,7 +95,7 @@ func Test_ValidationInput(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			valid, err := tcase.validator.Validate(tcase.testInput)
+			valid, err := tcase.validator.ValidateSyntax(tcase.testInput)
 			if valid != tcase.expectedResult {
 				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
 			}
@@ -93,4 +109,77 @@ func Test_ValidationInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func addFuzzCases(f *testing.F) {
+	f.Helper()
+	for _, tc := range fuzzbank {
+		f.Add(tc)
+	}
+}
+
+func fuzzFunction(v Validator) func(*testing.T, []byte) {
+	return func(_ *testing.T, a []byte) {
+		_, _ = v.ValidateSyntax(a)
+	}
+}
+
+func FuzzJsonValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(JSONValidator{}))
+}
+
+func FuzzYamlValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(YAMLValidator{}))
+}
+
+func FuzzXMLValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(XMLValidator{}))
+}
+
+func FuzzTomlValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(TomlValidator{}))
+}
+
+func FuzzIniValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(IniValidator{}))
+}
+
+func FuzzPropValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(PropValidator{}))
+}
+
+func FuzzHclValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(HclValidator{}))
+}
+
+func FuzzCsvValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(CsvValidator{}))
+}
+
+func FuzzPlistValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(PlistValidator{}))
+}
+
+func FuzzHoconValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(HoconValidator{}))
+}
+
+func FuzzEnvValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(EnvValidator{}))
+}
+
+func FuzzEditorConfigValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(EditorConfigValidator{}))
 }

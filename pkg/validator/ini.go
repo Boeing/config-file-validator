@@ -6,12 +6,18 @@ import (
 
 type IniValidator struct{}
 
+var _ Validator = IniValidator{}
+
 // Validate implements the Validator interface by attempting to
 // parse a byte array of ini
-func (IniValidator) Validate(b []byte) (bool, error) {
+func (IniValidator) ValidateSyntax(b []byte) (bool, error) {
 	_, err := ini.LoadSources(ini.LoadOptions{}, b)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+func (IniValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
+	return false, ErrMethodUnimplemented
 }
