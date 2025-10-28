@@ -95,7 +95,7 @@ func Test_ValidationInput(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			valid, err := tcase.validator.Validate(tcase.testInput)
+			valid, err := tcase.validator.ValidateSyntax(tcase.testInput)
 			if valid != tcase.expectedResult {
 				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
 			}
@@ -120,7 +120,7 @@ func addFuzzCases(f *testing.F) {
 
 func fuzzFunction(v Validator) func(*testing.T, []byte) {
 	return func(_ *testing.T, a []byte) {
-		_, _ = v.Validate(a)
+		_, _ = v.ValidateSyntax(a)
 	}
 }
 
