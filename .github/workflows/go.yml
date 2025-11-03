@@ -97,11 +97,6 @@ jobs:
         with:
           go-version: "1.25"
 
-      - name: Set up pkl
-        uses: pkl-community/setup-pkl@5bb6ac805eb51c448837ec34e9957a18adab927d # v0.0.5
-        with:
-          pkl-version: '0.26.3'
-
       - name: Unit test
         run: go test -v -cover -coverprofile coverage.out ./...
 
