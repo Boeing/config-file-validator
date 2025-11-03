@@ -67,7 +67,7 @@ var testData = []struct {
 	{"validJson", []byte(`{"test": "test"}`), true, JSONValidator{}},
 	{"invalidJson", []byte(`{test": "test"}`), false, JSONValidator{}},
 	{"validYaml", []byte("a: 1\nb: 2"), true, YAMLValidator{}},
-	{"invalidYaml", []byte("a: b\nc: d::::::::::::::: "), false, YAMLValidator{}},
+	{"invalidYaml", []byte("a: b\nc: d:::::::::::::::"), false, YAMLValidator{}},
 	{"validXml", []byte("<test>\n</test>"), true, XMLValidator{}},
 	{"invalidXml", []byte("<xml\n"), false, XMLValidator{}},
 	{"invalidToml", []byte("name = 123__456"), false, TomlValidator{}},
@@ -103,7 +103,6 @@ func Test_ValidationInput(t *testing.T) {
 			t.Parallel()
 
 			valid, err := tcase.validator.Validate(tcase.testInput)
-
 			if valid != tcase.expectedResult {
 				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
 			}
