@@ -3,6 +3,7 @@ module github.com/Boeing/config-file-validator
 go 1.25.0
 
 require (
+	github.com/apple/pkl-go v0.8.0
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.2
 	github.com/fatih/color v1.18.0
@@ -21,7 +22,6 @@ require (
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
-	github.com/apple/pkl-go v0.8.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

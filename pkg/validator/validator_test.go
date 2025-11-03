@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -52,7 +51,7 @@ var testData = []struct {
 	{"validJson", []byte(`{"test": "test"}`), true, JSONValidator{}},
 	{"invalidJson", []byte(`{test": "test"}`), false, JSONValidator{}},
 	{"validYaml", []byte("a: 1\nb: 2"), true, YAMLValidator{}},
-	{"invalidYaml", []byte("a: b\nc: d:::::::::::::::"), false, YAMLValidator{}},
+	{"invalidYaml", []byte("a: b\nc: d::::::::::::::: "), false, YAMLValidator{}},
 	{"validXml", []byte("<test>\n</test>"), true, XMLValidator{}},
 	{"invalidXml", []byte("<xml\n"), false, XMLValidator{}},
 	{"invalidToml", []byte("name = 123__456"), false, TomlValidator{}},
@@ -89,13 +88,6 @@ func Test_ValidationInput(t *testing.T) {
 
 			valid, err := tcase.validator.Validate(tcase.testInput)
 
-			// If the validator is PklValidator and it returns ErrSkipped, skip the test.
-			if _, ok := tcase.validator.(PklValidator); ok {
-				if errors.Is(err, ErrPklSkipped) {
-					t.Skip("Skipping test: 'pkl' binary not found.")
-				}
-			}
-
 			if valid != tcase.expectedResult {
 				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
 			}
@@ -111,24 +103,11 @@ func Test_ValidationInput(t *testing.T) {
 	}
 }
 
-func TestPklValidator_BinaryMissing(t *testing.T) {
-	validator := PklValidator{
-		evaluatorFactory: func(_ context.Context, _ ...func(*pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
-			return nil, &exec.Error{Err: exec.ErrNotFound}
-		},
-	}
-	_, err := validator.Validate([]byte(`name = "test"`))
-
-	if !errors.Is(err, ErrPklSkipped) {
-		t.Errorf("expected ErrPklSkipped, got %v", err)
-	}
-}
-
 func TestPklValidator_EvaluatorCreationError(t *testing.T) {
 	expectedErr := errors.New("evaluator creation failed")
 
 	validator := PklValidator{
-		evaluatorFactory: func(_ context.Context, _ ...func(*pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
+		evaluatorFactory: func(_ context.Context, _ ...func(options *pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
 			return nil, expectedErr
 		},
 	}

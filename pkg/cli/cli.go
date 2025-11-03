@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"errors"
+
 	"fmt"
 	"os"
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
-	"github.com/Boeing/config-file-validator/pkg/validator"
+
 )
 
 // GroupOutput is a global variable that is used to
@@ -97,10 +97,7 @@ func (c CLI) Run() (int, error) {
 		}
 
 		isValid, err := fileToValidate.FileType.Validator.Validate(fileContent)
-		if errors.Is(err, validator.ErrPklSkipped) {
-			fmt.Printf("Warning: 'pkl' binary not found, file %s will be ignored.\n", fileToValidate.Path)
-			continue
-		}
+		
 
 		if !isValid {
 			errorFound = true
