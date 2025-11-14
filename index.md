@@ -62,6 +62,7 @@
 * JSON
 * Properties
 * TOML
+* TOON
 * XML
 * YAML
 
@@ -207,7 +208,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 
 #### Exclude file types
 
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `toon`, `xml`, `yaml`, and `yml`
 
 ```shell
 validator --exclude-file-types=json /path/to/search
@@ -463,7 +464,7 @@ The project can be downloaded and built from source using an environment with Go
 ```shell
 CGO_ENABLED=0 \
 GOOS=darwin \
-GOARCH=amd64 \ # for Apple Silicon use arm64
+GOARCH=arm64 \ # for Intel use amd64
 go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \

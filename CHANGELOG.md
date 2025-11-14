@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CHANGELOG.md file
 - Github action to verify that changelog was changed for each PR
 - CODEOWNERS file
+- Support for TOON validation
 
 ### Changed
 
