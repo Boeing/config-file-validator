@@ -10,8 +10,8 @@ type ToonValidator struct{}
 // unmarshall a byte array of toon
 func (ToonValidator) Validate(b []byte) (bool, error) {
 	_, err := toon.Decode(b)
-    if err != nil {
-        return false, err
-    }
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
