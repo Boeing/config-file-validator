@@ -111,6 +111,14 @@ var EditorConfigFileType = FileType{
 	validator.EditorConfigValidator{},
 }
 
+// Instance of the FileType object to
+// represent a Sarif file
+var SarifFileType = FileType{
+	"sarif",
+	tools.ArrToMap("sarif", "sarif.json", "sarif-external-properties"),
+	validator.SarifValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -126,4 +134,5 @@ var FileTypes = []FileType{
 	HoconFileType,
 	EnvFileType,
 	EditorConfigFileType,
+	SarifFileType,
 }
