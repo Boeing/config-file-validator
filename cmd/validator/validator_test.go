@@ -159,6 +159,7 @@ func Test_getFormatFileTypes(t *testing.T) {
 				"hocon",
 				"env",
 				"editorconfig",
+				"toon",
 			},
 		},
 	}

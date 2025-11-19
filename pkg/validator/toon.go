@@ -6,12 +6,18 @@ import (
 
 type ToonValidator struct{}
 
-// Validate implements the Validator interface by attempting to
+var _ Validator = ToonValidator{}
+
+// ValidateSyntax implements the Validator interface by attempting to
 // unmarshall a byte array of toon
-func (ToonValidator) Validate(b []byte) (bool, error) {
+func (ToonValidator) ValidateSyntax(b []byte) (bool, error) {
 	_, err := toon.Decode(b)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+func (ToonValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
+	return false, ErrMethodUnimplemented
 }
