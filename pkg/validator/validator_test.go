@@ -84,6 +84,8 @@ var testData = []struct {
 	{"invalidEnv", []byte("=TEST"), false, EnvValidator{}},
 	{"validEditorConfig", []byte("working = true"), true, EditorConfigValidator{}},
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
+	{"validToon", []byte("users[2]{id,name,role}:\n  1,Alice,admin\n  2,Bob,user\n"), true, ToonValidator{}},
+	{"invalidToon", []byte("users2]{id,name,role}:\n  1,Alice,admin\n  2,Bob,user\n"), false, ToonValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {

@@ -5,7 +5,6 @@
 *.so
 *.dylib
 cmd/validator/validator
-validator
 bin/
 
 # Test binary, built with `go test -c`
