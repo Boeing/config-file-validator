@@ -163,6 +163,13 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 		return validatorConfig{}, err
 	}
 
+	if *formatPtr != "" {
+		formatFileTypes := strings.Split(strings.ToLower(*formatPtr), ",")
+		if !slices.Contains(formatFileTypes, "all") && !validateFileTypeList(formatFileTypes) {
+			return validatorConfig{}, errors.New("invalid check format file type")
+		}
+	}
+
 	err = validateReporterConf(reporterConf, groupOutputPtr)
 	if err != nil {
 		return validatorConfig{}, err
