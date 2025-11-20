@@ -1,19 +1,23 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
 // GroupOutput is a global variable that is used to
 // store the group by options that the user specifies
 var (
-	GroupOutput []string
-	Quiet       bool
-	errorFound  bool
+	GroupOutput          []string
+	Quiet                bool
+	errorFound           bool
+	FormatCheckFileTypes []string
 )
 
 type CLI struct {
@@ -56,6 +60,12 @@ func WithQuiet(quiet bool) Option {
 	}
 }
 
+func WithFormatCheckTypes(types []string) Option {
+	return func(_ *CLI) {
+		FormatCheckFileTypes = types
+	}
+}
+
 // Initialize the CLI object
 func Init(opts ...Option) *CLI {
 	defaultFsFinder := finder.FileSystemFinderInit()
@@ -88,15 +98,26 @@ func (c CLI) Run() (int, error) {
 	}
 
 	for _, fileToValidate := range foundFiles {
+		checkFormat := false
+		if slices.Contains(FormatCheckFileTypes, fileToValidate.FileType.Name) {
+			checkFormat = true
+		}
 		// read it
 		fileContent, err := os.ReadFile(fileToValidate.Path)
 		if err != nil {
 			return 1, fmt.Errorf("unable to read file: %w", err)
 		}
 
-		isValid, err := fileToValidate.FileType.Validator.Validate(fileContent)
+		isValid, err := fileToValidate.FileType.Validator.ValidateSyntax(fileContent)
 		if !isValid {
 			errorFound = true
+		} else if checkFormat {
+			isValid, err = fileToValidate.FileType.Validator.ValidateFormat(fileContent, nil)
+			if errors.Is(err, validator.ErrMethodUnimplemented) {
+				// Format validation not implemented for this type
+				isValid = true
+				err = nil
+			}
 		}
 		report := reporter.Report{
 			FileName:        fileToValidate.Name,
