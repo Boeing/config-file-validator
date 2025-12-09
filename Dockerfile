@@ -1,4 +1,4 @@
-FROM golang:1.25@sha256:e68f6a00e88586577fafa4d9cefad1349c2be70d21244321321c407474ff9bf2 AS go-builder
+FROM golang:1.25@sha256:698183780de28062f4ef46f82a79ec0ae69d2d22f7b160cf69f71ea8d98bf25d AS go-builder
 ARG VALIDATOR_VERSION=unknown
 COPY . /build/
 WORKDIR /build
@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 \
   -o validator \
   cmd/validator/validator.go
 
-FROM alpine:3.22@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
+FROM alpine:3.23@sha256:51183f2cfa6320055da30872f211093f9ff1d3cf06f39a0bdb212314c5dc7375
 USER user
 COPY --from=go-builder /build/validator /
 HEALTHCHECK NONE

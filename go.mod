@@ -6,7 +6,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.2
 	github.com/fatih/color v1.18.0
-	github.com/gurkankaymak/hocon v1.2.22
+	github.com/gurkankaymak/hocon v1.2.23
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/magiconair/properties v1.8.10

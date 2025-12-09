@@ -31,13 +31,13 @@ jobs:
 
       # Git Checkout
       - name: Checkout Code
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
 
       # MegaLinter
       - name: MegaLinter
-        uses: oxsecurity/megalinter@62c799d895af9bcbca5eacfebca29d527f125a57 # v9.1.0
+        uses: oxsecurity/megalinter@55a59b24a441e0e1943080d4a512d827710d4a9d # v9.2.0
         id: megalinter
         env:
           VALIDATE_ALL_CODEBASE: true
