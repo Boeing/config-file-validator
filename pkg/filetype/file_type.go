@@ -12,6 +12,7 @@ import (
 type FileType struct {
 	Name       string
 	Extensions map[string]struct{}
+	KnownFiles map[string]struct{}
 	Validator  validator.Validator
 }
 
@@ -28,7 +29,13 @@ var JSONFileType = FileType{
 var YAMLFileType = FileType{
 	Name:       "yaml",
 	Extensions: tools.ArrToMap("yml", "yaml"),
-	Validator:  validator.YAMLValidator{},
+	KnownFiles: tools.ArrToMap(
+		".clang-format",
+		".clang-tidy",
+		".clangd",
+		".gemrc",
+	),
+	Validator: validator.YAMLValidator{},
 }
 
 // Instance of FileType object to
@@ -52,7 +59,21 @@ var TomlFileType = FileType{
 var IniFileType = FileType{
 	Name:       "ini",
 	Extensions: tools.ArrToMap("ini"),
-	Validator:  validator.IniValidator{},
+	KnownFiles: tools.ArrToMap(
+		".editorconfig",
+		".gitconfig",
+		".gitmodules",
+		".shellcheckrc",
+		".npmrc",
+		"inputrc",
+		".inputrc",
+		".wgetrc",
+		".curlrc",
+		".nanorc",
+		".flake8",
+		".pylintrc",
+	),
+	Validator: validator.IniValidator{},
 }
 
 // Instance of FileType object to
