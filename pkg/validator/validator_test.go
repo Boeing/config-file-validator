@@ -92,8 +92,6 @@ func Test_ValidationInput(t *testing.T) {
 	t.Parallel()
 
 	for _, tcase := range testData {
-		tcase := tcase // Capture the range variable
-
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
