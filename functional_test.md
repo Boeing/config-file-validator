@@ -38,8 +38,8 @@ This section validates report output
 | `cd /test && /validator --reporter=sarif:/sarif_report.sarif` | Sarif JSON is written to `/sarif_report.sarif` | This is currently failing as the sarif report is written to stdout in addition to the file |
 | `cd /test && /validator --reporter=json:/json_report_2.json --reporter=standard:-` | JSON is written to `/json_report_2.json` and standard text is output to the terminal | |
 | `cd /test && /validator --reporter=bad` | Error message "Wrong parameter value for reporter, only supports standard, json, junit, or sarif" should be displayed in addition to the help output | |
-| `cd /test && /validator --reporter=json --quiet` | Nothing is displayed to the terminal since the `--quiet` flag supresses the output | |
-| `cd /test && /validator --reporter=json:/json_report_3.json --quiet` | Nothing is displayed to the terminal since the `--quiet` flag supresses the output but the `/json_report_3.json` file is populated | |
+| `cd /test && /validator --reporter=json --quiet` | Nothing is displayed to the terminal since the `--quiet` flag suppresses the output | |
+| `cd /test && /validator --reporter=json:/json_report_3.json --quiet` | Nothing is displayed to the terminal since the `--quiet` flag suppresses the output but the `/json_report_3.json` file is populated | |
 
 ## Grouping
 
@@ -118,6 +118,6 @@ Run `unset <var>` to unset the previous var before testing
 
 | Test | Expected Result | Notes |
 | ---- | --------------- | ----- |
-| `cd /test && /validator --quiet` | Nothing is displayed to the terminal since the `--quiet` flag supresses the output | |
+| `cd /test && /validator --quiet` | Nothing is displayed to the terminal since the `--quiet` flag suppresses the output | |
 | `cd /test && /validator /badpath --quiet` | Error "An error occurred during CLI execution: Unable to find files: stat /badpath: no such file or directory" is output to the terminal even through `--quiet` was enabled | |
 
