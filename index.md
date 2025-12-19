@@ -290,9 +290,9 @@ validator -globbing "/path/to/files/**/*.json"
 validator -globbing "/path/*.json" /path/to/search
 ```
 
-## Calling the config-file-validator programatically
+## Calling the config-file-validator programmatically
 
-The config-file-validator can be called programatically from within a Go program through the `cli` package.
+The config-file-validator can be called programmatically from within a Go program through the `cli` package.
 
 ### Default configuration
 

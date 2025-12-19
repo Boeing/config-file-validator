@@ -10,7 +10,7 @@ import (
 )
 
 func Test_flags(t *testing.T) {
-	// We manipuate the Args to set them up for the testcases
+	// We manipulate the Args to set them up for the testcases
 	// After this test we restore the initial args
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
