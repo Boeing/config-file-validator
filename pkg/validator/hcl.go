@@ -10,6 +10,8 @@ import (
 // HashiCorp Configuration Language (HCL) file.
 type HclValidator struct{}
 
+var _ Validator = HclValidator{}
+
 // Validate checks if the provided byte slice represents a valid .hcl file.
 //
 // The hcl parser uses FIFO to determine which error to display to the user. For
@@ -20,7 +22,7 @@ type HclValidator struct{}
 // If the hcl.Diagnostics slice contains more than one error, the wrapped
 // error returned by this function will include them as "and {count} other
 // diagnostic(s)" in the error message.
-func (HclValidator) Validate(b []byte) (bool, error) {
+func (HclValidator) ValidateSyntax(b []byte) (bool, error) {
 	_, diags := hclparse.NewParser().ParseHCL(b, "")
 	if diags == nil {
 		return true, nil
@@ -32,4 +34,8 @@ func (HclValidator) Validate(b []byte) (bool, error) {
 	col := subject.Start.Column
 
 	return false, fmt.Errorf("error at line %v column %v: %w", row, col, diags)
+}
+
+func (HclValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
+	return false, ErrMethodUnimplemented
 }

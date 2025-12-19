@@ -9,7 +9,9 @@ import (
 
 type TomlValidator struct{}
 
-func (TomlValidator) Validate(b []byte) (bool, error) {
+var _ Validator = TomlValidator{}
+
+func (TomlValidator) ValidateSyntax(b []byte) (bool, error) {
 	var output any
 	err := toml.Unmarshal(b, &output)
 	var derr *toml.DecodeError
@@ -18,4 +20,8 @@ func (TomlValidator) Validate(b []byte) (bool, error) {
 		return false, fmt.Errorf("error at line %v column %v: %w", row, col, err)
 	}
 	return true, nil
+}
+
+func (TomlValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
+	return false, ErrMethodUnimplemented
 }

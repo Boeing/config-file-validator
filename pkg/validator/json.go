@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 )
 
 type JSONValidator struct{}
+
+var _ Validator = JSONValidator{}
 
 // Returns a custom error message that contains the unmarshal
 // error message along with the line and character
@@ -28,12 +31,25 @@ func getCustomErr(input []byte, err error) error {
 
 // Validate implements the Validator interface by attempting to
 // unmarshall a byte array of json
-func (JSONValidator) Validate(b []byte) (bool, error) {
+func (JSONValidator) ValidateSyntax(b []byte) (bool, error) {
 	var output any
 	err := json.Unmarshal(b, &output)
 	if err != nil {
 		customError := getCustomErr(b, err)
 		return false, customError
+	}
+	return true, nil
+}
+
+func (JSONValidator) ValidateFormat(b []byte, _ any) (bool, error) {
+	var dst bytes.Buffer
+	err := json.Indent(&dst, b, "", "  ")
+	if err != nil {
+		return false, err
+	}
+	result := bytes.Equal(b, dst.Bytes())
+	if !result {
+		return false, errors.New("format check failed")
 	}
 	return true, nil
 }

@@ -10,9 +10,11 @@ import (
 
 type EnvValidator struct{}
 
+var _ Validator = EnvValidator{}
+
 // Validate implements the Validator interface by attempting to
 // parse a byte array of a env file using envparse package
-func (EnvValidator) Validate(b []byte) (bool, error) {
+func (EnvValidator) ValidateSyntax(b []byte) (bool, error) {
 	r := bytes.NewReader(b)
 	_, err := envparse.Parse(r)
 	if err != nil {
@@ -24,4 +26,8 @@ func (EnvValidator) Validate(b []byte) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (EnvValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
+	return false, ErrMethodUnimplemented
 }
