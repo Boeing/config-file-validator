@@ -13,6 +13,9 @@ issues:
 
 linters:
   enable:
+    # detect places where loop variables are copied
+    - copyloopvar
+
     # detect duplicated words in code
     - dupword
 
