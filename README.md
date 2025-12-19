@@ -112,7 +112,7 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```shell
-go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.1
+go install github.com/Boeing/config-file-validator/cmd/validator@latest
 ```
 
 ## Usage
@@ -536,7 +536,7 @@ if (-not ($up.Split(';') -contains $install)) { `
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```shell
-docker build . -t config-file-validator:v1.8.1
+docker build . -t config-file-validator:latest
 ```
 
 ## Contributors
