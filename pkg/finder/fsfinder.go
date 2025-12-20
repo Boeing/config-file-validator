@@ -128,6 +128,8 @@ func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}
 			if !dirEntry.IsDir() {
 				// filepath.Ext() returns the extension name with a dot so it
 				// needs to be removed.
+
+				walkFileName := filepath.Base(path)
 				walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 				extensionLowerCase := strings.ToLower(walkFileExtension)
 
@@ -136,20 +138,25 @@ func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}
 				}
 
 				for _, fileType := range fsf.FileTypes {
-					if _, isMatched := fileType.Extensions[extensionLowerCase]; isMatched {
-						absPath, err := filepath.Abs(path)
-						if err != nil {
-							return err
-						}
+					_, isKnownFile := fileType.KnownFiles[walkFileName]
+					_, hasExtension := fileType.Extensions[extensionLowerCase]
 
-						if _, seen := seenMap[absPath]; !seen {
-							fileMetadata := FileMetadata{dirEntry.Name(), absPath, fileType}
-							matchingFiles = append(matchingFiles, fileMetadata)
-							seenMap[absPath] = struct{}{}
-						}
-
-						return nil
+					if !isKnownFile && !hasExtension {
+						continue
 					}
+
+					absPath, err := filepath.Abs(path)
+					if err != nil {
+						return err
+					}
+
+					if _, seen := seenMap[absPath]; !seen {
+						fileMetadata := FileMetadata{dirEntry.Name(), absPath, fileType}
+						matchingFiles = append(matchingFiles, fileMetadata)
+						seenMap[absPath] = struct{}{}
+					}
+
+					return nil
 				}
 				fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
 			}
