@@ -91,18 +91,18 @@ var testData = []struct {
 	{"invalidEnv", []byte("=TEST"), false, EnvValidator{}},
 	{"validEditorConfig", []byte("working = true"), true, EditorConfigValidator{}},
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
+	{"validToon", []byte("users[2]{id,name,role}:\n  1,Alice,admin\n  2,Bob,user\n"), true, ToonValidator{}},
+	{"invalidToon", []byte("users2]{id,name,role}:\n  1,Alice,admin\n  2,Bob,user\n"), false, ToonValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
 	t.Parallel()
 
 	for _, tcase := range testData {
-		tcase := tcase // Capture the range variable
-
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
 
-			valid, err := tcase.validator.Validate(tcase.testInput)
+			valid, err := tcase.validator.ValidateSyntax(tcase.testInput)
 			if valid != tcase.expectedResult {
 				t.Errorf("incorrect result: expected %v, got %v", tcase.expectedResult, valid)
 			}
@@ -146,7 +146,7 @@ func addFuzzCases(f *testing.F) {
 
 func fuzzFunction(v Validator) func(*testing.T, []byte) {
 	return func(_ *testing.T, a []byte) {
-		_, _ = v.Validate(a)
+		_, _ = v.ValidateSyntax(a)
 	}
 }
 

@@ -19,7 +19,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-93.8%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-91.5%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -63,6 +63,7 @@
 * Properties
 * PKL
 * TOML
+* TOON
 * XML
 * YAML
 
@@ -207,7 +208,8 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.gif)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `pkl`, `toml`, `xml`, `yaml`, and `yml`
+
+Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `pkl`, `plist`, `properties`, `toml`, `toon`, `xml`, `yaml`, and `yml`
 
 ```shell
 validator --exclude-file-types=json /path/to/search
@@ -289,9 +291,9 @@ validator -globbing "/path/to/files/**/*.json"
 validator -globbing "/path/*.json" /path/to/search
 ```
 
-## Calling the config-file-validator programatically
+## Calling the config-file-validator programmatically
 
-The config-file-validator can be called programatically from within a Go program through the `cli` package.
+The config-file-validator can be called programmatically from within a Go program through the `cli` package.
 
 ### Default configuration
 
@@ -463,7 +465,7 @@ The project can be downloaded and built from source using an environment with Go
 ```shell
 CGO_ENABLED=0 \
 GOOS=darwin \
-GOARCH=amd64 \ # for Apple Silicon use arm64
+GOARCH=arm64 \ # for Intel use amd64
 go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \

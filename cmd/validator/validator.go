@@ -2,7 +2,7 @@
 Validator recursively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
-Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, PKL, Properties, TOML, XML, and YAML.
+Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, PKL, Properties, TOML, TOON, XML, and YAML.
 configuration file types are supported.
 
 Usage: validator [OPTIONS] [<search_path>...]
@@ -61,6 +61,7 @@ type validatorConfig struct {
 	groupOutput      *string
 	quiet            *bool
 	globbing         *bool
+	format           *string
 }
 
 type reporterFlags []string
@@ -129,6 +130,7 @@ func getFlags() (validatorConfig, error) {
 		groupOutputPtr      = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flag.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
+		formatPtr           = flag.String("check-format", "", "A comma separated list of file types for which to check formattingt. A value of 'all' will check all supported file types. For example, -check-format=json,yaml,ini or -check-format=all. Only json is supported currently.")
 	)
 	flag.Var(
 		&reporterConfigFlags,
@@ -159,6 +161,13 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 	searchPaths, err := parseSearchPath(globbingPrt)
 	if err != nil {
 		return validatorConfig{}, err
+	}
+
+	if *formatPtr != "" {
+		formatFileTypes := strings.Split(strings.ToLower(*formatPtr), ",")
+		if !slices.Contains(formatFileTypes, "all") && !validateFileTypeList(formatFileTypes) {
+			return validatorConfig{}, errors.New("invalid check format file type")
+		}
 	}
 
 	err = validateReporterConf(reporterConf, groupOutputPtr)
@@ -192,6 +201,7 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 		groupOutputPtr,
 		quietPtr,
 		globbingPrt,
+		formatPtr,
 	}
 
 	return config, nil
@@ -319,6 +329,7 @@ func applyDefaultFlagsFromEnv() error {
 		"reporter":           "CFV_REPORTER",
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
+		"format":             "CFV_FORMAT",
 		"globbing":           "CFV_GLOBBING",
 	}
 
@@ -411,6 +422,8 @@ func mainInit() int {
 		fsOpts = append(fsOpts, finder.WithDepth(*validatorConfig.depth))
 	}
 
+	formatFileTypes := getFormatFileTypes(*validatorConfig.format)
+
 	// Initialize a file system finder
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
@@ -420,6 +433,7 @@ func mainInit() int {
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
+		cli.WithFormatCheckTypes(formatFileTypes),
 	)
 
 	// Run the config file validation
@@ -454,6 +468,33 @@ func getExcludeFileTypes(configExcludeFileTypes string) []string {
 	}
 
 	return excludeFileTypes
+}
+
+func getFormatFileTypes(formatFlag string) []string {
+	if formatFlag == "" {
+		return nil
+	}
+
+	typesToFormat := strings.Split(strings.ToLower(formatFlag), ",")
+	typesToFormatSet := tools.ArrToMap(typesToFormat...)
+	fileTypesToFormat := make(map[string]struct{})
+
+	formatAll := false
+	if _, ok := typesToFormatSet["all"]; ok {
+		formatAll = true
+	}
+	for _, ft := range filetype.FileTypes {
+		for ext := range ft.Extensions {
+			if _, ok := typesToFormatSet[ext]; formatAll || ok {
+				fileTypesToFormat[ft.Name] = struct{}{}
+			}
+		}
+	}
+	types := make([]string, 0, len(fileTypesToFormat))
+	for ft := range fileTypesToFormat {
+		types = append(types, ft)
+	}
+	return types
 }
 
 func main() {

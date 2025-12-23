@@ -119,6 +119,14 @@ var EditorConfigFileType = FileType{
 	validator.EditorConfigValidator{},
 }
 
+// Instance of the FileType object to
+// represent a TOON file
+var ToonFileType = FileType{
+	"toon",
+	tools.ArrToMap("toon"),
+	validator.ToonValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -135,4 +143,5 @@ var FileTypes = []FileType{
 	HoconFileType,
 	EnvFileType,
 	EditorConfigFileType,
+	ToonFileType,
 }

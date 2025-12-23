@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-93.8%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-91.5%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -46,9 +46,10 @@
 * HOCON
 * INI
 * JSON
-* Properties
 * PKL
+* Properties
 * TOML
+* TOON
 * XML
 * YAML
 
@@ -112,7 +113,7 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```shell
-go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.1
+go install github.com/Boeing/config-file-validator/cmd/validator@latest
 ```
 
 ## Usage
@@ -136,6 +137,8 @@ optional flags:
         Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
   -quiet
         If quiet flag is set. It doesn't print any output to stdout.
+  -check-format string
+        If check format flag is set, it will attempt to check the format of the provided file types. Currenly supported file types are json. Provide a comma separated list of file types or "all" to format all supported file types.
   -reporter value
         A string representing report format and optional output file path separated by colon if present.
         Usage: --reporter <format>:<optional_file_path>
@@ -158,6 +161,7 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
+| `CFV_FORMAT`        | `-format`      |
 | `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
@@ -193,7 +197,8 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ![Exclude Dirs Run](./img/exclude_dirs.gif)
 
 #### Exclude file types
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `pkl`, `toml`, `xml`, `yaml`, and `yml`
+
+Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `pkl`, `plist`, `properties`, `toml`, `toon`, `xml`, `yaml`, and `yml`
 
 ```shell
 validator --exclude-file-types=json /path/to/search
@@ -258,6 +263,14 @@ Passing the `--quiet` flag suppresses all output to stdout. If there are invalid
 validator --quiet /path/to/search
 ```
 
+### Check format of valid files
+Use the `-check-format` flag to check the format of valid files. 
+
+```shell
+validator -check-format /path/to/search
+```
+> Only JSON files are formatted currently.
+
 ### Search files using a glob pattern
 
 Use the `-globbing` flag to validate files matching a specified pattern. Include the pattern as a positional argument in double quotes. Multiple glob patterns and direct file paths are supported. If invalid config files are detected, the validator tool exits with code 1, and errors (e.g., invalid patterns) are displayed.
@@ -275,9 +288,9 @@ validator -globbing "/path/to/files/**/*.json"
 validator -globbing "/path/*.json" /path/to/search
 ```
 
-## Calling the config-file-validator programatically
+## Calling the config-file-validator programmatically
 
-The config-file-validator can be called programatically from within a Go program through the `cli` package.
+The config-file-validator can be called programmatically from within a Go program through the `cli` package.
 
 ### Default configuration
 
@@ -524,7 +537,7 @@ if (-not ($up.Split(';') -contains $install)) { `
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```shell
-docker build . -t config-file-validator:v1.8.1
+docker build . -t config-file-validator:latest
 ```
 
 ## Contributors
