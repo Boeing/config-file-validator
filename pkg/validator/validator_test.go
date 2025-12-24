@@ -127,7 +127,7 @@ func TestPklValidator_EvaluatorCreationError(t *testing.T) {
 		},
 	}
 
-	_, err := validator.Validate([]byte(`name = "test"`))
+	_, err := validator.ValidateSyntax([]byte(`name = "test"`))
 
 	if !strings.Contains(err.Error(), "failed to create evaluator") {
 		t.Errorf("expected error to contain 'failed to create evaluator', got %v", err)

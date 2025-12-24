@@ -13,8 +13,8 @@ type PklValidator struct {
 	evaluatorFactory func(context.Context, ...func(*pkl.EvaluatorOptions)) (pkl.Evaluator, error)
 }
 
-// Validate attempts to evaluate the provided byte slice as a PKL file.
-func (v PklValidator) Validate(b []byte) (bool, error) {
+// ValidateSyntax attempts to evaluate the provided byte slice as a PKL file.
+func (v PklValidator) ValidateSyntax(b []byte) (bool, error) {
 	ctx := context.Background()
 
 	// Convert the byte slice to a ModuleSource using TextSource
@@ -36,4 +36,16 @@ func (v PklValidator) Validate(b []byte) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// ValidateFormat is not yet implemented for PklValidator.
+func (v PklValidator) ValidateFormat(b []byte, options any) (bool, error) {
+	if options == nil {
+		// If no specific format options are provided, consider it valid for now.
+		// A more robust implementation would involve Pkl schema validation.
+		return true, nil
+	}
+	// If options are provided, it means a specific format validation is requested,
+	// which is not yet implemented.
+	return false, ErrMethodUnimplemented
 }
