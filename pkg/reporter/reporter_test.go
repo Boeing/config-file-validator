@@ -130,9 +130,9 @@ func Test_junitReport(t *testing.T) {
 
 	reportWithValidationError := Report{
 		"bad.xml",
-		"/fake/path/bad.xml",
+		"/fake/path/bad.json",
 		false,
-		errors.New("Unable to parse bad.xml file"),
+		errors.New("Incorrect characters '<' and '</>` found in file"),
 		false,
 	}
 
