@@ -1,6 +1,7 @@
 package reporter
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -173,6 +174,12 @@ func (ts Testsuites) getReport() ([]byte, error) {
 	return data, nil
 }
 
+func escapeString(s string) string {
+	var buf bytes.Buffer
+	_ = xml.EscapeText(&buf, []byte(s))
+	return buf.String()
+}
+
 func (jr JunitReporter) Print(reports []Report) error {
 	testcases := []Testcase{}
 	testErrors := 0
@@ -184,7 +191,8 @@ func (jr JunitReporter) Print(reports []Report) error {
 		tc := Testcase{Name: fmt.Sprintf("%s validation", r.FilePath), File: r.FilePath, ClassName: "config-file-validator"}
 		if !r.IsValid {
 			testErrors++
-			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: r.ValidationError.Error()}}
+			escapedErrorString := escapeString(r.ValidationError.Error())
+			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: escapedErrorString}}
 		}
 		testcases = append(testcases, tc)
 	}
