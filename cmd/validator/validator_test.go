@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"testing"
@@ -57,11 +56,9 @@ func Test_flags(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			// this call is required because otherwise flags panics,
-			// if args are set between flag.Parse call
+			// prepare command line arguments; our getFlags function creates its own
+			// flag set, so the global CommandLine does not need resetting
 			fmt.Printf("Testing args: %v = %v\n", tc.Name, tc.Args)
-			flag.CommandLine = flag.NewFlagSet(tc.Name, flag.ExitOnError)
-			// we need a value to set Args[0] to cause flag begins parsing at Args[1]
 			os.Args = append([]string{tc.Name}, tc.Args...)
 			actualExit := mainInit()
 			if tc.ExpectedExit != actualExit {
