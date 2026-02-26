@@ -131,6 +131,30 @@ func Test_fsFinderCustomTypes(t *testing.T) {
 	}
 }
 
+func Test_fsFinderKnownFiles(t *testing.T) {
+	jsonFileType := filetype.FileType{
+		Name:       "json",
+		Extensions: tools.ArrToMap("whatever"),
+		KnownFiles: tools.ArrToMap(".editorconfig"),
+		Validator:  validator.JSONValidator{},
+	}
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots("../../test/fixtures"),
+		WithExcludeDirs([]string{"subdir"}),
+		WithFileTypes([]filetype.FileType{jsonFileType}),
+	)
+
+	files, err := fsFinder.Find()
+
+	if len(files) < 1 {
+		t.Error("Unable to find files")
+	}
+
+	if err != nil {
+		t.Error("Unable to find files")
+	}
+}
+
 func Test_fsFinderPathNoExist(t *testing.T) {
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots("/bad/path"),

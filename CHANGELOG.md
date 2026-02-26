@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-02-05
+
+### Fixed
+
+- Escape the error messages strings in the JUnit report to prevent invalid XML
+
+### Added
+
+- Support of well known files for configuration discovery
+
 ## [1.9.0] - 2025-11-14
 
 ### Added

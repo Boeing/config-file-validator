@@ -4,8 +4,8 @@ go 1.25.0
 
 require (
 	github.com/apple/pkl-go v0.8.0
-	github.com/bmatcuk/doublestar/v4 v4.9.1
-	github.com/editorconfig/editorconfig-core-go/v2 v2.6.2
+	github.com/bmatcuk/doublestar/v4 v4.10.0
+	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
 	github.com/fatih/color v1.18.0
 	github.com/gurkankaymak/hocon v1.2.23
 	github.com/hashicorp/go-envparse v0.1.0
@@ -14,7 +14,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/stretchr/testify v1.11.1
 	github.com/toon-format/toon-go v0.0.0-20251108125615-44b4cd22477f
-	gopkg.in/ini.v1 v1.67.0
+	gopkg.in/ini.v1 v1.67.1
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 )
@@ -31,8 +31,9 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/zclconf/go-cty v1.13.0 // indirect
-	golang.org/x/mod v0.16.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/mod v0.31.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
-	golang.org/x/tools v0.13.0 // indirect
+	golang.org/x/tools v0.39.0 // indirect
 )
