@@ -51,6 +51,8 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/tools"
 )
 
+var flagSet *flag.FlagSet
+
 type validatorConfig struct {
 	searchPaths      []string
 	excludeDirs      *string
@@ -75,7 +77,7 @@ func (rf *reporterFlags) Set(value string) error {
 	return nil
 }
 
-// Custom Usage function to cover
+// Custom Usage function to cover. Uses the current flagSet when available.
 func validatorUsage() {
 	fmt.Println("Usage: validator [OPTIONS] [<search_path>...]")
 	fmt.Println()
@@ -84,7 +86,11 @@ func validatorUsage() {
 		"    search_path: The search path on the filesystem for configuration files. " +
 			"Defaults to the current working directory if no search_path provided\n\n")
 	fmt.Println("optional flags:")
-	flag.PrintDefaults()
+	if flagSet != nil {
+		flagSet.PrintDefaults()
+	} else {
+		flag.PrintDefaults()
+	}
 }
 
 // Assemble pretty formatted list of file types
@@ -119,20 +125,24 @@ func validateFileTypeList(input []string) bool {
 // output will be displayed and the function
 // will return with exit = 1
 func getFlags() (validatorConfig, error) {
-	flag.Usage = validatorUsage
+	// construct a dedicated FlagSet rather than using the package-level
+	// default. this satisfies revive's deep-exit rule and makes the
+	// function easier to test.
+	flagSet = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	flagSet.Usage = validatorUsage
 	reporterConfigFlags := reporterFlags{}
 
 	var (
-		depthPtr            = flag.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
-		excludeDirsPtr      = flag.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-		excludeFileTypesPtr = flag.String("exclude-file-types", "", "A comma separated list of file types to ignore")
-		versionPtr          = flag.Bool("version", false, "Version prints the release version of validator")
-		groupOutputPtr      = flag.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
-		quietPtr            = flag.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
-		globbingPrt         = flag.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
-		formatPtr           = flag.String("check-format", "", "A comma separated list of file types for which to check formattingt. A value of 'all' will check all supported file types. For example, -check-format=json,yaml,ini or -check-format=all. Only json is supported currently.")
+		depthPtr            = flagSet.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
+		excludeDirsPtr      = flagSet.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
+		excludeFileTypesPtr = flagSet.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+		versionPtr          = flagSet.Bool("version", false, "Version prints the release version of validator")
+		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
+		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
+		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
+		formatPtr           = flagSet.String("check-format", "", "A comma separated list of file types for which to check formattingt. A value of 'all' will check all supported file types. For example, -check-format=json,yaml,ini or -check-format=all. Only json is supported currently.")
 	)
-	flag.Var(
+	flagSet.Var(
 		&reporterConfigFlags,
 		"reporter",
 		`A string representing report format and optional output file path separated by colon if present.
@@ -142,7 +152,9 @@ Omit the file path to output to stdout: --reporter json or explicitly specify st
 Supported formats: standard, json, junit, and sarif (default: "standard")`,
 	)
 
-	flag.Parse()
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		return validatorConfig{}, err
+	}
 
 	err := applyDefaultFlagsFromEnv()
 	if err != nil {
@@ -257,19 +269,19 @@ func validateGlobbing(globbingPrt *bool) error {
 func parseSearchPath(globbingPrt *bool) ([]string, error) {
 	searchPaths := make([]string, 0)
 
-	if flag.NArg() == 0 {
+	if flagSet.NArg() == 0 {
 		searchPaths = append(searchPaths, ".")
 	} else if *globbingPrt {
 		return handleGlobbing(searchPaths)
 	} else {
-		searchPaths = append(searchPaths, flag.Args()...)
+		searchPaths = append(searchPaths, flagSet.Args()...)
 	}
 
 	return searchPaths, nil
 }
 
 func handleGlobbing(searchPaths []string) ([]string, error) {
-	for _, flagArg := range flag.Args() {
+	for _, flagArg := range flagSet.Args() {
 		if isGlobPattern(flagArg) {
 			matches, err := doublestar.Glob(os.DirFS("."), flagArg)
 			if err != nil {
@@ -312,7 +324,7 @@ func parseReporterFlags(flags reporterFlags) (map[string]string, error) {
 func isFlagSet(flagName string) bool {
 	var isSet bool
 
-	flag.Visit(func(f *flag.Flag) {
+	flagSet.Visit(func(f *flag.Flag) {
 		if f.Name == flagName {
 			isSet = true
 		}
@@ -348,7 +360,7 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 	}
 
 	if envVarValue, ok := os.LookupEnv(envVar); ok {
-		if err := flag.Set(flagName, envVarValue); err != nil {
+		if err := flagSet.Set(flagName, envVarValue); err != nil {
 			return err
 		}
 	}
@@ -374,7 +386,7 @@ func getReporter(reportType, outputDest *string) reporter.Reporter {
 // cleanString takes a command string and a split string
 // and returns a cleaned string
 func cleanString(command string) string {
-	cleanedString := flag.Lookup(command).Value.String()
+	cleanedString := flagSet.Lookup(command).Value.String()
 	cleanedString = strings.ToLower(cleanedString)
 	cleanedString = strings.TrimSpace(cleanedString)
 
@@ -390,7 +402,11 @@ func mainInit() int {
 	validatorConfig, err := getFlags()
 	if err != nil {
 		fmt.Println(err.Error())
-		flag.Usage()
+		if flagSet != nil {
+			flagSet.Usage()
+		} else {
+			flag.Usage()
+		}
 		return 1
 	}
 
