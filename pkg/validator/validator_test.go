@@ -1,8 +1,13 @@
 package validator
 
 import (
+	"context"
 	_ "embed"
+	"errors"
+	"strings"
 	"testing"
+
+	"github.com/apple/pkl-go/pkl"
 )
 
 var (
@@ -71,6 +76,8 @@ var testData = []struct {
 	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
 	{"validProperties", []byte("key=value\nkey2=${key}"), true, PropValidator{}},
 	{"invalidProperties", []byte("key=${key}"), false, PropValidator{}},
+	{"validPkl", []byte(`name = "Swallow"`), true, PklValidator{}},
+	{"invalidPkl", []byte(`"name" = "Swallow"`), false, PklValidator{}},
 	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
 	{"invalidHcl", []byte(`"key" = "value"`), false, HclValidator{}},
 	{"multipleInvalidHcl", []byte(`"key1" = "value1"\n"key2"="value2"`), false, HclValidator{}},
@@ -111,6 +118,25 @@ func Test_ValidationInput(t *testing.T) {
 	}
 }
 
+func TestPklValidator_EvaluatorCreationError(t *testing.T) {
+	expectedErr := errors.New("evaluator creation failed")
+
+	validator := PklValidator{
+		evaluatorFactory: func(_ context.Context, _ ...func(options *pkl.EvaluatorOptions)) (pkl.Evaluator, error) {
+			return nil, expectedErr
+		},
+	}
+
+	_, err := validator.ValidateSyntax([]byte(`name = "test"`))
+
+	if !strings.Contains(err.Error(), "failed to create evaluator") {
+		t.Errorf("expected error to contain 'failed to create evaluator', got %v", err)
+	}
+
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+}
 func addFuzzCases(f *testing.F) {
 	f.Helper()
 	for _, tc := range fuzzbank {

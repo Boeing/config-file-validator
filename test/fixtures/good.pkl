@@ -1,0 +1,50 @@
+
+
+name = "PhoenixWebApp"
+
+package {
+  name = "phoenix"
+  version = "2.1.0"
+  authors = List("Phoenix Engineering <contact@phoenix.dev>")
+}
+
+database {
+  host = "db.phoenix.internal"
+  port = 5432
+  username = "phoenix_user"
+  poolSize = 20
+  sslMode = "require"
+}
+
+server {
+  host = "0.0.0.0"
+  port = 8080
+  logLevel = "info" // "debug", "info", "warn", "error"
+  corsOrigins = List("https://phoenix.example", "https://app.phoenix.example")
+}
+
+features {
+  newSignupFlow = true
+  apiRateLimiting = true
+  dashboardAnalytics = false
+}
+
+// --- Service Replica Configuration ---
+local class Replica {
+  region: "us-east-1" | "us-west-2" | "eu-central-1"
+  instanceType: String
+  count: Int
+}
+
+replicas = List(
+  new Replica {
+    region = "us-east-1"
+    instanceType = "t3.medium"
+    count = 3
+  },
+  new Replica {
+    region = "us-west-2"
+    instanceType = "t3.medium"
+    count = 2
+  }
+)

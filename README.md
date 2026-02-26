@@ -46,6 +46,7 @@
 * HOCON
 * INI
 * JSON
+* PKL
 * Properties
 * TOML
 * TOON
@@ -197,7 +198,7 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 
 #### Exclude file types
 
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `toon`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `pkl`, `plist`, `properties`, `toml`, `toon`, `xml`, `yaml`, and `yml`
 
 ```shell
 validator --exclude-file-types=json /path/to/search
