@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--file-types` flag to include only specified config file types for validation (inverse of `--exclude-file-types`)
+- `CFV_FILE_TYPES` environment variable equivalent for `--file-types`
+
 ### Changed
 
 - Refactored validator CLI flag parsing to use `flag.NewFlagSet` instead of the global flag package, improving testability and satisfying the revive `deep-exit` lint rule

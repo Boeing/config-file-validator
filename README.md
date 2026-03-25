@@ -130,6 +130,8 @@ optional flags:
         Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
         A comma separated list of file types to ignore
+  -file-types string
+        A comma separated list of file types to validate
   -globbing
         If globbing flag is set, check for glob patterns in the arguments.
   -groupby string
@@ -157,6 +159,7 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_DEPTH`          | `-depth`        |
 | `CFV_EXCLUDE_DIRS`   | `-exclude-dirs` |
 | `CFV_EXCLUDE_FILE_TYPES` | `-exclude-file-types` |
+| `CFV_FILE_TYPES`     | `-file-types`   |
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
@@ -204,6 +207,14 @@ validator --exclude-file-types=json /path/to/search
 ```
 
 ![Exclude File Types Run](./img/exclude_file_types.gif)
+
+#### Include only specific file types
+
+Validate only the specified file types. Cannot be used together with `--exclude-file-types`.
+
+```shell
+validator --file-types=json,yaml /path/to/search
+```
 
 #### Customize recursion depth
 

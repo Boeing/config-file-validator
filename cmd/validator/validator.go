@@ -17,6 +17,8 @@ optional flags:
     	Subdirectories to exclude when searching for configuration files
   -exclude-file-types string
     	A comma separated list of file types to ignore
+  -file-types string
+    	A comma separated list of file types to validate
   -globbing bool
     	Set globbing to true to enable pattern matching for search paths
   -reporter string
@@ -57,6 +59,7 @@ type validatorConfig struct {
 	searchPaths      []string
 	excludeDirs      *string
 	excludeFileTypes *string
+	fileTypes        *string
 	reportType       map[string]string
 	depth            *int
 	versionQuery     *bool
@@ -136,6 +139,7 @@ func getFlags() (validatorConfig, error) {
 		depthPtr            = flagSet.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
 		excludeDirsPtr      = flagSet.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
 		excludeFileTypesPtr = flagSet.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+		fileTypesPtr        = flagSet.String("file-types", "", "A comma separated list of file types to validate")
 		versionPtr          = flagSet.Bool("version", false, "Version prints the release version of validator")
 		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
@@ -197,6 +201,15 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 			return validatorConfig{}, errors.New("invalid exclude file type")
 		}
 	}
+	if *fileTypesPtr != "" && *excludeFileTypesPtr != "" {
+		return validatorConfig{}, errors.New("--file-types and --exclude-file-types cannot be used together")
+	}
+	if *fileTypesPtr != "" {
+		*fileTypesPtr = strings.ToLower(*fileTypesPtr)
+		if !validateFileTypeList(strings.Split(*fileTypesPtr, ",")) {
+			return validatorConfig{}, errors.New("invalid file type")
+		}
+	}
 
 	err = validateGroupByConf(groupOutputPtr)
 	if err != nil {
@@ -207,6 +220,7 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 		searchPaths,
 		excludeDirsPtr,
 		excludeFileTypesPtr,
+		fileTypesPtr,
 		reporterConf,
 		depthPtr,
 		versionPtr,
@@ -260,8 +274,8 @@ func validateGroupByConf(groupBy *string) error {
 }
 
 func validateGlobbing(globbingPrt *bool) error {
-	if *globbingPrt && (isFlagSet("exclude-dirs") || isFlagSet("exclude-file-types")) {
-		return errors.New("the -globbing flag cannot be used with --exclude-dirs or --exclude-file-types")
+	if *globbingPrt && (isFlagSet("exclude-dirs") || isFlagSet("exclude-file-types") || isFlagSet("file-types")) {
+		return errors.New("the -globbing flag cannot be used with --exclude-dirs, --exclude-file-types, or --file-types")
 	}
 	return nil
 }
@@ -338,6 +352,7 @@ func applyDefaultFlagsFromEnv() error {
 		"depth":              "CFV_DEPTH",
 		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
 		"exclude-file-types": "CFV_EXCLUDE_FILE_TYPES",
+		"file-types":         "CFV_FILE_TYPES",
 		"reporter":           "CFV_REPORTER",
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
@@ -426,11 +441,26 @@ func mainInit() int {
 	}
 
 	excludeFileTypes := getExcludeFileTypes(*validatorConfig.excludeFileTypes)
+	var fileTypeFilter []filetype.FileType
+	if *validatorConfig.fileTypes != "" {
+		includeTypes := tools.ArrToMap(strings.Split(strings.ToLower(*validatorConfig.fileTypes), ",")...)
+		for _, ft := range filetype.FileTypes {
+			for ext := range ft.Extensions {
+				if _, ok := includeTypes[ext]; ok {
+					fileTypeFilter = append(fileTypeFilter, ft)
+					break
+				}
+			}
+		}
+	}
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	fsOpts := []finder.FSFinderOptions{
 		finder.WithPathRoots(validatorConfig.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes),
+	}
+	if len(fileTypeFilter) > 0 {
+		fsOpts = append(fsOpts, finder.WithFileTypes(fileTypeFilter))
 	}
 	quiet := *validatorConfig.quiet
 
