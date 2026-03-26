@@ -183,3 +183,8 @@ func FuzzEditorConfigValidator(f *testing.F) {
 	addFuzzCases(f)
 	f.Fuzz(fuzzFunction(EditorConfigValidator{}))
 }
+
+func FuzzToonValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(ToonValidator{}))
+}
