@@ -2,6 +2,7 @@ package finder
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -339,6 +340,36 @@ func Test_FileFinderPathWithWhitespaces(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+func Test_fsFinderWalkDirError(t *testing.T) {
+	// Create a directory with an unreadable subdirectory to trigger
+	// the WalkDir callback error path
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "noperm")
+	err := os.Mkdir(subDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Write a file so the parent is walkable
+	err = os.WriteFile(filepath.Join(subDir, "test.json"), []byte(`{}`), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Remove read+execute on the subdirectory
+	err = os.Chmod(subDir, 0000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(subDir, 0755)
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(subDir),
+	)
+
+	_, err = fsFinder.Find()
+	if err == nil {
+		t.Error("Expected error from unreadable directory")
 	}
 }
 

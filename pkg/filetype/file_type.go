@@ -140,6 +140,14 @@ var ToonFileType = FileType{
 	Validator:  validator.ToonValidator{},
 }
 
+// Instance of the FileType object to
+// represent a Sarif file
+var SarifFileType = FileType{
+	Name:       "sarif",
+	Extensions: tools.ArrToMap("sarif"),
+	Validator:  validator.SarifValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -156,4 +164,5 @@ var FileTypes = []FileType{
 	EnvFileType,
 	EditorConfigFileType,
 	ToonFileType,
+	SarifFileType,
 }

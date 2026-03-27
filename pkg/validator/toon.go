@@ -18,6 +18,3 @@ func (ToonValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (ToonValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
-	return false, ErrMethodUnimplemented
-}

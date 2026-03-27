@@ -23,6 +23,3 @@ func (PlistValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (PlistValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
-	return false, ErrMethodUnimplemented
-}

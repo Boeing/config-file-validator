@@ -9,104 +9,51 @@ import (
 )
 
 func Test_outputBytesToFile(t *testing.T) {
-	deleteFiles(t)
-
-	bytes, err := os.ReadFile("../../test/output/example/writer_example.txt")
+	golden, err := os.ReadFile("../../test/output/example/writer_example.txt")
 	require.NoError(t, err)
 
-	type args struct {
-		results     []byte
-		outputDest  string
-		defaultName string
-		extension   string
-	}
-	type want struct {
-		filePath string
-		data     []byte
-		err      assert.ErrorAssertionFunc
-	}
+	content := []byte("this is an example file.\nthis is for outputBytesToFile function.\n")
 
-	tests := map[string]struct {
-		args args
-		want want
-	}{
-		"normal/existing dir": {
-			args: args{
-				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
-				outputDest:  "../../test/output",
-				defaultName: "default",
-				extension:   "txt",
-			},
-			want: want{
-				filePath: "../../test/output/default.txt",
-				data:     bytes,
-				err:      assert.NoError,
-			},
-		},
-		"normal/file name is provided to outputDest": {
-			args: args{
-				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
-				outputDest:  "../../test/output/validator_result.json",
-				defaultName: "default",
-				extension:   "json",
-			},
-			want: want{
-				filePath: "../../test/output/validator_result.json",
-				data:     bytes,
-				err:      assert.NoError,
-			},
-		},
-		"normal/existing dir without extension": {
-			args: args{
-				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
-				outputDest:  "../../test/output",
-				defaultName: "default",
-				extension:   "",
-			},
-			want: want{
-				filePath: "../../test/output/default",
-				data:     bytes,
-				err:      assert.NoError,
-			},
-		},
-		"abnormal/empty string outputDest": {
-			args: args{
-				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
-				outputDest:  "",
-				defaultName: "default",
-				extension:   ".txt",
-			},
-			want: want{
-				data: nil,
-				err:  assertRegexpError("outputDest is an empty string: "),
-			},
-		},
-		"abnormal/non-existing dir": {
-			args: args{
-				results:     []byte("this is an example file.\nthis is for outputBytesToFile function.\n"),
-				outputDest:  "../../test/wrong/output",
-				defaultName: "result",
-				extension:   "",
-			},
-			want: want{
-				data: nil,
-				err:  assertRegexpError("failed to create a file: "),
-			},
-		},
-	}
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			err := outputBytesToFile(tt.args.outputDest,
-				tt.args.defaultName, tt.args.extension, tt.args.results)
-			tt.want.err(t, err)
-			if tt.want.data != nil {
-				bytes, err := os.ReadFile(tt.want.filePath)
-				require.NoError(t, err)
-				assert.Equal(t, tt.want.data, bytes)
-				err = os.Remove(tt.want.filePath)
-				require.NoError(t, err)
-			}
-		},
-		)
-	}
+	t.Run("existing dir", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		err := outputBytesToFile(tmpDir, "default", "txt", content)
+		require.NoError(t, err)
+
+		actual, err := os.ReadFile(tmpDir + "/default.txt")
+		require.NoError(t, err)
+		assert.Equal(t, golden, actual)
+	})
+
+	t.Run("file name provided", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		outPath := tmpDir + "/validator_result.json"
+		err := outputBytesToFile(outPath, "default", "json", content)
+		require.NoError(t, err)
+
+		actual, err := os.ReadFile(outPath)
+		require.NoError(t, err)
+		assert.Equal(t, golden, actual)
+	})
+
+	t.Run("existing dir without extension", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		err := outputBytesToFile(tmpDir, "default", "", content)
+		require.NoError(t, err)
+
+		actual, err := os.ReadFile(tmpDir + "/default")
+		require.NoError(t, err)
+		assert.Equal(t, golden, actual)
+	})
+
+	t.Run("empty string outputDest", func(t *testing.T) {
+		err := outputBytesToFile("", "default", ".txt", content)
+		require.Error(t, err)
+		assert.Regexp(t, "outputDest is an empty string", err.Error())
+	})
+
+	t.Run("non-existing dir", func(t *testing.T) {
+		err := outputBytesToFile("/nonexistent/path/output", "result", "", content)
+		require.Error(t, err)
+		assert.Regexp(t, "failed to create a file", err.Error())
+	})
 }

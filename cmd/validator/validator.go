@@ -2,7 +2,7 @@
 Validator recursively scans a directory to search for configuration files and
 validates them using the go package for each configuration type.
 
-Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, TOML, TOON, XML, and YAML.
+Currently Apple PList XML, CSV, HCL, HOCON, INI, JSON, Properties, Sarif, TOML, TOON, XML, and YAML.
 configuration file types are supported.
 
 Usage: validator [OPTIONS] [<search_path>...]
@@ -67,6 +67,7 @@ type validatorConfig struct {
 	quiet            *bool
 	globbing         *bool
 	format           *string
+	schema           *string
 }
 
 type reporterFlags []string
@@ -144,16 +145,13 @@ func getFlags() (validatorConfig, error) {
 		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
-		formatPtr           = flagSet.String("check-format", "", "A comma separated list of file types for which to check formattingt. A value of 'all' will check all supported file types. For example, -check-format=json,yaml,ini or -check-format=all. Only json is supported currently.")
+		formatPtr           = flagSet.String("check-format", "", "Comma separated list of file types to check formatting. Only json is supported currently.")
+		schemaPtr           = flagSet.String("schema", "", "Comma separated list of file types to validate against their schema. Only sarif is supported currently.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
 		"reporter",
-		`A string representing report format and optional output file path separated by colon if present.
-Usage: --reporter <format>:<optional_file_path>
-Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
-Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
-Supported formats: standard, json, junit, and sarif (default: "standard")`,
+		"Report format and optional output path. Format: <type>:<path> Supported: standard, json, junit, sarif (default: standard)",
 	)
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
@@ -183,6 +181,13 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 		formatFileTypes := strings.Split(strings.ToLower(*formatPtr), ",")
 		if !slices.Contains(formatFileTypes, "all") && !validateFileTypeList(formatFileTypes) {
 			return validatorConfig{}, errors.New("invalid check format file type")
+		}
+	}
+
+	if *schemaPtr != "" {
+		schemaFileTypes := strings.Split(strings.ToLower(*schemaPtr), ",")
+		if !validateFileTypeList(schemaFileTypes) {
+			return validatorConfig{}, errors.New("invalid schema file type")
 		}
 	}
 
@@ -228,6 +233,7 @@ Supported formats: standard, json, junit, and sarif (default: "standard")`,
 		quietPtr,
 		globbingPrt,
 		formatPtr,
+		schemaPtr,
 	}
 
 	return config, nil
@@ -358,6 +364,7 @@ func applyDefaultFlagsFromEnv() error {
 		"quiet":              "CFV_QUIET",
 		"format":             "CFV_FORMAT",
 		"globbing":           "CFV_GLOBBING",
+		"schema":             "CFV_SCHEMA",
 	}
 
 	for flagName, envVar := range flagsEnvMap {
@@ -416,6 +423,9 @@ func isGlobPattern(s string) bool {
 func mainInit() int {
 	validatorConfig, err := getFlags()
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		fmt.Println(err.Error())
 		if flagSet != nil {
 			flagSet.Usage()
@@ -469,6 +479,7 @@ func mainInit() int {
 	}
 
 	formatFileTypes := getFormatFileTypes(*validatorConfig.format)
+	schemaFileTypes := getSchemaFileTypes(*validatorConfig.schema)
 
 	// Initialize a file system finder
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
@@ -480,6 +491,7 @@ func mainInit() int {
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
 		cli.WithFormatCheckTypes(formatFileTypes),
+		cli.WithSchemaCheckTypes(schemaFileTypes),
 	)
 
 	// Run the config file validation
@@ -538,6 +550,29 @@ func getFormatFileTypes(formatFlag string) []string {
 	}
 	types := make([]string, 0, len(fileTypesToFormat))
 	for ft := range fileTypesToFormat {
+		types = append(types, ft)
+	}
+	return types
+}
+
+func getSchemaFileTypes(schemaFlag string) []string {
+	if schemaFlag == "" {
+		return nil
+	}
+
+	typesToValidate := strings.Split(strings.ToLower(schemaFlag), ",")
+	typesToValidateSet := tools.ArrToMap(typesToValidate...)
+	fileTypesToValidate := make(map[string]struct{})
+
+	for _, ft := range filetype.FileTypes {
+		for ext := range ft.Extensions {
+			if _, ok := typesToValidateSet[ext]; ok {
+				fileTypesToValidate[ft.Name] = struct{}{}
+			}
+		}
+	}
+	types := make([]string, 0, len(fileTypesToValidate))
+	for ft := range fileTypesToValidate {
 		types = append(types, ft)
 	}
 	return types

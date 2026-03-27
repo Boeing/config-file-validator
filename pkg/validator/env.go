@@ -28,6 +28,3 @@ func (EnvValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
-func (EnvValidator) ValidateFormat(_ []byte, _ any) (bool, error) {
-	return false, ErrMethodUnimplemented
-}
