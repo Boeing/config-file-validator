@@ -280,6 +280,29 @@ func Test_fsFinderTypeOverrideNoMatch(t *testing.T) {
 	require.Empty(t, files)
 }
 
+func Test_fsFinderTypeOverridePriority(t *testing.T) {
+	dir := t.TempDir()
+	// Write valid XML content with a .json extension
+	testhelper.WriteFile(t, dir, "data.json", "<root><key>val</key></root>")
+
+	xmlType := filetype.FileType{
+		Name:       "xml",
+		Extensions: tools.ArrToMap("xml"),
+		Validator:  validator.XMLValidator{},
+	}
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithTypeOverrides([]TypeOverride{
+			{Pattern: "**/*.json", FileType: xmlType},
+		}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "xml", files[0].FileType.Name)
+}
+
 func Benchmark_Finder(b *testing.B) {
 	// Use a real directory for benchmarking
 	dir, err := os.MkdirTemp("", "bench_finder")

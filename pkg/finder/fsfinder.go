@@ -160,7 +160,18 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 		return nil
 	}
 
-	// Check built-in file types first
+	// Check type overrides first (user-specified mappings take priority)
+	for _, override := range fsf.TypeOverrides {
+		matched, err := doublestar.PathMatch(override.Pattern, path)
+		if err != nil {
+			return err
+		}
+		if matched {
+			return fsf.addFile(path, dirEntry, override.FileType, seenMap, matchingFiles)
+		}
+	}
+
+	// Fall back to built-in file types
 	for _, fileType := range fsf.FileTypes {
 		_, isKnownFile := fileType.KnownFiles[walkFileName]
 		_, hasExtension := fileType.Extensions[extensionLowerCase]
@@ -170,17 +181,6 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 		}
 
 		return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
-	}
-
-	// Check type overrides for unrecognized files
-	for _, override := range fsf.TypeOverrides {
-		matched, err := doublestar.PathMatch(override.Pattern, path)
-		if err != nil {
-			return err
-		}
-		if matched {
-			return fsf.addFile(path, dirEntry, override.FileType, seenMap, matchingFiles)
-		}
 	}
 
 	// Only cache exclusion if no type overrides are configured
