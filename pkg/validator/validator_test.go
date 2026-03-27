@@ -2,6 +2,8 @@ package validator
 
 import (
 	_ "embed"
+	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -35,6 +37,41 @@ var (
 		</dict> <!-- Missing value for the key 'NSAllowsArbitraryLoads' -->
 	</dict>
 	</plist>`)
+	validSarif210Bytes = []byte(`{
+		"version": "2.1.0",
+		"$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+		"runs": [{
+			"tool": {"driver": {"name": "test", "language": "en"}},
+			"results": [],
+			"language": "en",
+			"newlineSequences": ["\n"]
+		}]
+	}`)
+
+	validSarif22Bytes = []byte(`{
+		"version": "2.2",
+		"$schema": "https://docs.oasis-open.org/sarif/sarif/v2.2/csd01/schemas/sarif-schema-2.2.json",
+		"guid": "12345678-1234-1234-8234-123456789012",
+		"runs": [{
+			"tool": {"driver": {"name": "test"}},
+			"results": [],
+			"newlineSequences": ["\n"]
+		}]
+	}`)
+
+	invalidSchemaSarifBytes = []byte(`{
+		"version": "2.1.0",
+		"runs": "not_an_array"
+	}`)
+
+	validSyntaxInvalidSchemaSarifBytes = []byte(`{
+		"version": "2.1.0",
+		"$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+		"runs": [{
+			"tool": {"driver": {"name": "test"}},
+			"results": []
+		}]
+	}`)
 
 	fuzzbank = [][]byte{
 		[]byte(`{test": "test"}`), []byte(`{"test": "test"}`),
@@ -86,6 +123,9 @@ var testData = []struct {
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
 	{"validToon", []byte("users[2]{id,name,role}:\n  1,Alice,admin\n  2,Bob,user\n"), true, ToonValidator{}},
 	{"invalidToon", []byte("users2]{id,name,role}:\n  1,Alice,admin\n  2,Bob,user\n"), false, ToonValidator{}},
+	{"validSarif210", validSarif210Bytes, true, SarifValidator{}},
+	{"validSarif22", validSarif22Bytes, true, SarifValidator{}},
+	{"invalidSarif", []byte(`{"not": "sarif"}`), false, SarifValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
@@ -187,4 +227,89 @@ func FuzzEditorConfigValidator(f *testing.F) {
 func FuzzToonValidator(f *testing.F) {
 	addFuzzCases(f)
 	f.Fuzz(fuzzFunction(ToonValidator{}))
+}
+
+func FuzzSarifValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(SarifValidator{}))
+}
+
+func Test_JSONValidateFormat(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		input          []byte
+		expectedResult bool
+	}{
+		{"wellFormatted", []byte("{\n  \"key\": \"value\"\n}"), true},
+		{"unformatted", []byte(`{"key":"value"}`), false},
+		{"invalidJSON", []byte(`{invalid`), false},
+	}
+
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+			valid, err := JSONValidator{}.ValidateFormat(tcase.input, nil)
+			if valid != tcase.expectedResult {
+				t.Errorf("expected %v, got %v (err: %v)", tcase.expectedResult, valid, err)
+			}
+			if !valid && err == nil {
+				t.Error("expected error for invalid result")
+			}
+		})
+	}
+}
+
+func Test_getCustomErrNonSyntaxError(t *testing.T) {
+	t.Parallel()
+	// Unmarshal into a typed struct to trigger UnmarshalTypeError instead of SyntaxError
+	var target struct {
+		Key int `json:"key"`
+	}
+	input := []byte(`{"key": "not_a_number"}`)
+	err := json.Unmarshal(input, &target)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	customErr := getCustomErr(input, err)
+	// Should return the original error unchanged since it's not a SyntaxError
+	if !errors.Is(customErr, err) {
+		t.Errorf("expected original error, got: %v", customErr)
+	}
+}
+
+var schemaTestData = []struct {
+	name           string
+	testInput      []byte
+	expectedResult bool
+}{
+	{"validSchema210", validSarif210Bytes, true},
+	{"validSchema22", validSarif22Bytes, true},
+	{"invalidSchema", invalidSchemaSarifBytes, false},
+	{"validSyntaxInvalidSchema", validSyntaxInvalidSchemaSarifBytes, false},
+	{"invalidVersion", []byte(`{"version": "9.9"}`), false},
+}
+
+func Test_SarifValidateSchema(t *testing.T) {
+	t.Parallel()
+
+	for _, tcase := range schemaTestData {
+		t.Run(tcase.name, func(t *testing.T) {
+			t.Parallel()
+
+			valid, err := SarifValidator{}.ValidateSchema(tcase.testInput)
+			if valid != tcase.expectedResult {
+				t.Errorf("incorrect result: expected %v, got %v (err: %v)", tcase.expectedResult, valid, err)
+			}
+
+			if valid && err != nil {
+				t.Error("incorrect result: err was not nil", err)
+			}
+
+			if !valid && err == nil {
+				t.Error("incorrect result: function returned a nil error")
+			}
+		})
+	}
 }

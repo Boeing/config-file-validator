@@ -1,11 +1,11 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"slices"
 
+	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 	"github.com/Boeing/config-file-validator/pkg/validator"
@@ -18,6 +18,7 @@ var (
 	Quiet                bool
 	errorFound           bool
 	FormatCheckFileTypes []string
+	SchemaCheckFileTypes []string
 )
 
 type CLI struct {
@@ -66,10 +67,22 @@ func WithFormatCheckTypes(types []string) Option {
 	}
 }
 
+func WithSchemaCheckTypes(types []string) Option {
+	return func(_ *CLI) {
+		SchemaCheckFileTypes = types
+	}
+}
+
 // Initialize the CLI object
 func Init(opts ...Option) *CLI {
 	defaultFsFinder := finder.FileSystemFinderInit()
 	defaultReporter := reporter.NewStdoutReporter("")
+
+	// Reset global state
+	GroupOutput = nil
+	Quiet = false
+	FormatCheckFileTypes = nil
+	SchemaCheckFileTypes = nil
 
 	cli := &CLI{
 		defaultFsFinder,
@@ -91,6 +104,11 @@ func Init(opts ...Option) *CLI {
 // - Outputs the results using the Reporters
 func (c CLI) Run() (int, error) {
 	errorFound = false
+
+	if err := validateCapabilities(); err != nil {
+		return 1, err
+	}
+
 	var reports []reporter.Report
 	foundFiles, err := c.Finder.Find()
 	if err != nil {
@@ -112,11 +130,13 @@ func (c CLI) Run() (int, error) {
 		if !isValid {
 			errorFound = true
 		} else if checkFormat {
-			isValid, err = fileToValidate.FileType.Validator.ValidateFormat(fileContent, nil)
-			if errors.Is(err, validator.ErrMethodUnimplemented) {
-				// Format validation not implemented for this type
-				isValid = true
-				err = nil
+			if fv, ok := fileToValidate.FileType.Validator.(validator.FormatValidator); ok {
+				isValid, err = fv.ValidateFormat(fileContent, nil)
+			}
+		}
+		if isValid && slices.Contains(SchemaCheckFileTypes, fileToValidate.FileType.Name) {
+			if sv, ok := fileToValidate.FileType.Validator.(validator.SchemaValidator); ok {
+				isValid, err = sv.ValidateSchema(fileContent)
 			}
 		}
 		report := reporter.Report{
@@ -140,6 +160,37 @@ func (c CLI) Run() (int, error) {
 	}
 
 	return 0, nil
+}
+
+// validateCapabilities checks that all file types requested for format or schema
+// validation actually implement the corresponding optional interface.
+func validateCapabilities() error {
+	fileTypeMap := make(map[string]validator.Validator)
+	for _, ft := range filetype.FileTypes {
+		fileTypeMap[ft.Name] = ft.Validator
+	}
+
+	for _, name := range FormatCheckFileTypes {
+		v, ok := fileTypeMap[name]
+		if !ok {
+			continue
+		}
+		if _, ok := v.(validator.FormatValidator); !ok {
+			return fmt.Errorf("format validation is not supported for file type %q", name)
+		}
+	}
+
+	for _, name := range SchemaCheckFileTypes {
+		v, ok := fileTypeMap[name]
+		if !ok {
+			continue
+		}
+		if _, ok := v.(validator.SchemaValidator); !ok {
+			return fmt.Errorf("schema validation is not supported for file type %q", name)
+		}
+	}
+
+	return nil
 }
 
 // printReports prints the reports based on the specified grouping and reporter type.

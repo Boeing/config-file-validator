@@ -61,6 +61,7 @@
 * INI
 * JSON
 * Properties
+* Sarif
 * TOML
 * TOON
 * XML
@@ -152,12 +153,16 @@ optional flags:
         Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
   -quiet
         If quiet flag is set. It doesn't print any output to stdout.
+  -check-format string
+        A comma separated list of file types for which to check formatting. Only json is supported currently.
   -reporter value
         A string representing report format and optional output file path separated by colon if present.
         Usage: --reporter <format>:<optional_file_path>
         Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
         Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
         Supported formats: standard, json, junit, and sarif (default: "standard")
+  -schema string
+        A comma separated list of file types for which to validate against their schema. Only sarif is supported currently.
   -version
         Version prints the release version of validator
 ```
@@ -175,6 +180,8 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
+| `CFV_FORMAT`        | `-check-format`      |
+| `CFV_SCHEMA`        | `-schema`      |
 | `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
@@ -300,6 +307,24 @@ validator -globbing "/path/to/files/**/*.json"
 # Mix glob patterns and paths
 validator -globbing "/path/*.json" /path/to/search
 ```
+
+### Check format of valid files
+
+Use the `-check-format` flag to check the format of valid files.
+
+```shell
+validator -check-format=json /path/to/search
+```
+> Only JSON files are supported currently.
+
+### Validate schema of valid files
+
+Use the `-schema` flag to validate files against their schema. The validator will return an error if a requested file type does not support schema validation.
+
+```shell
+validator -schema=sarif /path/to/search
+```
+> Only SARIF files are supported currently.
 
 ## Calling the config-file-validator programmatically
 

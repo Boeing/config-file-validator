@@ -30,8 +30,8 @@ func Test_flags(t *testing.T) {
 		{"exclude file types set", []string{"--exclude-file-types=json,yaml", "."}, 0},
 		{"multiple paths", []string{"../../test/fixtures/subdir/good.json", "../../test/fixtures/good.json"}, 0},
 		{"version", []string{"--version"}, 0},
-		{"output set", []string{"--reporter=json:../../test/output", "."}, 0},
-		{"output set with standard reporter", []string{"--reporter=standard:../../test/output", "."}, 0},
+		{"output set", []string{"--reporter=json:" + t.TempDir(), "."}, 0},
+		{"output set with standard reporter", []string{"--reporter=standard:" + t.TempDir(), "."}, 0},
 		{"wrong output set with json reporter", []string{"--reporter", "json:/path/not/exist", "."}, 1},
 		{"incorrect reporter param format with json reporter", []string{"--reporter", "json:/path/not/exist:/some/other/non-existent/path", "."}, 1},
 		{"incorrect group", []string{"-groupby=badgroup", "."}, 1},
@@ -46,13 +46,24 @@ func Test_flags(t *testing.T) {
 		{"globbing flag not set", []string{"test/**/*.json", "."}, 1},
 		{"globbing flag with exclude-dirs", []string{"-globbing", "--exclude-dirs=subdir", "test/**/*.json", "."}, 1},
 		{"globbing flag with exclude-file-types", []string{"-globbing", "--exclude-file-types=hcl", "test/**/*.json", "."}, 1},
-		{"format flag all", []string{"--check-format=all", "../../test/fixtures/good.json"}, 0},
+		{"format flag all", []string{"--check-format=all", "../../test/fixtures/good.json"}, 1},
 		{"format flag invalid", []string{"--check-format", "../../test/fixtures/good.json"}, 1},
-		{"format flag with types", []string{"--check-format=json,yaml,ini", "../../test/fixtures/good.json"}, 0},
-		{"format flag with invalid file", []string{"--check-format=all", "/path/does/not/exist"}, 1},
+		{"format flag with types", []string{"--check-format=json", "../../test/fixtures/good.json"}, 0},
+		{"format flag with unsupported types", []string{"--check-format=json,yaml,ini", "../../test/fixtures/good.json"}, 1},
+		{"format flag with invalid file", []string{"--check-format=json", "/path/does/not/exist"}, 1},
 		{"format flag with multiple files", []string{"--check-format=json", "../../test/fixtures/good.json", "../../test/fixtures/good.toml"}, 0},
-		{"format flag with exclude-dirs", []string{"--check-format=all", "--exclude-dirs=subdir", "."}, 0},
-		{"format flag with json reporter", []string{"--check-format=all", "--reporter=json", "../../test/fixtures/good.json"}, 0},
+		{"format flag with exclude-dirs", []string{"--check-format=json", "--exclude-dirs=subdir", "."}, 0},
+		{"format flag with json reporter", []string{"--check-format=json", "--reporter=json", "../../test/fixtures/good.json"}, 0},
+		{"help flag", []string{"--help"}, 0},
+		{"invalid schema type", []string{"--schema=notreal", "."}, 1},
+		{"schema sarif", []string{"--schema=sarif", "../../test/fixtures/good.sarif"}, 0},
+		{"invalid exclude file type", []string{"--exclude-file-types=notreal", "."}, 1},
+		{"file-types and exclude-file-types together", []string{"--file-types=json", "--exclude-file-types=yaml", "."}, 1},
+		{"invalid file type", []string{"--file-types=notreal", "."}, 1},
+		{"file-types filter", []string{"--file-types=json", "../../test/fixtures/good.json"}, 0},
+		{"globbing with file-types", []string{"-globbing", "--file-types=json", "test/**/*.json", "."}, 1},
+		{"exclude file types with empty element", []string{"--exclude-file-types=json,,yaml", "."}, 0},
+		{"globbing with bad pattern", []string{"-globbing", "../../test/fixtures/["}, 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -157,6 +168,7 @@ func Test_getFormatFileTypes(t *testing.T) {
 				"env",
 				"editorconfig",
 				"toon",
+				"sarif",
 			},
 		},
 	}
@@ -165,6 +177,68 @@ func Test_getFormatFileTypes(t *testing.T) {
 		t.Run(tcase.name, func(t *testing.T) {
 			actual := getFormatFileTypes(tcase.input)
 			require.ElementsMatch(t, tcase.expectedFormatters, actual)
+		})
+	}
+}
+
+func Test_envVarFallback(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+
+	// Set env var and verify it's picked up when flag is not set
+	t.Setenv("CFV_DEPTH", "2")
+	t.Setenv("CFV_QUIET", "true")
+
+	os.Args = []string{"validator", "."}
+	exitCode := mainInit()
+	require.Equal(t, 0, exitCode)
+}
+
+func Test_envVarInvalid(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+
+	t.Setenv("CFV_DEPTH", "notanumber")
+
+	os.Args = []string{"validator", "."}
+	exitCode := mainInit()
+	require.Equal(t, 1, exitCode)
+}
+
+func Test_getSchemaFileTypes(t *testing.T) {
+	type testCase struct {
+		name          string
+		input         string
+		expectedTypes []string
+	}
+
+	tcases := []testCase{
+		{
+			name:          "empty",
+			input:         "",
+			expectedTypes: []string{},
+		},
+		{
+			name:          "schema check sarif",
+			input:         "sarif",
+			expectedTypes: []string{"sarif"},
+		},
+		{
+			name:          "schema check multiple types",
+			input:         "sarif,json",
+			expectedTypes: []string{"sarif", "json"},
+		},
+		{
+			name:          "duplicate input",
+			input:         "sarif,sarif",
+			expectedTypes: []string{"sarif"},
+		},
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			actual := getSchemaFileTypes(tcase.input)
+			require.ElementsMatch(t, tcase.expectedTypes, actual)
 		})
 	}
 }

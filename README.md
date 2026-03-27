@@ -47,6 +47,7 @@
 * INI
 * JSON
 * Properties
+* Sarif
 * TOML
 * TOON
 * XML
@@ -146,6 +147,8 @@ optional flags:
         Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
         Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
         Supported formats: standard, json, junit, and sarif (default: "standard")
+  -schema string
+        A comma separated list of file types for which to validate against their schema. Only sarif is supported currently.
   -version
         Version prints the release version of validator
 ```
@@ -163,7 +166,8 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
-| `CFV_FORMAT`        | `-format`      |
+| `CFV_FORMAT`        | `-check-format`      |
+| `CFV_SCHEMA`        | `-schema`      |
 | `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
@@ -277,9 +281,18 @@ validator --quiet /path/to/search
 Use the `-check-format` flag to check the format of valid files. 
 
 ```shell
-validator -check-format /path/to/search
+validator -check-format=json /path/to/search
 ```
-> Only JSON files are formatted currently.
+> Only JSON files are supported currently.
+
+### Validate schema of valid files
+
+Use the `-schema` flag to validate files against their schema. The validator will return an error if a requested file type does not support schema validation.
+
+```shell
+validator -schema=sarif /path/to/search
+```
+> Only SARIF files are supported currently.
 
 ### Search files using a glob pattern
 
