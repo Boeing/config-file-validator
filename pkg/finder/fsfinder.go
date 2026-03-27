@@ -6,9 +6,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
+
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/tools"
 )
+
+type TypeOverride struct {
+	Pattern  string
+	FileType filetype.FileType
+}
 
 type FileSystemFinder struct {
 	PathRoots        []string
@@ -16,6 +23,7 @@ type FileSystemFinder struct {
 	ExcludeDirs      map[string]struct{}
 	ExcludeFileTypes map[string]struct{}
 	Depth            *int
+	TypeOverrides    []TypeOverride
 }
 
 type FSFinderOptions func(*FileSystemFinder)
@@ -52,6 +60,13 @@ func WithExcludeFileTypes(types []string) FSFinderOptions {
 func WithDepth(depthVal int) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
 		fsf.Depth = &depthVal
+	}
+}
+
+// WithTypeOverrides adds glob pattern to file type mappings
+func WithTypeOverrides(overrides []TypeOverride) FSFinderOptions {
+	return func(fsf *FileSystemFinder) {
+		fsf.TypeOverrides = overrides
 	}
 }
 
@@ -145,6 +160,7 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 		return nil
 	}
 
+	// Check built-in file types first
 	for _, fileType := range fsf.FileTypes {
 		_, isKnownFile := fileType.KnownFiles[walkFileName]
 		_, hasExtension := fileType.Extensions[extensionLowerCase]
@@ -153,19 +169,37 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 			continue
 		}
 
-		absPath, err := filepath.Abs(path)
+		return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
+	}
+
+	// Check type overrides for unrecognized files
+	for _, override := range fsf.TypeOverrides {
+		matched, err := doublestar.PathMatch(override.Pattern, path)
 		if err != nil {
 			return err
 		}
-
-		if _, seen := seenMap[absPath]; !seen {
-			*matchingFiles = append(*matchingFiles, FileMetadata{dirEntry.Name(), absPath, fileType})
-			seenMap[absPath] = struct{}{}
+		if matched {
+			return fsf.addFile(path, dirEntry, override.FileType, seenMap, matchingFiles)
 		}
-
-		return nil
 	}
-	fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
+
+	// Only cache exclusion if no type overrides are configured
+	if len(fsf.TypeOverrides) == 0 {
+		fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
+	}
+	return nil
+}
+
+func (fsf FileSystemFinder) addFile(path string, dirEntry fs.DirEntry, fileType filetype.FileType, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+
+	if _, seen := seenMap[absPath]; !seen {
+		*matchingFiles = append(*matchingFiles, FileMetadata{dirEntry.Name(), absPath, fileType})
+		seenMap[absPath] = struct{}{}
+	}
 
 	return nil
 }

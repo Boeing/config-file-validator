@@ -105,7 +105,7 @@ func Test_CLIReportErr(t *testing.T) {
 
 func Test_CLIWithFormattingCheckEnabled(t *testing.T) {
 	dir := t.TempDir()
-	file := testhelper.WriteFile(t, dir, "test.json", `{"name":"test","values":[1,2,3]}`)
+	file := testhelper.WriteFile(t, dir, "test.json", "{\n  \"key\": \"value\"\n}\n")
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(file),

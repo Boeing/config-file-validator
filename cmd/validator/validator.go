@@ -68,6 +68,7 @@ type validatorConfig struct {
 	globbing         *bool
 	format           *string
 	schema           *string
+	typeMap          typeMapFlags
 }
 
 type reporterFlags []string
@@ -78,6 +79,17 @@ func (rf *reporterFlags) String() string {
 
 func (rf *reporterFlags) Set(value string) error {
 	*rf = append(*rf, value)
+	return nil
+}
+
+type typeMapFlags []string
+
+func (tf *typeMapFlags) String() string {
+	return fmt.Sprint(*tf)
+}
+
+func (tf *typeMapFlags) Set(value string) error {
+	*tf = append(*tf, value)
 	return nil
 }
 
@@ -151,6 +163,13 @@ func getFlags(args []string) (validatorConfig, error) {
 		"Report format and optional output path. Format: <type>:<path> Supported: standard, json, junit, sarif (default: standard)",
 	)
 
+	typeMapConfigFlags := typeMapFlags{}
+	flagSet.Var(
+		&typeMapConfigFlags,
+		"type-map",
+		"Map a glob pattern to a file type. Format: <pattern>:<type> Example: --type-map=\"**/inventory:ini\"",
+	)
+
 	if err := flagSet.Parse(args); err != nil {
 		return validatorConfig{}, err
 	}
@@ -190,6 +209,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		globbingPrt,
 		formatPtr,
 		schemaPtr,
+		typeMapConfigFlags,
 	}
 
 	return config, nil
@@ -461,10 +481,6 @@ func mainInit() int {
 		return 0
 	}
 
-	// since the exclude dirs are a comma separated string
-	// it needs to be split into a slice of strings
-	excludeDirs := strings.Split(*validatorConfig.excludeDirs, ",")
-
 	chosenReporters := make([]reporter.Reporter, 0)
 	for reportType, outputFile := range validatorConfig.reportType {
 		rt, of := reportType, outputFile // avoid "Implicit memory aliasing in for loop"
@@ -472,33 +488,14 @@ func mainInit() int {
 	}
 
 	excludeFileTypes := getExcludeFileTypes(*validatorConfig.excludeFileTypes)
-	var fileTypeFilter []filetype.FileType
-	if *validatorConfig.fileTypes != "" {
-		includeTypes := tools.ArrToMap(strings.Split(strings.ToLower(*validatorConfig.fileTypes), ",")...)
-		for _, ft := range filetype.FileTypes {
-			for ext := range ft.Extensions {
-				if _, ok := includeTypes[ext]; ok {
-					fileTypeFilter = append(fileTypeFilter, ft)
-					break
-				}
-			}
-		}
+	fsOpts, err := buildFinderOpts(validatorConfig, excludeFileTypes)
+	if err != nil {
+		log.Printf("An error occurred: %v", err)
+		return 1
 	}
+
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
-	fsOpts := []finder.FSFinderOptions{
-		finder.WithPathRoots(validatorConfig.searchPaths...),
-		finder.WithExcludeDirs(excludeDirs),
-		finder.WithExcludeFileTypes(excludeFileTypes),
-	}
-	if len(fileTypeFilter) > 0 {
-		fsOpts = append(fsOpts, finder.WithFileTypes(fileTypeFilter))
-	}
 	quiet := *validatorConfig.quiet
-
-	if validatorConfig.depth != nil && isFlagSet("depth") {
-		fsOpts = append(fsOpts, finder.WithDepth(*validatorConfig.depth))
-	}
-
 	formatFileTypes := getFormatFileTypes(*validatorConfig.format)
 	schemaFileTypes := getSchemaFileTypes(*validatorConfig.schema)
 
@@ -523,8 +520,47 @@ func mainInit() int {
 
 	return exitStatus
 }
+func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string) ([]finder.FSFinderOptions, error) {
+	excludeDirs := strings.Split(*cfg.excludeDirs, ",")
+	fsOpts := []finder.FSFinderOptions{
+		finder.WithPathRoots(cfg.searchPaths...),
+		finder.WithExcludeDirs(excludeDirs),
+		finder.WithExcludeFileTypes(excludeFileTypes),
+	}
+
+	if *cfg.fileTypes != "" {
+		includeTypes := tools.ArrToMap(strings.Split(strings.ToLower(*cfg.fileTypes), ",")...)
+		var fileTypeFilter []filetype.FileType
+		for _, ft := range filetype.FileTypes {
+			for ext := range ft.Extensions {
+				if _, ok := includeTypes[ext]; ok {
+					fileTypeFilter = append(fileTypeFilter, ft)
+					break
+				}
+			}
+		}
+		fsOpts = append(fsOpts, finder.WithFileTypes(fileTypeFilter))
+	}
+
+	if cfg.depth != nil && isFlagSet("depth") {
+		fsOpts = append(fsOpts, finder.WithDepth(*cfg.depth))
+	}
+
+	typeOverrides, err := parseTypeMapFlags(cfg.typeMap)
+	if err != nil {
+		return nil, err
+	}
+	if len(typeOverrides) > 0 {
+		fsOpts = append(fsOpts, finder.WithTypeOverrides(typeOverrides))
+	}
+
+	return fsOpts, nil
+}
 
 func getExcludeFileTypes(configExcludeFileTypes string) []string {
+	if configExcludeFileTypes == "" {
+		return nil
+	}
 	excludeFileTypes := strings.Split(strings.ToLower(configExcludeFileTypes), ",")
 	uniqueFileTypes := tools.ArrToMap(excludeFileTypes...)
 
@@ -597,6 +633,31 @@ func getSchemaFileTypes(schemaFlag string) []string {
 		types = append(types, ft)
 	}
 	return types
+}
+
+func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
+	var overrides []finder.TypeOverride
+	fileTypesByName := make(map[string]filetype.FileType)
+	for _, ft := range filetype.FileTypes {
+		fileTypesByName[ft.Name] = ft
+	}
+
+	for _, flag := range flags {
+		parts := strings.SplitN(flag, ":", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return nil, fmt.Errorf("invalid type-map format %q, expected pattern:type", flag)
+		}
+		pattern := parts[0]
+		typeName := strings.ToLower(parts[1])
+
+		ft, ok := fileTypesByName[typeName]
+		if !ok {
+			return nil, fmt.Errorf("unknown file type %q in type-map", typeName)
+		}
+		overrides = append(overrides, finder.TypeOverride{Pattern: pattern, FileType: ft})
+	}
+
+	return overrides, nil
 }
 
 func main() {
