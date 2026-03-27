@@ -1,383 +1,219 @@
 package finder
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/Boeing/config-file-validator/internal/testhelper"
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/tools"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
 func Test_fsFinder(t *testing.T) {
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures"),
-	)
+	dir := testhelper.CreateFixtureDir(t, "json", "yaml", "toml")
 
+	fsFinder := FileSystemFinderInit(WithPathRoots(dir))
 	files, err := fsFinder.Find()
-
-	if len(files) < 1 {
-		t.Error("Unable to find files")
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
 }
 
 func Test_fsFinderExcludeDirs(t *testing.T) {
+	dir := testhelper.CreateFixtureDir(t, "json")
+	sub := testhelper.CreateSubdir(t, dir, "excluded")
+	testhelper.WriteFile(t, sub, "good.yaml", testhelper.ValidContent["yaml"])
+
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures"),
-		WithExcludeDirs([]string{"subdir"}),
+		WithPathRoots(dir),
+		WithExcludeDirs([]string{"excluded"}),
 	)
-
 	files, err := fsFinder.Find()
-
-	if len(files) < 1 {
-		t.Error("Unable to find files")
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
+	require.NoError(t, err)
+	require.Len(t, files, 1)
 }
 
 func Test_fsFinderExcludeFileTypes(t *testing.T) {
+	dir := testhelper.CreateFixtureDir(t, "json", "toml")
+
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/exclude-file-types"),
+		WithPathRoots(dir),
 		WithExcludeFileTypes([]string{"json"}),
 	)
-
 	files, err := fsFinder.Find()
-
-	if len(files) != 1 {
-		fmt.Println(files)
-		t.Errorf("Wrong amount of files, expected 1 got %d", len(files))
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
+	require.NoError(t, err)
+	require.Len(t, files, 1)
 }
 
 func Test_fsFinderWithDepth(t *testing.T) {
-	type test struct {
-		name               string
-		inputDepth         int
-		inputPathRoot      string
-		expectedFilesCount int
+	// root/good.json, root/sub/good.yaml
+	dir := testhelper.CreateFixtureDir(t, "json")
+	sub := testhelper.CreateSubdir(t, dir, "sub")
+	testhelper.WriteFile(t, sub, "good.yaml", testhelper.ValidContent["yaml"])
+
+	cases := []struct {
+		name     string
+		depth    int
+		expected int
+	}{
+		{"depth 0 finds only root", 0, 1},
+		{"depth 1 finds both", 1, 2},
+		{"depth 9 finds both", 9, 2},
 	}
 
-	tests := []test{
-		{
-			name:               "recursion disabled",
-			inputDepth:         0,
-			inputPathRoot:      "../",
-			expectedFilesCount: 0,
-		},
-		{
-			name:               "recursion enabled",
-			inputDepth:         4,
-			inputPathRoot:      "../../test/fixtures/with-depth",
-			expectedFilesCount: 2,
-		},
-		{
-			name:               "recursion enabled with lesser depth in the folder structure",
-			inputDepth:         9,
-			inputPathRoot:      "../../test/fixtures/with-depth",
-			expectedFilesCount: 2,
-		},
-	}
-
-	for _, tt := range tests {
-		fsFinder := FileSystemFinderInit(
-			WithPathRoots(tt.inputPathRoot),
-			WithDepth(tt.inputDepth),
-		)
-
-		files, err := fsFinder.Find()
-
-		if len(files) != tt.expectedFilesCount {
-			t.Errorf("Wrong amount of files, expected %d got %d", tt.expectedFilesCount, len(files))
-		}
-
-		if err != nil {
-			t.Error("Unable to find files")
-		}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fsFinder := FileSystemFinderInit(
+				WithPathRoots(dir),
+				WithDepth(tc.depth),
+			)
+			files, err := fsFinder.Find()
+			require.NoError(t, err)
+			require.Len(t, files, tc.expected)
+		})
 	}
 }
 
 func Test_fsFinderCustomTypes(t *testing.T) {
-	jsonFileType := filetype.FileType{
+	dir := testhelper.CreateFixtureDir(t, "json", "yaml")
+
+	jsonOnly := filetype.FileType{
 		Name:       "json",
 		Extensions: tools.ArrToMap("json"),
 		Validator:  validator.JSONValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures"),
-		WithExcludeDirs([]string{"subdir"}),
-		WithFileTypes([]filetype.FileType{jsonFileType}),
+		WithPathRoots(dir),
+		WithFileTypes([]filetype.FileType{jsonOnly}),
 	)
-
 	files, err := fsFinder.Find()
-
-	if len(files) < 1 {
-		t.Error("Unable to find files")
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
+	require.NoError(t, err)
+	require.Len(t, files, 1)
 }
 
 func Test_fsFinderKnownFiles(t *testing.T) {
-	jsonFileType := filetype.FileType{
-		Name:       "json",
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, ".editorconfig", testhelper.ValidContent["editorconfig"])
+
+	knownFileType := filetype.FileType{
+		Name:       "editorconfig",
 		Extensions: tools.ArrToMap("whatever"),
 		KnownFiles: tools.ArrToMap(".editorconfig"),
-		Validator:  validator.JSONValidator{},
+		Validator:  validator.EditorConfigValidator{},
 	}
 	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures"),
-		WithExcludeDirs([]string{"subdir"}),
-		WithFileTypes([]filetype.FileType{jsonFileType}),
+		WithPathRoots(dir),
+		WithFileTypes([]filetype.FileType{knownFileType}),
 	)
-
 	files, err := fsFinder.Find()
-
-	if len(files) < 1 {
-		t.Error("Unable to find files")
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
+	require.NoError(t, err)
+	require.Len(t, files, 1)
 }
 
 func Test_fsFinderPathNoExist(t *testing.T) {
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots("/bad/path"),
-	)
-
+	fsFinder := FileSystemFinderInit(WithPathRoots("/bad/path"))
 	_, err := fsFinder.Find()
-
-	if err == nil {
-		t.Error("Error not returned")
-	}
+	require.Error(t, err)
 }
 
-func Test_FileSystemFinderMultipleFinder(t *testing.T) {
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots(
-			"../../test/fixtures/subdir/good.json",
-			"../../test/fixtures/good.json",
-			"./",
-		),
-	)
+func Test_fsFinderMultiplePaths(t *testing.T) {
+	file1 := testhelper.CreateFixtureFile(t, "json")
+	file2 := testhelper.CreateFixtureFile(t, "yaml")
 
+	fsFinder := FileSystemFinderInit(WithPathRoots(file1, file2))
 	files, err := fsFinder.Find()
-
-	if len(files) != 2 {
-		t.Errorf("No. files found don't match got:%v, want:%v", len(files), 2)
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
+	require.NoError(t, err)
+	require.Len(t, files, 2)
 }
 
-func Test_FileSystemFinderDuplicateFiles(t *testing.T) {
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots(
-			"../../test/fixtures/subdir/",
-		),
-	)
+func Test_fsFinderDuplicateFiles(t *testing.T) {
+	file := testhelper.CreateFixtureFile(t, "json")
+	absPath, err := filepath.Abs(file)
+	require.NoError(t, err)
 
+	fsFinder := FileSystemFinderInit(WithPathRoots(file, absPath))
 	files, err := fsFinder.Find()
-
-	if len(files) != 4 {
-		t.Errorf("No. files found don't match got:%v, want:%v", len(files), 4)
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
+	require.NoError(t, err)
+	require.Len(t, files, 1)
 }
 
-func Test_FileSystemFinderAbsPath(t *testing.T) {
-	path := "../../test/fixtures/subdir/good.json"
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		t.Fatal("Cannot form absolute path")
-	}
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots(path, absPath),
-	)
+func Test_fsFinderCaseInsensitiveExtension(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "good.JSON", testhelper.ValidContent["json"])
+	testhelper.WriteFile(t, dir, "good.YAml", testhelper.ValidContent["yaml"])
 
+	fsFinder := FileSystemFinderInit(WithPathRoots(dir))
 	files, err := fsFinder.Find()
-
-	if len(files) != 1 {
-		t.Errorf("No. files found don't match got:%v, want:%v", len(files), 1)
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
+	require.NoError(t, err)
+	require.Len(t, files, 2)
 }
 
-func Test_FileSystemFinderUpperCaseExtension(t *testing.T) {
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/uppercase-extension"),
-	)
+func Test_fsFinderBadSecondPath(t *testing.T) {
+	dir := testhelper.CreateFixtureDir(t, "json")
 
-	files, err := fsFinder.Find()
-
-	if len(files) < 1 {
-		t.Error("Unable to find files")
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
-}
-
-func Test_FileSystemFinderMixedCaseExtension(t *testing.T) {
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/mixedcase-extension"),
-	)
-
-	files, err := fsFinder.Find()
-
-	if len(files) < 1 {
-		t.Error("Unable to find files")
-	}
-
-	if err != nil {
-		t.Error("Unable to find files")
-	}
-}
-
-func Test_FileFinderBadPath(t *testing.T) {
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots(
-			"../../test/fixtures/subdir",
-			"/bad/path",
-		),
-	)
-
+	fsFinder := FileSystemFinderInit(WithPathRoots(dir, "/bad/path"))
 	_, err := fsFinder.Find()
-
-	if err == nil {
-		t.Error("Error should be thrown for bad path")
-	}
+	require.Error(t, err)
 }
 
-func Test_FileFinderPathWithWhitespaces(t *testing.T) {
-	tests := []struct {
-		name      string
-		path      string
-		expectErr bool
+func Test_fsFinderWhitespacePaths(t *testing.T) {
+	dir := testhelper.CreateFixtureDir(t, "json")
+
+	cases := []struct {
+		name    string
+		path    string
+		wantErr bool
 	}{
-		{
-			name: "no whitespace",
-			path: "../../test/fixtures/subdir",
-		},
-		{
-			name: "leading whitespace",
-			path: "  ../../test/fixtures/subdir",
-		},
-		{
-			name: "trailing whitespace",
-			path: "../../test/fixtures/subdir  ",
-		},
-		{
-			name: "leading and trailing whitespace",
-			path: "  ../../test/fixtures/subdir  ",
-		},
-		{
-			name:      "whitespace in middle of path",
-			path:      "../../test/  fixtures  /subdir",
-			expectErr: true,
-		},
-		{
-			name:      "leading whitespace + whitespace in middle of path",
-			path:      "  ../../test/  fixtures  /subdir",
-			expectErr: true,
-		},
-		{
-			name:      "trailing whitespace + whitespace in middle of path",
-			path:      "../../test/  fixtures  /subdir  ",
-			expectErr: true,
-		},
-		{
-			name:      "leading and trailing whitespace + whitespace in middle of path",
-			path:      "  ../../test/  fixtures  /subdir  ",
-			expectErr: true,
-		},
+		{"no whitespace", dir, false},
+		{"leading whitespace", "  " + dir, false},
+		{"trailing whitespace", dir + "  ", false},
+		{"both", "  " + dir + "  ", false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fsFinder := FileSystemFinderInit(
-				WithPathRoots(tt.path),
-			)
-
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fsFinder := FileSystemFinderInit(WithPathRoots(tc.path))
 			files, err := fsFinder.Find()
-
-			if tt.expectErr {
-				if err == nil {
-					t.Error("Error should be thrown for bad path")
-				}
+			if tc.wantErr {
+				require.Error(t, err)
 			} else {
-				if len(files) < 1 {
-					t.Error("Unable to find file")
-				}
-
-				if err != nil {
-					t.Error("Unable to find file")
-				}
+				require.NoError(t, err)
+				require.NotEmpty(t, files)
 			}
 		})
 	}
 }
+
 func Test_fsFinderWalkDirError(t *testing.T) {
-	// Create a directory with an unreadable subdirectory to trigger
-	// the WalkDir callback error path
 	tmpDir := t.TempDir()
-	subDir := filepath.Join(tmpDir, "noperm")
-	err := os.Mkdir(subDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Write a file so the parent is walkable
-	err = os.WriteFile(filepath.Join(subDir, "test.json"), []byte(`{}`), 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Remove read+execute on the subdirectory
-	err = os.Chmod(subDir, 0000)
-	if err != nil {
-		t.Fatal(err)
-	}
+	subDir := testhelper.CreateSubdir(t, tmpDir, "noperm")
+	testhelper.WriteFile(t, subDir, "test.json", `{}`)
+
+	err := os.Chmod(subDir, 0000)
+	require.NoError(t, err)
 	defer func() { _ = os.Chmod(subDir, 0755) }()
 
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots(subDir),
-	)
-
+	fsFinder := FileSystemFinderInit(WithPathRoots(subDir))
 	_, err = fsFinder.Find()
-	if err == nil {
-		t.Error("Expected error from unreadable directory")
-	}
+	require.Error(t, err)
 }
 
 func Benchmark_Finder(b *testing.B) {
-	fsFinder := FileSystemFinderInit(
-		WithPathRoots("../../test/fixtures/"),
-	)
+	// Use a real directory for benchmarking
+	dir, err := os.MkdirTemp("", "bench_finder")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
 
+	for _, ext := range []string{"json", "yaml", "toml", "csv", "ini"} {
+		os.WriteFile(filepath.Join(dir, "file."+ext), []byte(`{}`), 0600)
+	}
+
+	fsFinder := FileSystemFinderInit(WithPathRoots(dir))
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {

@@ -9,9 +9,6 @@ import (
 )
 
 func Test_outputBytesToFile(t *testing.T) {
-	golden, err := os.ReadFile("../../test/output/example/writer_example.txt")
-	require.NoError(t, err)
-
 	content := []byte("this is an example file.\nthis is for outputBytesToFile function.\n")
 
 	t.Run("existing dir", func(t *testing.T) {
@@ -21,7 +18,7 @@ func Test_outputBytesToFile(t *testing.T) {
 
 		actual, err := os.ReadFile(tmpDir + "/default.txt")
 		require.NoError(t, err)
-		assert.Equal(t, golden, actual)
+		assert.Equal(t, content, actual)
 	})
 
 	t.Run("file name provided", func(t *testing.T) {
@@ -32,7 +29,7 @@ func Test_outputBytesToFile(t *testing.T) {
 
 		actual, err := os.ReadFile(outPath)
 		require.NoError(t, err)
-		assert.Equal(t, golden, actual)
+		assert.Equal(t, content, actual)
 	})
 
 	t.Run("existing dir without extension", func(t *testing.T) {
@@ -42,7 +39,7 @@ func Test_outputBytesToFile(t *testing.T) {
 
 		actual, err := os.ReadFile(tmpDir + "/default")
 		require.NoError(t, err)
-		assert.Equal(t, golden, actual)
+		assert.Equal(t, content, actual)
 	})
 
 	t.Run("empty string outputDest", func(t *testing.T) {

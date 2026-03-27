@@ -5,11 +5,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/Boeing/config-file-validator/internal/testhelper"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
 )
 
 func Test_ValidGroupOutput(t *testing.T) {
+	dir := testhelper.CreateFixtureDir(t, "json", "yaml", "toml")
+
 	cases := []struct {
 		name        string
 		groupOutput []string
@@ -29,8 +32,7 @@ func Test_ValidGroupOutput(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			fsFinder := finder.FileSystemFinderInit(
-				finder.WithPathRoots("../../test"),
-				finder.WithExcludeDirs([]string{"subdir", "subdir2"}),
+				finder.WithPathRoots(dir),
 			)
 			cli := Init(
 				WithFinder(fsFinder),
@@ -46,6 +48,8 @@ func Test_ValidGroupOutput(t *testing.T) {
 }
 
 func Test_InvalidGroupOutput(t *testing.T) {
+	dir := testhelper.CreateFixtureDir(t, "json")
+
 	cases := []struct {
 		name        string
 		groupOutput []string
@@ -63,8 +67,7 @@ func Test_InvalidGroupOutput(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			fsFinder := finder.FileSystemFinderInit(
-				finder.WithPathRoots("../../test"),
-				finder.WithExcludeDirs([]string{"subdir", "subdir2"}),
+				finder.WithPathRoots(dir),
 			)
 			cli := Init(
 				WithFinder(fsFinder),

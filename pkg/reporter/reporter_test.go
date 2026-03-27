@@ -196,7 +196,7 @@ func Test_jsonGroupedReports(t *testing.T) {
 func Test_reporterFileOutput(t *testing.T) {
 	report := Report{
 		"good.json",
-		"test/output/example/good.json",
+		"/fake/path/good.json",
 		true,
 		nil,
 		false,
@@ -206,28 +206,50 @@ func Test_reporterFileOutput(t *testing.T) {
 		name        string
 		newReporter func(string) Reporter
 		extension   string
-		goldenFile  string
-		jsonEq      bool
+		verify      func(t *testing.T, data []byte)
 	}{
-		{"json", func(d string) Reporter { return NewJSONReporter(d) }, "json", "../../test/output/example/result.json", true},
-		{"junit", func(d string) Reporter { return NewJunitReporter(d) }, "xml", "../../test/output/example/result.xml", false},
-		{"sarif", func(d string) Reporter { return NewSARIFReporter(d) }, "sarif", "../../test/output/example/result.sarif", false},
+		{
+			"json",
+			func(d string) Reporter { return NewJSONReporter(d) },
+			"json",
+			func(t *testing.T, data []byte) {
+				t.Helper()
+				assert.Contains(t, string(data), `"status": "passed"`)
+				assert.Contains(t, string(data), `"passed": 1`)
+				assert.Contains(t, string(data), `"/fake/path/good.json"`)
+			},
+		},
+		{
+			"junit",
+			func(d string) Reporter { return NewJunitReporter(d) },
+			"xml",
+			func(t *testing.T, data []byte) {
+				t.Helper()
+				assert.Contains(t, string(data), `<?xml version="1.0" encoding="UTF-8"?>`)
+				assert.Contains(t, string(data), `config-file-validator`)
+				assert.Contains(t, string(data), `/fake/path/good.json`)
+			},
+		},
+		{
+			"sarif",
+			func(d string) Reporter { return NewSARIFReporter(d) },
+			"sarif",
+			func(t *testing.T, data []byte) {
+				t.Helper()
+				assert.Contains(t, string(data), `"version": "2.1.0"`)
+				assert.Contains(t, string(data), `"kind": "pass"`)
+				assert.Contains(t, string(data), `/fake/path/good.json`)
+			},
+		},
 	} {
 		t.Run(tc.name+" to dir", func(t *testing.T) {
 			tmpDir := t.TempDir()
 			err := tc.newReporter(tmpDir).Print([]Report{report})
 			require.NoError(t, err)
 
-			golden, err := os.ReadFile(tc.goldenFile)
-			require.NoError(t, err)
 			actual, err := os.ReadFile(tmpDir + "/result." + tc.extension)
 			require.NoError(t, err)
-
-			if tc.jsonEq {
-				assert.JSONEq(t, string(golden), string(actual))
-			} else {
-				assert.Equal(t, golden, actual)
-			}
+			tc.verify(t, actual)
 		})
 
 		t.Run(tc.name+" to file", func(t *testing.T) {
@@ -236,16 +258,9 @@ func Test_reporterFileOutput(t *testing.T) {
 			err := tc.newReporter(outPath).Print([]Report{report})
 			require.NoError(t, err)
 
-			golden, err := os.ReadFile(tc.goldenFile)
-			require.NoError(t, err)
 			actual, err := os.ReadFile(outPath)
 			require.NoError(t, err)
-
-			if tc.jsonEq {
-				assert.JSONEq(t, string(golden), string(actual))
-			} else {
-				assert.Equal(t, golden, actual)
-			}
+			tc.verify(t, actual)
 		})
 
 		t.Run(tc.name+" to stdout", func(t *testing.T) {

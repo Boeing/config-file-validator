@@ -1,9 +1,0 @@
-database {
-  host = "localhost"
-  port = 3306
-  user = "admin"
-  password = "secret"
-}
-
-bar = 2
-foo = ${bar}

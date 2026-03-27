@@ -1,182 +1,122 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Boeing/config-file-validator/internal/testhelper"
 )
 
-func Test_flags(t *testing.T) {
-	// We manipulate the Args to set them up for the testcases
-	// After this test we restore the initial args
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
+func Test_getFlags(t *testing.T) {
 	cases := []struct {
-		Name         string
-		Args         []string
-		ExpectedExit int
+		name    string
+		args    []string
+		wantErr bool
 	}{
-		{"blank", []string{}, 0},
-		{"negative depth set", []string{"-depth=-1", "."}, 1},
-		{"depth set", []string{"-depth=1", "."}, 0},
-		{"flags set, wrong reporter", []string{"--exclude-dirs=subdir", "--reporter=wrong", "."}, 1},
-		{"flags set, json and junit reporter", []string{"--exclude-dirs=subdir", "--reporter=json:-", "--reporter=junit:-", "."}, 0},
-		{"flags set, json reporter", []string{"--exclude-dirs=subdir", "--reporter=json", "."}, 0},
-		{"flags set, junit reporter", []string{"--exclude-dirs=subdir", "--reporter=junit", "."}, 0},
-		{"flags set, sarif reporter", []string{"--exclude-dirs=subdir", "--reporter=sarif", "."}, 0},
-		{"bad path", []string{"/path/does/not/exit"}, 1},
-		{"exclude file types set", []string{"--exclude-file-types=json,yaml", "."}, 0},
-		{"multiple paths", []string{"../../test/fixtures/subdir/good.json", "../../test/fixtures/good.json"}, 0},
-		{"version", []string{"--version"}, 0},
-		{"output set", []string{"--reporter=json:" + t.TempDir(), "."}, 0},
-		{"output set with standard reporter", []string{"--reporter=standard:" + t.TempDir(), "."}, 0},
-		{"wrong output set with json reporter", []string{"--reporter", "json:/path/not/exist", "."}, 1},
-		{"incorrect reporter param format with json reporter", []string{"--reporter", "json:/path/not/exist:/some/other/non-existent/path", "."}, 1},
-		{"incorrect group", []string{"-groupby=badgroup", "."}, 1},
-		{"correct group", []string{"-groupby=directory", "."}, 0},
-		{"grouped junit", []string{"-groupby=directory", "--reporter=junit", "."}, 1},
-		{"grouped sarif", []string{"-groupby=directory", "--reporter=sarif", "."}, 1},
-		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, 1},
-		{"quiet flag", []string{"--quiet=true", "."}, 0},
-		{"globbing flag set", []string{"--globbing=true", "."}, 0},
-		{"globbing flag with a pattern", []string{"--globbing=true", "../../test/**/[m-t]*.json"}, 0},
-		{"globbing flag with no matches", []string{"--globbing=true", "../../test/**/*.nomatch"}, 0},
-		{"globbing flag not set", []string{"test/**/*.json", "."}, 1},
-		{"globbing flag with exclude-dirs", []string{"-globbing", "--exclude-dirs=subdir", "test/**/*.json", "."}, 1},
-		{"globbing flag with exclude-file-types", []string{"-globbing", "--exclude-file-types=hcl", "test/**/*.json", "."}, 1},
-		{"format flag all", []string{"--check-format=all", "../../test/fixtures/good.json"}, 1},
-		{"format flag invalid", []string{"--check-format", "../../test/fixtures/good.json"}, 1},
-		{"format flag with types", []string{"--check-format=json", "../../test/fixtures/good.json"}, 0},
-		{"format flag with unsupported types", []string{"--check-format=json,yaml,ini", "../../test/fixtures/good.json"}, 1},
-		{"format flag with invalid file", []string{"--check-format=json", "/path/does/not/exist"}, 1},
-		{"format flag with multiple files", []string{"--check-format=json", "../../test/fixtures/good.json", "../../test/fixtures/good.toml"}, 0},
-		{"format flag with exclude-dirs", []string{"--check-format=json", "--exclude-dirs=subdir", "."}, 0},
-		{"format flag with json reporter", []string{"--check-format=json", "--reporter=json", "../../test/fixtures/good.json"}, 0},
-		{"help flag", []string{"--help"}, 0},
-		{"invalid schema type", []string{"--schema=notreal", "."}, 1},
-		{"schema sarif", []string{"--schema=sarif", "../../test/fixtures/good.sarif"}, 0},
-		{"invalid exclude file type", []string{"--exclude-file-types=notreal", "."}, 1},
-		{"file-types and exclude-file-types together", []string{"--file-types=json", "--exclude-file-types=yaml", "."}, 1},
-		{"invalid file type", []string{"--file-types=notreal", "."}, 1},
-		{"file-types filter", []string{"--file-types=json", "../../test/fixtures/good.json"}, 0},
-		{"globbing with file-types", []string{"-globbing", "--file-types=json", "test/**/*.json", "."}, 1},
-		{"exclude file types with empty element", []string{"--exclude-file-types=json,,yaml", "."}, 0},
-		{"globbing with bad pattern", []string{"-globbing", "../../test/fixtures/["}, 1},
+		// Valid flag combinations
+		{"no args defaults to cwd", []string{}, false},
+		{"depth set", []string{"-depth=1", "."}, false},
+		{"exclude dirs", []string{"--exclude-dirs=subdir", "."}, false},
+		{"exclude file types", []string{"--exclude-file-types=json,yaml", "."}, false},
+		{"file types", []string{"--file-types=json", "."}, false},
+		{"quiet flag", []string{"--quiet=true", "."}, false},
+		{"json reporter", []string{"--reporter=json", "."}, false},
+		{"junit reporter", []string{"--reporter=junit", "."}, false},
+		{"sarif reporter", []string{"--reporter=sarif", "."}, false},
+		{"json and junit reporter", []string{"--reporter=json:-", "--reporter=junit:-", "."}, false},
+		{"groupby directory", []string{"-groupby=directory", "."}, false},
+		{"format json", []string{"--check-format=json", "."}, false},
+		{"schema sarif", []string{"--schema=sarif", "."}, false},
+		{"version flag", []string{"--version"}, false},
+		{"exclude file types with empty element", []string{"--exclude-file-types=json,,yaml", "."}, false},
+
+		// Invalid flag combinations
+		{"negative depth", []string{"-depth=-1", "."}, true},
+		{"wrong reporter", []string{"--reporter=wrong", "."}, true},
+		{"bad reporter format", []string{"--reporter", "json:/a:/b", "."}, true},
+		{"invalid groupby", []string{"-groupby=badgroup", "."}, true},
+		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, true},
+		{"grouped junit", []string{"-groupby=directory", "--reporter=junit", "."}, true},
+		{"grouped sarif", []string{"-groupby=directory", "--reporter=sarif", "."}, true},
+		{"format all includes unsupported", []string{"--check-format=all", "."}, false},
+		{"format with unsupported types", []string{"--check-format=json,yaml,ini", "."}, false},
+		{"invalid format type", []string{"--check-format=notreal", "."}, true},
+		{"invalid schema type", []string{"--schema=notreal", "."}, true},
+		{"invalid exclude file type", []string{"--exclude-file-types=notreal", "."}, true},
+		{"invalid file type", []string{"--file-types=notreal", "."}, true},
+		{"file-types and exclude-file-types together", []string{"--file-types=json", "--exclude-file-types=yaml", "."}, true},
+		{"help flag", []string{"--help"}, true}, // flag.ErrHelp
+		{"globbing with exclude-dirs", []string{"-globbing", "--exclude-dirs=subdir", "."}, true},
+		{"globbing with exclude-file-types", []string{"-globbing", "--exclude-file-types=hcl", "."}, true},
+		{"globbing with file-types", []string{"-globbing", "--file-types=json", "."}, true},
+		{"globbing with bad pattern", []string{"-globbing", "/nonexistent/["}, true},
 	}
+
 	for _, tc := range cases {
-		t.Run(tc.Name, func(t *testing.T) {
-			// prepare command line arguments; our getFlags function creates its own
-			// flag set, so the global CommandLine does not need resetting
-			fmt.Printf("Testing args: %v = %v\n", tc.Name, tc.Args)
-			os.Args = append([]string{tc.Name}, tc.Args...)
-			actualExit := mainInit()
-			if tc.ExpectedExit != actualExit {
-				t.Errorf("Test Case %v: Wrong exit code, expected: %v, got: %v", tc.Name, tc.ExpectedExit, actualExit)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := getFlags(tc.args)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
 }
 
-func Test_getExcludeFileTypes(t *testing.T) {
-	type testCase struct {
-		name                     string
-		input                    string
-		expectedExcludeFileTypes []string
-	}
+func Test_getFlagsValues(t *testing.T) {
+	cfg, err := getFlags([]string{"-depth=3", "--exclude-dirs=vendor,node_modules", "--schema=sarif", "--check-format=json", "."})
+	require.NoError(t, err)
 
-	tcases := []testCase{
-		{
-			name:                     "exclude yaml",
-			input:                    "yaml",
-			expectedExcludeFileTypes: []string{"yaml", "yml"},
-		},
-		{
-			name:                     "exclude yml",
-			input:                    "yml",
-			expectedExcludeFileTypes: []string{"yaml", "yml"},
-		},
-		{
-			name:                     "exclude json",
-			input:                    "json",
-			expectedExcludeFileTypes: []string{"json"},
-		},
-		{
-			name:                     "exclude json and yaml",
-			input:                    "json,yaml",
-			expectedExcludeFileTypes: []string{"json", "yaml", "yml"},
-		},
-		{
-			name:                     "exclude jSon and YamL",
-			input:                    "jSon,YamL",
-			expectedExcludeFileTypes: []string{"json", "yaml", "yml"},
-		},
-	}
-
-	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			actual := getExcludeFileTypes(tcase.input)
-			require.ElementsMatch(t, tcase.expectedExcludeFileTypes, actual)
-		})
-	}
+	require.Equal(t, 3, *cfg.depth)
+	require.Equal(t, "vendor,node_modules", *cfg.excludeDirs)
+	require.Equal(t, "sarif", *cfg.schema)
+	require.Equal(t, "json", *cfg.format)
+	require.Equal(t, []string{"."}, cfg.searchPaths)
 }
 
-func Test_getFormatFileTypes(t *testing.T) {
-	type testCase struct {
-		name               string
-		input              string
-		expectedFormatters []string
+// Integration tests that need the full mainInit pipeline with real files
+func Test_mainInit(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+
+	jsonFile := testhelper.CreateFixtureFile(t, "json")
+	tomlFile := testhelper.CreateFixtureFile(t, "toml")
+	sarifFile := testhelper.CreateFixtureFile(t, "sarif")
+	jsonDir := testhelper.CreateFixtureDir(t, "json", "yaml")
+
+	cases := []struct {
+		name         string
+		args         []string
+		expectedExit int
+	}{
+		{"version", []string{"--version"}, 0},
+		{"help", []string{"--help"}, 0},
+		{"bad path", []string{"/path/does/not/exit"}, 1},
+		{"multiple paths", []string{jsonFile, tomlFile}, 0},
+		{"schema sarif", []string{"--schema=sarif", sarifFile}, 0},
+		{"format json", []string{"--check-format=json", jsonFile}, 0},
+		{"format all unsupported", []string{"--check-format=all", jsonFile}, 1},
+		{"format unsupported types", []string{"--check-format=json,yaml,ini", jsonFile}, 1},
+		{"format with multiple files", []string{"--check-format=json", jsonFile, tomlFile}, 0},
+		{"file-types filter", []string{"--file-types=json", jsonFile}, 0},
+		{"depth set", []string{"-depth=1", jsonDir}, 0},
+		{"output to dir", []string{"--reporter=json:" + t.TempDir(), jsonDir}, 0},
+		{"output to dir standard", []string{"--reporter=standard:" + t.TempDir(), jsonDir}, 0},
+		{"output to bad path", []string{"--reporter", "json:/path/not/exist", jsonDir}, 1},
+		{"junit reporter", []string{"--reporter=junit", jsonDir}, 0},
+		{"sarif reporter", []string{"--reporter=sarif", jsonDir}, 0},
+		{"globbing with pattern", []string{"--globbing=true", jsonDir + "/*.json"}, 0},
+		{"globbing no matches", []string{"--globbing=true", jsonDir + "/*.nomatch"}, 0},
 	}
 
-	tcases := []testCase{
-		{
-			name:               "empty",
-			input:              "",
-			expectedFormatters: []string{},
-		},
-		{
-			name:               "format check json",
-			input:              "json",
-			expectedFormatters: []string{"json"},
-		},
-		{
-			name:               "double input",
-			input:              "json,json",
-			expectedFormatters: []string{"json"},
-		},
-
-		{
-			name:               "format check json and yaml",
-			input:              "json,yaml",
-			expectedFormatters: []string{"json", "yaml"},
-		},
-		{
-			name:  "format check all",
-			input: "all,json",
-			expectedFormatters: []string{
-				"json",
-				"yaml",
-				"xml",
-				"toml",
-				"ini",
-				"properties",
-				"hcl",
-				"plist",
-				"csv",
-				"hocon",
-				"env",
-				"editorconfig",
-				"toon",
-				"sarif",
-			},
-		},
-	}
-
-	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			actual := getFormatFileTypes(tcase.input)
-			require.ElementsMatch(t, tcase.expectedFormatters, actual)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			os.Args = append([]string{"validator"}, tc.args...)
+			actual := mainInit()
+			require.Equal(t, tc.expectedExit, actual)
 		})
 	}
 }
@@ -185,13 +125,11 @@ func Test_envVarFallback(t *testing.T) {
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 
-	// Set env var and verify it's picked up when flag is not set
 	t.Setenv("CFV_DEPTH", "2")
 	t.Setenv("CFV_QUIET", "true")
 
 	os.Args = []string{"validator", "."}
-	exitCode := mainInit()
-	require.Equal(t, 0, exitCode)
+	require.Equal(t, 0, mainInit())
 }
 
 func Test_envVarInvalid(t *testing.T) {
@@ -201,44 +139,68 @@ func Test_envVarInvalid(t *testing.T) {
 	t.Setenv("CFV_DEPTH", "notanumber")
 
 	os.Args = []string{"validator", "."}
-	exitCode := mainInit()
-	require.Equal(t, 1, exitCode)
+	require.Equal(t, 1, mainInit())
+}
+
+func Test_getExcludeFileTypes(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{"exclude yaml", "yaml", []string{"yaml", "yml"}},
+		{"exclude yml", "yml", []string{"yaml", "yml"}},
+		{"exclude json", "json", []string{"json"}},
+		{"exclude json and yaml", "json,yaml", []string{"json", "yaml", "yml"}},
+		{"case insensitive", "jSon,YamL", []string{"json", "yaml", "yml"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ElementsMatch(t, tc.expected, getExcludeFileTypes(tc.input))
+		})
+	}
+}
+
+func Test_getFormatFileTypes(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{"empty", "", []string{}},
+		{"json", "json", []string{"json"}},
+		{"dedup", "json,json", []string{"json"}},
+		{"json and yaml", "json,yaml", []string{"json", "yaml"}},
+		{"all", "all,json", []string{
+			"json", "yaml", "xml", "toml", "ini", "properties",
+			"hcl", "plist", "csv", "hocon", "env", "editorconfig",
+			"toon", "sarif",
+		}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ElementsMatch(t, tc.expected, getFormatFileTypes(tc.input))
+		})
+	}
 }
 
 func Test_getSchemaFileTypes(t *testing.T) {
-	type testCase struct {
-		name          string
-		input         string
-		expectedTypes []string
+	cases := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{"empty", "", []string{}},
+		{"sarif", "sarif", []string{"sarif"}},
+		{"multiple", "sarif,json", []string{"sarif", "json"}},
+		{"dedup", "sarif,sarif", []string{"sarif"}},
 	}
 
-	tcases := []testCase{
-		{
-			name:          "empty",
-			input:         "",
-			expectedTypes: []string{},
-		},
-		{
-			name:          "schema check sarif",
-			input:         "sarif",
-			expectedTypes: []string{"sarif"},
-		},
-		{
-			name:          "schema check multiple types",
-			input:         "sarif,json",
-			expectedTypes: []string{"sarif", "json"},
-		},
-		{
-			name:          "duplicate input",
-			input:         "sarif,sarif",
-			expectedTypes: []string{"sarif"},
-		},
-	}
-
-	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			actual := getSchemaFileTypes(tcase.input)
-			require.ElementsMatch(t, tcase.expectedTypes, actual)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.ElementsMatch(t, tc.expected, getSchemaFileTypes(tc.input))
 		})
 	}
 }
