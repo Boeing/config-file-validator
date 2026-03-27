@@ -128,11 +128,8 @@ func validateFileTypeList(input []string) bool {
 // If a required parameter is missing the help
 // output will be displayed and the function
 // will return with exit = 1
-func getFlags() (validatorConfig, error) {
-	// construct a dedicated FlagSet rather than using the package-level
-	// default. this satisfies revive's deep-exit rule and makes the
-	// function easier to test.
-	flagSet = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+func getFlags(args []string) (validatorConfig, error) {
+	flagSet = flag.NewFlagSet("validator", flag.ContinueOnError)
 	flagSet.Usage = validatorUsage
 	reporterConfigFlags := reporterFlags{}
 
@@ -154,7 +151,7 @@ func getFlags() (validatorConfig, error) {
 		"Report format and optional output path. Format: <type>:<path> Supported: standard, json, junit, sarif (default: standard)",
 	)
 
-	if err := flagSet.Parse(os.Args[1:]); err != nil {
+	if err := flagSet.Parse(args); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -445,7 +442,7 @@ func isGlobPattern(s string) bool {
 }
 
 func mainInit() int {
-	validatorConfig, err := getFlags()
+	validatorConfig, err := getFlags(os.Args[1:])
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0

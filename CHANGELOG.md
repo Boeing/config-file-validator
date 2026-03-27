@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Sarif synxtax and schema validation
+- SARIF syntax and schema validation using the go-sarif library
+
+### Changed
+
+- Refactored unit tests
+
 
 ## [1.11.0] - 2026-03-25
 
