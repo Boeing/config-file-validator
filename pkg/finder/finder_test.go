@@ -210,7 +210,9 @@ func Benchmark_Finder(b *testing.B) {
 	defer os.RemoveAll(dir)
 
 	for _, ext := range []string{"json", "yaml", "toml", "csv", "ini"} {
-		os.WriteFile(filepath.Join(dir, "file."+ext), []byte(`{}`), 0600)
+		if err := os.WriteFile(filepath.Join(dir, "file."+ext), []byte(`{}`), 0600); err != nil {
+			b.Fatal(err)
+		}
 	}
 
 	fsFinder := FileSystemFinderInit(WithPathRoots(dir))
