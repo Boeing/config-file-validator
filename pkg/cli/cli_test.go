@@ -352,7 +352,7 @@ func Test_CLIWithUnreadableFile(t *testing.T) {
 	// Remove read permissions
 	err = os.Chmod(tempFile.Name(), 0000)
 	require.NoError(t, err)
-	defer os.Chmod(tempFile.Name(), 0600)
+	defer func() { _ = os.Chmod(tempFile.Name(), 0600) }()
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(tempFile.Name()),

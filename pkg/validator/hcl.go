@@ -35,4 +35,3 @@ func (HclValidator) ValidateSyntax(b []byte) (bool, error) {
 
 	return false, fmt.Errorf("error at line %v column %v: %w", row, col, diags)
 }
-

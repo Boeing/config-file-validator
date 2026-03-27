@@ -352,7 +352,7 @@ func Test_fsFinderWalkDirError(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Write a file so the parent is walkable
-	err = os.WriteFile(filepath.Join(subDir, "test.json"), []byte(`{}`), 0644)
+	err = os.WriteFile(filepath.Join(subDir, "test.json"), []byte(`{}`), 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +361,7 @@ func Test_fsFinderWalkDirError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(subDir, 0755)
+	defer func() { _ = os.Chmod(subDir, 0755) }()
 
 	fsFinder := FileSystemFinderInit(
 		WithPathRoots(subDir),

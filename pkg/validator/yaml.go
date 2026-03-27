@@ -18,4 +18,3 @@ func (YAMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	}
 	return true, nil
 }
-

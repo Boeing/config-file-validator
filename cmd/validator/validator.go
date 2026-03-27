@@ -158,8 +158,7 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, err
 	}
 
-	err := applyDefaultFlagsFromEnv()
-	if err != nil {
+	if err := applyDefaultFlagsFromEnv(); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -177,47 +176,7 @@ func getFlags() (validatorConfig, error) {
 		return validatorConfig{}, err
 	}
 
-	if *formatPtr != "" {
-		formatFileTypes := strings.Split(strings.ToLower(*formatPtr), ",")
-		if !slices.Contains(formatFileTypes, "all") && !validateFileTypeList(formatFileTypes) {
-			return validatorConfig{}, errors.New("invalid check format file type")
-		}
-	}
-
-	if *schemaPtr != "" {
-		schemaFileTypes := strings.Split(strings.ToLower(*schemaPtr), ",")
-		if !validateFileTypeList(schemaFileTypes) {
-			return validatorConfig{}, errors.New("invalid schema file type")
-		}
-	}
-
-	err = validateReporterConf(reporterConf, groupOutputPtr)
-	if err != nil {
-		return validatorConfig{}, err
-	}
-
-	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
-		return validatorConfig{}, errors.New("wrong parameter value for depth, value cannot be negative")
-	}
-
-	if *excludeFileTypesPtr != "" {
-		*excludeFileTypesPtr = strings.ToLower(*excludeFileTypesPtr)
-		if !validateFileTypeList(strings.Split(*excludeFileTypesPtr, ",")) {
-			return validatorConfig{}, errors.New("invalid exclude file type")
-		}
-	}
-	if *fileTypesPtr != "" && *excludeFileTypesPtr != "" {
-		return validatorConfig{}, errors.New("--file-types and --exclude-file-types cannot be used together")
-	}
-	if *fileTypesPtr != "" {
-		*fileTypesPtr = strings.ToLower(*fileTypesPtr)
-		if !validateFileTypeList(strings.Split(*fileTypesPtr, ",")) {
-			return validatorConfig{}, errors.New("invalid file type")
-		}
-	}
-
-	err = validateGroupByConf(groupOutputPtr)
-	if err != nil {
+	if err := validateFlagValues(formatPtr, schemaPtr, excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -237,6 +196,71 @@ func getFlags() (validatorConfig, error) {
 	}
 
 	return config, nil
+}
+
+func validateFlagValues(formatPtr, schemaPtr, excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf map[string]string, groupOutputPtr *string) error {
+	if err := validateFormatFlag(formatPtr); err != nil {
+		return err
+	}
+
+	if err := validateSchemaFlag(schemaPtr); err != nil {
+		return err
+	}
+
+	if err := validateReporterConf(reporterConf, groupOutputPtr); err != nil {
+		return err
+	}
+
+	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
+		return errors.New("wrong parameter value for depth, value cannot be negative")
+	}
+
+	if err := validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr); err != nil {
+		return err
+	}
+
+	return validateGroupByConf(groupOutputPtr)
+}
+
+func validateFormatFlag(formatPtr *string) error {
+	if *formatPtr == "" {
+		return nil
+	}
+	formatFileTypes := strings.Split(strings.ToLower(*formatPtr), ",")
+	if !slices.Contains(formatFileTypes, "all") && !validateFileTypeList(formatFileTypes) {
+		return errors.New("invalid check format file type")
+	}
+	return nil
+}
+
+func validateSchemaFlag(schemaPtr *string) error {
+	if *schemaPtr == "" {
+		return nil
+	}
+	schemaFileTypes := strings.Split(strings.ToLower(*schemaPtr), ",")
+	if !validateFileTypeList(schemaFileTypes) {
+		return errors.New("invalid schema file type")
+	}
+	return nil
+}
+
+func validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr *string) error {
+	if *excludeFileTypesPtr != "" {
+		*excludeFileTypesPtr = strings.ToLower(*excludeFileTypesPtr)
+		if !validateFileTypeList(strings.Split(*excludeFileTypesPtr, ",")) {
+			return errors.New("invalid exclude file type")
+		}
+	}
+	if *fileTypesPtr != "" && *excludeFileTypesPtr != "" {
+		return errors.New("--file-types and --exclude-file-types cannot be used together")
+	}
+	if *fileTypesPtr != "" {
+		*fileTypesPtr = strings.ToLower(*fileTypesPtr)
+		if !validateFileTypeList(strings.Split(*fileTypesPtr, ",")) {
+			return errors.New("invalid file type")
+		}
+	}
+	return nil
 }
 
 func validateReporterConf(conf map[string]string, groupBy *string) error {

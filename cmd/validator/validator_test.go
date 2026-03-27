@@ -205,7 +205,8 @@ func Test_envVarInvalid(t *testing.T) {
 	require.Equal(t, 1, exitCode)
 }
 
-func Test_getSchemaFileTypes(t *testing.T) {	type testCase struct {
+func Test_getSchemaFileTypes(t *testing.T) {
+	type testCase struct {
 		name          string
 		input         string
 		expectedTypes []string

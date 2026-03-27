@@ -31,7 +31,7 @@ var (
 		"bad.xml",
 		"/fake/path/bad.xml",
 		false,
-		errors.New("Unable to parse bad.xml file"),
+		errors.New("unable to parse bad.xml file"),
 		false,
 	}
 
@@ -39,7 +39,7 @@ var (
 		"bad.xml",
 		"/fake/path/bad.xml",
 		false,
-		errors.New("Unable to parse keys:\nkey1\nkey2"),
+		errors.New("unable to parse keys:\nkey1\nkey2"),
 		false,
 	}
 
@@ -202,20 +202,12 @@ func Test_reporterFileOutput(t *testing.T) {
 		false,
 	}
 
-	type testCase struct {
-		name       string
-		reporter   Reporter
-		outputDest string
-		goldenFile string
-		wantErr    assert.ErrorAssertionFunc
-	}
-
 	for _, tc := range []struct {
-		name       string
+		name        string
 		newReporter func(string) Reporter
-		extension  string
-		goldenFile string
-		jsonEq     bool
+		extension   string
+		goldenFile  string
+		jsonEq      bool
 	}{
 		{"json", func(d string) Reporter { return NewJSONReporter(d) }, "json", "../../test/output/example/result.json", true},
 		{"junit", func(d string) Reporter { return NewJunitReporter(d) }, "xml", "../../test/output/example/result.xml", false},
@@ -276,17 +268,3 @@ func Test_checkGroupsForPassFail(t *testing.T) {
 	require.False(t, checkGroupsForPassFail("Passed"))
 	require.False(t, checkGroupsForPassFail("xml", "Failed"))
 }
-
-// --- Helpers ---
-
-func assertRegexpError(regexp any) assert.ErrorAssertionFunc {
-	return func(t assert.TestingT, got error, msg ...any) bool {
-		if h, ok := t.(interface{ Helper() }); ok {
-			h.Helper()
-		}
-		//nolint:testifylint // in this use case it's ok to use assert.Error
-		return assert.Error(t, got, msg...) && assert.Regexp(t, regexp, got.Error(), msg...)
-	}
-}
-
-

@@ -18,4 +18,3 @@ func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	}
 	return true, nil
 }
-

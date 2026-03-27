@@ -3,6 +3,7 @@ package validator
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -273,7 +274,7 @@ func Test_getCustomErrNonSyntaxError(t *testing.T) {
 	}
 	customErr := getCustomErr(input, err)
 	// Should return the original error unchanged since it's not a SyntaxError
-	if customErr != err {
+	if !errors.Is(customErr, err) {
 		t.Errorf("expected original error, got: %v", customErr)
 	}
 }

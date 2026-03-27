@@ -17,4 +17,3 @@ func (IniValidator) ValidateSyntax(b []byte) (bool, error) {
 	}
 	return true, nil
 }
-

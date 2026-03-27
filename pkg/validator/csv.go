@@ -32,4 +32,3 @@ func (CsvValidator) ValidateSyntax(b []byte) (bool, error) {
 
 	return true, nil
 }
-
