@@ -642,10 +642,10 @@ func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
 		fileTypesByName[ft.Name] = ft
 	}
 
-	for _, flag := range flags {
-		parts := strings.SplitN(flag, ":", 2)
+	for _, mapping := range flags {
+		parts := strings.SplitN(mapping, ":", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return nil, fmt.Errorf("invalid type-map format %q, expected pattern:type", flag)
+			return nil, fmt.Errorf("invalid type-map format %q, expected pattern:type", mapping)
 		}
 		pattern := parts[0]
 		typeName := strings.ToLower(parts[1])
