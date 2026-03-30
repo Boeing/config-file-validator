@@ -36,22 +36,24 @@
   </a>
 </p>
 
-## Supported config files formats:
+## Supported config file formats
 
-* Apple PList XML
-* CSV
-* EDITORCONFIG
-* ENV
-* HCL
-* HOCON
-* INI
-* JSON
-* Properties
-* Sarif
-* TOML
-* TOON
-* XML
-* YAML
+| Format | Syntax Validation | Schema Validation |
+|--------|:-----------------:|:-----------------:|
+| Apple PList XML | ✅ | ❌ |
+| CSV | ✅ | ❌ |
+| EDITORCONFIG | ✅ | ❌ |
+| ENV | ✅ | ❌ |
+| HCL | ✅ | ❌ |
+| HOCON | ✅ | ❌ |
+| INI | ✅ | ❌ |
+| JSON | ✅ | ✅ (`$schema` property) |
+| Properties | ✅ | ❌ |
+| SARIF | ✅ | ✅ (built-in per version) |
+| TOML | ✅ | ✅ (`$schema` key) |
+| TOON | ✅ | ✅ (`"$schema"` key) |
+| XML | ✅ | ❌ |
+| YAML | ✅ | ✅ (`yaml-language-server` comment) |
 
 ## Demo
 
@@ -145,8 +147,8 @@ optional flags:
         Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
         Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
         Supported formats: standard, json, junit, and sarif (default: "standard")
-  -schema string
-        A comma separated list of file types for which to validate against their schema. Only sarif is supported currently.
+  -require-schema
+        Fail validation if a file supports schema validation but does not declare a schema.
   -type-map value
         Map a glob pattern to a file type. Format: <pattern>:<type> Example: --type-map="**/inventory:ini"
   -version
@@ -166,7 +168,7 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
-| `CFV_SCHEMA`        | `-schema`      |
+| `CFV_REQUIRE_SCHEMA`        | `-require-schema`      |
 | `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
@@ -277,14 +279,62 @@ validator --quiet /path/to/search
 ```
 
 
-### Validate schema of valid files
+### Schema validation
 
-Use the `-schema` flag to validate files against their schema. The validator will return an error if a requested file type does not support schema validation.
+Schema validation runs automatically for file types that support it. Files without a schema declaration pass with syntax validation only. The document is converted to JSON internally and validated against the referenced [JSON Schema](https://json-schema.org/).
+
+Use `--require-schema` to fail validation for files that support schema validation but don't declare a schema:
 
 ```shell
-validator -schema=sarif /path/to/search
+validator --require-schema /path/to/search
 ```
-> Only SARIF files are supported currently.
+
+#### Declaring a schema
+
+Each file type uses a different convention to declare its schema:
+
+**JSON** — Add a `$schema` property at the top level:
+
+```json
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "my-package",
+  "version": "1.0.0"
+}
+```
+
+**YAML** — Add a `yaml-language-server` modeline comment before any content:
+
+```yaml
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: CI
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+```
+
+**TOML** — Add a `$schema` key at the top level:
+
+```toml
+"$schema" = "https://json.schemastore.org/pyproject.json"
+
+[project]
+name = "my-project"
+version = "1.0.0"
+```
+
+**TOON** — Add a quoted `"$schema"` key at the top level:
+
+```
+"$schema": https://example.com/schema.json
+host: localhost
+port: 5432
+```
+
+**SARIF** — Schema validation is built-in per SARIF version (2.1.0 and 2.2). No declaration needed.
+
+Schema URLs can be absolute (`https://...`), absolute file paths, or relative paths (resolved from the document's directory).
 
 ### Map file types with glob patterns
 

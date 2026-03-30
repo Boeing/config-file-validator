@@ -102,37 +102,34 @@ func Test_CLIReportErr(t *testing.T) {
 	require.Equal(t, 1, exitStatus)
 }
 
-func Test_CLIWithSchemaCheckEnabled(t *testing.T) {
+func Test_CLISchemaAutoValidation(t *testing.T) {
+	// SARIF files have built-in schema validation — should auto-validate
 	file := testhelper.CreateFixtureFile(t, "sarif")
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(file),
 	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithSchemaCheckTypes([]string{"sarif"}),
-	)
+	cli := Init(WithFinder(fsFinder))
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 0, exitStatus)
 }
 
-func Test_CLIWithSchemaCheckDisabled(t *testing.T) {
-	file := testhelper.CreateFixtureFile(t, "sarif")
+func Test_CLISchemaAutoSkipsNoSchema(t *testing.T) {
+	// JSON without $schema — should pass (syntax only)
+	file := testhelper.CreateFixtureFile(t, "json")
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(file),
 	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithSchemaCheckTypes([]string{}),
-	)
+	cli := Init(WithFinder(fsFinder))
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 0, exitStatus)
 }
 
-func Test_CLIWithSchemaCheckUnsupportedType(t *testing.T) {
+func Test_CLIRequireSchemaFailsNoSchema(t *testing.T) {
+	// JSON without $schema + --require-schema should fail
 	file := testhelper.CreateFixtureFile(t, "json")
 
 	fsFinder := finder.FileSystemFinderInit(
@@ -140,27 +137,43 @@ func Test_CLIWithSchemaCheckUnsupportedType(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaCheckTypes([]string{"json"}),
+		WithRequireSchema(true),
 	)
 	exitStatus, err := cli.Run()
-	require.Error(t, err)
+	require.NoError(t, err)
 	require.Equal(t, 1, exitStatus)
 }
 
-func Test_CLIWithSchemaCheckInvalidFile(t *testing.T) {
-	dir := t.TempDir()
-	file := testhelper.WriteFile(t, dir, "bad.sarif", `{"version": "2.1.0", "runs": "not_an_array"}`)
+func Test_CLIRequireSchemaPassesWithSchema(t *testing.T) {
+	// SARIF has built-in schema — should pass even with --require-schema
+	file := testhelper.CreateFixtureFile(t, "sarif")
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(file),
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaCheckTypes([]string{"sarif"}),
+		WithRequireSchema(true),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
-	require.Equal(t, 1, exitStatus)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLIRequireSchemaIgnoresNonSchemaTypes(t *testing.T) {
+	// INI doesn't implement SchemaValidator — should pass even with --require-schema
+	file := testhelper.CreateFixtureFile(t, "ini")
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(file),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithRequireSchema(true),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
 }
 
 func Test_CLIWithQuiet(t *testing.T) {
@@ -192,21 +205,6 @@ func Test_CLIWithUnreadableFile(t *testing.T) {
 	exitStatus, err := cli.Run()
 	require.Error(t, err)
 	require.Equal(t, 1, exitStatus)
-}
-
-func Test_CLIValidateCapabilitiesUnknownType(t *testing.T) {
-	file := testhelper.CreateFixtureFile(t, "json")
-
-	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoots(file),
-	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithSchemaCheckTypes([]string{"nonexistent"}),
-	)
-	exitStatus, err := cli.Run()
-	require.NoError(t, err)
-	require.Equal(t, 0, exitStatus)
 }
 
 func Test_CLISingleGroupJSON(t *testing.T) {

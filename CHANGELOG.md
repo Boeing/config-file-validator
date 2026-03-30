@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SARIF syntax and schema validation using the go-sarif library
 - `--type-map` flag to map glob patterns to file types for files without recognized extensions (e.g. `--type-map="**/inventory:ini"`)
 - Functional tests for CLI options
+- Schema validation for JSON, YAML, TOML, and TOON
 
 ### Changed
 

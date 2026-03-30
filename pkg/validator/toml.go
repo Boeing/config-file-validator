@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -20,4 +21,29 @@ func (TomlValidator) ValidateSyntax(b []byte) (bool, error) {
 		return false, fmt.Errorf("error at line %v column %v: %w", row, col, err)
 	}
 	return true, nil
+}
+
+func (TomlValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
+	var doc map[string]any
+	if err := toml.Unmarshal(b, &doc); err != nil {
+		return false, err
+	}
+
+	schemaRef, ok := doc["$schema"]
+	if !ok {
+		return true, ErrNoSchema
+	}
+
+	schemaURL, ok := schemaRef.(string)
+	if !ok || schemaURL == "" {
+		return true, ErrNoSchema
+	}
+
+	delete(doc, "$schema")
+	docJSON, err := json.Marshal(doc)
+	if err != nil {
+		return false, err
+	}
+
+	return jsonSchemaValidate(resolveSchemaURL(schemaURL, filePath), docJSON)
 }

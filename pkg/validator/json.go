@@ -32,3 +32,36 @@ func (JSONValidator) ValidateSyntax(b []byte) (bool, error) {
 	}
 	return true, nil
 }
+
+func (JSONValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
+	var raw any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return false, err
+	}
+
+	doc, ok := raw.(map[string]any)
+	if !ok {
+		return true, ErrNoSchema
+	}
+
+	schemaRef, ok := doc["$schema"]
+	if !ok {
+		return true, ErrNoSchema
+	}
+
+	schemaURL, ok := schemaRef.(string)
+	if !ok || schemaURL == "" {
+		return true, ErrNoSchema
+	}
+
+	schemaURL = resolveSchemaURL(schemaURL, filePath)
+
+	// Remove $schema from document before validation — it's metadata, not content
+	delete(doc, "$schema")
+	cleanDoc, err := json.Marshal(doc)
+	if err != nil {
+		return false, err
+	}
+
+	return jsonSchemaValidate(schemaURL, cleanDoc)
+}

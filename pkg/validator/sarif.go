@@ -23,7 +23,7 @@ func parseSarif(b []byte) (sarifReport, error) {
 	return nil, errors.New("unable to determine sarif version")
 }
 
-func (SarifValidator) ValidateSchema(b []byte) (bool, error) {
+func (SarifValidator) ValidateSchema(b []byte, _ string) (bool, error) {
 	report, err := parseSarif(b)
 	if err != nil {
 		return false, err

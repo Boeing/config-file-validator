@@ -66,7 +66,7 @@ type validatorConfig struct {
 	groupOutput      *string
 	quiet            *bool
 	globbing         *bool
-	schema           *string
+	requireSchema    *bool
 	typeMap          typeMapFlags
 }
 
@@ -153,7 +153,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
-		schemaPtr           = flagSet.String("schema", "", "Comma separated list of file types to validate against their schema. Only sarif is supported currently.")
+		requireSchemaPtr    = flagSet.Bool("require-schema", false, "Fail validation if a file supports schema validation but does not declare a schema.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -190,7 +190,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		return validatorConfig{}, err
 	}
 
-	if err := validateFlagValues(schemaPtr, excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
+	if err := validateFlagValues(excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -205,18 +205,14 @@ func getFlags(args []string) (validatorConfig, error) {
 		groupOutputPtr,
 		quietPtr,
 		globbingPrt,
-		schemaPtr,
+		requireSchemaPtr,
 		typeMapConfigFlags,
 	}
 
 	return config, nil
 }
 
-func validateFlagValues(schemaPtr, excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf map[string]string, groupOutputPtr *string) error {
-	if err := validateSchemaFlag(schemaPtr); err != nil {
-		return err
-	}
-
+func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf map[string]string, groupOutputPtr *string) error {
 	if err := validateReporterConf(reporterConf, groupOutputPtr); err != nil {
 		return err
 	}
@@ -230,17 +226,6 @@ func validateFlagValues(schemaPtr, excludeFileTypesPtr, fileTypesPtr *string, de
 	}
 
 	return validateGroupByConf(groupOutputPtr)
-}
-
-func validateSchemaFlag(schemaPtr *string) error {
-	if *schemaPtr == "" {
-		return nil
-	}
-	schemaFileTypes := strings.Split(strings.ToLower(*schemaPtr), ",")
-	if !validateFileTypeList(schemaFileTypes) {
-		return errors.New("invalid schema file type")
-	}
-	return nil
 }
 
 func validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr *string) error {
@@ -386,7 +371,7 @@ func applyDefaultFlagsFromEnv() error {
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
 		"globbing":           "CFV_GLOBBING",
-		"schema":             "CFV_SCHEMA",
+		"require-schema":     "CFV_REQUIRE_SCHEMA",
 	}
 
 	for flagName, envVar := range flagsEnvMap {
@@ -477,7 +462,7 @@ func mainInit() int {
 
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	quiet := *validatorConfig.quiet
-	schemaFileTypes := getSchemaFileTypes(*validatorConfig.schema)
+	requireSchema := *validatorConfig.requireSchema
 
 	// Initialize a file system finder
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
@@ -488,7 +473,7 @@ func mainInit() int {
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
-		cli.WithSchemaCheckTypes(schemaFileTypes),
+		cli.WithRequireSchema(requireSchema),
 	)
 
 	// Run the config file validation
@@ -559,25 +544,6 @@ func getExcludeFileTypes(configExcludeFileTypes string) []string {
 	excludeFileTypes = slices.Collect(maps.Keys(uniqueFileTypes))
 
 	return excludeFileTypes
-}
-
-func getSchemaFileTypes(schemaFlag string) []string {
-	if schemaFlag == "" {
-		return nil
-	}
-
-	typesToValidate := strings.Split(strings.ToLower(schemaFlag), ",")
-	typesToValidateSet := tools.ArrToMap(typesToValidate...)
-	fileTypesToValidate := make(map[string]struct{})
-
-	for _, ft := range filetype.FileTypes {
-		for ext := range ft.Extensions {
-			if _, ok := typesToValidateSet[ext]; ok {
-				fileTypesToValidate[ft.Name] = struct{}{}
-			}
-		}
-	}
-	return slices.Collect(maps.Keys(fileTypesToValidate))
 }
 
 func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
