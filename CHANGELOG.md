@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored unit tests
 - Using go 1.26
 
+### Removed
+
+- Formatting validation
+
 
 ## [1.11.0] - 2026-03-25
 

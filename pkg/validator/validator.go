@@ -1,14 +1,9 @@
 package validator
 
 // Validator is the base interface that all validators must implement.
-// For optional capabilities, use type assertions against FormatValidator or SchemaValidator.
+// For optional capabilities, use type assertions against SchemaValidator.
 type Validator interface {
 	ValidateSyntax(b []byte) (bool, error)
-}
-
-// FormatValidator is an optional interface for validators that support format checking.
-type FormatValidator interface {
-	ValidateFormat(b []byte, options any) (bool, error)
 }
 
 // SchemaValidator is an optional interface for validators that support schema validation.

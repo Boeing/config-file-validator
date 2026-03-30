@@ -17,7 +17,6 @@ var (
 	GroupOutput          []string
 	Quiet                bool
 	errorFound           bool
-	FormatCheckFileTypes []string
 	SchemaCheckFileTypes []string
 )
 
@@ -61,12 +60,6 @@ func WithQuiet(quiet bool) Option {
 	}
 }
 
-func WithFormatCheckTypes(types []string) Option {
-	return func(_ *CLI) {
-		FormatCheckFileTypes = types
-	}
-}
-
 func WithSchemaCheckTypes(types []string) Option {
 	return func(_ *CLI) {
 		SchemaCheckFileTypes = types
@@ -81,7 +74,6 @@ func Init(opts ...Option) *CLI {
 	// Reset global state
 	GroupOutput = nil
 	Quiet = false
-	FormatCheckFileTypes = nil
 	SchemaCheckFileTypes = nil
 
 	cli := &CLI{
@@ -116,10 +108,6 @@ func (c CLI) Run() (int, error) {
 	}
 
 	for _, fileToValidate := range foundFiles {
-		checkFormat := false
-		if slices.Contains(FormatCheckFileTypes, fileToValidate.FileType.Name) {
-			checkFormat = true
-		}
 		// read it
 		fileContent, err := os.ReadFile(fileToValidate.Path)
 		if err != nil {
@@ -127,11 +115,6 @@ func (c CLI) Run() (int, error) {
 		}
 
 		isValid, err := fileToValidate.FileType.Validator.ValidateSyntax(fileContent)
-		if isValid && checkFormat {
-			if fv, ok := fileToValidate.FileType.Validator.(validator.FormatValidator); ok {
-				isValid, err = fv.ValidateFormat(fileContent, nil)
-			}
-		}
 		if isValid && slices.Contains(SchemaCheckFileTypes, fileToValidate.FileType.Name) {
 			if sv, ok := fileToValidate.FileType.Validator.(validator.SchemaValidator); ok {
 				isValid, err = sv.ValidateSchema(fileContent)
@@ -169,16 +152,6 @@ func validateCapabilities() error {
 	fileTypeMap := make(map[string]validator.Validator)
 	for _, ft := range filetype.FileTypes {
 		fileTypeMap[ft.Name] = ft.Validator
-	}
-
-	for _, name := range FormatCheckFileTypes {
-		v, ok := fileTypeMap[name]
-		if !ok {
-			continue
-		}
-		if _, ok := v.(validator.FormatValidator); !ok {
-			return fmt.Errorf("format validation is not supported for file type %q", name)
-		}
 	}
 
 	for _, name := range SchemaCheckFileTypes {
