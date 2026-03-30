@@ -1,0 +1,10 @@
+# CFV_EXCLUDE_DIRS excludes directories
+env CFV_EXCLUDE_DIRS=sub
+exec validator root
+stdout '✓.*root.good.json'
+! stdout 'sub'
+
+-- root/good.json --
+{"key": "value"}
+-- root/sub/good.yaml --
+key: value

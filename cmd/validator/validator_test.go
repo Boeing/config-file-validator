@@ -1,12 +1,9 @@
 package main
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/Boeing/config-file-validator/internal/testhelper"
 )
 
 func Test_getFlags(t *testing.T) {
@@ -49,7 +46,7 @@ func Test_getFlags(t *testing.T) {
 		{"invalid exclude file type", []string{"--exclude-file-types=notreal", "."}, true},
 		{"invalid file type", []string{"--file-types=notreal", "."}, true},
 		{"file-types and exclude-file-types together", []string{"--file-types=json", "--exclude-file-types=yaml", "."}, true},
-		{"help flag", []string{"--help"}, true}, // flag.ErrHelp
+		{"help flag", []string{"--help"}, true},
 		{"globbing with exclude-dirs", []string{"-globbing", "--exclude-dirs=subdir", "."}, true},
 		{"globbing with exclude-file-types", []string{"-globbing", "--exclude-file-types=hcl", "."}, true},
 		{"globbing with file-types", []string{"-globbing", "--file-types=json", "."}, true},
@@ -77,73 +74,6 @@ func Test_getFlagsValues(t *testing.T) {
 	require.Equal(t, "sarif", *cfg.schema)
 	require.Equal(t, "json", *cfg.format)
 	require.Equal(t, []string{"."}, cfg.searchPaths)
-}
-
-// Integration tests that need the full mainInit pipeline with real files
-func Test_mainInit(t *testing.T) {
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-
-	jsonFile := testhelper.CreateFixtureFile(t, "json")
-	tomlFile := testhelper.CreateFixtureFile(t, "toml")
-	sarifFile := testhelper.CreateFixtureFile(t, "sarif")
-	jsonDir := testhelper.CreateFixtureDir(t, "json", "yaml")
-	formattedDir := t.TempDir()
-	testhelper.WriteFile(t, formattedDir, "good.json", "{\n  \"key\": \"value\"\n}\n")
-
-	cases := []struct {
-		name         string
-		args         []string
-		expectedExit int
-	}{
-		{"version", []string{"--version"}, 0},
-		{"help", []string{"--help"}, 0},
-		{"bad path", []string{"/path/does/not/exit"}, 1},
-		{"multiple paths", []string{jsonFile, tomlFile}, 0},
-		{"schema sarif", []string{"--schema=sarif", sarifFile}, 0},
-		{"format json", []string{"--check-format=json", formattedDir}, 0},
-		{"format all unsupported", []string{"--check-format=all", jsonFile}, 1},
-		{"format unsupported types", []string{"--check-format=json,yaml,ini", jsonFile}, 1},
-		{"format with multiple files", []string{"--check-format=json", formattedDir + "/good.json", tomlFile}, 0},
-		{"file-types filter", []string{"--file-types=json", jsonFile}, 0},
-		{"depth set", []string{"-depth=1", jsonDir}, 0},
-		{"output to dir", []string{"--reporter=json:" + t.TempDir(), jsonDir}, 0},
-		{"output to dir standard", []string{"--reporter=standard:" + t.TempDir(), jsonDir}, 0},
-		{"output to bad path", []string{"--reporter", "json:/path/not/exist", jsonDir}, 1},
-		{"junit reporter", []string{"--reporter=junit", jsonDir}, 0},
-		{"sarif reporter", []string{"--reporter=sarif", jsonDir}, 0},
-		{"globbing with pattern", []string{"--globbing=true", jsonDir + "/*.json"}, 0},
-		{"globbing no matches", []string{"--globbing=true", jsonDir + "/*.nomatch"}, 0},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			os.Args = append([]string{"validator"}, tc.args...)
-			actual := mainInit()
-			require.Equal(t, tc.expectedExit, actual)
-		})
-	}
-}
-
-func Test_envVarFallback(t *testing.T) {
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-
-	t.Setenv("CFV_DEPTH", "2")
-	t.Setenv("CFV_QUIET", "true")
-
-	os.Args = []string{"validator", "."}
-	require.Equal(t, 0, mainInit())
-}
-
-func Test_envVarInvalid(t *testing.T) {
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-
-	t.Setenv("CFV_DEPTH", "notanumber")
-
-	os.Args = []string{"validator", "."}
-	require.Equal(t, 1, mainInit())
 }
 
 func Test_getExcludeFileTypes(t *testing.T) {
@@ -237,15 +167,4 @@ func Test_parseTypeMapFlags(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Test_mainInitTypeMap(t *testing.T) {
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-
-	dir := t.TempDir()
-	testhelper.WriteFile(t, dir, "inventory", "[servers]\nhost=10.0.0.1\n")
-
-	os.Args = []string{"validator", "--type-map=**/inventory:ini", dir}
-	require.Equal(t, 0, mainInit())
 }

@@ -1,0 +1,3 @@
+# Invalid env var value should fail
+env CFV_DEPTH=notanumber
+! exec validator .

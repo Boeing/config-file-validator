@@ -1,0 +1,36 @@
+# Standard reporter (default)
+exec validator good.json
+stdout '✓'
+
+# JSON reporter to stdout
+exec validator --reporter=json:- good.json
+stdout '"status": "passed"'
+stdout '"passed": 1'
+
+# JUnit reporter to stdout
+exec validator --reporter=junit:- good.json
+stdout '<?xml'
+stdout 'config-file-validator'
+
+# SARIF reporter to stdout
+exec validator --reporter=sarif:- good.json
+stdout '"version": "2.1.0"'
+stdout '"kind": "pass"'
+
+# JSON reporter to file
+exec validator --reporter=json:output.json good.json
+exists output.json
+
+# Multiple reporters
+exec validator --reporter=json:multi.json --reporter=standard:- good.json
+stdout '✓'
+exists multi.json
+
+# Invalid reporter
+! exec validator --reporter=bad good.json
+
+# Bad output path
+! exec validator --reporter=json:/nonexistent/dir/out.json good.json
+
+-- good.json --
+{"key": "value"}

@@ -1,0 +1,41 @@
+# Group by filetype
+exec validator -groupby=filetype files
+stdout 'json'
+stdout 'yaml'
+
+# Group by directory
+exec validator -groupby=directory files
+stdout 'Summary'
+
+# Group by pass-fail
+exec validator -groupby=pass-fail files
+stdout 'Passed'
+
+# Double grouping
+exec validator -groupby=filetype,directory files
+stdout 'json'
+
+# Triple grouping
+exec validator -groupby=pass-fail,filetype,directory files
+stdout 'Passed'
+
+# Groupby with JSON reporter
+exec validator -groupby=filetype --reporter=json:- files
+stdout 'totalPassed'
+
+# Invalid groupby
+! exec validator -groupby=badvalue files
+
+# Duplicate groupby
+! exec validator -groupby=directory,directory files
+
+# Groupby not supported with junit
+! exec validator -groupby=filetype --reporter=junit files
+
+# Groupby not supported with sarif
+! exec validator -groupby=filetype --reporter=sarif files
+
+-- files/good.json --
+{"key": "value"}
+-- files/good.yaml --
+key: value

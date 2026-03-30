@@ -1,0 +1,12 @@
+# CFV_DEPTH limits recursion
+env CFV_DEPTH=0
+exec validator root
+stdout '✓.*root.good.json'
+! stdout 'sub'
+
+-- good.json --
+{"key": "value"}
+-- root/good.json --
+{"key": "value"}
+-- root/sub/good.yaml --
+key: value
