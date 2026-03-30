@@ -1,14 +1,15 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
 func TestMain(m *testing.M) {
-	testscript.RunMain(m, map[string]func() int{
-		"validator": mainInit,
+	testscript.Main(m, map[string]func(){
+		"validator": func() { os.Exit(mainInit()) },
 	})
 }
 
