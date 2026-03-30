@@ -7,9 +7,13 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 )
 
+func validatorCmd() {
+	os.Exit(mainInit())
+}
+
 func TestMain(m *testing.M) {
 	testscript.Main(m, map[string]func(){
-		"validator": func() { os.Exit(mainInit()) },
+		"validator": validatorCmd,
 	})
 }
 
