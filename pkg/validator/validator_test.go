@@ -234,33 +234,6 @@ func FuzzSarifValidator(f *testing.F) {
 	f.Fuzz(fuzzFunction(SarifValidator{}))
 }
 
-func Test_JSONValidateFormat(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name           string
-		input          []byte
-		expectedResult bool
-	}{
-		{"wellFormatted", []byte("{\n  \"key\": \"value\"\n}"), true},
-		{"unformatted", []byte(`{"key":"value"}`), false},
-		{"invalidJSON", []byte(`{invalid`), false},
-	}
-
-	for _, tcase := range cases {
-		t.Run(tcase.name, func(t *testing.T) {
-			t.Parallel()
-			valid, err := JSONValidator{}.ValidateFormat(tcase.input, nil)
-			if valid != tcase.expectedResult {
-				t.Errorf("expected %v, got %v (err: %v)", tcase.expectedResult, valid, err)
-			}
-			if !valid && err == nil {
-				t.Error("expected error for invalid result")
-			}
-		})
-	}
-}
-
 func Test_getCustomErrNonSyntaxError(t *testing.T) {
 	t.Parallel()
 	// Unmarshal into a typed struct to trigger UnmarshalTypeError instead of SyntaxError

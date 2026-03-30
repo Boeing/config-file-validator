@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"os"
 	"testing"
 
@@ -103,64 +102,6 @@ func Test_CLIReportErr(t *testing.T) {
 	require.Equal(t, 1, exitStatus)
 }
 
-func Test_CLIWithFormattingCheckEnabled(t *testing.T) {
-	dir := t.TempDir()
-	file := testhelper.WriteFile(t, dir, "test.json", "{\n  \"key\": \"value\"\n}\n")
-
-	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoots(file),
-	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithFormatCheckTypes([]string{"json"}),
-	)
-	exitStatus, err := cli.Run()
-	require.NoError(t, err)
-	require.Equal(t, 0, exitStatus)
-}
-
-func Test_CLIWithFormattingDisabled(t *testing.T) {
-	dir := t.TempDir()
-	unformatted := []byte(`{"name":"test","values":[1,2,3]}`)
-	file := testhelper.WriteFile(t, dir, "test.json", string(unformatted))
-
-	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoots(file),
-	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithFormatCheckTypes([]string{}),
-	)
-	exitStatus, err := cli.Run()
-	require.NoError(t, err)
-	require.Equal(t, 0, exitStatus)
-
-	content, err := os.ReadFile(file)
-	require.NoError(t, err)
-	require.Equal(t, unformatted, content)
-}
-
-func Test_CLIFormattingWithInvalidJSON(t *testing.T) {
-	dir := t.TempDir()
-	invalidJSON := []byte(`{"name":"test","invalid":}`)
-	file := testhelper.WriteFile(t, dir, "test.json", string(invalidJSON))
-
-	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoots(file),
-	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithFormatCheckTypes([]string{"json"}),
-	)
-	exitStatus, err := cli.Run()
-	require.Equal(t, 1, exitStatus)
-	require.NoError(t, err)
-
-	content, err := os.ReadFile(file)
-	require.NoError(t, err)
-	require.True(t, bytes.Equal(invalidJSON, content))
-}
-
 func Test_CLIWithSchemaCheckEnabled(t *testing.T) {
 	file := testhelper.CreateFixtureFile(t, "sarif")
 
@@ -222,21 +163,6 @@ func Test_CLIWithSchemaCheckInvalidFile(t *testing.T) {
 	require.Equal(t, 1, exitStatus)
 }
 
-func Test_CLIWithFormatCheckUnsupportedType(t *testing.T) {
-	file := testhelper.CreateFixtureFile(t, "yaml")
-
-	fsFinder := finder.FileSystemFinderInit(
-		finder.WithPathRoots(file),
-	)
-	cli := Init(
-		WithFinder(fsFinder),
-		WithFormatCheckTypes([]string{"yaml"}),
-	)
-	exitStatus, err := cli.Run()
-	require.Error(t, err)
-	require.Equal(t, 1, exitStatus)
-}
-
 func Test_CLIWithQuiet(t *testing.T) {
 	file := testhelper.CreateFixtureFile(t, "json")
 
@@ -276,7 +202,6 @@ func Test_CLIValidateCapabilitiesUnknownType(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithFormatCheckTypes([]string{"nonexistent"}),
 		WithSchemaCheckTypes([]string{"nonexistent"}),
 	)
 	exitStatus, err := cli.Run()

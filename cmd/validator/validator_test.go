@@ -24,7 +24,6 @@ func Test_getFlags(t *testing.T) {
 		{"sarif reporter", []string{"--reporter=sarif", "."}, false},
 		{"json and junit reporter", []string{"--reporter=json:-", "--reporter=junit:-", "."}, false},
 		{"groupby directory", []string{"-groupby=directory", "."}, false},
-		{"format json", []string{"--check-format=json", "."}, false},
 		{"schema sarif", []string{"--schema=sarif", "."}, false},
 		{"version flag", []string{"--version"}, false},
 		{"exclude file types with empty element", []string{"--exclude-file-types=json,,yaml", "."}, false},
@@ -39,9 +38,6 @@ func Test_getFlags(t *testing.T) {
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, true},
 		{"grouped junit", []string{"-groupby=directory", "--reporter=junit", "."}, true},
 		{"grouped sarif", []string{"-groupby=directory", "--reporter=sarif", "."}, true},
-		{"format all includes unsupported", []string{"--check-format=all", "."}, false},
-		{"format with unsupported types", []string{"--check-format=json,yaml,ini", "."}, false},
-		{"invalid format type", []string{"--check-format=notreal", "."}, true},
 		{"invalid schema type", []string{"--schema=notreal", "."}, true},
 		{"invalid exclude file type", []string{"--exclude-file-types=notreal", "."}, true},
 		{"invalid file type", []string{"--file-types=notreal", "."}, true},
@@ -66,13 +62,12 @@ func Test_getFlags(t *testing.T) {
 }
 
 func Test_getFlagsValues(t *testing.T) {
-	cfg, err := getFlags([]string{"-depth=3", "--exclude-dirs=vendor,node_modules", "--schema=sarif", "--check-format=json", "."})
+	cfg, err := getFlags([]string{"-depth=3", "--exclude-dirs=vendor,node_modules", "--schema=sarif", "."})
 	require.NoError(t, err)
 
 	require.Equal(t, 3, *cfg.depth)
 	require.Equal(t, "vendor,node_modules", *cfg.excludeDirs)
 	require.Equal(t, "sarif", *cfg.schema)
-	require.Equal(t, "json", *cfg.format)
 	require.Equal(t, []string{"."}, cfg.searchPaths)
 }
 
@@ -92,30 +87,6 @@ func Test_getExcludeFileTypes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.ElementsMatch(t, tc.expected, getExcludeFileTypes(tc.input))
-		})
-	}
-}
-
-func Test_getFormatFileTypes(t *testing.T) {
-	cases := []struct {
-		name     string
-		input    string
-		expected []string
-	}{
-		{"empty", "", []string{}},
-		{"json", "json", []string{"json"}},
-		{"dedup", "json,json", []string{"json"}},
-		{"json and yaml", "json,yaml", []string{"json", "yaml"}},
-		{"all", "all,json", []string{
-			"json", "yaml", "xml", "toml", "ini", "properties",
-			"hcl", "plist", "csv", "hocon", "env", "editorconfig",
-			"toon", "sarif",
-		}},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			require.ElementsMatch(t, tc.expected, getFormatFileTypes(tc.input))
 		})
 	}
 }

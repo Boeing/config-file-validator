@@ -66,7 +66,6 @@ type validatorConfig struct {
 	groupOutput      *string
 	quiet            *bool
 	globbing         *bool
-	format           *string
 	schema           *string
 	typeMap          typeMapFlags
 }
@@ -154,7 +153,6 @@ func getFlags(args []string) (validatorConfig, error) {
 		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
-		formatPtr           = flagSet.String("check-format", "", "Comma separated list of file types to check formatting. Only json is supported currently.")
 		schemaPtr           = flagSet.String("schema", "", "Comma separated list of file types to validate against their schema. Only sarif is supported currently.")
 	)
 	flagSet.Var(
@@ -192,7 +190,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		return validatorConfig{}, err
 	}
 
-	if err := validateFlagValues(formatPtr, schemaPtr, excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
+	if err := validateFlagValues(schemaPtr, excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -207,7 +205,6 @@ func getFlags(args []string) (validatorConfig, error) {
 		groupOutputPtr,
 		quietPtr,
 		globbingPrt,
-		formatPtr,
 		schemaPtr,
 		typeMapConfigFlags,
 	}
@@ -215,11 +212,7 @@ func getFlags(args []string) (validatorConfig, error) {
 	return config, nil
 }
 
-func validateFlagValues(formatPtr, schemaPtr, excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf map[string]string, groupOutputPtr *string) error {
-	if err := validateFormatFlag(formatPtr); err != nil {
-		return err
-	}
-
+func validateFlagValues(schemaPtr, excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf map[string]string, groupOutputPtr *string) error {
 	if err := validateSchemaFlag(schemaPtr); err != nil {
 		return err
 	}
@@ -237,17 +230,6 @@ func validateFlagValues(formatPtr, schemaPtr, excludeFileTypesPtr, fileTypesPtr 
 	}
 
 	return validateGroupByConf(groupOutputPtr)
-}
-
-func validateFormatFlag(formatPtr *string) error {
-	if *formatPtr == "" {
-		return nil
-	}
-	formatFileTypes := strings.Split(strings.ToLower(*formatPtr), ",")
-	if !slices.Contains(formatFileTypes, "all") && !validateFileTypeList(formatFileTypes) {
-		return errors.New("invalid check format file type")
-	}
-	return nil
 }
 
 func validateSchemaFlag(schemaPtr *string) error {
@@ -403,7 +385,6 @@ func applyDefaultFlagsFromEnv() error {
 		"reporter":           "CFV_REPORTER",
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
-		"format":             "CFV_FORMAT",
 		"globbing":           "CFV_GLOBBING",
 		"schema":             "CFV_SCHEMA",
 	}
@@ -496,7 +477,6 @@ func mainInit() int {
 
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	quiet := *validatorConfig.quiet
-	formatFileTypes := getFormatFileTypes(*validatorConfig.format)
 	schemaFileTypes := getSchemaFileTypes(*validatorConfig.schema)
 
 	// Initialize a file system finder
@@ -508,7 +488,6 @@ func mainInit() int {
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
-		cli.WithFormatCheckTypes(formatFileTypes),
 		cli.WithSchemaCheckTypes(schemaFileTypes),
 	)
 
@@ -580,29 +559,6 @@ func getExcludeFileTypes(configExcludeFileTypes string) []string {
 	excludeFileTypes = slices.Collect(maps.Keys(uniqueFileTypes))
 
 	return excludeFileTypes
-}
-
-func getFormatFileTypes(formatFlag string) []string {
-	if formatFlag == "" {
-		return nil
-	}
-
-	typesToFormat := strings.Split(strings.ToLower(formatFlag), ",")
-	typesToFormatSet := tools.ArrToMap(typesToFormat...)
-	fileTypesToFormat := make(map[string]struct{})
-
-	formatAll := false
-	if _, ok := typesToFormatSet["all"]; ok {
-		formatAll = true
-	}
-	for _, ft := range filetype.FileTypes {
-		for ext := range ft.Extensions {
-			if _, ok := typesToFormatSet[ext]; formatAll || ok {
-				fileTypesToFormat[ft.Name] = struct{}{}
-			}
-		}
-	}
-	return slices.Collect(maps.Keys(fileTypesToFormat))
 }
 
 func getSchemaFileTypes(schemaFlag string) []string {
