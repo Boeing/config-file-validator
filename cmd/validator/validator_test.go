@@ -31,6 +31,8 @@ func Test_getFlags(t *testing.T) {
 		{"schema sarif", []string{"--schema=sarif", "."}, false},
 		{"version flag", []string{"--version"}, false},
 		{"exclude file types with empty element", []string{"--exclude-file-types=json,,yaml", "."}, false},
+		{"type-map", []string{"--type-map=**/inventory:ini", "."}, false},
+		{"multiple type-maps", []string{"--type-map=**/inventory:ini", "--type-map=**/configs/*:properties", "."}, false},
 
 		// Invalid flag combinations
 		{"negative depth", []string{"-depth=-1", "."}, true},
@@ -86,6 +88,8 @@ func Test_mainInit(t *testing.T) {
 	tomlFile := testhelper.CreateFixtureFile(t, "toml")
 	sarifFile := testhelper.CreateFixtureFile(t, "sarif")
 	jsonDir := testhelper.CreateFixtureDir(t, "json", "yaml")
+	formattedDir := t.TempDir()
+	testhelper.WriteFile(t, formattedDir, "good.json", "{\n  \"key\": \"value\"\n}\n")
 
 	cases := []struct {
 		name         string
@@ -97,10 +101,10 @@ func Test_mainInit(t *testing.T) {
 		{"bad path", []string{"/path/does/not/exit"}, 1},
 		{"multiple paths", []string{jsonFile, tomlFile}, 0},
 		{"schema sarif", []string{"--schema=sarif", sarifFile}, 0},
-		{"format json", []string{"--check-format=json", jsonFile}, 0},
+		{"format json", []string{"--check-format=json", formattedDir}, 0},
 		{"format all unsupported", []string{"--check-format=all", jsonFile}, 1},
 		{"format unsupported types", []string{"--check-format=json,yaml,ini", jsonFile}, 1},
-		{"format with multiple files", []string{"--check-format=json", jsonFile, tomlFile}, 0},
+		{"format with multiple files", []string{"--check-format=json", formattedDir + "/good.json", tomlFile}, 0},
 		{"file-types filter", []string{"--file-types=json", jsonFile}, 0},
 		{"depth set", []string{"-depth=1", jsonDir}, 0},
 		{"output to dir", []string{"--reporter=json:" + t.TempDir(), jsonDir}, 0},
@@ -203,4 +207,45 @@ func Test_getSchemaFileTypes(t *testing.T) {
 			require.ElementsMatch(t, tc.expected, getSchemaFileTypes(tc.input))
 		})
 	}
+}
+
+func Test_parseTypeMapFlags(t *testing.T) {
+	cases := []struct {
+		name    string
+		flags   typeMapFlags
+		wantLen int
+		wantErr bool
+	}{
+		{"empty", typeMapFlags{}, 0, false},
+		{"single override", typeMapFlags{"**/inventory:ini"}, 1, false},
+		{"multiple overrides", typeMapFlags{"**/inventory:ini", "**/configs/*:properties"}, 2, false},
+		{"case insensitive type", typeMapFlags{"**/file:JSON"}, 1, false},
+		{"missing colon", typeMapFlags{"nocolon"}, 0, true},
+		{"empty pattern", typeMapFlags{":ini"}, 0, true},
+		{"empty type", typeMapFlags{"pattern:"}, 0, true},
+		{"unknown type", typeMapFlags{"pattern:notreal"}, 0, true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := parseTypeMapFlags(tc.flags)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Len(t, result, tc.wantLen)
+			}
+		})
+	}
+}
+
+func Test_mainInitTypeMap(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "inventory", "[servers]\nhost=10.0.0.1\n")
+
+	os.Args = []string{"validator", "--type-map=**/inventory:ini", dir}
+	require.Equal(t, 0, mainInit())
 }

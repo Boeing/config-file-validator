@@ -163,6 +163,8 @@ optional flags:
         Supported formats: standard, json, junit, and sarif (default: "standard")
   -schema string
         A comma separated list of file types for which to validate against their schema. Only sarif is supported currently.
+  -type-map value
+        Map a glob pattern to a file type. Format: <pattern>:<type> Example: --type-map="**/inventory:ini"
   -version
         Version prints the release version of validator
 ```
@@ -325,6 +327,21 @@ Use the `-schema` flag to validate files against their schema. The validator wil
 validator -schema=sarif /path/to/search
 ```
 > Only SARIF files are supported currently.
+
+### Map file types with glob patterns
+
+Use the `--type-map` flag to map files matching a glob pattern to a specific file type. This is useful for files without extensions or with non-standard extensions. Multiple mappings can be specified.
+
+```shell
+# Treat all files named "inventory" as ini
+validator --type-map="**/inventory:ini" /path/to/search
+
+# Map all files in a configs directory as properties
+validator --type-map="**/configs/*:properties" /path/to/search
+
+# Multiple mappings
+validator --type-map="**/inventory:ini" --type-map="**/*.cfg:json" /path/to/search
+```
 
 ## Calling the config-file-validator programmatically
 

@@ -201,6 +201,108 @@ func Test_fsFinderWalkDirError(t *testing.T) {
 	require.Error(t, err)
 }
 
+func Test_fsFinderTypeOverrides(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "inventory", "[servers]\nhost=10.0.0.1\n")
+	testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	iniType := filetype.FileType{
+		Name:       "ini",
+		Extensions: tools.ArrToMap("ini"),
+		Validator:  validator.IniValidator{},
+	}
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithTypeOverrides([]TypeOverride{
+			{Pattern: "**/inventory", FileType: iniType},
+		}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+
+	// Verify the extensionless file was matched as ini
+	var foundInventory bool
+	for _, f := range files {
+		if f.Name == "inventory" {
+			require.Equal(t, "ini", f.FileType.Name)
+			foundInventory = true
+		}
+	}
+	require.True(t, foundInventory)
+}
+
+func Test_fsFinderTypeOverrideGlobDir(t *testing.T) {
+	dir := t.TempDir()
+	sub := testhelper.CreateSubdir(t, dir, "configs")
+	testhelper.WriteFile(t, sub, "app", "key=value\n")
+	testhelper.WriteFile(t, sub, "db", "key=value\n")
+
+	propsType := filetype.FileType{
+		Name:       "properties",
+		Extensions: tools.ArrToMap("properties"),
+		Validator:  validator.PropValidator{},
+	}
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithTypeOverrides([]TypeOverride{
+			{Pattern: "**/configs/*", FileType: propsType},
+		}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 2)
+	for _, f := range files {
+		require.Equal(t, "properties", f.FileType.Name)
+	}
+}
+
+func Test_fsFinderTypeOverrideNoMatch(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "randomfile", "some content")
+
+	iniType := filetype.FileType{
+		Name:       "ini",
+		Extensions: tools.ArrToMap("ini"),
+		Validator:  validator.IniValidator{},
+	}
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithTypeOverrides([]TypeOverride{
+			{Pattern: "**/inventory", FileType: iniType},
+		}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Empty(t, files)
+}
+
+func Test_fsFinderTypeOverridePriority(t *testing.T) {
+	dir := t.TempDir()
+	// Write valid XML content with a .json extension
+	testhelper.WriteFile(t, dir, "data.json", "<root><key>val</key></root>")
+
+	xmlType := filetype.FileType{
+		Name:       "xml",
+		Extensions: tools.ArrToMap("xml"),
+		Validator:  validator.XMLValidator{},
+	}
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithTypeOverrides([]TypeOverride{
+			{Pattern: "**/*.json", FileType: xmlType},
+		}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "xml", files[0].FileType.Name)
+}
+
 func Benchmark_Finder(b *testing.B) {
 	// Use a real directory for benchmarking
 	dir, err := os.MkdirTemp("", "bench_finder")

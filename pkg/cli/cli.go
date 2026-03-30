@@ -127,9 +127,7 @@ func (c CLI) Run() (int, error) {
 		}
 
 		isValid, err := fileToValidate.FileType.Validator.ValidateSyntax(fileContent)
-		if !isValid {
-			errorFound = true
-		} else if checkFormat {
+		if isValid && checkFormat {
 			if fv, ok := fileToValidate.FileType.Validator.(validator.FormatValidator); ok {
 				isValid, err = fv.ValidateFormat(fileContent, nil)
 			}
@@ -145,6 +143,9 @@ func (c CLI) Run() (int, error) {
 			IsValid:         isValid,
 			ValidationError: err,
 			IsQuiet:         Quiet,
+		}
+		if !isValid {
+			errorFound = true
 		}
 		reports = append(reports, report)
 
