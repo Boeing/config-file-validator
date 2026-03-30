@@ -320,7 +320,7 @@ func Benchmark_Finder(b *testing.B) {
 	fsFinder := FileSystemFinderInit(WithPathRoots(dir))
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = fsFinder.Find()
 	}
 }
