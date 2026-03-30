@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/magiconair/properties v1.8.10
 	github.com/owenrumney/go-sarif/v3 v3.3.0
-	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/pelletier/go-toml/v2 v2.3.0
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/stretchr/testify v1.11.1
 	github.com/toon-format/toon-go v0.0.0-20251108125615-44b4cd22477f
