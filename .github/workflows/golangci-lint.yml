@@ -16,7 +16,7 @@ jobs:
   golangci:
     strategy:
       matrix:
-        go: ["1.25"]
+        go: ["1.26"]
         os: [ubuntu-latest, macos-latest, windows-latest]
     permissions:
       # Optional: Allow write access to checks to allow the action to annotate code in the PR.
@@ -41,7 +41,7 @@ jobs:
           # Require: The version of golangci-lint to use.
           # When `install-mode` is `binary` (default) the value can be v1.2 or v1.2.3 or `latest` to use the latest version.
           # When `install-mode` is `goinstall` the value can be v1.2.3, `latest`, or the hash of a commit.
-          version: v2.4.0
+          version: v2.11.4
 
           # Optional: working directory, useful for monorepos
           # working-directory: somedir
@@ -56,4 +56,4 @@ jobs:
           # only-new-issues: true
 
           # Optional:The mode to install golangci-lint. It can be 'binary' or 'goinstall'.
-          # install-mode: "goinstall"
+          install-mode: "goinstall"

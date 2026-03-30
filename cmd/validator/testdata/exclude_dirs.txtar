@@ -1,0 +1,21 @@
+# Exclude a single directory
+exec validator --exclude-dirs=vendor project
+stdout '✓.*src.good.json'
+! stdout 'vendor'
+
+# Exclude multiple directories
+exec validator --exclude-dirs=vendor,test project
+stdout '✓.*src.good.json'
+! stdout 'vendor'
+! stdout '/test/'
+
+# Exclude nonexistent dir is silently ignored
+exec validator --exclude-dirs=nonexistent project
+stdout '✓.*src.good.json'
+
+-- project/src/good.json --
+{"key": "value"}
+-- project/vendor/dep.json --
+{"dep": true}
+-- project/test/fixture.json --
+{"test": true}

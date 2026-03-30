@@ -1,0 +1,19 @@
+# Schema validation on valid SARIF
+exec validator --schema=sarif good.sarif
+stdout '✓'
+
+# Schema on unsupported type should fail at startup
+! exec validator --schema=json good.json
+stderr 'schema validation is not supported'
+
+# Invalid schema type
+! exec validator --schema=notreal good.json
+
+-- good.sarif --
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [{"tool": {"driver": {"name": "test", "language": "en"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
+}
+-- good.json --
+{"key": "value"}

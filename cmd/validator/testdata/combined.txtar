@@ -1,0 +1,61 @@
+# type-map + schema + format (all valid)
+exec validator --type-map='**/inventory:ini' --schema=sarif --check-format=json inventory report.sarif formatted.json
+stdout '✓.*inventory'
+stdout '✓.*report.sarif'
+stdout '✓.*formatted.json'
+
+# type-map + exclude-dirs
+exec validator --type-map='**/inventory:ini' --exclude-dirs=vendor project
+stdout '✓.*inventory'
+! stdout 'vendor'
+
+# type-map + depth
+exec validator --type-map='**/inventory:ini' --depth=0 project
+stdout '✓.*project.good.json'
+! stdout 'configs'
+
+# type-map + quiet
+exec validator --type-map='**/inventory:ini' --quiet inventory
+! stdout .
+
+# type-map + reporter json
+exec validator --type-map='**/inventory:ini' --reporter=json:- inventory
+stdout '"status": "passed"'
+
+# type-map + groupby
+exec validator --type-map='**/inventory:ini' -groupby=filetype inventory
+stdout 'unknown'
+
+# exclude-file-types + type-map
+exec validator --exclude-file-types=json --type-map='**/inventory:ini' project
+stdout '✓.*inventory'
+! stdout '.json'
+
+# format + type-map (format only applies to json)
+exec validator --check-format=json --type-map='**/inventory:ini' formatted.json inventory
+stdout '✓.*formatted.json'
+stdout '✓.*inventory'
+
+# Everything at once
+exec validator --type-map='**/inventory:ini' --schema=sarif --check-format=json --exclude-dirs=vendor --depth=3 --quiet inventory report.sarif formatted.json
+
+-- inventory --
+[servers]
+host=10.0.0.1
+-- report.sarif --
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [{"tool": {"driver": {"name": "test", "language": "en"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
+}
+-- formatted.json --
+{
+  "key": "value"
+}
+-- project/good.json --
+{"key": "value"}
+-- project/configs/inventory --
+[servers]
+host=10.0.0.1
+-- project/vendor/dep.json --
+{"dep": true}

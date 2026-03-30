@@ -38,9 +38,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -117,7 +117,7 @@ func getFileTypes() []string {
 			options = append(options, extName)
 		}
 	}
-	sort.Strings(options)
+	slices.Sort(options)
 	return options
 }
 
@@ -577,10 +577,7 @@ func getExcludeFileTypes(configExcludeFileTypes string) []string {
 		}
 	}
 
-	excludeFileTypes = make([]string, 0, len(uniqueFileTypes))
-	for ft := range uniqueFileTypes {
-		excludeFileTypes = append(excludeFileTypes, ft)
-	}
+	excludeFileTypes = slices.Collect(maps.Keys(uniqueFileTypes))
 
 	return excludeFileTypes
 }
@@ -605,11 +602,7 @@ func getFormatFileTypes(formatFlag string) []string {
 			}
 		}
 	}
-	types := make([]string, 0, len(fileTypesToFormat))
-	for ft := range fileTypesToFormat {
-		types = append(types, ft)
-	}
-	return types
+	return slices.Collect(maps.Keys(fileTypesToFormat))
 }
 
 func getSchemaFileTypes(schemaFlag string) []string {
@@ -628,11 +621,7 @@ func getSchemaFileTypes(schemaFlag string) []string {
 			}
 		}
 	}
-	types := make([]string, 0, len(fileTypesToValidate))
-	for ft := range fileTypesToValidate {
-		types = append(types, ft)
-	}
-	return types
+	return slices.Collect(maps.Keys(fileTypesToValidate))
 }
 
 func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {

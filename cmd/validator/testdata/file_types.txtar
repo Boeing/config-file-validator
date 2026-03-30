@@ -1,0 +1,37 @@
+# Exclude json files
+exec validator --exclude-file-types=json files
+stdout '✓.*good.yaml'
+! stdout 'good.json'
+
+# Exclude multiple types
+exec validator --exclude-file-types=json,yaml files
+stdout '✓.*good.toml'
+! stdout 'good.json'
+! stdout 'good.yaml'
+
+# Include only json
+exec validator --file-types=json files
+stdout '✓.*good.json'
+! stdout 'good.yaml'
+! stdout 'good.toml'
+
+# Include only yaml (matches yml too)
+exec validator --file-types=yaml files
+stdout '✓.*good.yaml'
+! stdout 'good.json'
+
+# Invalid exclude type
+! exec validator --exclude-file-types=notreal files
+
+# Invalid file type
+! exec validator --file-types=notreal files
+
+# Cannot use both together
+! exec validator --file-types=json --exclude-file-types=yaml files
+
+-- files/good.json --
+{"key": "value"}
+-- files/good.yaml --
+key: value
+-- files/good.toml --
+key = "value"

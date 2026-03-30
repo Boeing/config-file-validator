@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - SARIF syntax and schema validation using the go-sarif library
 - `--type-map` flag to map glob patterns to file types for files without recognized extensions (e.g. `--type-map="**/inventory:ini"`)
+- Functional tests for CLI options
 
 ### Changed
 
 - Refactored unit tests
+- Using go 1.26
 
 
 ## [1.11.0] - 2026-03-25

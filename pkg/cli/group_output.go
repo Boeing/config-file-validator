@@ -22,11 +22,7 @@ func GroupByFileType(reports []reporter.Report) map[string][]reporter.Report {
 		if fileType == "yml" {
 			fileType = "yaml"
 		}
-		if reportByFile[fileType] == nil {
-			reportByFile[fileType] = []reporter.Report{report}
-		} else {
-			reportByFile[fileType] = append(reportByFile[fileType], report)
-		}
+		reportByFile[fileType] = append(reportByFile[fileType], report)
 	}
 
 	return reportByFile
@@ -38,13 +34,7 @@ func GroupByPassFail(reports []reporter.Report) map[string][]reporter.Report {
 
 	for _, report := range reports {
 		if report.IsValid {
-			if reportByPassOrFail["Passed"] == nil {
-				reportByPassOrFail["Passed"] = []reporter.Report{report}
-			} else {
-				reportByPassOrFail["Passed"] = append(reportByPassOrFail["Passed"], report)
-			}
-		} else if reportByPassOrFail["Failed"] == nil {
-			reportByPassOrFail["Failed"] = []reporter.Report{report}
+			reportByPassOrFail["Passed"] = append(reportByPassOrFail["Passed"], report)
 		} else {
 			reportByPassOrFail["Failed"] = append(reportByPassOrFail["Failed"], report)
 		}
@@ -69,11 +59,7 @@ func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 			directory = directory + "/"
 		}
 
-		if reportByDirectory[directory] == nil {
-			reportByDirectory[directory] = []reporter.Report{report}
-		} else {
-			reportByDirectory[directory] = append(reportByDirectory[directory], report)
-		}
+		reportByDirectory[directory] = append(reportByDirectory[directory], report)
 	}
 
 	return reportByDirectory

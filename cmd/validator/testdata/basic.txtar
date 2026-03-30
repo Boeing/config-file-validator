@@ -1,0 +1,29 @@
+# Test --help and --version
+exec validator --help
+stdout 'Usage: validator'
+
+exec validator --version
+stdout 'validator version'
+
+# Valid JSON file
+exec validator good.json
+stdout '✓'
+
+# Invalid JSON file should fail
+! exec validator bad.json
+stdout '×'
+
+# Nonexistent path should fail
+! exec validator /nonexistent/path
+stderr 'error'
+
+# No args defaults to cwd
+mkdir empty
+cd empty
+exec validator
+cd ..
+
+-- good.json --
+{"key": "value"}
+-- bad.json --
+{"bad":}
