@@ -18,6 +18,7 @@ var (
 	GroupOutput   []string
 	Quiet         bool
 	RequireSchema bool
+	NoSchema      bool
 	SchemaMap     map[string]string
 	SchemaStore   *schemastore.Store
 	errorFound    bool
@@ -60,6 +61,12 @@ func WithRequireSchema(require bool) Option {
 	}
 }
 
+func WithNoSchema(noSchema bool) Option {
+	return func(_ *CLI) {
+		NoSchema = noSchema
+	}
+}
+
 func WithSchemaMap(m map[string]string) Option {
 	return func(_ *CLI) {
 		SchemaMap = m
@@ -79,6 +86,7 @@ func Init(opts ...Option) *CLI {
 	GroupOutput = nil
 	Quiet = false
 	RequireSchema = false
+	NoSchema = false
 	SchemaMap = nil
 	SchemaStore = nil
 
@@ -141,6 +149,10 @@ func (c CLI) Run() (int, error) {
 }
 
 func validateSchema(v validator.Validator, content []byte, filePath string) (bool, error) {
+	if NoSchema {
+		return true, nil
+	}
+
 	// 1. Try document-declared schema
 	sv, hasSV := v.(validator.SchemaValidator)
 	if hasSV {

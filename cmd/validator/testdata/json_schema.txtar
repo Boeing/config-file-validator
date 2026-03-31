@@ -1,8 +1,8 @@
 # ============================================================
-# Real-world JSON Schema validation tests
+# JSON $schema validation tests (all local, no network)
 # ============================================================
 
-# --- package.json (npm) ---
+# --- package.json schema ---
 
 # Valid package.json
 exec validator valid_package.json
@@ -13,37 +13,37 @@ stdout '✓'
 stdout '×'
 stdout 'schema validation failed'
 
-# --- tsconfig.json (TypeScript) ---
+# --- tsconfig.json schema ---
 
 # Valid tsconfig.json
 exec validator valid_tsconfig.json
 stdout '✓'
 
-# Invalid tsconfig.json (compilerOptions.target must be string)
+# Invalid tsconfig.json (target must be string)
 ! exec validator invalid_tsconfig.json
 stdout '×'
 stdout 'schema validation failed'
 
-# --- .eslintrc.json (ESLint) ---
+# --- eslintrc schema ---
 
 # Valid eslintrc
 exec validator valid_eslintrc.json
 stdout '✓'
 
-# --- GitHub Actions workflow ---
+# --- workflow schema ---
 
 # Valid workflow
 exec validator valid_workflow.json
 stdout '✓'
 
-# Invalid workflow (missing jobs)
+# Invalid workflow (missing required jobs)
 ! exec validator invalid_workflow.json
 stdout '×'
 stdout 'schema validation failed'
 
-# --- Local schema: strict config ---
+# --- Strict config schema ---
 
-# Valid against local strict schema
+# Valid
 exec validator valid_strict.json
 stdout '✓'
 
@@ -72,7 +72,7 @@ stdout 'schema validation failed'
 stdout '×'
 stdout 'schema validation failed'
 
-# --- Local schema: array validation ---
+# --- Array schema ---
 
 # Valid array
 exec validator valid_array.json
@@ -121,66 +121,60 @@ exec validator --require-schema good.ini
 stdout '✓'
 
 # ============================================================
-# Test data files
+# Local schema files
 # ============================================================
 
--- valid_package.json --
+-- package_schema.json --
 {
-  "$schema": "https://json.schemastore.org/package.json",
-  "name": "my-package",
-  "version": "1.0.0"
-}
--- invalid_package.json --
-{
-  "$schema": "https://json.schemastore.org/package.json",
-  "name": "my-package",
-  "version": 123
-}
--- valid_tsconfig.json --
-{
-  "$schema": "https://json.schemastore.org/tsconfig.json",
-  "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "strict": true
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "main": { "type": "string" },
+    "scripts": { "type": "object" },
+    "license": { "type": "string" },
+    "dependencies": { "type": "object" },
+    "devDependencies": { "type": "object" }
   }
 }
--- invalid_tsconfig.json --
+-- tsconfig_schema.json --
 {
-  "$schema": "https://json.schemastore.org/tsconfig.json",
-  "compilerOptions": {
-    "target": 999,
-    "module": "commonjs"
+  "type": "object",
+  "properties": {
+    "compilerOptions": {
+      "type": "object",
+      "properties": {
+        "target": { "type": "string" },
+        "module": { "type": "string" },
+        "strict": { "type": "boolean" }
+      }
+    },
+    "include": { "type": "array", "items": { "type": "string" } },
+    "exclude": { "type": "array", "items": { "type": "string" } }
   }
 }
--- valid_eslintrc.json --
+-- eslintrc_schema.json --
 {
-  "$schema": "https://json.schemastore.org/eslintrc.json",
-  "env": {
-    "browser": true,
-    "es2021": true
+  "type": "object",
+  "properties": {
+    "env": { "type": "object" },
+    "extends": {},
+    "rules": { "type": "object" },
+    "plugins": { "type": "array" },
+    "root": { "type": "boolean" }
+  }
+}
+-- workflow_schema.json --
+{
+  "type": "object",
+  "required": ["on", "jobs"],
+  "properties": {
+    "name": { "type": "string" },
+    "on": {},
+    "jobs": { "type": "object" }
   },
-  "rules": {}
-}
--- valid_workflow.json --
-{
-  "$schema": "https://json.schemastore.org/github-workflow.json",
-  "name": "CI",
-  "on": "push",
-  "jobs": {
-    "build": {
-      "runs-on": "ubuntu-latest",
-      "steps": [
-        {"uses": "actions/checkout@v4"}
-      ]
-    }
-  }
-}
--- invalid_workflow.json --
-{
-  "$schema": "https://json.schemastore.org/github-workflow.json",
-  "name": "CI",
-  "on": "push"
+  "additionalProperties": true
 }
 -- strict_schema.json --
 {
@@ -195,51 +189,6 @@ stdout '✓'
   },
   "additionalProperties": false
 }
--- valid_strict.json --
-{
-  "$schema": "strict_schema.json",
-  "host": "localhost",
-  "port": 5432,
-  "database": "myapp",
-  "ssl": true,
-  "log_level": "info"
-}
--- missing_required.json --
-{
-  "$schema": "strict_schema.json",
-  "host": "localhost",
-  "port": 5432
-}
--- wrong_type.json --
-{
-  "$schema": "strict_schema.json",
-  "host": "localhost",
-  "port": "not_a_number",
-  "database": "myapp"
-}
--- extra_property.json --
-{
-  "$schema": "strict_schema.json",
-  "host": "localhost",
-  "port": 5432,
-  "database": "myapp",
-  "unknown_field": true
-}
--- out_of_range.json --
-{
-  "$schema": "strict_schema.json",
-  "host": "localhost",
-  "port": 99999,
-  "database": "myapp"
-}
--- bad_enum.json --
-{
-  "$schema": "strict_schema.json",
-  "host": "localhost",
-  "port": 5432,
-  "database": "myapp",
-  "log_level": "verbose"
-}
 -- array_schema.json --
 {
   "type": "object",
@@ -251,6 +200,114 @@ stdout '✓'
       "items": { "type": "string" }
     }
   }
+}
+
+# ============================================================
+# Test data files
+# ============================================================
+
+-- valid_package.json --
+{
+  "$schema": "package_schema.json",
+  "name": "my-package",
+  "version": "1.0.0"
+}
+-- invalid_package.json --
+{
+  "$schema": "package_schema.json",
+  "name": "my-package",
+  "version": 123
+}
+-- valid_tsconfig.json --
+{
+  "$schema": "tsconfig_schema.json",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "strict": true
+  }
+}
+-- invalid_tsconfig.json --
+{
+  "$schema": "tsconfig_schema.json",
+  "compilerOptions": {
+    "target": 999,
+    "module": "commonjs"
+  }
+}
+-- valid_eslintrc.json --
+{
+  "$schema": "eslintrc_schema.json",
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "rules": {}
+}
+-- valid_workflow.json --
+{
+  "$schema": "workflow_schema.json",
+  "name": "CI",
+  "on": "push",
+  "jobs": {
+    "build": {
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {"uses": "actions/checkout@v4"}
+      ]
+    }
+  }
+}
+-- invalid_workflow.json --
+{
+  "$schema": "workflow_schema.json",
+  "name": "CI",
+  "on": "push"
+}
+-- valid_strict.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "myapp",
+  "ssl": true,
+  "log_level": "info"
+}
+-- missing_required.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 5432
+}
+-- wrong_type.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": "not_a_number",
+  "database": "myapp"
+}
+-- extra_property.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "myapp",
+  "unknown_field": true
+}
+-- out_of_range.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 99999,
+  "database": "myapp"
+}
+-- bad_enum.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "myapp",
+  "log_level": "verbose"
 }
 -- valid_array.json --
 {

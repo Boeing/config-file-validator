@@ -353,7 +353,7 @@ func Test_YAMLValidateSchemaNoSchema(t *testing.T) {
 func Test_YAMLValidateSchemaWithComment(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	yaml := "# yaml-language-server: $schema=" + schema + "\nhost: localhost\nport: 5432\ndatabase: mydb\n"
+	yaml := "# yaml-language-server: $schema=" + schema + "\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
 	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), filepath.Join(filepath.Dir(schema), "test.yaml"))
 	require.True(t, valid)
 	require.NoError(t, err)
@@ -362,7 +362,7 @@ func Test_YAMLValidateSchemaWithComment(t *testing.T) {
 func Test_YAMLValidateSchemaInvalid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	yaml := "# yaml-language-server: $schema=" + schema + "\nhost: localhost\nport: not_a_number\ndatabase: mydb\n"
+	yaml := "# yaml-language-server: $schema=" + schema + "\nhost: db.example.com\nport: not_a_number\ndatabase: mydb\n"
 	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), filepath.Join(filepath.Dir(schema), "test.yaml"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, "schema validation failed")
@@ -371,7 +371,7 @@ func Test_YAMLValidateSchemaInvalid(t *testing.T) {
 func Test_YAMLValidateSchemaCommentAfterBlank(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	yaml := "\n# yaml-language-server: $schema=" + schema + "\nhost: localhost\nport: 5432\ndatabase: mydb\n"
+	yaml := "\n# yaml-language-server: $schema=" + schema + "\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
 	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), filepath.Join(filepath.Dir(schema), "test.yaml"))
 	require.True(t, valid)
 	require.NoError(t, err)
@@ -396,7 +396,7 @@ func Test_TomlValidateSchemaNoSchema(t *testing.T) {
 func Test_TomlValidateSchemaValid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	toml := `"$schema" = "` + schema + "\"\nhost = \"localhost\"\nport = 5432\ndatabase = \"mydb\"\n"
+	toml := `"$schema" = "` + schema + "\"\nhost = \"db.example.com\"\nport = 5432\ndatabase = \"mydb\"\n"
 	valid, err := TomlValidator{}.ValidateSchema([]byte(toml), filepath.Join(filepath.Dir(schema), "test.toml"))
 	require.True(t, valid)
 	require.NoError(t, err)
@@ -405,7 +405,7 @@ func Test_TomlValidateSchemaValid(t *testing.T) {
 func Test_TomlValidateSchemaInvalid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	toml := `"$schema" = "` + schema + "\"\nhost = \"localhost\"\nport = \"not_a_number\"\ndatabase = \"mydb\"\n"
+	toml := `"$schema" = "` + schema + "\"\nhost = \"db.example.com\"\nport = \"not_a_number\"\ndatabase = \"mydb\"\n"
 	valid, err := TomlValidator{}.ValidateSchema([]byte(toml), filepath.Join(filepath.Dir(schema), "test.toml"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, "schema validation failed")
@@ -421,7 +421,7 @@ func Test_ToonValidateSchemaNoSchema(t *testing.T) {
 func Test_ToonValidateSchemaValid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	toonDoc := "\"$schema\": " + schema + "\nhost: localhost\nport: 5432\ndatabase: mydb\n"
+	toonDoc := "\"$schema\": " + schema + "\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
 	valid, err := ToonValidator{}.ValidateSchema([]byte(toonDoc), filepath.Join(filepath.Dir(schema), "test.toon"))
 	require.True(t, valid)
 	require.NoError(t, err)
@@ -430,7 +430,7 @@ func Test_ToonValidateSchemaValid(t *testing.T) {
 func Test_ToonValidateSchemaInvalid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	toonDoc := "\"$schema\": " + schema + "\nhost: localhost\nport: \"not_a_number\"\ndatabase: mydb\n"
+	toonDoc := "\"$schema\": " + schema + "\nhost: db.example.com\nport: \"not_a_number\"\ndatabase: mydb\n"
 	valid, err := ToonValidator{}.ValidateSchema([]byte(toonDoc), filepath.Join(filepath.Dir(schema), "test.toon"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, "schema validation failed")
@@ -466,4 +466,143 @@ func Test_extractYAMLSchemaComment(t *testing.T) {
 			require.Equal(t, tc.expected, got)
 		})
 	}
+}
+
+// --- MarshalToJSON tests ---
+
+func Test_JSONMarshalToJSON(t *testing.T) {
+	t.Parallel()
+	out, err := JSONValidator{}.MarshalToJSON([]byte(`{"$schema": "x", "key": "val"}`))
+	require.NoError(t, err)
+	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "key")
+}
+
+func Test_JSONMarshalToJSONArray(t *testing.T) {
+	t.Parallel()
+	out, err := JSONValidator{}.MarshalToJSON([]byte(`[1,2,3]`))
+	require.NoError(t, err)
+	require.Equal(t, "[1,2,3]", string(out))
+}
+
+func Test_JSONMarshalToJSONInvalid(t *testing.T) {
+	t.Parallel()
+	_, err := JSONValidator{}.MarshalToJSON([]byte(`{bad`))
+	require.Error(t, err)
+}
+
+func Test_YAMLMarshalToJSON(t *testing.T) {
+	t.Parallel()
+	out, err := YAMLValidator{}.MarshalToJSON([]byte("key: value\nnum: 42\n"))
+	require.NoError(t, err)
+	require.Contains(t, string(out), `"key":`)
+	require.Contains(t, string(out), `"num":`)
+}
+
+func Test_YAMLMarshalToJSONInvalid(t *testing.T) {
+	t.Parallel()
+	_, err := YAMLValidator{}.MarshalToJSON([]byte("a: b\nc: d:::::::::::::::"))
+	require.Error(t, err)
+}
+
+func Test_TomlMarshalToJSON(t *testing.T) {
+	t.Parallel()
+	out, err := TomlValidator{}.MarshalToJSON([]byte("\"$schema\" = \"x\"\nkey = \"val\"\n"))
+	require.NoError(t, err)
+	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "key")
+}
+
+func Test_TomlMarshalToJSONInvalid(t *testing.T) {
+	t.Parallel()
+	_, err := TomlValidator{}.MarshalToJSON([]byte("key = 123__456"))
+	require.Error(t, err)
+}
+
+func Test_ToonMarshalToJSON(t *testing.T) {
+	t.Parallel()
+	out, err := ToonValidator{}.MarshalToJSON([]byte("\"$schema\": x\nkey: val\n"))
+	require.NoError(t, err)
+	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "key")
+}
+
+func Test_ToonMarshalToJSONNonObject(t *testing.T) {
+	t.Parallel()
+	out, err := ToonValidator{}.MarshalToJSON([]byte("items[3]: 1, 2, 3\n"))
+	require.NoError(t, err)
+	require.NotNil(t, out)
+}
+
+func Test_ToonMarshalToJSONInvalid(t *testing.T) {
+	t.Parallel()
+	_, err := ToonValidator{}.MarshalToJSON([]byte("users2]{id}:\n  1,Alice\n"))
+	require.Error(t, err)
+}
+
+// --- resolveSchemaURL tests ---
+
+func Test_resolveSchemaURLHTTPS(t *testing.T) {
+	t.Parallel()
+	got := resolveSchemaURL("https://example.com/schema.json", "/some/file.json")
+	require.Equal(t, "https://example.com/schema.json", got)
+}
+
+func Test_resolveSchemaURLAbsPath(t *testing.T) {
+	t.Parallel()
+	got := resolveSchemaURL("/opt/schemas/schema.json", "/some/file.json")
+	require.Equal(t, "file:///opt/schemas/schema.json", got)
+}
+
+func Test_resolveSchemaURLRelative(t *testing.T) {
+	t.Parallel()
+	got := resolveSchemaURL("schema.json", "/project/config/file.json")
+	require.Equal(t, "file:///project/config/schema.json", got)
+}
+
+// --- ValidateSchema edge cases ---
+
+func Test_JSONValidateSchemaNonStringSchema(t *testing.T) {
+	t.Parallel()
+	// $schema is not a string
+	valid, err := JSONValidator{}.ValidateSchema([]byte(`{"$schema": 123}`), "")
+	require.True(t, valid)
+	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_TomlValidateSchemaEmptySchema(t *testing.T) {
+	t.Parallel()
+	valid, err := TomlValidator{}.ValidateSchema([]byte("\"$schema\" = \"\"\nkey = \"val\"\n"), "")
+	require.True(t, valid)
+	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_TomlValidateSchemaInvalidToml(t *testing.T) {
+	t.Parallel()
+	valid, err := TomlValidator{}.ValidateSchema([]byte("key = 123__456"), "")
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_ToonValidateSchemaEmptySchema(t *testing.T) {
+	t.Parallel()
+	valid, err := ToonValidator{}.ValidateSchema([]byte("\"$schema\": \"\"\nkey: val\n"), "")
+	require.True(t, valid)
+	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_ToonValidateSchemaInvalidToon(t *testing.T) {
+	t.Parallel()
+	valid, err := ToonValidator{}.ValidateSchema([]byte("users2]{id}:\n  1,Alice\n"), "")
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_YAMLValidateSchemaInvalidYAML(t *testing.T) {
+	t.Parallel()
+	// Valid YAML comment with schema, but invalid YAML body
+	yaml := "# yaml-language-server: $schema=https://example.com/s.json\na: b\nc: d:::::::::::::::\n"
+	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), "")
+	require.False(t, valid)
+	require.Error(t, err)
 }

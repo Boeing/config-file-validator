@@ -9,6 +9,7 @@ import (
 	"github.com/Boeing/config-file-validator/internal/testhelper"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/schemastore"
 )
 
 func Test_CLI(t *testing.T) {
@@ -253,4 +254,326 @@ func Test_CLITripleGroupJSON(t *testing.T) {
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaMapValid(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "config.json", `{"host": "db", "port": 5432}`)
+	schema := testhelper.WriteFile(t, dir, "schema.json", `{
+		"type": "object",
+		"properties": {
+			"host": {"type": "string"},
+			"port": {"type": "integer"}
+		},
+		"additionalProperties": false
+	}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/config.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"config.json": schema}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaMapInvalid(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "config.json", `{"host": "db", "port": "bad"}`)
+	schema := testhelper.WriteFile(t, dir, "schema.json", `{
+		"type": "object",
+		"properties": {
+			"host": {"type": "string"},
+			"port": {"type": "integer"}
+		}
+	}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/config.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"config.json": schema}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+}
+
+func Test_CLISchemaMapGlob(t *testing.T) {
+	dir := t.TempDir()
+	sub := testhelper.CreateSubdir(t, dir, "configs")
+	testhelper.WriteFile(t, sub, "db.json", `{"host": "db", "port": 5432}`)
+	schema := testhelper.WriteFile(t, dir, "schema.json", `{
+		"type": "object",
+		"properties": {
+			"host": {"type": "string"},
+			"port": {"type": "integer"}
+		}
+	}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(sub + "/db.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"**/configs/*.json": schema}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaMapYAML(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "config.yaml", "host: db\nport: 5432\n")
+	schema := testhelper.WriteFile(t, dir, "schema.json", `{
+		"type": "object",
+		"properties": {
+			"host": {"type": "string"},
+			"port": {"type": "integer"}
+		},
+		"additionalProperties": false
+	}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/config.yaml"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"config.yaml": schema}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaMapTOML(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "config.toml", "host = \"db\"\nport = 5432\n")
+	schema := testhelper.WriteFile(t, dir, "schema.json", `{
+		"type": "object",
+		"properties": {
+			"host": {"type": "string"},
+			"port": {"type": "integer"}
+		},
+		"additionalProperties": false
+	}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/config.toml"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"config.toml": schema}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaMapUnmatched(t *testing.T) {
+	// File doesn't match schema-map pattern — passes syntax-only
+	file := testhelper.CreateFixtureFile(t, "json")
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(file),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"other.json": "/nonexistent"}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaStoreValid(t *testing.T) {
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	testhelper.WriteFile(t, dir, "package.json", `{"name": "app", "version": "1.0.0"}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/package.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaStore(bundle),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaStoreInvalid(t *testing.T) {
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	testhelper.WriteFile(t, dir, "package.json", `{"name": "app", "version": 123}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/package.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaStore(bundle),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+}
+
+func Test_CLISchemaStoreUnmatched(t *testing.T) {
+	// File not in catalog — passes syntax-only
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	testhelper.WriteFile(t, dir, "random.json", `{"key": "value"}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/random.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaStore(bundle),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaMapPriorityOverStore(t *testing.T) {
+	// schema-map should win over schemastore
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	testhelper.WriteFile(t, dir, "package.json", `{"name": "app", "version": "1.0.0"}`)
+	strict := testhelper.WriteFile(t, dir, "strict.json", `{
+		"type": "object",
+		"required": ["id"],
+		"properties": {"id": {"type": "integer"}},
+		"additionalProperties": false
+	}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/package.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"package.json": strict}),
+		WithSchemaStore(bundle),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus) // fails against strict schema
+}
+
+func Test_CLIDocumentSchemaPriorityOverAll(t *testing.T) {
+	// Document $schema should win over schema-map and schemastore
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	ownSchema := testhelper.WriteFile(t, dir, "own.json", `{
+		"type": "object",
+		"properties": {"title": {"type": "string"}}
+	}`)
+	testhelper.WriteFile(t, dir, "package.json", `{"$schema": "`+ownSchema+`", "title": "hello"}`)
+	strict := testhelper.WriteFile(t, dir, "strict.json", `{
+		"type": "object",
+		"required": ["id"],
+		"additionalProperties": false
+	}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/package.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"package.json": strict}),
+		WithSchemaStore(bundle),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus) // passes against own schema
+}
+
+func Test_CLIRequireSchemaWithSchemaStore(t *testing.T) {
+	// Unmatched file + --require-schema + --schemastore should fail
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	testhelper.WriteFile(t, dir, "random.json", `{"key": "value"}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/random.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaStore(bundle),
+		WithRequireSchema(true),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+}
+
+func Test_CLINoSchema(t *testing.T) {
+	// File with $schema should pass syntax-only when --no-schema is set
+	dir := t.TempDir()
+	schema := testhelper.WriteFile(t, dir, "schema.json", `{
+		"type": "object",
+		"required": ["id"],
+		"additionalProperties": false
+	}`)
+	// This file would FAIL schema validation (missing "id", extra "name")
+	testhelper.WriteFile(t, dir, "config.json", `{"$schema": "`+schema+`", "name": "test"}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/config.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithNoSchema(true),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus) // passes because schema is skipped
+}
+
+func Test_CLINoSchemaWithSchemaStore(t *testing.T) {
+	// --no-schema skips schemastore matching too
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	// version:123 would fail against package.json schema
+	testhelper.WriteFile(t, dir, "package.json", `{"name": "app", "version": 123}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/package.json"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaStore(bundle),
+		WithNoSchema(true),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus) // passes because schema is skipped
+}
+
+func setupMiniSchemaStore(t *testing.T) *schemastore.Store {
+	t.Helper()
+	dir := t.TempDir()
+
+	catalogDir := dir + "/src/api/json"
+	require.NoError(t, os.MkdirAll(catalogDir, 0755))
+	schemaDir := dir + "/src/schemas/json"
+	require.NoError(t, os.MkdirAll(schemaDir, 0755))
+
+	catalog := `{"schemas":[{"name":"package.json","fileMatch":["package.json"],"url":"https://www.schemastore.org/package.json"}]}`
+	require.NoError(t, os.WriteFile(catalogDir+"/catalog.json", []byte(catalog), 0600))
+
+	pkgSchema := `{"type":"object","properties":{"name":{"type":"string"},"version":{"type":"string"}}}`
+	require.NoError(t, os.WriteFile(schemaDir+"/package.json", []byte(pkgSchema), 0600))
+
+	store, err := schemastore.Open(dir)
+	require.NoError(t, err)
+	return store
 }

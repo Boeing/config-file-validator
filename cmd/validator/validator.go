@@ -68,6 +68,7 @@ type validatorConfig struct {
 	quiet            *bool
 	globbing         *bool
 	requireSchema    *bool
+	noSchema         *bool
 	typeMap          typeMapFlags
 	schemaMap        schemaMapFlags
 	schemaStorePath  *string
@@ -168,6 +169,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
 		requireSchemaPtr    = flagSet.Bool("require-schema", false, "Fail validation if a file supports schema validation but does not declare a schema.")
+		noSchemaPtr         = flagSet.Bool("no-schema", false, "Disable all schema validation. Only syntax is checked.")
 		schemaStorePathPtr  = flagSet.String("schemastore", "", "Path to a local SchemaStore clone for automatic schema lookup.")
 	)
 	flagSet.Var(
@@ -228,6 +230,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		quietPtr,
 		globbingPrt,
 		requireSchemaPtr,
+		noSchemaPtr,
 		typeMapConfigFlags,
 		schemaMapConfigFlags,
 		schemaStorePathPtr,
@@ -396,6 +399,7 @@ func applyDefaultFlagsFromEnv() error {
 		"quiet":              "CFV_QUIET",
 		"globbing":           "CFV_GLOBBING",
 		"require-schema":     "CFV_REQUIRE_SCHEMA",
+		"no-schema":          "CFV_NO_SCHEMA",
 		"schemastore":        "CFV_SCHEMASTORE",
 	}
 
@@ -488,6 +492,12 @@ func mainInit() int {
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	quiet := *validatorConfig.quiet
 	requireSchema := *validatorConfig.requireSchema
+	noSchema := *validatorConfig.noSchema
+
+	if noSchema && (requireSchema || len(validatorConfig.schemaMap) > 0 || *validatorConfig.schemaStorePath != "") {
+		log.Print("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
+		return 1
+	}
 
 	schemaMap, err := parseSchemaMapFlags(validatorConfig.schemaMap)
 	if err != nil {
@@ -514,6 +524,7 @@ func mainInit() int {
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
 		cli.WithRequireSchema(requireSchema),
+		cli.WithNoSchema(noSchema),
 		cli.WithSchemaMap(schemaMap),
 		cli.WithSchemaStore(store),
 	)

@@ -1,0 +1,488 @@
+# ============================================================
+# Functional tests for --schemastore and --schema-map
+# Uses an embedded mini SchemaStore bundle
+# ============================================================
+
+# ============================================================
+# PART 1: --schemastore automatic matching (JSON)
+# ============================================================
+
+# Valid package.json
+exec validator --schemastore schemastore valid/package.json
+stdout '✓'
+
+# Invalid package.json (version must be string)
+! exec validator --schemastore schemastore invalid/package.json
+stdout '×'
+stdout 'schema validation failed'
+
+# Valid nodemon.json
+exec validator --schemastore schemastore valid/nodemon.json
+stdout '✓'
+
+# Invalid nodemon.json (unknown field, additionalProperties: false)
+! exec validator --schemastore schemastore invalid/nodemon.json
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 2: --schemastore automatic matching (YAML)
+# ============================================================
+
+# Valid GitHub workflow
+exec validator --schemastore schemastore valid/.github/workflows/ci.yml
+stdout '✓'
+
+# Invalid GitHub workflow (missing required 'jobs')
+! exec validator --schemastore schemastore invalid/.github/workflows/ci.yml
+stdout '×'
+stdout 'schema validation failed'
+
+# Valid artifacthub-repo.yml
+exec validator --schemastore schemastore valid/artifacthub-repo.yml
+stdout '✓'
+
+# Invalid artifacthub-repo.yml (additionalProperties: false)
+! exec validator --schemastore schemastore invalid/artifacthub-repo.yml
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 3: --schemastore automatic matching (TOML)
+# ============================================================
+
+# Valid stylua.toml
+exec validator --schemastore schemastore valid/stylua.toml
+stdout '✓'
+
+# Invalid stylua.toml (column_width must be integer)
+! exec validator --schemastore schemastore invalid/stylua.toml
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 4: --schemastore automatic matching (TOON)
+# ============================================================
+
+# Valid app.toon
+exec validator --schemastore schemastore valid/app.toon
+stdout '✓'
+
+# Invalid app.toon (port out of range)
+! exec validator --schemastore schemastore invalid/app.toon
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 5: Unmatched files pass syntax-only
+# ============================================================
+
+exec validator --schemastore schemastore valid/random.json
+stdout '✓'
+
+exec validator --schemastore schemastore valid/random.yaml
+stdout '✓'
+
+# ============================================================
+# PART 6: --require-schema with --schemastore
+# ============================================================
+
+# Matched file passes
+exec validator --schemastore schemastore --require-schema valid/package.json
+stdout '✓'
+
+# Unmatched JSON fails (supports schema but none found)
+! exec validator --schemastore schemastore --require-schema valid/random.json
+stdout '×'
+stdout 'no schema declared'
+
+# INI unaffected by --require-schema (no SchemaValidator)
+exec validator --schemastore schemastore --require-schema valid/good.ini
+stdout '✓'
+
+# ============================================================
+# PART 7: Document $schema takes priority over --schemastore
+# ============================================================
+
+# File declares its own $schema — that wins over schemastore catalog
+exec validator --schemastore schemastore valid/with_own_schema.json
+stdout '✓'
+
+# ============================================================
+# PART 8: --schema-map takes priority over --schemastore
+# ============================================================
+
+# schema-map points to strict schema that rejects the file
+! exec validator --schema-map=package.json:strict_schema.json --schemastore schemastore valid/package.json
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 9: --schema-map with YAML
+# ============================================================
+
+exec validator --schema-map=config.yaml:server_schema.json valid/config.yaml
+stdout '✓'
+
+! exec validator --schema-map=config.yaml:server_schema.json invalid/config.yaml
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 10: --schema-map with TOML
+# ============================================================
+
+exec validator --schema-map=config.toml:server_schema.json valid/config.toml
+stdout '✓'
+
+! exec validator --schema-map=config.toml:server_schema.json invalid/config.toml
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 11: --schema-map with TOON
+# ============================================================
+
+exec validator --schema-map=config.toon:server_schema.json valid/config.toon
+stdout '✓'
+
+! exec validator --schema-map=config.toon:server_schema.json invalid/config.toon
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 12: --schema-map with glob patterns
+# ============================================================
+
+exec validator --schema-map=**/configs/*.json:server_schema.json valid/configs/db.json
+stdout '✓'
+
+! exec validator --schema-map=**/configs/*.json:server_schema.json invalid/configs/db.json
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# PART 13: Multiple files, mixed results
+# ============================================================
+
+! exec validator --schemastore schemastore valid/package.json invalid/package.json valid/nodemon.json valid/random.json
+stdout '✓.*valid/package\.json'
+stdout '×.*invalid/package\.json'
+stdout '✓.*valid/nodemon\.json'
+stdout '✓.*valid/random\.json'
+
+# ============================================================
+# PART 14: External-only schema in catalog is skipped
+# ============================================================
+
+# external.json matches catalog but URL is not schemastore.org — passes syntax-only
+exec validator --schemastore schemastore valid/external.json
+stdout '✓'
+
+# ============================================================
+# PART 15: --schemastore with invalid path
+# ============================================================
+
+! exec validator --schemastore /nonexistent/path .
+stderr 'opening schemastore'
+
+# ============================================================
+# PART 16: --schema-map invalid format
+# ============================================================
+
+! exec validator --schema-map=badformat .
+stderr 'invalid schema-map format'
+
+# ============================================================
+# Mini SchemaStore bundle
+# ============================================================
+
+-- schemastore/src/api/json/catalog.json --
+{
+  "schemas": [
+    {
+      "name": "package.json",
+      "fileMatch": ["package.json"],
+      "url": "https://www.schemastore.org/package.json"
+    },
+    {
+      "name": "nodemon.json",
+      "fileMatch": ["nodemon.json"],
+      "url": "https://www.schemastore.org/nodemon.json"
+    },
+    {
+      "name": "GitHub Workflow",
+      "fileMatch": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"],
+      "url": "https://www.schemastore.org/github-workflow.json"
+    },
+    {
+      "name": "artifacthub-repo.yml",
+      "fileMatch": ["artifacthub-repo.yml"],
+      "url": "https://www.schemastore.org/artifacthub-repo.json"
+    },
+    {
+      "name": "StyLua",
+      "fileMatch": ["stylua.toml", ".stylua.toml"],
+      "url": "https://www.schemastore.org/stylua.json"
+    },
+    {
+      "name": "App Config",
+      "fileMatch": ["app.toon"],
+      "url": "https://www.schemastore.org/app-config.json"
+    },
+    {
+      "name": "External Only",
+      "fileMatch": ["external.json"],
+      "url": "https://example.com/external.json"
+    }
+  ]
+}
+-- schemastore/src/schemas/json/package.json --
+{
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "main": { "type": "string" },
+    "scripts": { "type": "object" },
+    "license": { "type": "string" },
+    "private": { "type": "boolean" },
+    "dependencies": { "type": "object" },
+    "devDependencies": { "type": "object" }
+  }
+}
+-- schemastore/src/schemas/json/nodemon.json --
+{
+  "type": "object",
+  "properties": {
+    "watch": { "type": "array", "items": { "type": "string" } },
+    "ext": { "type": "string" },
+    "ignore": { "type": "array", "items": { "type": "string" } },
+    "delay": { "type": ["number", "string"] },
+    "exec": { "type": "string" },
+    "verbose": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}
+-- schemastore/src/schemas/json/github-workflow.json --
+{
+  "type": "object",
+  "required": ["on", "jobs"],
+  "properties": {
+    "name": { "type": "string" },
+    "on": {},
+    "jobs": { "type": "object" },
+    "env": { "type": "object" },
+    "permissions": {}
+  },
+  "additionalProperties": true
+}
+-- schemastore/src/schemas/json/artifacthub-repo.json --
+{
+  "type": "object",
+  "properties": {
+    "repositoryID": { "type": "string" },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "email"],
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
+-- schemastore/src/schemas/json/stylua.json --
+{
+  "type": "object",
+  "properties": {
+    "column_width": { "type": "integer" },
+    "indent_type": { "enum": ["Tabs", "Spaces"] },
+    "indent_width": { "type": "integer" },
+    "line_endings": { "enum": ["Unix", "Windows"] },
+    "quote_style": { "enum": ["AutoPreferDouble", "AutoPreferSingle", "ForceDouble", "ForceSingle"] }
+  },
+  "additionalProperties": false
+}
+-- schemastore/src/schemas/json/app-config.json --
+{
+  "type": "object",
+  "required": ["name", "port"],
+  "properties": {
+    "name": { "type": "string" },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "debug": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}
+
+# ============================================================
+# Local schemas for --schema-map tests
+# ============================================================
+
+-- server_schema.json --
+{
+  "type": "object",
+  "required": ["host", "port", "database"],
+  "properties": {
+    "host": { "type": "string" },
+    "port": { "type": "integer" },
+    "database": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+-- strict_schema.json --
+{
+  "type": "object",
+  "required": ["id"],
+  "properties": {
+    "id": { "type": "integer" }
+  },
+  "additionalProperties": false
+}
+
+# ============================================================
+# Valid test files
+# ============================================================
+
+-- valid/package.json --
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "description": "A test application",
+  "main": "index.js",
+  "scripts": { "start": "node index.js", "test": "jest" },
+  "license": "MIT",
+  "dependencies": { "express": "^4.18.0" },
+  "devDependencies": { "jest": "^29.0.0" }
+}
+-- valid/nodemon.json --
+{
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": ["dist"],
+  "delay": 1000,
+  "exec": "ts-node src/index.ts",
+  "verbose": true
+}
+-- valid/random.json --
+{"anything": "goes", "no": "schema"}
+-- valid/external.json --
+{"key": "value"}
+-- valid/with_own_schema.json --
+{
+  "$schema": "own_schema.json",
+  "title": "hello"
+}
+-- valid/own_schema.json --
+{
+  "type": "object",
+  "properties": { "title": { "type": "string" } }
+}
+-- valid/.github/workflows/ci.yml --
+name: CI
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Hello"
+-- valid/artifacthub-repo.yml --
+repositoryID: "12345678-1234-1234-1234-123456789012"
+owners:
+  - name: Alice
+    email: alice@example.com
+-- valid/random.yaml --
+key: value
+list:
+  - one
+  - two
+-- valid/config.yaml --
+host: db.example.com
+port: 5432
+database: myapp
+-- valid/stylua.toml --
+column_width = 120
+indent_type = "Spaces"
+indent_width = 4
+line_endings = "Unix"
+quote_style = "AutoPreferDouble"
+-- valid/config.toml --
+host = "db.example.com"
+port = 5432
+database = "myapp"
+-- valid/app.toon --
+name: my-service
+port: 8080
+debug: true
+-- valid/config.toon --
+host: db.example.com
+port: 5432
+database: myapp
+-- valid/configs/db.json --
+{
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "myapp"
+}
+-- valid/good.ini --
+[section]
+key=value
+
+# ============================================================
+# Invalid test files
+# ============================================================
+
+-- invalid/package.json --
+{
+  "name": "my-app",
+  "version": 123,
+  "description": "A test application"
+}
+-- invalid/nodemon.json --
+{
+  "watch": ["src"],
+  "ext": "ts",
+  "delay": 1000,
+  "unknown_field": true
+}
+-- invalid/.github/workflows/ci.yml --
+name: CI
+on: push
+-- invalid/artifacthub-repo.yml --
+repositoryID: "12345678"
+owners:
+  - name: Alice
+    email: alice@example.com
+extra_field: not_allowed
+-- invalid/stylua.toml --
+column_width = "not_a_number"
+indent_type = "Spaces"
+-- invalid/config.yaml --
+host: db.example.com
+port: "not_a_number"
+database: myapp
+-- invalid/config.toml --
+host = "db.example.com"
+port = "not_a_number"
+database = "myapp"
+-- invalid/app.toon --
+name: my-service
+port: 99999
+debug: true
+-- invalid/config.toon --
+host: db.example.com
+port: "not_a_number"
+database: myapp
+-- invalid/configs/db.json --
+{
+  "host": "db.example.com",
+  "port": "not_a_number",
+  "database": "myapp"
+}
