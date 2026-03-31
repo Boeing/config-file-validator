@@ -1,8 +1,3 @@
-# type-map + schema (all valid)
-exec validator --type-map='**/inventory:ini' --schema=sarif inventory report.sarif
-stdout '✓.*inventory'
-stdout '✓.*report.sarif'
-
 # type-map + exclude-dirs
 exec validator --type-map='**/inventory:ini' --exclude-dirs=vendor project
 stdout '✓.*inventory'
@@ -30,18 +25,16 @@ exec validator --exclude-file-types=json --type-map='**/inventory:ini' project
 stdout '✓.*inventory'
 ! stdout '.json'
 
+# type-map + require-schema
+exec validator --type-map='**/inventory:ini' --require-schema inventory
+stdout '✓.*inventory'
+
 # Everything at once
-exec validator --type-map='**/inventory:ini' --schema=sarif --exclude-dirs=vendor --depth=3 --quiet inventory report.sarif
+exec validator --type-map='**/inventory:ini' --exclude-dirs=vendor --depth=3 --quiet inventory
 
 -- inventory --
 [servers]
 host=10.0.0.1
--- report.sarif --
-{
-  "version": "2.1.0",
-  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
-  "runs": [{"tool": {"driver": {"name": "test", "language": "en"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
-}
 -- project/good.json --
 {"key": "value"}
 -- project/configs/inventory --

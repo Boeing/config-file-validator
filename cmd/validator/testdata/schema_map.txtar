@@ -1,0 +1,58 @@
+# --schema-map with exact filename match
+exec validator --schema-map=config.json:schema.json config.json
+stdout '✓'
+
+# --schema-map with invalid data fails
+! exec validator --schema-map=bad.json:schema.json bad.json
+stdout '×'
+stdout 'schema validation failed'
+
+# --schema-map with glob pattern
+exec validator --schema-map=**/*.json:schema.json subdir/config.json
+stdout '✓'
+
+# --schema-map does not affect unmatched files
+exec validator --schema-map=config.json:schema.json other.json
+stdout '✓'
+
+# Document $schema takes priority over --schema-map
+exec validator --schema-map=with_schema.json:strict_schema.json with_schema.json
+stdout '✓'
+
+# Invalid --schema-map format
+! exec validator --schema-map=badformat .
+stderr 'invalid schema-map format'
+
+-- schema.json --
+{
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+-- strict_schema.json --
+{
+  "type": "object",
+  "required": ["host"],
+  "properties": {
+    "host": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+-- config.json --
+{"name": "test", "version": "1.0"}
+-- bad.json --
+{"name": 123}
+-- subdir/config.json --
+{"name": "nested", "version": "2.0"}
+-- other.json --
+{"anything": "goes"}
+-- with_schema.json --
+{
+  "$schema": "schema.json",
+  "name": "test",
+  "version": "1.0"
+}

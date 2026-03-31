@@ -1,0 +1,331 @@
+# ============================================================
+# JSON $schema validation tests (all local, no network)
+# ============================================================
+
+# --- package.json schema ---
+
+# Valid package.json
+exec validator valid_package.json
+stdout '✓'
+
+# Invalid package.json (version must be string)
+! exec validator invalid_package.json
+stdout '×'
+stdout 'schema validation failed'
+
+# --- tsconfig.json schema ---
+
+# Valid tsconfig.json
+exec validator valid_tsconfig.json
+stdout '✓'
+
+# Invalid tsconfig.json (target must be string)
+! exec validator invalid_tsconfig.json
+stdout '×'
+stdout 'schema validation failed'
+
+# --- eslintrc schema ---
+
+# Valid eslintrc
+exec validator valid_eslintrc.json
+stdout '✓'
+
+# --- workflow schema ---
+
+# Valid workflow
+exec validator valid_workflow.json
+stdout '✓'
+
+# Invalid workflow (missing required jobs)
+! exec validator invalid_workflow.json
+stdout '×'
+stdout 'schema validation failed'
+
+# --- Strict config schema ---
+
+# Valid
+exec validator valid_strict.json
+stdout '✓'
+
+# Missing required field
+! exec validator missing_required.json
+stdout '×'
+stdout 'schema validation failed'
+
+# Wrong type
+! exec validator wrong_type.json
+stdout '×'
+stdout 'schema validation failed'
+
+# Extra property not allowed
+! exec validator extra_property.json
+stdout '×'
+stdout 'schema validation failed'
+
+# Value out of range
+! exec validator out_of_range.json
+stdout '×'
+stdout 'schema validation failed'
+
+# Enum violation
+! exec validator bad_enum.json
+stdout '×'
+stdout 'schema validation failed'
+
+# --- Array schema ---
+
+# Valid array
+exec validator valid_array.json
+stdout '✓'
+
+# Too few items
+! exec validator too_few_items.json
+stdout '×'
+stdout 'schema validation failed'
+
+# Wrong item type
+! exec validator wrong_item_type.json
+stdout '×'
+stdout 'schema validation failed'
+
+# --- Mixed: files with and without $schema ---
+
+# File without $schema passes (syntax only)
+exec validator no_schema.json
+stdout '✓'
+
+# --require-schema fails file without $schema
+! exec validator --require-schema no_schema.json
+stdout 'no schema declared'
+
+# --require-schema passes file with $schema
+exec validator --require-schema valid_strict.json
+stdout '✓'
+
+# Multiple files: one with schema, one without
+exec validator valid_strict.json no_schema.json
+stdout '✓.*valid_strict'
+stdout '✓.*no_schema'
+
+# Multiple files with --require-schema: one fails
+! exec validator --require-schema valid_strict.json no_schema.json
+stdout '✓.*valid_strict'
+stdout '×.*no_schema'
+
+# --- Non-JSON files without SchemaValidator unaffected ---
+
+exec validator good.ini
+stdout '✓'
+
+exec validator --require-schema good.ini
+stdout '✓'
+
+# ============================================================
+# Local schema files
+# ============================================================
+
+-- package_schema.json --
+{
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "main": { "type": "string" },
+    "scripts": { "type": "object" },
+    "license": { "type": "string" },
+    "dependencies": { "type": "object" },
+    "devDependencies": { "type": "object" }
+  }
+}
+-- tsconfig_schema.json --
+{
+  "type": "object",
+  "properties": {
+    "compilerOptions": {
+      "type": "object",
+      "properties": {
+        "target": { "type": "string" },
+        "module": { "type": "string" },
+        "strict": { "type": "boolean" }
+      }
+    },
+    "include": { "type": "array", "items": { "type": "string" } },
+    "exclude": { "type": "array", "items": { "type": "string" } }
+  }
+}
+-- eslintrc_schema.json --
+{
+  "type": "object",
+  "properties": {
+    "env": { "type": "object" },
+    "extends": {},
+    "rules": { "type": "object" },
+    "plugins": { "type": "array" },
+    "root": { "type": "boolean" }
+  }
+}
+-- workflow_schema.json --
+{
+  "type": "object",
+  "required": ["on", "jobs"],
+  "properties": {
+    "name": { "type": "string" },
+    "on": {},
+    "jobs": { "type": "object" }
+  },
+  "additionalProperties": true
+}
+-- strict_schema.json --
+{
+  "type": "object",
+  "required": ["host", "port", "database"],
+  "properties": {
+    "host": { "type": "string", "minLength": 1 },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "database": { "type": "string" },
+    "ssl": { "type": "boolean" },
+    "log_level": { "type": "string", "enum": ["debug", "info", "warn", "error"] }
+  },
+  "additionalProperties": false
+}
+-- array_schema.json --
+{
+  "type": "object",
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    }
+  }
+}
+
+# ============================================================
+# Test data files
+# ============================================================
+
+-- valid_package.json --
+{
+  "$schema": "package_schema.json",
+  "name": "my-package",
+  "version": "1.0.0"
+}
+-- invalid_package.json --
+{
+  "$schema": "package_schema.json",
+  "name": "my-package",
+  "version": 123
+}
+-- valid_tsconfig.json --
+{
+  "$schema": "tsconfig_schema.json",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "strict": true
+  }
+}
+-- invalid_tsconfig.json --
+{
+  "$schema": "tsconfig_schema.json",
+  "compilerOptions": {
+    "target": 999,
+    "module": "commonjs"
+  }
+}
+-- valid_eslintrc.json --
+{
+  "$schema": "eslintrc_schema.json",
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "rules": {}
+}
+-- valid_workflow.json --
+{
+  "$schema": "workflow_schema.json",
+  "name": "CI",
+  "on": "push",
+  "jobs": {
+    "build": {
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {"uses": "actions/checkout@v4"}
+      ]
+    }
+  }
+}
+-- invalid_workflow.json --
+{
+  "$schema": "workflow_schema.json",
+  "name": "CI",
+  "on": "push"
+}
+-- valid_strict.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "myapp",
+  "ssl": true,
+  "log_level": "info"
+}
+-- missing_required.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 5432
+}
+-- wrong_type.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": "not_a_number",
+  "database": "myapp"
+}
+-- extra_property.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "myapp",
+  "unknown_field": true
+}
+-- out_of_range.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 99999,
+  "database": "myapp"
+}
+-- bad_enum.json --
+{
+  "$schema": "strict_schema.json",
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "myapp",
+  "log_level": "verbose"
+}
+-- valid_array.json --
+{
+  "$schema": "array_schema.json",
+  "items": ["one", "two", "three"]
+}
+-- too_few_items.json --
+{
+  "$schema": "array_schema.json",
+  "items": []
+}
+-- wrong_item_type.json --
+{
+  "$schema": "array_schema.json",
+  "items": ["valid", 123, "also_valid"]
+}
+-- no_schema.json --
+{"key": "value"}
+-- good.ini --
+[section]
+key=value

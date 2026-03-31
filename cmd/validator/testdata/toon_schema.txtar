@@ -1,0 +1,45 @@
+# TOON with "$schema" validates against local schema
+exec validator valid.toon
+stdout '✓'
+
+# TOON with invalid data fails schema validation
+! exec validator invalid.toon
+stdout '×'
+stdout 'schema validation failed'
+
+# TOON without $schema passes (syntax only)
+exec validator plain.toon
+stdout '✓'
+
+# TOON without $schema + --require-schema fails
+! exec validator --require-schema plain.toon
+stdout '×'
+stdout 'no schema declared'
+
+# TOON with $schema + --require-schema passes
+exec validator --require-schema valid.toon
+stdout '✓'
+
+-- schema.json --
+{
+  "type": "object",
+  "required": ["host", "port"],
+  "properties": {
+    "host": { "type": "string" },
+    "port": { "type": "integer" },
+    "debug": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}
+-- valid.toon --
+"$schema": schema.json
+host: localhost
+port: 5432
+debug: true
+-- invalid.toon --
+"$schema": schema.json
+host: localhost
+port: "not_a_number"
+-- plain.toon --
+host: localhost
+port: 5432

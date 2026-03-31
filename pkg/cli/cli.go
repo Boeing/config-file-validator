@@ -1,47 +1,42 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"slices"
+	"path/filepath"
 
-	"github.com/Boeing/config-file-validator/pkg/filetype"
+	"github.com/bmatcuk/doublestar/v4"
+
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/pkg/validator"
 )
 
-// GroupOutput is a global variable that is used to
-// store the group by options that the user specifies
 var (
-	GroupOutput          []string
-	Quiet                bool
-	errorFound           bool
-	SchemaCheckFileTypes []string
+	GroupOutput   []string
+	Quiet         bool
+	RequireSchema bool
+	NoSchema      bool
+	SchemaMap     map[string]string
+	SchemaStore   *schemastore.Store
+	errorFound    bool
 )
 
 type CLI struct {
-	// FileFinder interface to search for the files
-	// in the SearchPath
-	Finder finder.FileFinder
-	// Reporter interface for outputting the results of
-	// the CLI run
+	Finder    finder.FileFinder
 	Reporters []reporter.Reporter
 }
 
-// Implement the go options pattern to be able to
-// set options to the CLI struct using functional
-// programming
 type Option func(*CLI)
 
-// Set the CLI Finder
 func WithFinder(f finder.FileFinder) Option {
 	return func(c *CLI) {
 		c.Finder = f
 	}
 }
 
-// Set the reporter types
 func WithReporters(r ...reporter.Reporter) Option {
 	return func(c *CLI) {
 		c.Reporters = r
@@ -60,21 +55,40 @@ func WithQuiet(quiet bool) Option {
 	}
 }
 
-func WithSchemaCheckTypes(types []string) Option {
+func WithRequireSchema(require bool) Option {
 	return func(_ *CLI) {
-		SchemaCheckFileTypes = types
+		RequireSchema = require
 	}
 }
 
-// Initialize the CLI object
+func WithNoSchema(noSchema bool) Option {
+	return func(_ *CLI) {
+		NoSchema = noSchema
+	}
+}
+
+func WithSchemaMap(m map[string]string) Option {
+	return func(_ *CLI) {
+		SchemaMap = m
+	}
+}
+
+func WithSchemaStore(s *schemastore.Store) Option {
+	return func(_ *CLI) {
+		SchemaStore = s
+	}
+}
+
 func Init(opts ...Option) *CLI {
 	defaultFsFinder := finder.FileSystemFinderInit()
 	defaultReporter := reporter.NewStdoutReporter("")
 
-	// Reset global state
 	GroupOutput = nil
 	Quiet = false
-	SchemaCheckFileTypes = nil
+	RequireSchema = false
+	NoSchema = false
+	SchemaMap = nil
+	SchemaStore = nil
 
 	cli := &CLI{
 		defaultFsFinder,
@@ -88,18 +102,8 @@ func Init(opts ...Option) *CLI {
 	return cli
 }
 
-// The Run method performs the following actions:
-// - Finds the calls the Find method from the Finder interface to
-// return a list of files
-// - Reads each file that was found
-// - Calls the Validate method from the Validator interface to validate the file
-// - Outputs the results using the Reporters
 func (c CLI) Run() (int, error) {
 	errorFound = false
-
-	if err := validateCapabilities(); err != nil {
-		return 1, err
-	}
 
 	var reports []reporter.Report
 	foundFiles, err := c.Finder.Find()
@@ -108,18 +112,17 @@ func (c CLI) Run() (int, error) {
 	}
 
 	for _, fileToValidate := range foundFiles {
-		// read it
 		fileContent, err := os.ReadFile(fileToValidate.Path)
 		if err != nil {
 			return 1, fmt.Errorf("unable to read file: %w", err)
 		}
 
 		isValid, err := fileToValidate.FileType.Validator.ValidateSyntax(fileContent)
-		if isValid && slices.Contains(SchemaCheckFileTypes, fileToValidate.FileType.Name) {
-			if sv, ok := fileToValidate.FileType.Validator.(validator.SchemaValidator); ok {
-				isValid, err = sv.ValidateSchema(fileContent)
-			}
+
+		if isValid {
+			isValid, err = validateSchema(fileToValidate.FileType.Validator, fileContent, fileToValidate.Path)
 		}
+
 		report := reporter.Report{
 			FileName:        fileToValidate.Name,
 			FilePath:        fileToValidate.Path,
@@ -131,7 +134,6 @@ func (c CLI) Run() (int, error) {
 			errorFound = true
 		}
 		reports = append(reports, report)
-
 	}
 
 	err = c.printReports(reports)
@@ -146,29 +148,96 @@ func (c CLI) Run() (int, error) {
 	return 0, nil
 }
 
-// validateCapabilities checks that all file types requested for format or schema
-// validation actually implement the corresponding optional interface.
-func validateCapabilities() error {
-	fileTypeMap := make(map[string]validator.Validator)
-	for _, ft := range filetype.FileTypes {
-		fileTypeMap[ft.Name] = ft.Validator
+func validateSchema(v validator.Validator, content []byte, filePath string) (bool, error) {
+	if NoSchema {
+		return true, nil
 	}
 
-	for _, name := range SchemaCheckFileTypes {
-		v, ok := fileTypeMap[name]
-		if !ok {
-			continue
-		}
-		if _, ok := v.(validator.SchemaValidator); !ok {
-			return fmt.Errorf("schema validation is not supported for file type %q", name)
+	// 1. Try document-declared schema
+	sv, hasSV := v.(validator.SchemaValidator)
+	if hasSV {
+		valid, err := sv.ValidateSchema(content, filePath)
+		if !errors.Is(err, validator.ErrNoSchema) {
+			return valid, err
 		}
 	}
 
-	return nil
+	// 2. Try --schema-map
+	if schemaPath, ok := lookupSchemaMap(filePath); ok {
+		return validateWithExternal(v, content, schemaPath)
+	}
+
+	// 3. Try --schemastore
+	if SchemaStore != nil {
+		if schemaPath, ok := SchemaStore.Lookup(filePath); ok {
+			return validateWithExternal(v, content, schemaPath)
+		}
+	}
+
+	// 4. No schema found
+	if hasSV && RequireSchema {
+		return false, validator.ErrNoSchema
+	}
+	return true, nil
 }
 
-// printReports prints the reports based on the specified grouping and reporter type.
-// It returns any error encountered during the printing process.
+func lookupSchemaMap(filePath string) (string, bool) {
+	if len(SchemaMap) == 0 {
+		return "", false
+	}
+	baseName := filepath.Base(filePath)
+	for pattern, schemaPath := range SchemaMap {
+		if !isGlobPattern(pattern) {
+			if pattern == baseName {
+				return schemaPath, true
+			}
+			continue
+		}
+		matched, err := doublestar.PathMatch(pattern, filePath)
+		if err == nil && matched {
+			return schemaPath, true
+		}
+	}
+	return "", false
+}
+
+func isGlobPattern(s string) bool {
+	for _, c := range s {
+		if c == '*' || c == '?' || c == '[' {
+			return true
+		}
+	}
+	return false
+}
+
+func validateWithExternal(v validator.Validator, content []byte, schemaPath string) (bool, error) {
+	// XML uses XSD validation, not JSON Schema
+	if _, ok := v.(validator.XMLSchemaValidator); ok {
+		absSchema, err := filepath.Abs(schemaPath)
+		if err != nil {
+			return false, fmt.Errorf("resolving schema path: %w", err)
+		}
+		return validator.ValidateXSD(content, absSchema)
+	}
+
+	jm, ok := v.(validator.JSONMarshaler)
+	if !ok {
+		return true, nil
+	}
+
+	absSchema, err := filepath.Abs(schemaPath)
+	if err != nil {
+		return false, fmt.Errorf("resolving schema path: %w", err)
+	}
+
+	docJSON, err := jm.MarshalToJSON(content)
+	if err != nil {
+		return false, err
+	}
+
+	return validator.JSONSchemaValidate("file://"+absSchema, docJSON)
+}
+
 func (c CLI) printReports(reports []reporter.Report) error {
 	if len(GroupOutput) == 1 && GroupOutput[0] != "" {
 		return c.printGroupSingle(reports)
@@ -195,7 +264,6 @@ func (c CLI) printGroupSingle(reports []reporter.Report) error {
 		return fmt.Errorf("unable to group by single value: %w", err)
 	}
 
-	// Check reporter type to determine how to print
 	for _, reporterObj := range c.Reporters {
 		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
 			return reporter.PrintSingleGroupJSON(reportGroup)
@@ -211,7 +279,6 @@ func (c CLI) printGroupDouble(reports []reporter.Report) error {
 		return fmt.Errorf("unable to group by double value: %w", err)
 	}
 
-	// Check reporter type to determine how to print
 	for _, reporterObj := range c.Reporters {
 		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
 			return reporter.PrintDoubleGroupJSON(reportGroup)

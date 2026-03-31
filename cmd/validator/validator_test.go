@@ -24,11 +24,11 @@ func Test_getFlags(t *testing.T) {
 		{"sarif reporter", []string{"--reporter=sarif", "."}, false},
 		{"json and junit reporter", []string{"--reporter=json:-", "--reporter=junit:-", "."}, false},
 		{"groupby directory", []string{"-groupby=directory", "."}, false},
-		{"schema sarif", []string{"--schema=sarif", "."}, false},
 		{"version flag", []string{"--version"}, false},
 		{"exclude file types with empty element", []string{"--exclude-file-types=json,,yaml", "."}, false},
 		{"type-map", []string{"--type-map=**/inventory:ini", "."}, false},
 		{"multiple type-maps", []string{"--type-map=**/inventory:ini", "--type-map=**/configs/*:properties", "."}, false},
+		{"require-schema", []string{"--require-schema", "."}, false},
 
 		// Invalid flag combinations
 		{"negative depth", []string{"-depth=-1", "."}, true},
@@ -38,7 +38,6 @@ func Test_getFlags(t *testing.T) {
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, true},
 		{"grouped junit", []string{"-groupby=directory", "--reporter=junit", "."}, true},
 		{"grouped sarif", []string{"-groupby=directory", "--reporter=sarif", "."}, true},
-		{"invalid schema type", []string{"--schema=notreal", "."}, true},
 		{"invalid exclude file type", []string{"--exclude-file-types=notreal", "."}, true},
 		{"invalid file type", []string{"--file-types=notreal", "."}, true},
 		{"file-types and exclude-file-types together", []string{"--file-types=json", "--exclude-file-types=yaml", "."}, true},
@@ -62,12 +61,12 @@ func Test_getFlags(t *testing.T) {
 }
 
 func Test_getFlagsValues(t *testing.T) {
-	cfg, err := getFlags([]string{"-depth=3", "--exclude-dirs=vendor,node_modules", "--schema=sarif", "."})
+	cfg, err := getFlags([]string{"-depth=3", "--exclude-dirs=vendor,node_modules", "--require-schema", "."})
 	require.NoError(t, err)
 
 	require.Equal(t, 3, *cfg.depth)
 	require.Equal(t, "vendor,node_modules", *cfg.excludeDirs)
-	require.Equal(t, "sarif", *cfg.schema)
+	require.True(t, *cfg.requireSchema)
 	require.Equal(t, []string{"."}, cfg.searchPaths)
 }
 
@@ -87,25 +86,6 @@ func Test_getExcludeFileTypes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.ElementsMatch(t, tc.expected, getExcludeFileTypes(tc.input))
-		})
-	}
-}
-
-func Test_getSchemaFileTypes(t *testing.T) {
-	cases := []struct {
-		name     string
-		input    string
-		expected []string
-	}{
-		{"empty", "", []string{}},
-		{"sarif", "sarif", []string{"sarif"}},
-		{"multiple", "sarif,json", []string{"sarif", "json"}},
-		{"dedup", "sarif,sarif", []string{"sarif"}},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			require.ElementsMatch(t, tc.expected, getSchemaFileTypes(tc.input))
 		})
 	}
 }

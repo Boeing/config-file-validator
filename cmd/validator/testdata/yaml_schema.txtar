@@ -1,0 +1,57 @@
+# YAML with schema comment validates against local schema
+exec validator valid.yaml
+stdout '✓'
+
+# YAML with invalid data fails schema validation
+! exec validator invalid.yaml
+stdout '×'
+stdout 'schema validation failed'
+
+# YAML without schema comment passes (syntax only)
+exec validator plain.yaml
+stdout '✓'
+
+# YAML without schema + --require-schema fails
+! exec validator --require-schema plain.yaml
+stdout '×'
+stdout 'no schema declared'
+
+# YAML with schema + --require-schema passes
+exec validator --require-schema valid.yaml
+stdout '✓'
+
+# YAML with schema comment after content line is ignored (no schema)
+exec validator comment_after_content.yaml
+stdout '✓'
+
+# That same file fails with --require-schema
+! exec validator --require-schema comment_after_content.yaml
+stdout 'no schema declared'
+
+-- schema.json --
+{
+  "type": "object",
+  "required": ["host", "port"],
+  "properties": {
+    "host": { "type": "string" },
+    "port": { "type": "integer" },
+    "debug": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}
+-- valid.yaml --
+# yaml-language-server: $schema=schema.json
+host: localhost
+port: 5432
+debug: true
+-- invalid.yaml --
+# yaml-language-server: $schema=schema.json
+host: localhost
+port: not_a_number
+-- plain.yaml --
+host: localhost
+port: 5432
+-- comment_after_content.yaml --
+host: localhost
+# yaml-language-server: $schema=schema.json
+port: 5432
