@@ -577,3 +577,59 @@ func setupMiniSchemaStore(t *testing.T) *schemastore.Store {
 	require.NoError(t, err)
 	return store
 }
+
+func Test_CLISchemaMapXMLValid(t *testing.T) {
+	dir := t.TempDir()
+	xsdContent := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="host" type="xs:string"/>
+        <xs:element name="port" type="xs:integer"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`
+	schemaPath := testhelper.WriteFile(t, dir, "schema.xsd", xsdContent)
+	testhelper.WriteFile(t, dir, "config.xml", `<?xml version="1.0"?><config><host>db</host><port>5432</port></config>`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/config.xml"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"config.xml": schemaPath}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaMapXMLInvalid(t *testing.T) {
+	dir := t.TempDir()
+	xsdContent := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="host" type="xs:string"/>
+        <xs:element name="port" type="xs:integer"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`
+	schemaPath := testhelper.WriteFile(t, dir, "schema.xsd", xsdContent)
+	testhelper.WriteFile(t, dir, "config.xml", `<?xml version="1.0"?><config><host>db</host><port>bad</port></config>`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir + "/config.xml"),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaMap(map[string]string{"config.xml": schemaPath}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+}

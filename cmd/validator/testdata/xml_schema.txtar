@@ -1,0 +1,272 @@
+# ============================================================
+# XML DTD validation (syntax-level)
+# ============================================================
+
+# Valid DTD
+exec validator dtd_valid.xml
+stdout '✓'
+
+# Missing required element
+! exec validator dtd_missing_elem.xml
+stdout '×'
+
+# Extra element not in DTD
+! exec validator dtd_extra_elem.xml
+stdout '×'
+
+# Wrong root element
+! exec validator dtd_wrong_root.xml
+stdout '×'
+
+# Required attribute present
+exec validator dtd_req_attr.xml
+stdout '✓'
+
+# Required attribute missing
+! exec validator dtd_req_attr_missing.xml
+stdout '×'
+
+# Fixed attribute correct value
+exec validator dtd_fixed_attr.xml
+stdout '✓'
+
+# Fixed attribute wrong value
+! exec validator dtd_fixed_attr_wrong.xml
+stdout '×'
+
+# Choice content model (alpha | beta) — valid
+exec validator dtd_choice.xml
+stdout '✓'
+
+# Choice content model — both present (invalid)
+! exec validator dtd_choice_both.xml
+stdout '×'
+
+# Mixed content (#PCDATA | bold)*
+exec validator dtd_mixed.xml
+stdout '✓'
+
+# --no-schema does NOT skip DTD (DTD is syntax, not schema)
+! exec validator --no-schema dtd_missing_elem.xml
+stdout '×'
+
+# ============================================================
+# XML XSD validation (schema-level)
+# ============================================================
+
+# Valid XSD
+exec validator xsd_valid.xml
+stdout '✓'
+
+# Invalid type
+! exec validator xsd_invalid.xml
+stdout '×'
+stdout 'schema validation failed'
+
+# No schema passes syntax-only
+exec validator plain.xml
+stdout '✓'
+
+# --require-schema fails without XSD
+! exec validator --require-schema plain.xml
+stdout '×'
+stdout 'no schema declared'
+
+# --require-schema passes with XSD
+exec validator --require-schema xsd_valid.xml
+stdout '✓'
+
+# --no-schema skips XSD validation
+exec validator --no-schema xsd_invalid.xml
+stdout '✓'
+
+# --schema-map with XSD valid
+exec validator --schema-map=mapped.xml:schema.xsd mapped.xml
+stdout '✓'
+
+# --schema-map with XSD invalid
+! exec validator --schema-map=mapped_bad.xml:schema.xsd mapped_bad.xml
+stdout '×'
+stdout 'schema validation failed'
+
+# ============================================================
+# DTD + XSD together
+# ============================================================
+
+# Both DTD and XSD present, both valid
+exec validator dtd_and_xsd.xml
+stdout '✓'
+
+# DTD valid but XSD fails (wrong type)
+! exec validator dtd_ok_xsd_bad.xml
+stdout '×'
+stdout 'schema validation failed'
+
+# DTD fails (missing element) — never reaches XSD
+! exec validator dtd_bad_xsd_ok.xml
+stdout '×'
+
+# ============================================================
+# Test data
+# ============================================================
+
+-- dtd_valid.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config><host>db.example.com</host><port>5432</port></config>
+-- dtd_missing_elem.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config><host>db.example.com</host></config>
+-- dtd_extra_elem.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config><host>db.example.com</host><port>5432</port><extra>bad</extra></config>
+-- dtd_wrong_root.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host)>
+  <!ELEMENT host (#PCDATA)>
+]>
+<wrong><host>db.example.com</host></wrong>
+-- dtd_req_attr.xml --
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+  <!ELEMENT doc EMPTY>
+  <!ATTLIST doc id ID #REQUIRED>
+]>
+<doc id="x1"/>
+-- dtd_req_attr_missing.xml --
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+  <!ELEMENT doc EMPTY>
+  <!ATTLIST doc id ID #REQUIRED>
+]>
+<doc/>
+-- dtd_fixed_attr.xml --
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+  <!ELEMENT doc EMPTY>
+  <!ATTLIST doc version CDATA #FIXED "1.0">
+]>
+<doc version="1.0"/>
+-- dtd_fixed_attr_wrong.xml --
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+  <!ELEMENT doc EMPTY>
+  <!ATTLIST doc version CDATA #FIXED "1.0">
+]>
+<doc version="2.0"/>
+-- dtd_choice.xml --
+<?xml version="1.0"?>
+<!DOCTYPE container [
+  <!ELEMENT container (alpha | beta)>
+  <!ELEMENT alpha (#PCDATA)>
+  <!ELEMENT beta (#PCDATA)>
+]>
+<container><beta>hello</beta></container>
+-- dtd_choice_both.xml --
+<?xml version="1.0"?>
+<!DOCTYPE container [
+  <!ELEMENT container (alpha | beta)>
+  <!ELEMENT alpha (#PCDATA)>
+  <!ELEMENT beta (#PCDATA)>
+]>
+<container><alpha>a</alpha><beta>b</beta></container>
+-- dtd_mixed.xml --
+<?xml version="1.0"?>
+<!DOCTYPE para [
+  <!ELEMENT para (#PCDATA | bold)*>
+  <!ELEMENT bold (#PCDATA)>
+]>
+<para>Hello <bold>world</bold> today</para>
+-- schema.xsd --
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="host" type="xs:string"/>
+        <xs:element name="port" type="xs:integer"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+-- xsd_valid.xml --
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="schema.xsd">
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>
+-- xsd_invalid.xml --
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="schema.xsd">
+  <host>db.example.com</host>
+  <port>not_a_number</port>
+</config>
+-- plain.xml --
+<?xml version="1.0"?>
+<root><key>value</key></root>
+-- mapped.xml --
+<?xml version="1.0"?>
+<config>
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>
+-- mapped_bad.xml --
+<?xml version="1.0"?>
+<config>
+  <host>db.example.com</host>
+  <port>not_a_number</port>
+</config>
+-- dtd_and_xsd.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="schema.xsd">
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>
+-- dtd_ok_xsd_bad.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="schema.xsd">
+  <host>db.example.com</host>
+  <port>not_a_number</port>
+</config>
+-- dtd_bad_xsd_ok.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port, database)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+  <!ELEMENT database (#PCDATA)>
+]>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="schema.xsd">
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>

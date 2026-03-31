@@ -28,3 +28,11 @@ type SchemaValidator interface {
 type JSONMarshaler interface {
 	MarshalToJSON(b []byte) ([]byte, error)
 }
+
+// XMLSchemaValidator is a marker interface for validators that use XSD
+// schema validation instead of JSON Schema. When an external schema is
+// applied via --schema-map or --schemastore, the CLI uses ValidateXSD
+// instead of JSONSchemaValidate.
+type XMLSchemaValidator interface {
+	ValidateXSD(b []byte, schemaPath string) (bool, error)
+}

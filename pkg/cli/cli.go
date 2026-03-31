@@ -211,6 +211,15 @@ func isGlobPattern(s string) bool {
 }
 
 func validateWithExternal(v validator.Validator, content []byte, schemaPath string) (bool, error) {
+	// XML uses XSD validation, not JSON Schema
+	if _, ok := v.(validator.XMLSchemaValidator); ok {
+		absSchema, err := filepath.Abs(schemaPath)
+		if err != nil {
+			return false, fmt.Errorf("resolving schema path: %w", err)
+		}
+		return validator.ValidateXSD(content, absSchema)
+	}
+
 	jm, ok := v.(validator.JSONMarshaler)
 	if !ok {
 		return true, nil

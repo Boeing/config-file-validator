@@ -115,6 +115,14 @@ func validatorUsage() {
 	fmt.Printf(
 		"    search_path: The search path on the filesystem for configuration files. " +
 			"Defaults to the current working directory if no search_path provided\n\n")
+	fmt.Println("Schema validation runs automatically when a file declares a schema:")
+	fmt.Println("  JSON:  {\"$schema\": \"schema.json\", ...}")
+	fmt.Println("  YAML:  # yaml-language-server: $schema=schema.json")
+	fmt.Println("  TOML:  \"$schema\" = \"schema.json\"")
+	fmt.Println("  TOON:  \"$schema\": schema.json")
+	fmt.Println("  XML:   xsi:noNamespaceSchemaLocation=\"schema.xsd\"")
+	fmt.Println("  XML:   <!DOCTYPE> with inline DTD (validated during syntax check)")
+	fmt.Println()
 	fmt.Println("optional flags:")
 	if flagSet != nil {
 		flagSet.PrintDefaults()
@@ -168,9 +176,20 @@ func getFlags(args []string) (validatorConfig, error) {
 		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
-		requireSchemaPtr    = flagSet.Bool("require-schema", false, "Fail validation if a file supports schema validation but does not declare a schema.")
-		noSchemaPtr         = flagSet.Bool("no-schema", false, "Disable all schema validation. Only syntax is checked.")
-		schemaStorePathPtr  = flagSet.String("schemastore", "", "Path to a local SchemaStore clone for automatic schema lookup.")
+		requireSchemaPtr    = flagSet.Bool("require-schema", false,
+			"Fail validation if a file supports schema validation but does not declare a schema.\n"+
+				"Supported types: JSON ($schema property), YAML (yaml-language-server comment),\n"+
+				"TOML ($schema key), TOON (\"$schema\" key), XML (xsi:noNamespaceSchemaLocation).\n"+
+				"Other file types (INI, CSV, ENV, HCL, HOCON, Properties, PList, EditorConfig) are not affected.\n"+
+				"Cannot be used with --no-schema.")
+		noSchemaPtr = flagSet.Bool("no-schema", false,
+			"Disable all schema validation. Only syntax is checked.\n"+
+				"Cannot be used with --require-schema, --schema-map, or --schemastore.")
+		schemaStorePathPtr = flagSet.String("schemastore", "",
+			"Path to a local SchemaStore clone for automatic schema lookup by filename.\n"+
+				"Download with: git clone --depth=1 https://github.com/SchemaStore/schemastore.git\n"+
+				"Files matching the catalog are validated against the corresponding schema.\n"+
+				"Document-declared schemas and --schema-map take priority over SchemaStore.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -189,7 +208,14 @@ func getFlags(args []string) (validatorConfig, error) {
 	flagSet.Var(
 		&schemaMapConfigFlags,
 		"schema-map",
-		"Map a glob pattern to a schema file. Format: <pattern>:<schema_path> Example: --schema-map=\"**/package.json:schemas/package.schema.json\"",
+		"Map a glob pattern to a schema file for validation.\n"+
+			"Format: <pattern>:<schema_path>\n"+
+			"Use JSON Schema (.json) for JSON, YAML, TOML, and TOON files.\n"+
+			"Use XSD (.xsd) for XML files. Paths are relative to the current directory.\n"+
+			"Multiple mappings can be specified.\n"+
+			"Examples:\n"+
+			"  --schema-map=\"**/package.json:schemas/package.schema.json\"\n"+
+			"  --schema-map=\"**/config.xml:schemas/config.xsd\"",
 	)
 
 	if err := flagSet.Parse(args); err != nil {

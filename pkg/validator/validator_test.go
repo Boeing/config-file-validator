@@ -606,3 +606,200 @@ func Test_YAMLValidateSchemaInvalidYAML(t *testing.T) {
 	require.False(t, valid)
 	require.Error(t, err)
 }
+
+// --- XML XSD validation tests ---
+
+func Test_XMLValidateSchemaValid(t *testing.T) {
+	t.Parallel()
+	xsdFile := writeTestXSD(t)
+	xml := `<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="` + xsdFile + `">
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>`
+	valid, err := XMLValidator{}.ValidateSchema([]byte(xml), "")
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_XMLValidateSchemaInvalid(t *testing.T) {
+	t.Parallel()
+	xsdFile := writeTestXSD(t)
+	xml := `<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="` + xsdFile + `">
+  <host>db.example.com</host>
+  <port>not_a_number</port>
+</config>`
+	valid, err := XMLValidator{}.ValidateSchema([]byte(xml), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "schema validation failed")
+}
+
+func Test_XMLValidateSchemaNoSchema(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?><root><key>value</key></root>`
+	valid, err := XMLValidator{}.ValidateSchema([]byte(xml), "")
+	require.True(t, valid)
+	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_XMLValidateSchemaRelativePath(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	xsdContent := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "schema.xsd"), []byte(xsdContent), 0600))
+
+	xml := `<?xml version="1.0"?>
+<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="schema.xsd">
+  <name>test</name>
+</root>`
+	valid, err := XMLValidator{}.ValidateSchema([]byte(xml), filepath.Join(dir, "doc.xml"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_XMLValidateXSDExported(t *testing.T) {
+	t.Parallel()
+	xsdFile := writeTestXSD(t)
+	xml := `<?xml version="1.0"?>
+<config>
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>`
+	valid, err := ValidateXSD([]byte(xml), xsdFile)
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+// --- XML DTD validation tests ---
+
+func Test_XMLDTDValid(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config>
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_XMLDTDMissingElement(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config>
+  <host>db.example.com</host>
+</config>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_XMLDTDWrongElement(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config>
+  <host>db.example.com</host>
+  <port>5432</port>
+  <extra>not_allowed</extra>
+</config>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_XMLDTDRequiredAttribute(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?>
+<!DOCTYPE doc [
+  <!ELEMENT doc EMPTY>
+  <!ATTLIST doc id ID #REQUIRED>
+]>
+<doc id="x1"/>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_XMLDTDMissingRequiredAttribute(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?>
+<!DOCTYPE doc [
+  <!ELEMENT doc EMPTY>
+  <!ATTLIST doc id ID #REQUIRED>
+]>
+<doc/>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_XMLDTDWrongRootElement(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host)>
+  <!ELEMENT host (#PCDATA)>
+]>
+<wrong>
+  <host>db.example.com</host>
+</wrong>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_XMLNoDTDStillPasses(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?><root><key>value</key></root>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func writeTestXSD(t *testing.T) string {
+	t.Helper()
+	xsd := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="host" type="xs:string"/>
+        <xs:element name="port" type="xs:integer"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`
+	dir := t.TempDir()
+	p := filepath.Join(dir, "schema.xsd")
+	require.NoError(t, os.WriteFile(p, []byte(xsd), 0600))
+	return p
+}

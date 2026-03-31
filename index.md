@@ -66,7 +66,9 @@
 | SARIF | ✅ | ✅ (built-in per version) |
 | TOML | ✅ | ✅ (`$schema` key) |
 | TOON | ✅ | ✅ (`"$schema"` key) |
-| XML | ✅ | ❌ |
+| XML | ✅ | ✅ (`xsi:noNamespaceSchemaLocation`) |
+
+XML files with inline DTD declarations (`<!DOCTYPE>`) are automatically validated against the DTD during syntax checking.
 | YAML | ✅ | ✅ (`yaml-language-server` comment) |
 
 ## Demo
@@ -140,6 +142,14 @@ Usage: validator [OPTIONS] [<search_path>...]
 positional arguments:
     search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
 
+Schema validation runs automatically when a file declares a schema:
+  JSON:  {"$schema": "schema.json", ...}
+  YAML:  # yaml-language-server: $schema=schema.json
+  TOML:  "$schema" = "schema.json"
+  TOON:  "$schema": schema.json
+  XML:   xsi:noNamespaceSchemaLocation="schema.xsd"
+  XML:   <!DOCTYPE> with inline DTD (validated during syntax check)
+
 optional flags:
   -depth int
         Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
@@ -153,16 +163,33 @@ optional flags:
         If globbing flag is set, check for glob patterns in the arguments.
   -groupby string
         Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+  -no-schema
+        Disable all schema validation. Only syntax is checked.
+        Cannot be used with --require-schema, --schema-map, or --schemastore.
   -quiet
         If quiet flag is set. It doesn't print any output to stdout.
   -reporter value
-        A string representing report format and optional output file path separated by colon if present.
-        Usage: --reporter <format>:<optional_file_path>
-        Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
-        Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
-        Supported formats: standard, json, junit, and sarif (default: "standard")
+        Report format and optional output path. Format: <type>:<path> Supported: standard, json, junit, sarif (default: standard)
   -require-schema
         Fail validation if a file supports schema validation but does not declare a schema.
+        Supported types: JSON ($schema property), YAML (yaml-language-server comment),
+        TOML ($schema key), TOON ("$schema" key), XML (xsi:noNamespaceSchemaLocation).
+        Other file types (INI, CSV, ENV, HCL, HOCON, Properties, PList, EditorConfig) are not affected.
+        Cannot be used with --no-schema.
+  -schema-map value
+        Map a glob pattern to a schema file for validation.
+        Format: <pattern>:<schema_path>
+        Use JSON Schema (.json) for JSON, YAML, TOML, and TOON files.
+        Use XSD (.xsd) for XML files. Paths are relative to the current directory.
+        Multiple mappings can be specified.
+        Examples:
+          --schema-map="**/package.json:schemas/package.schema.json"
+          --schema-map="**/config.xml:schemas/config.xsd"
+  -schemastore string
+        Path to a local SchemaStore clone for automatic schema lookup by filename.
+        Download with: git clone --depth=1 https://github.com/SchemaStore/schemastore.git
+        Files matching the catalog are validated against the corresponding schema.
+        Document-declared schemas and --schema-map take priority over SchemaStore.
   -type-map value
         Map a glob pattern to a file type. Format: <pattern>:<type> Example: --type-map="**/inventory:ini"
   -version
@@ -183,6 +210,8 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
 | `CFV_REQUIRE_SCHEMA`        | `-require-schema`      |
+| `CFV_NO_SCHEMA`             | `-no-schema`           |
+| `CFV_SCHEMASTORE`           | `-schemastore`         |
 | `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
@@ -364,6 +393,19 @@ port: 5432
 ```
 
 **SARIF** — Schema validation is built-in per SARIF version (2.1.0 and 2.2). No declaration needed.
+
+**XML** — Add an `xsi:noNamespaceSchemaLocation` attribute on the root element:
+
+```xml
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="config.xsd">
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>
+```
+
+XML schemas use XSD (XML Schema Definition) files rather than JSON Schema.
 
 Schema URLs can be absolute (`https://...`), absolute file paths, or relative paths (resolved from the document's directory).
 

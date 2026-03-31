@@ -16,6 +16,18 @@ stdout '✓'
 exec validator --no-schema bad_with_schema.toml
 stdout '✓'
 
+# --no-schema with XML XSD — skips XSD validation
+exec validator --no-schema bad_with_xsd.xml
+stdout '✓'
+
+# --no-schema does NOT skip DTD (DTD is syntax, not schema)
+! exec validator --no-schema bad_dtd.xml
+stdout '×'
+
+# --no-schema with TOON $schema — skips validation
+exec validator --no-schema bad_with_schema.toon
+stdout '✓'
+
 # --no-schema still validates syntax
 ! exec validator --no-schema bad_syntax.json
 stdout '×'
@@ -60,3 +72,34 @@ port = "not_a_number"
 {"bad": }
 -- good.json --
 {"key": "value"}
+-- bad_with_xsd.xml --
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="schema.xsd">
+  <host>db</host>
+  <port>not_a_number</port>
+</config>
+-- schema.xsd --
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="host" type="xs:string"/>
+        <xs:element name="port" type="xs:integer"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+-- bad_dtd.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config><host>db</host></config>
+-- bad_with_schema.toon --
+"$schema": schema.json
+host: db
+port: "not_a_number"
