@@ -380,7 +380,7 @@ func Test_YAMLValidateSchemaCommentAfterBlank(t *testing.T) {
 func Test_YAMLValidateSchemaCommentAfterContent(t *testing.T) {
 	t.Parallel()
 	// Schema comment after non-comment content should be ignored
-	yaml := "key: value\n# yaml-language-server: $schema=http://example.com/schema.json\n"
+	yaml := "key: value\n# yaml-language-server: $schema=https://example.com/schema.json\n"
 	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), "")
 	require.True(t, valid)
 	require.ErrorIs(t, err, ErrNoSchema)
@@ -451,12 +451,12 @@ func Test_extractYAMLSchemaComment(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"standard", "# yaml-language-server: $schema=http://example.com/s.json\nkey: val", "http://example.com/s.json"},
-		{"with spaces", "#  yaml-language-server:  $schema=http://example.com/s.json \nkey: val", "http://example.com/s.json"},
-		{"blank lines before", "\n\n# yaml-language-server: $schema=http://example.com/s.json\nkey: val", "http://example.com/s.json"},
+		{"standard", "# yaml-language-server: $schema=https://example.com/s.json\nkey: val", "https://example.com/s.json"},
+		{"with spaces", "#  yaml-language-server:  $schema=https://example.com/s.json \nkey: val", "https://example.com/s.json"},
+		{"blank lines before", "\n\n# yaml-language-server: $schema=https://example.com/s.json\nkey: val", "https://example.com/s.json"},
 		{"no comment", "key: val", ""},
 		{"wrong comment", "# just a comment\nkey: val", ""},
-		{"after content", "key: val\n# yaml-language-server: $schema=http://example.com/s.json", ""},
+		{"after content", "key: val\n# yaml-language-server: $schema=https://example.com/s.json", ""},
 		{"empty", "", ""},
 	}
 	for _, tc := range tests {
