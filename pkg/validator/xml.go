@@ -76,7 +76,7 @@ func extractXSDLocation(b []byte) string {
 		}
 		for _, attr := range start.Attr {
 			if attr.Name.Local == "noNamespaceSchemaLocation" &&
-				attr.Name.Space == "http://www.w3.org/2001/XMLSchema-instance" { //nolint:revive // XSI namespace is a fixed URI
+				attr.Name.Space == "http://www.w3.org/2001/XMLSchema-instance" { //nolint:revive // XSI namespace is a fixed URI; DevSkim: ignore DS137138
 				return strings.TrimSpace(attr.Value)
 			}
 		}

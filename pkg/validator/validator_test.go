@@ -648,6 +648,7 @@ func Test_XMLValidateSchemaNoSchema(t *testing.T) {
 func Test_XMLValidateSchemaRelativePath(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	// DevSkim: ignore DS137138 -- W3C XML Schema namespace is a fixed URI
 	xsdContent := `<?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <xs:element name="root">
@@ -787,6 +788,7 @@ func Test_XMLNoDTDStillPasses(t *testing.T) {
 
 func writeTestXSD(t *testing.T) string {
 	t.Helper()
+	// DevSkim: ignore DS137138 -- W3C XML Schema namespace is a fixed URI
 	xsd := `<?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <xs:element name="config">
