@@ -18,6 +18,18 @@ func (ToonValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
+func (ToonValidator) MarshalToJSON(b []byte) ([]byte, error) {
+	raw, err := toon.Decode(b)
+	if err != nil {
+		return nil, err
+	}
+	if doc, ok := raw.(map[string]any); ok {
+		delete(doc, "$schema")
+		return json.Marshal(doc)
+	}
+	return json.Marshal(raw)
+}
+
 func (ToonValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 	raw, err := toon.Decode(b)
 	if err != nil {
@@ -45,5 +57,5 @@ func (ToonValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 		return false, err
 	}
 
-	return jsonSchemaValidate(resolveSchemaURL(schemaURL, filePath), docJSON)
+	return JSONSchemaValidate(resolveSchemaURL(schemaURL, filePath), docJSON)
 }

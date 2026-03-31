@@ -22,6 +22,14 @@ func (YAMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
+func (YAMLValidator) MarshalToJSON(b []byte) ([]byte, error) {
+	var doc any
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		return nil, err
+	}
+	return json.Marshal(doc)
+}
+
 func (YAMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 	schemaURL := extractYAMLSchemaComment(b)
 	if schemaURL == "" {
@@ -38,7 +46,7 @@ func (YAMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 		return false, err
 	}
 
-	return jsonSchemaValidate(resolveSchemaURL(schemaURL, filePath), docJSON)
+	return JSONSchemaValidate(resolveSchemaURL(schemaURL, filePath), docJSON)
 }
 
 // extractYAMLSchemaComment scans for the yaml-language-server schema modeline:

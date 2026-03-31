@@ -9,7 +9,7 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
-func jsonSchemaValidate(schemaURL string, docJSON []byte) (bool, error) {
+func JSONSchemaValidate(schemaURL string, docJSON []byte) (bool, error) {
 	schemaLoader := gojsonschema.NewReferenceLoader(schemaURL)
 	documentLoader := gojsonschema.NewBytesLoader(docJSON)
 

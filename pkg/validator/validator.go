@@ -20,3 +20,11 @@ type Validator interface {
 type SchemaValidator interface {
 	ValidateSchema(b []byte, filePath string) (bool, error)
 }
+
+// JSONMarshaler is an optional interface for validators whose content can be
+// converted to JSON for schema validation. This is used when an external
+// schema (e.g. from SchemaStore or --schema-map) is applied to a file that
+// does not declare its own $schema.
+type JSONMarshaler interface {
+	MarshalToJSON(b []byte) ([]byte, error)
+}

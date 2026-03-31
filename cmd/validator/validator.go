@@ -50,6 +50,7 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/pkg/tools"
 )
 
@@ -68,6 +69,8 @@ type validatorConfig struct {
 	globbing         *bool
 	requireSchema    *bool
 	typeMap          typeMapFlags
+	schemaMap        schemaMapFlags
+	schemaStorePath  *string
 }
 
 type reporterFlags []string
@@ -89,6 +92,17 @@ func (tf *typeMapFlags) String() string {
 
 func (tf *typeMapFlags) Set(value string) error {
 	*tf = append(*tf, value)
+	return nil
+}
+
+type schemaMapFlags []string
+
+func (sf *schemaMapFlags) String() string {
+	return fmt.Sprint(*sf)
+}
+
+func (sf *schemaMapFlags) Set(value string) error {
+	*sf = append(*sf, value)
 	return nil
 }
 
@@ -154,6 +168,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
 		requireSchemaPtr    = flagSet.Bool("require-schema", false, "Fail validation if a file supports schema validation but does not declare a schema.")
+		schemaStorePathPtr  = flagSet.String("schemastore", "", "Path to a local SchemaStore clone for automatic schema lookup.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -166,6 +181,13 @@ func getFlags(args []string) (validatorConfig, error) {
 		&typeMapConfigFlags,
 		"type-map",
 		"Map a glob pattern to a file type. Format: <pattern>:<type> Example: --type-map=\"**/inventory:ini\"",
+	)
+
+	schemaMapConfigFlags := schemaMapFlags{}
+	flagSet.Var(
+		&schemaMapConfigFlags,
+		"schema-map",
+		"Map a glob pattern to a schema file. Format: <pattern>:<schema_path> Example: --schema-map=\"**/package.json:schemas/package.schema.json\"",
 	)
 
 	if err := flagSet.Parse(args); err != nil {
@@ -207,6 +229,8 @@ func getFlags(args []string) (validatorConfig, error) {
 		globbingPrt,
 		requireSchemaPtr,
 		typeMapConfigFlags,
+		schemaMapConfigFlags,
+		schemaStorePathPtr,
 	}
 
 	return config, nil
@@ -372,6 +396,7 @@ func applyDefaultFlagsFromEnv() error {
 		"quiet":              "CFV_QUIET",
 		"globbing":           "CFV_GLOBBING",
 		"require-schema":     "CFV_REQUIRE_SCHEMA",
+		"schemastore":        "CFV_SCHEMASTORE",
 	}
 
 	for flagName, envVar := range flagsEnvMap {
@@ -464,6 +489,21 @@ func mainInit() int {
 	quiet := *validatorConfig.quiet
 	requireSchema := *validatorConfig.requireSchema
 
+	schemaMap, err := parseSchemaMapFlags(validatorConfig.schemaMap)
+	if err != nil {
+		log.Printf("An error occurred: %v", err)
+		return 1
+	}
+
+	var store *schemastore.Store
+	if *validatorConfig.schemaStorePath != "" {
+		store, err = schemastore.Open(*validatorConfig.schemaStorePath)
+		if err != nil {
+			log.Printf("An error occurred opening schemastore: %v", err)
+			return 1
+		}
+	}
+
 	// Initialize a file system finder
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
 
@@ -474,6 +514,8 @@ func mainInit() int {
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
 		cli.WithRequireSchema(requireSchema),
+		cli.WithSchemaMap(schemaMap),
+		cli.WithSchemaStore(store),
 	)
 
 	// Run the config file validation
@@ -569,6 +611,18 @@ func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
 	}
 
 	return overrides, nil
+}
+
+func parseSchemaMapFlags(flags schemaMapFlags) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, mapping := range flags {
+		parts := strings.SplitN(mapping, ":", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return nil, fmt.Errorf("invalid schema-map format %q, expected pattern:schema_path", mapping)
+		}
+		result[parts[0]] = parts[1]
+	}
+	return result, nil
 }
 
 func main() {

@@ -33,6 +33,18 @@ func (JSONValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
+func (JSONValidator) MarshalToJSON(b []byte) ([]byte, error) {
+	var raw any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, err
+	}
+	if doc, ok := raw.(map[string]any); ok {
+		delete(doc, "$schema")
+		return json.Marshal(doc)
+	}
+	return b, nil
+}
+
 func (JSONValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 	var raw any
 	if err := json.Unmarshal(b, &raw); err != nil {
@@ -63,5 +75,5 @@ func (JSONValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 		return false, err
 	}
 
-	return jsonSchemaValidate(schemaURL, cleanDoc)
+	return JSONSchemaValidate(schemaURL, cleanDoc)
 }

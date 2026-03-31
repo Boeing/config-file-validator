@@ -23,6 +23,15 @@ func (TomlValidator) ValidateSyntax(b []byte) (bool, error) {
 	return true, nil
 }
 
+func (TomlValidator) MarshalToJSON(b []byte) ([]byte, error) {
+	var doc map[string]any
+	if err := toml.Unmarshal(b, &doc); err != nil {
+		return nil, err
+	}
+	delete(doc, "$schema")
+	return json.Marshal(doc)
+}
+
 func (TomlValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 	var doc map[string]any
 	if err := toml.Unmarshal(b, &doc); err != nil {
@@ -45,5 +54,5 @@ func (TomlValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 		return false, err
 	}
 
-	return jsonSchemaValidate(resolveSchemaURL(schemaURL, filePath), docJSON)
+	return JSONSchemaValidate(resolveSchemaURL(schemaURL, filePath), docJSON)
 }
