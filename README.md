@@ -573,6 +573,58 @@ cfv := cli.Init(
 )
 ```
 
+### Schema Validation Options
+
+#### Require Schema
+
+Fail validation for files that support schema validation but don't declare one.
+
+```go
+cfv := cli.Init(
+      cli.WithRequireSchema(true),
+)
+```
+
+#### Disable Schema Validation
+
+Skip all schema validation. Only syntax is checked.
+
+```go
+cfv := cli.Init(
+      cli.WithNoSchema(true),
+)
+```
+
+#### Schema Map
+
+Map file patterns to schema files. Use JSON Schema (`.json`) for JSON, YAML, TOML, and TOON files. Use XSD (`.xsd`) for XML files.
+
+```go
+schemaMap := map[string]string{
+      "**/package.json": "schemas/package.schema.json",
+      "**/config.xml":   "schemas/config.xsd",
+}
+cfv := cli.Init(
+      cli.WithSchemaMap(schemaMap),
+)
+```
+
+#### SchemaStore
+
+Use a local [SchemaStore](https://github.com/SchemaStore/schemastore) clone for automatic schema lookup by filename.
+
+```go
+import "github.com/Boeing/config-file-validator/pkg/schemastore"
+
+store, err := schemastore.Open("/path/to/schemastore")
+if err != nil {
+      log.Fatal(err)
+}
+cfv := cli.Init(
+      cli.WithSchemaStore(store),
+)
+```
+
 ## Build
 
 The project can be downloaded and built from source using an environment with Go 1.26+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
