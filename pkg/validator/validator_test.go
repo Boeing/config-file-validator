@@ -11,6 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// xsNamespace is the W3C XML Schema namespace URI.
+// Extracted as a constant to avoid DevSkim DS137138 false positives
+// in test string literals (this is a namespace identifier, not a fetched URL).
+const xsNamespace = "http://www.w3.org/2001/XMLSchema" // DevSkim: ignore DS137138
+
 var (
 	validPlistBytes = []byte(`<?xml version="1.0" encoding="UTF-8"?>
 	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -649,16 +654,11 @@ func Test_XMLValidateSchemaRelativePath(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	// DevSkim: ignore DS137138 -- W3C XML Schema namespace is a fixed URI
-	xsdContent := `<?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-  <xs:element name="root">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element name="name" type="xs:string"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-</xs:schema>`
+	xsdContent := `<?xml version="1.0" encoding="UTF-8"?>` +
+		`<xs:schema xmlns:xs="` + xsNamespace + `">` +
+		`<xs:element name="root"><xs:complexType><xs:sequence>` +
+		`<xs:element name="name" type="xs:string"/>` +
+		`</xs:sequence></xs:complexType></xs:element></xs:schema>`
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "schema.xsd"), []byte(xsdContent), 0600))
 
 	xml := `<?xml version="1.0"?>
@@ -788,18 +788,12 @@ func Test_XMLNoDTDStillPasses(t *testing.T) {
 
 func writeTestXSD(t *testing.T) string {
 	t.Helper()
-	// DevSkim: ignore DS137138 -- W3C XML Schema namespace is a fixed URI
-	xsd := `<?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-  <xs:element name="config">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element name="host" type="xs:string"/>
-        <xs:element name="port" type="xs:integer"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-</xs:schema>`
+	xsd := `<?xml version="1.0" encoding="UTF-8"?>` +
+		`<xs:schema xmlns:xs="` + xsNamespace + `">` + // DevSkim: ignore DS137138
+		`<xs:element name="config"><xs:complexType><xs:sequence>` +
+		`<xs:element name="host" type="xs:string"/>` +
+		`<xs:element name="port" type="xs:integer"/>` +
+		`</xs:sequence></xs:complexType></xs:element></xs:schema>`
 	dir := t.TempDir()
 	p := filepath.Join(dir, "schema.xsd")
 	require.NoError(t, os.WriteFile(p, []byte(xsd), 0600))
