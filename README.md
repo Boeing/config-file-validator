@@ -36,7 +36,11 @@
   </a>
 </p>
 
-## Supported config file formats
+## About
+
+Config File Validator is a cross-platform CLI tool for validating and linting configuration files in your project. It supports syntax checking and JSON Schema validation for JSON, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, PList, SARIF, and TOON files. Use it locally, in CI/CD pipelines, or as a Go library to catch configuration errors before deployment.
+
+## Supported Configuration File Formats
 
 | Format | Syntax Validation | Schema Validation |
 |--------|:-----------------:|:-----------------:|
@@ -53,13 +57,13 @@
 | TOML | ✅ | ✅ (`$schema` key) |
 | TOON | ✅ | ✅ (`"$schema"` key) |
 | XML | ✅ | ✅ (`xsi:noNamespaceSchemaLocation`) |
+| YAML | ✅ | ✅ (`yaml-language-server` comment) |
 
 XML files with inline DTD declarations (`<!DOCTYPE>`) are automatically validated against the DTD during syntax checking.
-| YAML | ✅ | ✅ (`yaml-language-server` comment) |
 
 ## Demo
 
-<img src="./img/demo.gif" alt="demo" />
+<img src="./img/demo.gif" alt="Config File Validator CLI demo showing JSON YAML TOML XML validation" />
 
 ## Installation
 

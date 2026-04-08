@@ -67,9 +67,9 @@
 | TOML | ✅ | ✅ (`$schema` key) |
 | TOON | ✅ | ✅ (`"$schema"` key) |
 | XML | ✅ | ✅ (`xsi:noNamespaceSchemaLocation`) |
+| YAML | ✅ | ✅ (`yaml-language-server` comment) |
 
 XML files with inline DTD declarations (`<!DOCTYPE>`) are automatically validated against the DTD during syntax checking.
-| YAML | ✅ | ✅ (`yaml-language-server` comment) |
 
 ## Demo
 
