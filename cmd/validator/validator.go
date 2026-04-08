@@ -50,6 +50,7 @@ import (
 	"github.com/Boeing/config-file-validator/pkg/filetype"
 	"github.com/Boeing/config-file-validator/pkg/finder"
 	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/pkg/tools"
 )
 
@@ -66,8 +67,11 @@ type validatorConfig struct {
 	groupOutput      *string
 	quiet            *bool
 	globbing         *bool
-	schema           *string
+	requireSchema    *bool
+	noSchema         *bool
 	typeMap          typeMapFlags
+	schemaMap        schemaMapFlags
+	schemaStorePath  *string
 }
 
 type reporterFlags []string
@@ -92,6 +96,17 @@ func (tf *typeMapFlags) Set(value string) error {
 	return nil
 }
 
+type schemaMapFlags []string
+
+func (sf *schemaMapFlags) String() string {
+	return fmt.Sprint(*sf)
+}
+
+func (sf *schemaMapFlags) Set(value string) error {
+	*sf = append(*sf, value)
+	return nil
+}
+
 // Custom Usage function to cover. Uses the current flagSet when available.
 func validatorUsage() {
 	fmt.Println("Usage: validator [OPTIONS] [<search_path>...]")
@@ -100,6 +115,14 @@ func validatorUsage() {
 	fmt.Printf(
 		"    search_path: The search path on the filesystem for configuration files. " +
 			"Defaults to the current working directory if no search_path provided\n\n")
+	fmt.Println("Schema validation runs automatically when a file declares a schema:")
+	fmt.Println("  JSON:  {\"$schema\": \"schema.json\", ...}")
+	fmt.Println("  YAML:  # yaml-language-server: $schema=schema.json")
+	fmt.Println("  TOML:  \"$schema\" = \"schema.json\"")
+	fmt.Println("  TOON:  \"$schema\": schema.json")
+	fmt.Println("  XML:   xsi:noNamespaceSchemaLocation=\"schema.xsd\"")
+	fmt.Println("  XML:   <!DOCTYPE> with inline DTD (validated during syntax check)")
+	fmt.Println()
 	fmt.Println("optional flags:")
 	if flagSet != nil {
 		flagSet.PrintDefaults()
@@ -153,7 +176,20 @@ func getFlags(args []string) (validatorConfig, error) {
 		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
-		schemaPtr           = flagSet.String("schema", "", "Comma separated list of file types to validate against their schema. Only sarif is supported currently.")
+		requireSchemaPtr    = flagSet.Bool("require-schema", false,
+			"Fail validation if a file supports schema validation but does not declare a schema.\n"+
+				"Supported types: JSON ($schema property), YAML (yaml-language-server comment),\n"+
+				"TOML ($schema key), TOON (\"$schema\" key), XML (xsi:noNamespaceSchemaLocation).\n"+
+				"Other file types (INI, CSV, ENV, HCL, HOCON, Properties, PList, EditorConfig) are not affected.\n"+
+				"Cannot be used with --no-schema.")
+		noSchemaPtr = flagSet.Bool("no-schema", false,
+			"Disable all schema validation. Only syntax is checked.\n"+
+				"Cannot be used with --require-schema, --schema-map, or --schemastore.")
+		schemaStorePathPtr = flagSet.String("schemastore", "",
+			"Path to a local SchemaStore clone for automatic schema lookup by filename.\n"+
+				"Download with: git clone --depth=1 https://github.com/SchemaStore/schemastore.git\n"+
+				"Files matching the catalog are validated against the corresponding schema.\n"+
+				"Document-declared schemas and --schema-map take priority over SchemaStore.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -166,6 +202,20 @@ func getFlags(args []string) (validatorConfig, error) {
 		&typeMapConfigFlags,
 		"type-map",
 		"Map a glob pattern to a file type. Format: <pattern>:<type> Example: --type-map=\"**/inventory:ini\"",
+	)
+
+	schemaMapConfigFlags := schemaMapFlags{}
+	flagSet.Var(
+		&schemaMapConfigFlags,
+		"schema-map",
+		"Map a glob pattern to a schema file for validation.\n"+
+			"Format: <pattern>:<schema_path>\n"+
+			"Use JSON Schema (.json) for JSON, YAML, TOML, and TOON files.\n"+
+			"Use XSD (.xsd) for XML files. Paths are relative to the current directory.\n"+
+			"Multiple mappings can be specified.\n"+
+			"Examples:\n"+
+			"  --schema-map=\"**/package.json:schemas/package.schema.json\"\n"+
+			"  --schema-map=\"**/config.xml:schemas/config.xsd\"",
 	)
 
 	if err := flagSet.Parse(args); err != nil {
@@ -190,7 +240,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		return validatorConfig{}, err
 	}
 
-	if err := validateFlagValues(schemaPtr, excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
+	if err := validateFlagValues(excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -205,18 +255,17 @@ func getFlags(args []string) (validatorConfig, error) {
 		groupOutputPtr,
 		quietPtr,
 		globbingPrt,
-		schemaPtr,
+		requireSchemaPtr,
+		noSchemaPtr,
 		typeMapConfigFlags,
+		schemaMapConfigFlags,
+		schemaStorePathPtr,
 	}
 
 	return config, nil
 }
 
-func validateFlagValues(schemaPtr, excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf map[string]string, groupOutputPtr *string) error {
-	if err := validateSchemaFlag(schemaPtr); err != nil {
-		return err
-	}
-
+func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf map[string]string, groupOutputPtr *string) error {
 	if err := validateReporterConf(reporterConf, groupOutputPtr); err != nil {
 		return err
 	}
@@ -230,17 +279,6 @@ func validateFlagValues(schemaPtr, excludeFileTypesPtr, fileTypesPtr *string, de
 	}
 
 	return validateGroupByConf(groupOutputPtr)
-}
-
-func validateSchemaFlag(schemaPtr *string) error {
-	if *schemaPtr == "" {
-		return nil
-	}
-	schemaFileTypes := strings.Split(strings.ToLower(*schemaPtr), ",")
-	if !validateFileTypeList(schemaFileTypes) {
-		return errors.New("invalid schema file type")
-	}
-	return nil
 }
 
 func validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr *string) error {
@@ -386,7 +424,9 @@ func applyDefaultFlagsFromEnv() error {
 		"groupby":            "CFV_GROUPBY",
 		"quiet":              "CFV_QUIET",
 		"globbing":           "CFV_GLOBBING",
-		"schema":             "CFV_SCHEMA",
+		"require-schema":     "CFV_REQUIRE_SCHEMA",
+		"no-schema":          "CFV_NO_SCHEMA",
+		"schemastore":        "CFV_SCHEMASTORE",
 	}
 
 	for flagName, envVar := range flagsEnvMap {
@@ -477,7 +517,28 @@ func mainInit() int {
 
 	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
 	quiet := *validatorConfig.quiet
-	schemaFileTypes := getSchemaFileTypes(*validatorConfig.schema)
+	requireSchema := *validatorConfig.requireSchema
+	noSchema := *validatorConfig.noSchema
+
+	if noSchema && (requireSchema || len(validatorConfig.schemaMap) > 0 || *validatorConfig.schemaStorePath != "") {
+		log.Print("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
+		return 1
+	}
+
+	schemaMap, err := parseSchemaMapFlags(validatorConfig.schemaMap)
+	if err != nil {
+		log.Printf("An error occurred: %v", err)
+		return 1
+	}
+
+	var store *schemastore.Store
+	if *validatorConfig.schemaStorePath != "" {
+		store, err = schemastore.Open(*validatorConfig.schemaStorePath)
+		if err != nil {
+			log.Printf("An error occurred opening schemastore: %v", err)
+			return 1
+		}
+	}
 
 	// Initialize a file system finder
 	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
@@ -488,7 +549,10 @@ func mainInit() int {
 		cli.WithFinder(fileSystemFinder),
 		cli.WithGroupOutput(groupOutput),
 		cli.WithQuiet(quiet),
-		cli.WithSchemaCheckTypes(schemaFileTypes),
+		cli.WithRequireSchema(requireSchema),
+		cli.WithNoSchema(noSchema),
+		cli.WithSchemaMap(schemaMap),
+		cli.WithSchemaStore(store),
 	)
 
 	// Run the config file validation
@@ -561,25 +625,6 @@ func getExcludeFileTypes(configExcludeFileTypes string) []string {
 	return excludeFileTypes
 }
 
-func getSchemaFileTypes(schemaFlag string) []string {
-	if schemaFlag == "" {
-		return nil
-	}
-
-	typesToValidate := strings.Split(strings.ToLower(schemaFlag), ",")
-	typesToValidateSet := tools.ArrToMap(typesToValidate...)
-	fileTypesToValidate := make(map[string]struct{})
-
-	for _, ft := range filetype.FileTypes {
-		for ext := range ft.Extensions {
-			if _, ok := typesToValidateSet[ext]; ok {
-				fileTypesToValidate[ft.Name] = struct{}{}
-			}
-		}
-	}
-	return slices.Collect(maps.Keys(fileTypesToValidate))
-}
-
 func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
 	var overrides []finder.TypeOverride
 	fileTypesByName := make(map[string]filetype.FileType)
@@ -603,6 +648,18 @@ func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
 	}
 
 	return overrides, nil
+}
+
+func parseSchemaMapFlags(flags schemaMapFlags) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, mapping := range flags {
+		parts := strings.SplitN(mapping, ":", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return nil, fmt.Errorf("invalid schema-map format %q, expected pattern:schema_path", mapping)
+		}
+		result[parts[0]] = parts[1]
+	}
+	return result, nil
 }
 
 func main() {

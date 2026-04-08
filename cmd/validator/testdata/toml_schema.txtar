@@ -1,0 +1,45 @@
+# TOML with $schema validates against local schema
+exec validator valid.toml
+stdout '✓'
+
+# TOML with invalid data fails schema validation
+! exec validator invalid.toml
+stdout '×'
+stdout 'schema validation failed'
+
+# TOML without $schema passes (syntax only)
+exec validator plain.toml
+stdout '✓'
+
+# TOML without $schema + --require-schema fails
+! exec validator --require-schema plain.toml
+stdout '×'
+stdout 'no schema declared'
+
+# TOML with $schema + --require-schema passes
+exec validator --require-schema valid.toml
+stdout '✓'
+
+-- schema.json --
+{
+  "type": "object",
+  "required": ["host", "port"],
+  "properties": {
+    "host": { "type": "string" },
+    "port": { "type": "integer" },
+    "debug": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}
+-- valid.toml --
+"$schema" = "schema.json"
+host = "localhost"
+port = 5432
+debug = true
+-- invalid.toml --
+"$schema" = "schema.json"
+host = "localhost"
+port = "not_a_number"
+-- plain.toml --
+host = "localhost"
+port = 5432

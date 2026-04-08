@@ -1,7 +1,13 @@
+---
+title: "Config File Validator - Validate JSON, YAML, TOML, XML & More Config Files"
+description: "Single cross-platform CLI tool to validate and lint 14+ configuration file formats with syntax checking and JSON Schema validation. Install via Homebrew, go install, or Docker."
+canonical_url: https://boeing.github.io/config-file-validator/
+---
+
 <div align="center">
     <div style="width: 100%; text-align: center; position: relative;">
         <div style="display: inline-block;">
-            <img src="./img/logo.png" width="200" height="200"/>
+            <img src="./img/logo.png" width="200" height="200" alt="Config File Validator logo"/>
         </div>
         <div style="position: absolute; right: 0; top: 0">
             <a href="https://github.com/Boeing/config-file-validator">
@@ -26,7 +32,7 @@
   </a>
 
   <a href="https://www.bestpractices.dev/projects/9027">
-    <img src="https://www.bestpractices.dev/projects/9027/badge">
+    <img src="https://www.bestpractices.dev/projects/9027/badge" alt="OpenSSF Best Practices">
   </a>
 
   <a href="https://opensource.org/licenses/Apache-2.0">
@@ -50,26 +56,30 @@
   </a>
 </p>
 
-## Supported config files formats:
+## Supported config file formats
 
-* Apple PList XML
-* CSV
-* EDITORCONFIG
-* ENV
-* HCL
-* HOCON
-* INI
-* JSON
-* Properties
-* Sarif
-* TOML
-* TOON
-* XML
-* YAML
+| Format | Syntax Validation | Schema Validation |
+|--------|:-----------------:|:-----------------:|
+| Apple PList XML | ✅ | ❌ |
+| CSV | ✅ | ❌ |
+| EDITORCONFIG | ✅ | ❌ |
+| ENV | ✅ | ❌ |
+| HCL | ✅ | ❌ |
+| HOCON | ✅ | ❌ |
+| INI | ✅ | ❌ |
+| JSON | ✅ | ✅ (`$schema` property) |
+| Properties | ✅ | ❌ |
+| SARIF | ✅ | ✅ (built-in per version) |
+| TOML | ✅ | ✅ (`$schema` key) |
+| TOON | ✅ | ✅ (`"$schema"` key) |
+| XML | ✅ | ✅ (`xsi:noNamespaceSchemaLocation`) |
+| YAML | ✅ | ✅ (`yaml-language-server` comment) |
+
+XML files with inline DTD declarations (`<!DOCTYPE>`) are automatically validated against the DTD during syntax checking.
 
 ## Demo
 
-<img src="./img/demo.gif" alt="demo" />
+<img src="./img/demo.gif" alt="Config File Validator CLI demo showing JSON, YAML, TOML, and XML validation with pass and fail results" />
 
 ## Installation
 
@@ -138,6 +148,14 @@ Usage: validator [OPTIONS] [<search_path>...]
 positional arguments:
     search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
 
+Schema validation runs automatically when a file declares a schema:
+  JSON:  {"$schema": "schema.json", ...}
+  YAML:  # yaml-language-server: $schema=schema.json
+  TOML:  "$schema" = "schema.json"
+  TOON:  "$schema": schema.json
+  XML:   xsi:noNamespaceSchemaLocation="schema.xsd"
+  XML:   <!DOCTYPE> with inline DTD (validated during syntax check)
+
 optional flags:
   -depth int
         Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal
@@ -151,16 +169,33 @@ optional flags:
         If globbing flag is set, check for glob patterns in the arguments.
   -groupby string
         Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+  -no-schema
+        Disable all schema validation. Only syntax is checked.
+        Cannot be used with --require-schema, --schema-map, or --schemastore.
   -quiet
         If quiet flag is set. It doesn't print any output to stdout.
   -reporter value
-        A string representing report format and optional output file path separated by colon if present.
-        Usage: --reporter <format>:<optional_file_path>
-        Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
-        Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
-        Supported formats: standard, json, junit, and sarif (default: "standard")
-  -schema string
-        A comma separated list of file types for which to validate against their schema. Only sarif is supported currently.
+        Report format and optional output path. Format: <type>:<path> Supported: standard, json, junit, sarif (default: standard)
+  -require-schema
+        Fail validation if a file supports schema validation but does not declare a schema.
+        Supported types: JSON ($schema property), YAML (yaml-language-server comment),
+        TOML ($schema key), TOON ("$schema" key), XML (xsi:noNamespaceSchemaLocation).
+        Other file types (INI, CSV, ENV, HCL, HOCON, Properties, PList, EditorConfig) are not affected.
+        Cannot be used with --no-schema.
+  -schema-map value
+        Map a glob pattern to a schema file for validation.
+        Format: <pattern>:<schema_path>
+        Use JSON Schema (.json) for JSON, YAML, TOML, and TOON files.
+        Use XSD (.xsd) for XML files. Paths are relative to the current directory.
+        Multiple mappings can be specified.
+        Examples:
+          --schema-map="**/package.json:schemas/package.schema.json"
+          --schema-map="**/config.xml:schemas/config.xsd"
+  -schemastore string
+        Path to a local SchemaStore clone for automatic schema lookup by filename.
+        Download with: git clone --depth=1 https://github.com/SchemaStore/schemastore.git
+        Files matching the catalog are validated against the corresponding schema.
+        Document-declared schemas and --schema-map take priority over SchemaStore.
   -type-map value
         Map a glob pattern to a file type. Format: <pattern>:<type> Example: --type-map="**/inventory:ini"
   -version
@@ -180,7 +215,9 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_REPORTER`       | `-reporter`     |
 | `CFV_GROUPBY`        | `-groupby`      |
 | `CFV_QUIET`          | `-quiet`        |
-| `CFV_SCHEMA`        | `-schema`      |
+| `CFV_REQUIRE_SCHEMA`        | `-require-schema`      |
+| `CFV_NO_SCHEMA`             | `-no-schema`           |
+| `CFV_SCHEMASTORE`           | `-schemastore`         |
 | `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
@@ -308,14 +345,119 @@ validator -globbing "/path/*.json" /path/to/search
 ```
 
 
-### Validate schema of valid files
+### Schema validation
 
-Use the `-schema` flag to validate files against their schema. The validator will return an error if a requested file type does not support schema validation.
+Schema validation runs automatically for file types that support it. Files without a schema declaration pass with syntax validation only. The document is converted to JSON internally and validated against the referenced [JSON Schema](https://json-schema.org/).
+
+Use `--require-schema` to fail validation for files that support schema validation but don't declare a schema:
 
 ```shell
-validator -schema=sarif /path/to/search
+validator --require-schema /path/to/search
 ```
-> Only SARIF files are supported currently.
+
+#### Declaring a schema
+
+Each file type uses a different convention to declare its schema:
+
+**JSON** — Add a `$schema` property at the top level:
+
+```json
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "my-package",
+  "version": "1.0.0"
+}
+```
+
+**YAML** — Add a `yaml-language-server` modeline comment before any content:
+
+```yaml
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: CI
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+```
+
+**TOML** — Add a `$schema` key at the top level:
+
+```toml
+"$schema" = "https://json.schemastore.org/pyproject.json"
+
+[project]
+name = "my-project"
+version = "1.0.0"
+```
+
+**TOON** — Add a quoted `"$schema"` key at the top level:
+
+```
+"$schema": https://example.com/schema.json
+host: localhost
+port: 5432
+```
+
+**SARIF** — Schema validation is built-in per SARIF version (2.1.0 and 2.2). No declaration needed.
+
+**XML** — Add an `xsi:noNamespaceSchemaLocation` attribute on the root element:
+
+```xml
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="config.xsd">
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>
+```
+
+XML schemas use XSD (XML Schema Definition) files rather than JSON Schema.
+
+Schema URLs can be absolute (`https://...`), absolute file paths, or relative paths (resolved from the document's directory).
+
+#### Automatic schema lookup with SchemaStore
+
+[SchemaStore](https://www.schemastore.org/) is a community-maintained collection of JSON Schemas for hundreds of common configuration files — including `package.json`, `tsconfig.json`, `.eslintrc.json`, GitHub Actions workflows, `pyproject.toml`, and many more.
+
+With the `--schemastore` flag, the validator automatically matches files by name against the SchemaStore catalog and validates them against the corresponding schema — no `$schema` declaration needed in your files.
+
+**Setup:**
+
+```shell
+# Clone the SchemaStore catalog (only needed once)
+git clone --depth=1 https://github.com/SchemaStore/schemastore.git
+
+# Validate your project using automatic schema lookup
+validator --schemastore=./schemastore /path/to/project
+```
+
+For example, if your project contains a `package.json`, `tsconfig.json`, and `.github/workflows/ci.yml`, the validator will automatically find and apply the correct schema for each file without any configuration.
+
+**Priority order:** When multiple schema sources are available, the validator uses this precedence:
+
+1. Schema declared in the document (`$schema`, `yaml-language-server`, `xsi:noNamespaceSchemaLocation`)
+2. `--schema-map` patterns
+3. `--schemastore` catalog lookup
+
+This means document-level declarations always win, and `--schemastore` acts as a safety net for files that don't declare their own schema.
+
+#### External schema mapping
+
+Use `--schema-map` to apply a schema to files matching a glob pattern. This is useful when you can't or don't want to add schema declarations to the files themselves.
+
+```shell
+# Apply a JSON Schema to all package.json files
+validator --schema-map="**/package.json:schemas/package.schema.json" /path/to/project
+
+# Apply an XSD to XML config files
+validator --schema-map="**/config.xml:schemas/config.xsd" /path/to/project
+
+# Multiple mappings
+validator --schema-map="**/package.json:schemas/pkg.json" \
+          --schema-map="**/*.xml:schemas/config.xsd" /path/to/project
+```
+
+Use JSON Schema (`.json`) for JSON, YAML, TOML, and TOON files. Use XSD (`.xsd`) for XML files. Paths are relative to the current working directory.
 
 ### Map file types with glob patterns
 
@@ -495,6 +637,58 @@ cfv := cli.Init(
 )
 ```
 
+### Schema Validation Options
+
+#### Require Schema
+
+Fail validation for files that support schema validation but don't declare one.
+
+```go
+cfv := cli.Init(
+      cli.WithRequireSchema(true),
+)
+```
+
+#### Disable Schema Validation
+
+Skip all schema validation. Only syntax is checked.
+
+```go
+cfv := cli.Init(
+      cli.WithNoSchema(true),
+)
+```
+
+#### Schema Map
+
+Map file patterns to schema files. Use JSON Schema (`.json`) for JSON, YAML, TOML, and TOON files. Use XSD (`.xsd`) for XML files.
+
+```go
+schemaMap := map[string]string{
+      "**/package.json": "schemas/package.schema.json",
+      "**/config.xml":   "schemas/config.xsd",
+}
+cfv := cli.Init(
+      cli.WithSchemaMap(schemaMap),
+)
+```
+
+#### SchemaStore
+
+Use a local [SchemaStore](https://github.com/SchemaStore/schemastore) clone for automatic schema lookup by filename.
+
+```go
+import "github.com/Boeing/config-file-validator/pkg/schemastore"
+
+store, err := schemastore.Open("/path/to/schemastore")
+if err != nil {
+      log.Fatal(err)
+}
+cfv := cli.Init(
+      cli.WithSchemaStore(store),
+)
+```
+
 ## Build
 
 The project can be downloaded and built from source using an environment with Go 1.26+ installed. After a successful build, the binary can be moved to a location on your operating system PATH.
@@ -587,7 +781,7 @@ docker build . -t config-file-validator:v1.8.1
 ## Contributors
 
 <a href="https://github.com/Boeing/config-file-validator/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" />
+  <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" alt="Config File Validator contributors" />
 </a>
 
 ## Contributing

@@ -1,0 +1,105 @@
+# --no-schema skips document-declared $schema validation
+# This file would fail schema validation (port is string, not integer)
+exec validator --no-schema bad_with_schema.json
+stdout '✓'
+
+# Without --no-schema it fails
+! exec validator bad_with_schema.json
+stdout '×'
+stdout 'schema validation failed'
+
+# --no-schema with YAML schema comment — skips validation
+exec validator --no-schema bad_with_schema.yaml
+stdout '✓'
+
+# --no-schema with TOML $schema — skips validation
+exec validator --no-schema bad_with_schema.toml
+stdout '✓'
+
+# --no-schema with XML XSD — skips XSD validation
+exec validator --no-schema bad_with_xsd.xml
+stdout '✓'
+
+# --no-schema does NOT skip DTD (DTD is syntax, not schema)
+! exec validator --no-schema bad_dtd.xml
+stdout '×'
+
+# --no-schema with TOON $schema — skips validation
+exec validator --no-schema bad_with_schema.toon
+stdout '✓'
+
+# --no-schema still validates syntax
+! exec validator --no-schema bad_syntax.json
+stdout '×'
+
+# --no-schema + --require-schema is an error
+! exec validator --no-schema --require-schema good.json
+stderr 'cannot be used with'
+
+# --no-schema + --schema-map is an error
+! exec validator --no-schema --schema-map=x:y good.json
+stderr 'cannot be used with'
+
+# --no-schema + --schemastore is an error
+! exec validator --no-schema --schemastore somepath good.json
+stderr 'cannot be used with'
+
+-- schema.json --
+{
+  "type": "object",
+  "required": ["host", "port"],
+  "properties": {
+    "host": { "type": "string" },
+    "port": { "type": "integer" }
+  },
+  "additionalProperties": false
+}
+-- bad_with_schema.json --
+{
+  "$schema": "schema.json",
+  "host": "db",
+  "port": "not_a_number"
+}
+-- bad_with_schema.yaml --
+# yaml-language-server: $schema=schema.json
+host: db
+port: not_a_number
+-- bad_with_schema.toml --
+"$schema" = "schema.json"
+host = "db"
+port = "not_a_number"
+-- bad_syntax.json --
+{"bad": }
+-- good.json --
+{"key": "value"}
+-- bad_with_xsd.xml --
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="schema.xsd">
+  <host>db</host>
+  <port>not_a_number</port>
+</config>
+-- schema.xsd --
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="host" type="xs:string"/>
+        <xs:element name="port" type="xs:integer"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+-- bad_dtd.xml --
+<?xml version="1.0"?>
+<!DOCTYPE config [
+  <!ELEMENT config (host, port)>
+  <!ELEMENT host (#PCDATA)>
+  <!ELEMENT port (#PCDATA)>
+]>
+<config><host>db</host></config>
+-- bad_with_schema.toon --
+"$schema": schema.json
+host: db
+port: "not_a_number"
