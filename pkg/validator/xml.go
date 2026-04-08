@@ -31,7 +31,10 @@ func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 }
 
 func (XMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
-	schemaLoc := extractXSDLocation(b)
+	schemaLoc, err := extractXSDLocation(b)
+	if err != nil {
+		return false, err
+	}
 	if schemaLoc == "" {
 		return true, ErrNoSchema
 	}
@@ -63,24 +66,32 @@ func ValidateXSD(b []byte, schemaPath string) (bool, error) {
 	return true, nil
 }
 
-func extractXSDLocation(b []byte) string {
+const xsiNamespace = "http://www.w3.org/2001/XMLSchema-instance" //nolint:revive // XSI namespace is a fixed URI; DevSkim: ignore DS137138
+
+func extractXSDLocation(b []byte) (string, error) {
 	decoder := xml.NewDecoder(strings.NewReader(string(b)))
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
-			return ""
+			return "", nil
 		}
 		start, ok := tok.(xml.StartElement)
 		if !ok {
 			continue
 		}
 		for _, attr := range start.Attr {
-			if attr.Name.Local == "noNamespaceSchemaLocation" &&
-				attr.Name.Space == "http://www.w3.org/2001/XMLSchema-instance" { //nolint:revive // XSI namespace is a fixed URI; DevSkim: ignore DS137138
-				return strings.TrimSpace(attr.Value)
+			if attr.Name.Local != "noNamespaceSchemaLocation" {
+				continue
 			}
+			if attr.Name.Space == xsiNamespace {
+				return strings.TrimSpace(attr.Value), nil
+			}
+			return "", fmt.Errorf(
+				"noNamespaceSchemaLocation uses incorrect namespace %q, expected %q",
+				attr.Name.Space, xsiNamespace,
+			)
 		}
-		return ""
+		return "", nil
 	}
 }
 

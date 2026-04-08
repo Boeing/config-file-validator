@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./img/logo.png" width="200" height="200"/>
+  <img src="./img/logo.png" width="200" height="200" alt="Config File Validator logo"/>
   <h1>Config File Validator</h1>
   <p>Single cross-platform CLI tool to validate different configuration file types</p>
 </div>
@@ -12,7 +12,7 @@
   </a>
 
   <a href="https://www.bestpractices.dev/projects/9027">
-    <img src="https://www.bestpractices.dev/projects/9027/badge">
+    <img src="https://www.bestpractices.dev/projects/9027/badge" alt="OpenSSF Best Practices">
   </a>
 
   <a href="https://opensource.org/licenses/Apache-2.0">
@@ -721,7 +721,7 @@ docker build . -t config-file-validator:latest
 ## Contributors
 
 <a href="https://github.com/Boeing/config-file-validator/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" />
+  <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" alt="Config File Validator contributors" />
 </a>
 
 ## Contributing

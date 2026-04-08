@@ -326,10 +326,9 @@ func Test_JSONValidateSchemaNoSchema(t *testing.T) {
 
 func Test_JSONValidateSchemaEmptySchema(t *testing.T) {
 	t.Parallel()
-	// JSON with empty $schema should return ErrNoSchema
 	valid, err := JSONValidator{}.ValidateSchema([]byte(`{"$schema": "", "key": "value"}`), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
+	require.False(t, valid)
+	require.ErrorContains(t, err, "$schema must not be empty")
 }
 
 func Test_JSONValidateSchemaInvalidJSON(t *testing.T) {
@@ -346,6 +345,24 @@ func Test_JSONValidateSchemaArrayRoot(t *testing.T) {
 	valid, err := JSONValidator{}.ValidateSchema([]byte(`[1, 2, 3]`), "")
 	require.True(t, valid)
 	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_JSONValidateSchemaValid(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	doc := `{"$schema": "` + schema + `", "host": "db.example.com", "port": 5432, "database": "mydb"}`
+	valid, err := JSONValidator{}.ValidateSchema([]byte(doc), "")
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_JSONValidateSchemaInvalidDoc(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	doc := `{"$schema": "` + schema + `", "host": "db.example.com", "port": "not_a_number", "database": "mydb"}`
+	valid, err := JSONValidator{}.ValidateSchema([]byte(doc), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "schema validation failed")
 }
 
 func Test_YAMLValidateSchemaNoSchema(t *testing.T) {
@@ -569,17 +586,16 @@ func Test_resolveSchemaURLRelative(t *testing.T) {
 
 func Test_JSONValidateSchemaNonStringSchema(t *testing.T) {
 	t.Parallel()
-	// $schema is not a string
 	valid, err := JSONValidator{}.ValidateSchema([]byte(`{"$schema": 123}`), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
+	require.False(t, valid)
+	require.ErrorContains(t, err, "$schema must be a string")
 }
 
 func Test_TomlValidateSchemaEmptySchema(t *testing.T) {
 	t.Parallel()
 	valid, err := TomlValidator{}.ValidateSchema([]byte("\"$schema\" = \"\"\nkey = \"val\"\n"), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
+	require.False(t, valid)
+	require.ErrorContains(t, err, "$schema must not be empty")
 }
 
 func Test_TomlValidateSchemaInvalidToml(t *testing.T) {
@@ -592,8 +608,8 @@ func Test_TomlValidateSchemaInvalidToml(t *testing.T) {
 func Test_ToonValidateSchemaEmptySchema(t *testing.T) {
 	t.Parallel()
 	valid, err := ToonValidator{}.ValidateSchema([]byte("\"$schema\": \"\"\nkey: val\n"), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
+	require.False(t, valid)
+	require.ErrorContains(t, err, "$schema must not be empty")
 }
 
 func Test_ToonValidateSchemaInvalidToon(t *testing.T) {
@@ -648,6 +664,18 @@ func Test_XMLValidateSchemaNoSchema(t *testing.T) {
 	valid, err := XMLValidator{}.ValidateSchema([]byte(xml), "")
 	require.True(t, valid)
 	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_XMLValidateSchemaBadNamespace(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?>
+<root xsi:noNamespaceSchemaLocation="schema.xsd"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchemainstance">
+  <key>value</key>
+</root>`
+	valid, err := XMLValidator{}.ValidateSchema([]byte(xml), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "incorrect namespace")
 }
 
 func Test_XMLValidateSchemaRelativePath(t *testing.T) {

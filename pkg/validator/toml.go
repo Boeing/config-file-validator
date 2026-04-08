@@ -44,8 +44,11 @@ func (TomlValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 	}
 
 	schemaURL, ok := schemaRef.(string)
-	if !ok || schemaURL == "" {
-		return true, ErrNoSchema
+	if !ok {
+		return false, fmt.Errorf("$schema must be a string, got %T", schemaRef)
+	}
+	if schemaURL == "" {
+		return false, errors.New("$schema must not be empty")
 	}
 
 	delete(doc, "$schema")

@@ -1,7 +1,13 @@
+---
+title: "Config File Validator - Validate JSON, YAML, TOML, XML & More Config Files"
+description: "Single cross-platform CLI tool to validate and lint 14+ configuration file formats with syntax checking and JSON Schema validation. Install via Homebrew, go install, or Docker."
+canonical_url: https://boeing.github.io/config-file-validator/
+---
+
 <div align="center">
     <div style="width: 100%; text-align: center; position: relative;">
         <div style="display: inline-block;">
-            <img src="./img/logo.png" width="200" height="200"/>
+            <img src="./img/logo.png" width="200" height="200" alt="Config File Validator logo"/>
         </div>
         <div style="position: absolute; right: 0; top: 0">
             <a href="https://github.com/Boeing/config-file-validator">
@@ -26,7 +32,7 @@
   </a>
 
   <a href="https://www.bestpractices.dev/projects/9027">
-    <img src="https://www.bestpractices.dev/projects/9027/badge">
+    <img src="https://www.bestpractices.dev/projects/9027/badge" alt="OpenSSF Best Practices">
   </a>
 
   <a href="https://opensource.org/licenses/Apache-2.0">
@@ -73,7 +79,7 @@ XML files with inline DTD declarations (`<!DOCTYPE>`) are automatically validate
 
 ## Demo
 
-<img src="./img/demo.gif" alt="demo" />
+<img src="./img/demo.gif" alt="Config File Validator CLI demo showing JSON, YAML, TOML, and XML validation with pass and fail results" />
 
 ## Installation
 
@@ -731,7 +737,7 @@ docker build . -t config-file-validator:v1.8.1
 ## Contributors
 
 <a href="https://github.com/Boeing/config-file-validator/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" />
+  <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" alt="Config File Validator contributors" />
 </a>
 
 ## Contributing

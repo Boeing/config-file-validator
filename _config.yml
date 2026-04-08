@@ -1,0 +1,15 @@
+title: Config File Validator
+description: >-
+  Cross-platform CLI tool to validate and lint JSON, YAML, TOML, XML, HCL, INI,
+  HOCON, ENV, CSV, Properties, EDITORCONFIG, PList, SARIF, and TOON configuration
+  files with syntax checking and JSON Schema validation. Use locally, in CI/CD
+  pipelines, or as a Go library.
+url: https://boeing.github.io
+baseurl: /config-file-validator
+logo: /img/logo.png
+plugins:
+  - jekyll-seo-tag
+social:
+  name: Boeing
+  links:
+    - https://github.com/Boeing/config-file-validator
