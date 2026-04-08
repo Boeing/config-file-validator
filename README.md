@@ -382,6 +382,50 @@ XML schemas use XSD (XML Schema Definition) files rather than JSON Schema.
 
 Schema URLs can be absolute (`https://...`), absolute file paths, or relative paths (resolved from the document's directory).
 
+#### Automatic schema lookup with SchemaStore
+
+[SchemaStore](https://www.schemastore.org/) is a community-maintained collection of JSON Schemas for hundreds of common configuration files — including `package.json`, `tsconfig.json`, `.eslintrc.json`, GitHub Actions workflows, `pyproject.toml`, and many more.
+
+With the `--schemastore` flag, the validator automatically matches files by name against the SchemaStore catalog and validates them against the corresponding schema — no `$schema` declaration needed in your files.
+
+**Setup:**
+
+```shell
+# Clone the SchemaStore catalog (only needed once)
+git clone --depth=1 https://github.com/SchemaStore/schemastore.git
+
+# Validate your project using automatic schema lookup
+validator --schemastore=./schemastore /path/to/project
+```
+
+For example, if your project contains a `package.json`, `tsconfig.json`, and `.github/workflows/ci.yml`, the validator will automatically find and apply the correct schema for each file without any configuration.
+
+**Priority order:** When multiple schema sources are available, the validator uses this precedence:
+
+1. Schema declared in the document (`$schema`, `yaml-language-server`, `xsi:noNamespaceSchemaLocation`)
+2. `--schema-map` patterns
+3. `--schemastore` catalog lookup
+
+This means document-level declarations always win, and `--schemastore` acts as a safety net for files that don't declare their own schema.
+
+#### External schema mapping
+
+Use `--schema-map` to apply a schema to files matching a glob pattern. This is useful when you can't or don't want to add schema declarations to the files themselves.
+
+```shell
+# Apply a JSON Schema to all package.json files
+validator --schema-map="**/package.json:schemas/package.schema.json" /path/to/project
+
+# Apply an XSD to XML config files
+validator --schema-map="**/config.xml:schemas/config.xsd" /path/to/project
+
+# Multiple mappings
+validator --schema-map="**/package.json:schemas/pkg.json" \
+          --schema-map="**/*.xml:schemas/config.xsd" /path/to/project
+```
+
+Use JSON Schema (`.json`) for JSON, YAML, TOML, and TOON files. Use XSD (`.xsd`) for XML files. Paths are relative to the current working directory.
+
 ### Map file types with glob patterns
 
 Use the `--type-map` flag to map files matching a glob pattern to a specific file type. This is useful for files without extensions or with non-standard extensions. Multiple mappings can be specified.
