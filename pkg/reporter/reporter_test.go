@@ -1,6 +1,8 @@
 package reporter
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"testing"
@@ -17,6 +19,8 @@ var (
 		true,
 		nil,
 		false,
+		0,
+		0,
 	}
 
 	backslashReport = Report{
@@ -25,6 +29,8 @@ var (
 		true,
 		nil,
 		false,
+		0,
+		0,
 	}
 
 	invalidReport = Report{
@@ -33,6 +39,8 @@ var (
 		false,
 		errors.New("unable to parse bad.xml file"),
 		false,
+		0,
+		0,
 	}
 
 	multiLineErrorReport = Report{
@@ -41,6 +49,8 @@ var (
 		false,
 		errors.New("unable to parse keys:\nkey1\nkey2"),
 		false,
+		0,
+		0,
 	}
 
 	quietReport = Report{
@@ -49,6 +59,8 @@ var (
 		true,
 		nil,
 		true,
+		0,
+		0,
 	}
 
 	mixedReports = []Report{validReport, invalidReport, multiLineErrorReport}
@@ -96,6 +108,8 @@ func Test_junitReport(t *testing.T) {
 		false,
 		errors.New("Incorrect characters '<' and '</>` found in file"),
 		false,
+		0,
+		0,
 	}}
 	err := (JunitReporter{}).Print(reports)
 	require.NoError(t, err)
@@ -131,6 +145,44 @@ func Test_sarifReport(t *testing.T) {
 	reports := []Report{validReport, invalidReport, backslashReport}
 	err := (&SARIFReporter{}).Print(reports)
 	require.NoError(t, err)
+}
+
+func Test_sarifReportWithRegion(t *testing.T) {
+	reportWithPos := Report{
+		"bad.json",
+		"/fake/path/bad.json",
+		false,
+		errors.New("error at line 3 column 10"),
+		false,
+		3,
+		10,
+	}
+	reportLineOnly := Report{
+		"bad.yaml",
+		"/fake/path/bad.yaml",
+		false,
+		errors.New("yaml: line 5: mapping error"),
+		false,
+		5,
+		0,
+	}
+
+	var buf bytes.Buffer
+	log, err := createSARIFReport([]Report{reportWithPos, reportLineOnly, validReport})
+	require.NoError(t, err)
+
+	sarifBytes, err := json.MarshalIndent(log, "", "  ")
+	require.NoError(t, err)
+	buf.Write(sarifBytes)
+
+	output := buf.String()
+	// reportWithPos should have region with startLine and startColumn
+	assert.Contains(t, output, `"startLine": 3`)
+	assert.Contains(t, output, `"startColumn": 10`)
+	// reportLineOnly should have region with startLine only (no startColumn since it's 0)
+	assert.Contains(t, output, `"startLine": 5`)
+	// validReport should not have a region
+	assert.NotContains(t, output, `"startLine": 0`)
 }
 
 func Test_sarifReportToFile(t *testing.T) {
@@ -200,6 +252,8 @@ func Test_reporterFileOutput(t *testing.T) {
 		true,
 		nil,
 		false,
+		0,
+		0,
 	}
 
 	for _, tc := range []struct {

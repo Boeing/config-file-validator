@@ -8,6 +8,8 @@ type Report struct {
 	IsValid         bool
 	ValidationError error
 	IsQuiet         bool
+	StartLine       int
+	StartColumn     int
 }
 
 // Reporter is the interface that wraps the Print method

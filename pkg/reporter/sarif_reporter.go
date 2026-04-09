@@ -54,10 +54,16 @@ type location struct {
 
 type physicalLocation struct {
 	ArtifactLocation artifactLocation `json:"artifactLocation"`
+	Region           *region          `json:"region,omitempty"`
 }
 
 type artifactLocation struct {
 	URI string `json:"uri"`
+}
+
+type region struct {
+	StartLine   int `json:"startLine"`
+	StartColumn int `json:"startColumn,omitempty"`
 }
 
 func NewSARIFReporter(outputDest string) *SARIFReporter {
@@ -103,6 +109,13 @@ func createSARIFReport(reports []Report) (*SARIFLog, error) {
 		location := &result.Locations[0]
 
 		location.PhysicalLocation.ArtifactLocation.URI = "file:///" + report.FilePath
+
+		if report.StartLine > 0 {
+			location.PhysicalLocation.Region = &region{
+				StartLine:   report.StartLine,
+				StartColumn: report.StartColumn,
+			}
+		}
 	}
 
 	return &log, nil

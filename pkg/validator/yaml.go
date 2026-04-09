@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -13,10 +15,17 @@ type YAMLValidator struct{}
 
 var _ Validator = YAMLValidator{}
 
+var yamlLineRe = regexp.MustCompile(`yaml: line (\d+):`)
+
 func (YAMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	var output any
 	err := yaml.Unmarshal(b, &output)
 	if err != nil {
+		if m := yamlLineRe.FindStringSubmatch(err.Error()); m != nil {
+			if line, convErr := strconv.Atoi(m[1]); convErr == nil {
+				return false, &ValidationError{Err: err, Line: line}
+			}
+		}
 		return false, err
 	}
 	return true, nil

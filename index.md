@@ -140,6 +140,16 @@ If you have a go environment on your desktop you can use [go install](https://go
 go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.1
 ```
 
+## GitHub Action
+
+A GitHub Action is available to run the config-file-validator as part of your CI/CD pipeline. It posts validation results as PR comments with inline annotations on the affected files and lines.
+
+```yaml
+- uses: Boeing/validate-configs-action@v2.0.0
+```
+
+See the [validate-configs-action](https://github.com/Boeing/validate-configs-action) repository for full usage and configuration options.
+
 ## Usage
 
 ```

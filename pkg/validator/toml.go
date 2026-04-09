@@ -18,7 +18,11 @@ func (TomlValidator) ValidateSyntax(b []byte) (bool, error) {
 	var derr *toml.DecodeError
 	if errors.As(err, &derr) {
 		row, col := derr.Position()
-		return false, fmt.Errorf("error at line %v column %v: %w", row, col, err)
+		return false, &ValidationError{
+			Err:    fmt.Errorf("error at line %v column %v: %w", row, col, err),
+			Line:   row,
+			Column: col,
+		}
 	}
 	return true, nil
 }

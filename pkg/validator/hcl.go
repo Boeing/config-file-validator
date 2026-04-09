@@ -33,5 +33,9 @@ func (HclValidator) ValidateSyntax(b []byte) (bool, error) {
 	row := subject.Start.Line
 	col := subject.Start.Column
 
-	return false, fmt.Errorf("error at line %v column %v: %w", row, col, diags)
+	return false, &ValidationError{
+		Err:    fmt.Errorf("error at line %v column %v: %w", row, col, diags),
+		Line:   row,
+		Column: col,
+	}
 }

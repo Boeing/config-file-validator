@@ -123,12 +123,21 @@ func (c CLI) Run() (int, error) {
 			isValid, err = validateSchema(fileToValidate.FileType.Validator, fileContent, fileToValidate.Path)
 		}
 
+		var line, col int
+		var ve *validator.ValidationError
+		if errors.As(err, &ve) {
+			line = ve.Line
+			col = ve.Column
+		}
+
 		report := reporter.Report{
 			FileName:        fileToValidate.Name,
 			FilePath:        fileToValidate.Path,
 			IsValid:         isValid,
 			ValidationError: err,
 			IsQuiet:         Quiet,
+			StartLine:       line,
+			StartColumn:     col,
 		}
 		if !isValid {
 			errorFound = true

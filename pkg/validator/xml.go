@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/lestrrat-go/helium"
 	"github.com/lestrrat-go/helium/xsd"
 )
+
+var xmlLineColRe = regexp.MustCompile(`at line (\d+), column (\d+)`)
 
 type XMLValidator struct{}
 
@@ -25,6 +29,11 @@ func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	ctx := context.Background()
 	_, err := helium.NewParser().ValidateDTD(true).Parse(ctx, b)
 	if err != nil {
+		if m := xmlLineColRe.FindStringSubmatch(err.Error()); m != nil {
+			line, _ := strconv.Atoi(m[1])
+			col, _ := strconv.Atoi(m[2])
+			return false, &ValidationError{Err: err, Line: line, Column: col}
+		}
 		return false, err
 	}
 	return true, nil

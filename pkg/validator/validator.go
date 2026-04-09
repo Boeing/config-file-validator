@@ -6,6 +6,17 @@ import "errors"
 // supports schema validation but does not declare a schema.
 var ErrNoSchema = errors.New("no schema declared")
 
+// ValidationError wraps a validation error with optional source position.
+// Line and Column are 1-based. A zero value means the position is unknown.
+type ValidationError struct {
+	Err    error
+	Line   int
+	Column int
+}
+
+func (e *ValidationError) Error() string { return e.Err.Error() }
+func (e *ValidationError) Unwrap() error { return e.Err }
+
 // Validator is the base interface that all validators must implement.
 // For optional capabilities, use type assertions against SchemaValidator.
 type Validator interface {

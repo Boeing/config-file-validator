@@ -26,6 +26,14 @@ func (CsvValidator) ValidateSyntax(b []byte) (bool, error) {
 		}
 
 		if err != nil {
+			var pe *csv.ParseError
+			if errors.As(err, &pe) {
+				return false, &ValidationError{
+					Err:    err,
+					Line:   pe.Line,
+					Column: pe.Column,
+				}
+			}
 			return false, err
 		}
 	}
