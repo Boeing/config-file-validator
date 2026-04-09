@@ -68,7 +68,15 @@ func ValidateXSD(b []byte, schemaPath string) (bool, error) {
 		return false, fmt.Errorf("xml parse error: %w", err)
 	}
 
-	if err := xsd.NewValidator(schema).Validate(ctx, doc); err != nil {
+	ec := helium.NewErrorCollector(ctx, helium.ErrorLevelNone)
+	if err := xsd.NewValidator(schema).ErrorHandler(ec).Validate(ctx, doc); err != nil {
+		var msgs []string
+		for _, e := range ec.Errors() {
+			msgs = append(msgs, e.Error())
+		}
+		if len(msgs) > 0 {
+			return false, fmt.Errorf("schema validation failed: %s", strings.Join(msgs, "; "))
+		}
 		return false, fmt.Errorf("schema validation failed: %w", err)
 	}
 
