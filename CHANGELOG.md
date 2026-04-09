@@ -12,8 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - SARIF reporter now includes `region` with `startLine`/`startColumn` for inline PR annotations in GitHub Actions
-- `ValidationError` type with optional `Line`/`Column` fields for structured error positions
-- GitHub Action section in README and index referencing `Boeing/validate-configs-action@v2.0.0`
 
 ## [2.0.0] - 2026-04-08
 
