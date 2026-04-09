@@ -130,14 +130,23 @@ func (c CLI) Run() (int, error) {
 			col = ve.Column
 		}
 
+		var validationErrors []string
+		var se *validator.SchemaErrors
+		if errors.As(err, &se) {
+			validationErrors = se.Errors()
+		} else if err != nil {
+			validationErrors = []string{err.Error()}
+		}
+
 		report := reporter.Report{
-			FileName:        fileToValidate.Name,
-			FilePath:        fileToValidate.Path,
-			IsValid:         isValid,
-			ValidationError: err,
-			IsQuiet:         Quiet,
-			StartLine:       line,
-			StartColumn:     col,
+			FileName:         fileToValidate.Name,
+			FilePath:         fileToValidate.Path,
+			IsValid:          isValid,
+			ValidationError:  err,
+			ValidationErrors: validationErrors,
+			IsQuiet:          Quiet,
+			StartLine:        line,
+			StartColumn:      col,
 		}
 		if !isValid {
 			errorFound = true

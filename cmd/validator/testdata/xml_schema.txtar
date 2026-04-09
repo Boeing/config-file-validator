@@ -61,7 +61,7 @@ stdout '✓'
 # Invalid type
 ! exec validator xsd_invalid.xml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # No schema passes syntax-only
 exec validator plain.xml
@@ -87,7 +87,7 @@ stdout '✓'
 # --schema-map with XSD invalid
 ! exec validator --schema-map=mapped_bad.xml:schema.xsd mapped_bad.xml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # DTD + XSD together
@@ -100,7 +100,7 @@ stdout '✓'
 # DTD valid but XSD fails (wrong type)
 ! exec validator dtd_ok_xsd_bad.xml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # DTD fails (missing element) — never reaches XSD
 ! exec validator dtd_bad_xsd_ok.xml

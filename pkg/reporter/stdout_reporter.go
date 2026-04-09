@@ -128,9 +128,11 @@ func createStdoutReport(reports []Report, indentSize int) reportStdout {
 	for _, report := range reports {
 		if !report.IsValid {
 			fmtRed := color.New(color.FgRed)
-			paddedString := padErrorString(report.ValidationError.Error())
 			result.Text += fmtRed.Sprintf("%s× %s\n", indent, report.FilePath)
-			result.Text += fmtRed.Sprintf("%serror: %v\n", errIndent, paddedString)
+			for _, e := range report.ValidationErrors {
+				paddedString := padErrorString(e)
+				result.Text += fmtRed.Sprintf("%serror: %v\n", errIndent, paddedString)
+			}
 			result.Summary.Failed++
 		} else {
 			result.Text += color.New(color.FgGreen).Sprintf("%s✓ %s\n", indent, report.FilePath)

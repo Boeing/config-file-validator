@@ -5,7 +5,7 @@ stdout '✓'
 # TOML with invalid data fails schema validation
 ! exec validator invalid.toml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # TOML without $schema passes (syntax only)
 exec validator plain.toml

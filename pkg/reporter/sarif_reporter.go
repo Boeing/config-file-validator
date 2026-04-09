@@ -75,8 +75,6 @@ func NewSARIFReporter(outputDest string) *SARIFReporter {
 func createSARIFReport(reports []Report) (*SARIFLog, error) {
 	var log SARIFLog
 
-	n := len(reports)
-
 	log.Version = SARIFVersion
 	log.Schema = SARIFSchema
 
@@ -87,35 +85,50 @@ func createSARIFReport(reports []Report) (*SARIFLog, error) {
 	runs.Tool.Driver.InfoURI = DriverInfoURI
 	runs.Tool.Driver.Version = DriverVersion
 
-	runs.Results = make([]result, n)
-
-	for i, report := range reports {
+	for _, report := range reports {
 		if strings.Contains(report.FilePath, "\\") {
 			report.FilePath = strings.ReplaceAll(report.FilePath, "\\", "/")
 		}
 
-		result := &runs.Results[i]
-		if !report.IsValid {
-			result.Kind = "fail"
-			result.Level = "error"
-			result.Message.Text = report.ValidationError.Error()
-		} else {
-			result.Kind = "pass"
-			result.Level = "none"
-			result.Message.Text = "No errors detected"
+		uri := "file:///" + report.FilePath
+
+		if report.IsValid {
+			runs.Results = append(runs.Results, result{
+				Kind:    "pass",
+				Level:   "none",
+				Message: message{Text: "No errors detected"},
+				Locations: []location{{
+					PhysicalLocation: physicalLocation{
+						ArtifactLocation: artifactLocation{URI: uri},
+					},
+				}},
+			})
+			continue
 		}
 
-		result.Locations = make([]location, 1)
-		location := &result.Locations[0]
-
-		location.PhysicalLocation.ArtifactLocation.URI = "file:///" + report.FilePath
-
-		if report.StartLine > 0 {
-			location.PhysicalLocation.Region = &region{
-				StartLine:   report.StartLine,
-				StartColumn: report.StartColumn,
+		for _, errMsg := range report.ValidationErrors {
+			r := result{
+				Kind:    "fail",
+				Level:   "error",
+				Message: message{Text: errMsg},
+				Locations: []location{{
+					PhysicalLocation: physicalLocation{
+						ArtifactLocation: artifactLocation{URI: uri},
+					},
+				}},
 			}
+			if report.StartLine > 0 {
+				r.Locations[0].PhysicalLocation.Region = &region{
+					StartLine:   report.StartLine,
+					StartColumn: report.StartColumn,
+				}
+			}
+			runs.Results = append(runs.Results, r)
 		}
+	}
+
+	if runs.Results == nil {
+		runs.Results = []result{}
 	}
 
 	return &log, nil

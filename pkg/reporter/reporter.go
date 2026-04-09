@@ -3,13 +3,14 @@ package reporter
 // The Report object stores information about the report
 // and the results of the validation
 type Report struct {
-	FileName        string
-	FilePath        string
-	IsValid         bool
-	ValidationError error
-	IsQuiet         bool
-	StartLine       int
-	StartColumn     int
+	FileName         string
+	FilePath         string
+	IsValid          bool
+	ValidationError  error
+	ValidationErrors []string
+	IsQuiet          bool
+	StartLine        int
+	StartColumn      int
 }
 
 // Reporter is the interface that wraps the Print method

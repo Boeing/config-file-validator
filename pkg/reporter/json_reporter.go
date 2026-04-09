@@ -17,9 +17,9 @@ func NewJSONReporter(outputDest string) *JSONReporter {
 }
 
 type fileStatus struct {
-	Path   string `json:"path"`
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
+	Path   string   `json:"path"`
+	Status string   `json:"status"`
+	Errors []string `json:"errors,omitempty"`
 }
 
 type summary struct {
@@ -202,10 +202,10 @@ func createJSONReport(reports []Report) (reportJSON, error) {
 
 	for _, report := range reports {
 		status := "passed"
-		errorStr := ""
+		var errs []string
 		if !report.IsValid {
 			status = "failed"
-			errorStr = report.ValidationError.Error()
+			errs = report.ValidationErrors
 		}
 
 		// Convert Windows-style file paths.
@@ -216,7 +216,7 @@ func createJSONReport(reports []Report) (reportJSON, error) {
 		jsonReport.Files = append(jsonReport.Files, fileStatus{
 			Path:   report.FilePath,
 			Status: status,
-			Error:  errorStr,
+			Errors: errs,
 		})
 
 		currentPassed := 0

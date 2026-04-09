@@ -5,7 +5,7 @@ stdout '✓'
 # --schema-map with invalid data fails
 ! exec validator --schema-map=bad.json:schema.json bad.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # --schema-map with glob pattern
 exec validator --schema-map=**/*.json:schema.json subdir/config.json

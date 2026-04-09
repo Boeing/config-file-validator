@@ -11,7 +11,7 @@ stdout '✓'
 # Invalid package.json (version must be string)
 ! exec validator invalid_package.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # --- tsconfig.json schema ---
 
@@ -22,7 +22,7 @@ stdout '✓'
 # Invalid tsconfig.json (target must be string)
 ! exec validator invalid_tsconfig.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # --- eslintrc schema ---
 
@@ -39,7 +39,7 @@ stdout '✓'
 # Invalid workflow (missing required jobs)
 ! exec validator invalid_workflow.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # --- Strict config schema ---
 
@@ -50,27 +50,27 @@ stdout '✓'
 # Missing required field
 ! exec validator missing_required.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # Wrong type
 ! exec validator wrong_type.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # Extra property not allowed
 ! exec validator extra_property.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # Value out of range
 ! exec validator out_of_range.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # Enum violation
 ! exec validator bad_enum.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # --- Array schema ---
 
@@ -81,12 +81,12 @@ stdout '✓'
 # Too few items
 ! exec validator too_few_items.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # Wrong item type
 ! exec validator wrong_item_type.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # --- Mixed: files with and without $schema ---
 

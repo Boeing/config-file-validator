@@ -5,7 +5,7 @@ stdout '✓'
 # YAML with invalid data fails schema validation
 ! exec validator invalid.yaml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # YAML without schema comment passes (syntax only)
 exec validator plain.yaml

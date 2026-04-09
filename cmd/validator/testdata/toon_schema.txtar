@@ -5,7 +5,7 @@ stdout '✓'
 # TOON with invalid data fails schema validation
 ! exec validator invalid.toon
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # TOON without $schema passes (syntax only)
 exec validator plain.toon
