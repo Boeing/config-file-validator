@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Boeing/config-file-validator/internal/testhelper"
-	"github.com/Boeing/config-file-validator/pkg/finder"
-	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/v2/internal/testhelper"
+	"github.com/Boeing/config-file-validator/v2/pkg/finder"
+	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
 )
 
 func Test_ValidGroupOutput(t *testing.T) {
