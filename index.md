@@ -178,7 +178,7 @@ optional flags:
   -globbing
         If globbing flag is set, check for glob patterns in the arguments.
   -groupby string
-        Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+        Group output by filetype, directory, pass-fail, error-type. Supported for Standard and JSON reports
   -no-schema
         Disable all schema validation. Only syntax is checked.
         Cannot be used with --require-schema, --schema-map, or --schemastore.
@@ -305,7 +305,7 @@ validator --reporter=json:output.json --reporter=standard /path/to/search
 
 ### Group report output
 
-Group the report output by file type, directory, or pass-fail. Supports one or more groupings.
+Group the report output by file type, directory, pass-fail, or error-type. Supports one or more groupings.
 
 ```shell
 validator -groupby filetype

@@ -117,10 +117,21 @@ func (c CLI) Run() (int, error) {
 			return 1, fmt.Errorf("unable to read file: %w", err)
 		}
 
-		isValid, err := fileToValidate.FileType.Validator.ValidateSyntax(fileContent)
+		isValid, syntaxErr := fileToValidate.FileType.Validator.ValidateSyntax(fileContent)
 
+		var schemaErr error
 		if isValid {
-			isValid, err = validateSchema(fileToValidate.FileType.Validator, fileContent, fileToValidate.Path)
+			isValid, schemaErr = validateSchema(fileToValidate.FileType.Validator, fileContent, fileToValidate.Path)
+		}
+
+		err = syntaxErr
+		errorType := ""
+		if syntaxErr != nil {
+			errorType = "syntax"
+		}
+		if schemaErr != nil {
+			err = schemaErr
+			errorType = "schema"
 		}
 
 		var line, col int
@@ -133,9 +144,11 @@ func (c CLI) Run() (int, error) {
 		var validationErrors []string
 		var se *validator.SchemaErrors
 		if errors.As(err, &se) {
-			validationErrors = se.Errors()
+			for _, e := range se.Errors() {
+				validationErrors = append(validationErrors, "schema: "+e)
+			}
 		} else if err != nil {
-			validationErrors = []string{err.Error()}
+			validationErrors = []string{"syntax: " + err.Error()}
 		}
 
 		report := reporter.Report{
@@ -144,6 +157,7 @@ func (c CLI) Run() (int, error) {
 			IsValid:          isValid,
 			ValidationError:  err,
 			ValidationErrors: validationErrors,
+			ErrorType:        errorType,
 			IsQuiet:          Quiet,
 			StartLine:        line,
 			StartColumn:      col,

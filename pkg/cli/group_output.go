@@ -43,6 +43,21 @@ func GroupByPassFail(reports []reporter.Report) map[string][]reporter.Report {
 	return reportByPassOrFail
 }
 
+// Group Reports by Error Type (syntax, schema, or passed)
+func GroupByErrorType(reports []reporter.Report) map[string][]reporter.Report {
+	reportByErrorType := make(map[string][]reporter.Report)
+
+	for _, report := range reports {
+		key := report.ErrorType
+		if key == "" {
+			key = "Passed"
+		}
+		reportByErrorType[key] = append(reportByErrorType[key], report)
+	}
+
+	return reportByErrorType
+}
+
 // Group Reports by Directory
 func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 	reportByDirectory := make(map[string][]reporter.Report)
@@ -79,6 +94,8 @@ func GroupBySingle(reports []reporter.Report, groupBy string) (map[string][]repo
 			groupReport = GroupByFileType(reports)
 		case "directory":
 			groupReport = GroupByDirectory(reports)
+		case "error-type":
+			groupReport = GroupByErrorType(reports)
 		default:
 			return nil, fmt.Errorf("unable to group by %s", groupBy)
 		}
