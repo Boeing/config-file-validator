@@ -1,10 +1,40 @@
 package validator
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 // ErrNoSchema is returned by SchemaValidator.ValidateSchema when the document
 // supports schema validation but does not declare a schema.
 var ErrNoSchema = errors.New("no schema declared")
+
+// ValidationError wraps a validation error with optional source position.
+// Line and Column are 1-based. A zero value means the position is unknown.
+type ValidationError struct {
+	Err    error
+	Line   int
+	Column int
+}
+
+func (e *ValidationError) Error() string { return e.Err.Error() }
+func (e *ValidationError) Unwrap() error { return e.Err }
+
+// SchemaErrors holds multiple schema validation errors.
+// The joined Error() string is used for backward compatibility,
+// while Errors() returns individual error messages.
+type SchemaErrors struct {
+	Prefix string
+	Items  []string
+}
+
+func (e *SchemaErrors) Error() string {
+	return e.Prefix + strings.Join(e.Items, "; ")
+}
+
+func (e *SchemaErrors) Errors() []string {
+	return e.Items
+}
 
 // Validator is the base interface that all validators must implement.
 // For optional capabilities, use type assertions against SchemaValidator.

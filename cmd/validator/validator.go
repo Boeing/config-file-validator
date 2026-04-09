@@ -173,7 +173,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		excludeFileTypesPtr = flagSet.String("exclude-file-types", "", "A comma separated list of file types to ignore")
 		fileTypesPtr        = flagSet.String("file-types", "", "A comma separated list of file types to validate")
 		versionPtr          = flagSet.Bool("version", false, "Version prints the release version of validator")
-		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
+		groupOutputPtr      = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail, error-type. Supported for Standard and JSON reports")
 		quietPtr            = flagSet.Bool("quiet", false, "If quiet flag is set. It doesn't print any output to stdout.")
 		globbingPrt         = flagSet.Bool("globbing", false, "If globbing flag is set, check for glob patterns in the arguments.")
 		requireSchemaPtr    = flagSet.Bool("require-schema", false,
@@ -321,14 +321,14 @@ func validateReporterConf(conf map[string]string, groupBy *string) error {
 func validateGroupByConf(groupBy *string) error {
 	groupByCleanString := cleanString("groupby")
 	groupByUserInput := strings.Split(groupByCleanString, ",")
-	groupByAllowedValues := []string{"filetype", "directory", "pass-fail"}
+	groupByAllowedValues := []string{"filetype", "directory", "pass-fail", "error-type"}
 	seenValues := make(map[string]bool)
 
 	// Check that the groupby values are valid and not duplicates
 	if groupBy != nil && isFlagSet("groupby") {
 		for _, groupBy := range groupByUserInput {
 			if !slices.Contains(groupByAllowedValues, groupBy) {
-				return errors.New("wrong parameter value for groupby, only supports filetype, directory, pass-fail")
+				return errors.New("wrong parameter value for groupby, only supports filetype, directory, pass-fail, error-type")
 			}
 			if _, ok := seenValues[groupBy]; ok {
 				return errors.New("wrong parameter value for groupby, duplicate values are not allowed")

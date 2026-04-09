@@ -191,8 +191,11 @@ func (jr JunitReporter) Print(reports []Report) error {
 		tc := Testcase{Name: fmt.Sprintf("%s validation", r.FilePath), File: r.FilePath, ClassName: "config-file-validator"}
 		if !r.IsValid {
 			testErrors++
-			escapedErrorString := escapeString(r.ValidationError.Error())
-			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: escapedErrorString}}
+			var escapedErrors []string
+			for _, e := range r.ValidationErrors {
+				escapedErrors = append(escapedErrors, escapeString(e))
+			}
+			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: strings.Join(escapedErrors, "\n")}}
 		}
 		testcases = append(testcases, tc)
 	}

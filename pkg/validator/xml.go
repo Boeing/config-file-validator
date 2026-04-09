@@ -6,10 +6,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/lestrrat-go/helium"
 	"github.com/lestrrat-go/helium/xsd"
+)
+
+var (
+	xmlLineColRe   = regexp.MustCompile(`at line (\d+), column (\d+)`)
+	xsdErrorLineRe = regexp.MustCompile(`^\(string\):(\d+): Schemas validity error : (.+)`)
 )
 
 type XMLValidator struct{}
@@ -25,6 +32,11 @@ func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	ctx := context.Background()
 	_, err := helium.NewParser().ValidateDTD(true).Parse(ctx, b)
 	if err != nil {
+		if m := xmlLineColRe.FindStringSubmatch(err.Error()); m != nil {
+			line, _ := strconv.Atoi(m[1])
+			col, _ := strconv.Atoi(m[2])
+			return false, &ValidationError{Err: err, Line: line, Column: col}
+		}
 		return false, err
 	}
 	return true, nil
@@ -59,7 +71,15 @@ func ValidateXSD(b []byte, schemaPath string) (bool, error) {
 		return false, fmt.Errorf("xml parse error: %w", err)
 	}
 
-	if err := xsd.NewValidator(schema).Validate(ctx, doc); err != nil {
+	ec := helium.NewErrorCollector(ctx, helium.ErrorLevelNone)
+	if err := xsd.NewValidator(schema).ErrorHandler(ec).Validate(ctx, doc); err != nil {
+		var msgs []string
+		for _, e := range ec.Errors() {
+			msgs = append(msgs, cleanXSDError(e.Error()))
+		}
+		if len(msgs) > 0 {
+			return false, &SchemaErrors{Prefix: "schema validation failed: ", Items: msgs}
+		}
 		return false, fmt.Errorf("schema validation failed: %w", err)
 	}
 
@@ -104,4 +124,15 @@ func resolveXSDPath(schemaLoc, filePath string) string {
 	}
 	dir := filepath.Dir(filePath)
 	return filepath.Join(dir, schemaLoc)
+}
+
+// cleanXSDError reformats helium XSD errors from
+// "(string):5: Schemas validity error : Element 'port': ...\n"
+// to "line 5: Element 'port': ..."
+func cleanXSDError(s string) string {
+	s = strings.TrimSpace(s)
+	if m := xsdErrorLineRe.FindStringSubmatch(s); m != nil {
+		return fmt.Sprintf("line %s: %s", m[1], m[2])
+	}
+	return s
 }

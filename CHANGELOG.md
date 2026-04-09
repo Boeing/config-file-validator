@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-04-09
+
+### Added
+
+- SARIF reporter now includes `region` with `startLine`/`startColumn` for inline PR annotations in GitHub Actions
+- `ValidationError` type with optional `Line`/`Column` fields for structured error positions
+- Multiple validation errors are now separated across all reporters: each error on its own line (standard), array of errors (JSON), individual result entries (SARIF), newline-separated in failure message (JUnit)
+- `SchemaErrors` type to carry individual schema validation error messages
+- Validation errors are prefixed with `syntax:` or `schema:` to distinguish error types
+- `error-type` groupby option to group output by syntax errors, schema errors, and passed files
+- GitHub Action section in README and index referencing `Boeing/validate-configs-action@v2.0.0`
+
+### Fixed
+
+- XSD validation errors now show detailed diagnostics instead of generic "xsd: validation failed"
+- XSD error format cleaned up from `(string):5: Schemas validity error : ...` to `line 5: ...`
+
+## [2.0.0] - 2026-04-08
+
 ### Added
 
 - SARIF syntax and schema validation using the go-sarif library

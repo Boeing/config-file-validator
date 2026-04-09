@@ -2,7 +2,6 @@ package validator
 
 import (
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -263,22 +262,12 @@ func FuzzSarifValidator(f *testing.F) {
 	f.Fuzz(fuzzFunction(SarifValidator{}))
 }
 
-func Test_getCustomErrNonSyntaxError(t *testing.T) {
+func Test_ValidationError(t *testing.T) {
 	t.Parallel()
-	// Unmarshal into a typed struct to trigger UnmarshalTypeError instead of SyntaxError
-	var target struct {
-		Key int `json:"key"`
-	}
-	input := []byte(`{"key": "not_a_number"}`)
-	err := json.Unmarshal(input, &target)
-	if err == nil {
-		t.Fatal("expected an error")
-	}
-	customErr := getCustomErr(input, err)
-	// Should return the original error unchanged since it's not a SyntaxError
-	if !errors.Is(customErr, err) {
-		t.Errorf("expected original error, got: %v", customErr)
-	}
+	inner := errors.New("something broke")
+	ve := &ValidationError{Err: inner, Line: 5, Column: 10}
+	require.Equal(t, "something broke", ve.Error())
+	require.ErrorIs(t, ve, inner)
 }
 
 var schemaTestData = []struct {

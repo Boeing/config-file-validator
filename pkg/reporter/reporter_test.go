@@ -1,6 +1,8 @@
 package reporter
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"testing"
@@ -12,43 +14,38 @@ import (
 // Shared test fixtures
 var (
 	validReport = Report{
-		"good.xml",
-		"/fake/path/good.xml",
-		true,
-		nil,
-		false,
+		FileName: "good.xml",
+		FilePath: "/fake/path/good.xml",
+		IsValid:  true,
 	}
 
 	backslashReport = Report{
-		"good.xml",
-		"\\fake\\path\\good.xml",
-		true,
-		nil,
-		false,
+		FileName: "good.xml",
+		FilePath: "\\fake\\path\\good.xml",
+		IsValid:  true,
 	}
 
 	invalidReport = Report{
-		"bad.xml",
-		"/fake/path/bad.xml",
-		false,
-		errors.New("unable to parse bad.xml file"),
-		false,
+		FileName:         "bad.xml",
+		FilePath:         "/fake/path/bad.xml",
+		IsValid:          false,
+		ValidationError:  errors.New("unable to parse bad.xml file"),
+		ValidationErrors: []string{"unable to parse bad.xml file"},
 	}
 
 	multiLineErrorReport = Report{
-		"bad.xml",
-		"/fake/path/bad.xml",
-		false,
-		errors.New("unable to parse keys:\nkey1\nkey2"),
-		false,
+		FileName:         "bad.xml",
+		FilePath:         "/fake/path/bad.xml",
+		IsValid:          false,
+		ValidationError:  errors.New("unable to parse keys:\nkey1\nkey2"),
+		ValidationErrors: []string{"unable to parse keys:\nkey1\nkey2"},
 	}
 
 	quietReport = Report{
-		"good.xml",
-		"/fake/path/good.xml",
-		true,
-		nil,
-		true,
+		FileName: "good.xml",
+		FilePath: "/fake/path/good.xml",
+		IsValid:  true,
+		IsQuiet:  true,
 	}
 
 	mixedReports = []Report{validReport, invalidReport, multiLineErrorReport}
@@ -91,11 +88,11 @@ func Test_jsonReportToFile(t *testing.T) {
 
 func Test_junitReport(t *testing.T) {
 	reports := []Report{validReport, backslashReport, {
-		"bad.xml",
-		"/fake/path/bad.json",
-		false,
-		errors.New("Incorrect characters '<' and '</>` found in file"),
-		false,
+		FileName:         "bad.xml",
+		FilePath:         "/fake/path/bad.json",
+		IsValid:          false,
+		ValidationError:  errors.New("Incorrect characters '<' and '</>` found in file"),
+		ValidationErrors: []string{"Incorrect characters '<' and '</>` found in file"},
 	}}
 	err := (JunitReporter{}).Print(reports)
 	require.NoError(t, err)
@@ -131,6 +128,43 @@ func Test_sarifReport(t *testing.T) {
 	reports := []Report{validReport, invalidReport, backslashReport}
 	err := (&SARIFReporter{}).Print(reports)
 	require.NoError(t, err)
+}
+
+func Test_sarifReportWithRegion(t *testing.T) {
+	reportWithPos := Report{
+		FileName:         "bad.json",
+		FilePath:         "/fake/path/bad.json",
+		IsValid:          false,
+		ValidationError:  errors.New("error at line 3 column 10"),
+		ValidationErrors: []string{"error at line 3 column 10"},
+		StartLine:        3,
+		StartColumn:      10,
+	}
+	reportLineOnly := Report{
+		FileName:         "bad.yaml",
+		FilePath:         "/fake/path/bad.yaml",
+		IsValid:          false,
+		ValidationError:  errors.New("yaml: line 5: mapping error"),
+		ValidationErrors: []string{"yaml: line 5: mapping error"},
+		StartLine:        5,
+	}
+
+	var buf bytes.Buffer
+	log, err := createSARIFReport([]Report{reportWithPos, reportLineOnly, validReport})
+	require.NoError(t, err)
+
+	sarifBytes, err := json.MarshalIndent(log, "", "  ")
+	require.NoError(t, err)
+	buf.Write(sarifBytes)
+
+	output := buf.String()
+	// reportWithPos should have region with startLine and startColumn
+	assert.Contains(t, output, `"startLine": 3`)
+	assert.Contains(t, output, `"startColumn": 10`)
+	// reportLineOnly should have region with startLine only (no startColumn since it's 0)
+	assert.Contains(t, output, `"startLine": 5`)
+	// validReport should not have a region
+	assert.NotContains(t, output, `"startLine": 0`)
 }
 
 func Test_sarifReportToFile(t *testing.T) {
@@ -195,11 +229,9 @@ func Test_jsonGroupedReports(t *testing.T) {
 
 func Test_reporterFileOutput(t *testing.T) {
 	report := Report{
-		"good.json",
-		"/fake/path/good.json",
-		true,
-		nil,
-		false,
+		FileName: "good.json",
+		FilePath: "/fake/path/good.json",
+		IsValid:  true,
 	}
 
 	for _, tc := range []struct {

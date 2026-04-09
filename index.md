@@ -140,6 +140,16 @@ If you have a go environment on your desktop you can use [go install](https://go
 go install github.com/Boeing/config-file-validator/cmd/validator@v1.8.1
 ```
 
+## GitHub Action
+
+A GitHub Action is available to run the config-file-validator as part of your CI/CD pipeline. It posts validation results as PR comments with inline annotations on the affected files and lines.
+
+```yaml
+- uses: Boeing/validate-configs-action@v2.0.0
+```
+
+See the [validate-configs-action](https://github.com/Boeing/validate-configs-action) repository for full usage and configuration options.
+
 ## Usage
 
 ```
@@ -168,7 +178,7 @@ optional flags:
   -globbing
         If globbing flag is set, check for glob patterns in the arguments.
   -groupby string
-        Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports
+        Group output by filetype, directory, pass-fail, error-type. Supported for Standard and JSON reports
   -no-schema
         Disable all schema validation. Only syntax is checked.
         Cannot be used with --require-schema, --schema-map, or --schemastore.
@@ -295,7 +305,7 @@ validator --reporter=json:output.json --reporter=standard /path/to/search
 
 ### Group report output
 
-Group the report output by file type, directory, or pass-fail. Supports one or more groupings.
+Group the report output by file type, directory, pass-fail, or error-type. Supports one or more groupings.
 
 ```shell
 validator -groupby filetype

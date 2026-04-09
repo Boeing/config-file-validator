@@ -11,6 +11,15 @@ stdout 'Summary'
 exec validator -groupby=pass-fail files
 stdout 'Passed'
 
+# Group by error-type (all valid files → Passed group)
+exec validator -groupby=error-type files
+stdout 'Passed'
+
+# Group by error-type with failures
+! exec validator -groupby=error-type mixed
+stdout 'syntax'
+stdout 'Passed'
+
 # Double grouping
 exec validator -groupby=filetype,directory files
 stdout 'json'
@@ -39,3 +48,7 @@ stdout 'totalPassed'
 {"key": "value"}
 -- files/good.yaml --
 key: value
+-- mixed/good.json --
+{"key": "value"}
+-- mixed/bad.json --
+{"key": value}

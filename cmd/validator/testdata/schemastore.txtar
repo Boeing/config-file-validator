@@ -14,7 +14,7 @@ stdout '✓'
 # Invalid package.json (version must be string)
 ! exec validator --schemastore schemastore invalid/package.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # Valid nodemon.json
 exec validator --schemastore schemastore valid/nodemon.json
@@ -23,7 +23,7 @@ stdout '✓'
 # Invalid nodemon.json (unknown field, additionalProperties: false)
 ! exec validator --schemastore schemastore invalid/nodemon.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 2: --schemastore automatic matching (YAML)
@@ -36,7 +36,7 @@ stdout '✓'
 # Invalid GitHub workflow (missing required 'jobs')
 ! exec validator --schemastore schemastore invalid/.github/workflows/ci.yml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # Valid artifacthub-repo.yml
 exec validator --schemastore schemastore valid/artifacthub-repo.yml
@@ -45,7 +45,7 @@ stdout '✓'
 # Invalid artifacthub-repo.yml (additionalProperties: false)
 ! exec validator --schemastore schemastore invalid/artifacthub-repo.yml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 3: --schemastore automatic matching (TOML)
@@ -58,7 +58,7 @@ stdout '✓'
 # Invalid stylua.toml (column_width must be integer)
 ! exec validator --schemastore schemastore invalid/stylua.toml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 4: --schemastore automatic matching (TOON)
@@ -71,7 +71,7 @@ stdout '✓'
 # Invalid app.toon (port out of range)
 ! exec validator --schemastore schemastore invalid/app.toon
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 5: Unmatched files pass syntax-only
@@ -115,7 +115,7 @@ stdout '✓'
 # schema-map points to strict schema that rejects the file
 ! exec validator --schema-map=package.json:strict_schema.json --schemastore schemastore valid/package.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 9: --schema-map with YAML
@@ -126,7 +126,7 @@ stdout '✓'
 
 ! exec validator --schema-map=config.yaml:server_schema.json invalid/config.yaml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 10: --schema-map with TOML
@@ -137,7 +137,7 @@ stdout '✓'
 
 ! exec validator --schema-map=config.toml:server_schema.json invalid/config.toml
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 11: --schema-map with TOON
@@ -148,7 +148,7 @@ stdout '✓'
 
 ! exec validator --schema-map=config.toon:server_schema.json invalid/config.toon
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 12: --schema-map with glob patterns
@@ -159,7 +159,7 @@ stdout '✓'
 
 ! exec validator --schema-map=**/configs/*.json:server_schema.json invalid/configs/db.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # ============================================================
 # PART 13: Multiple files, mixed results

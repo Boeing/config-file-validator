@@ -21,6 +21,7 @@ func Test_ValidGroupOutput(t *testing.T) {
 		{"single directory", []string{"directory"}},
 		{"single filetype", []string{"filetype"}},
 		{"single pass-fail", []string{"pass-fail"}},
+		{"single error-type", []string{"error-type"}},
 		{"double directory,pass-fail", []string{"directory", "pass-fail"}},
 		{"double filetype,directory", []string{"filetype", "directory"}},
 		{"double pass-fail,filetype", []string{"pass-fail", "filetype"}},
@@ -130,6 +131,22 @@ func Test_GroupByFileType(t *testing.T) {
 	require.Len(t, result, 2)
 	require.Len(t, result["yaml"], 2, "yml and yaml should be grouped together")
 	require.Len(t, result["json"], 1)
+}
+
+func Test_GroupByErrorType(t *testing.T) {
+	t.Parallel()
+
+	reports := []reporter.Report{
+		{FileName: "good.json", FilePath: "/path/good.json", IsValid: true},
+		{FileName: "bad_syntax.json", FilePath: "/path/bad_syntax.json", IsValid: false, ErrorType: "syntax"},
+		{FileName: "bad_schema.json", FilePath: "/path/bad_schema.json", IsValid: false, ErrorType: "schema"},
+		{FileName: "bad_schema2.yaml", FilePath: "/path/bad_schema2.yaml", IsValid: false, ErrorType: "schema"},
+	}
+
+	result := GroupByErrorType(reports)
+	require.Len(t, result["Passed"], 1)
+	require.Len(t, result["syntax"], 1)
+	require.Len(t, result["schema"], 2)
 }
 
 func Test_GroupByPassFail(t *testing.T) {

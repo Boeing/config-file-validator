@@ -6,7 +6,7 @@ stdout '✓'
 # Without --no-schema it fails
 ! exec validator bad_with_schema.json
 stdout '×'
-stdout 'schema validation failed'
+stdout 'error:'
 
 # --no-schema with YAML schema comment — skips validation
 exec validator --no-schema bad_with_schema.yaml

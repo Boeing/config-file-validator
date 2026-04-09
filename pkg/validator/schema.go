@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
-	"strings"
 
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -23,7 +22,7 @@ func JSONSchemaValidate(schemaURL string, docJSON []byte) (bool, error) {
 		for _, desc := range result.Errors() {
 			errs = append(errs, desc.String())
 		}
-		return false, fmt.Errorf("schema validation failed: %s", strings.Join(errs, "; "))
+		return false, &SchemaErrors{Prefix: "schema validation failed: ", Items: errs}
 	}
 
 	return true, nil
