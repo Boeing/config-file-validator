@@ -8,10 +8,10 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 
-	"github.com/Boeing/config-file-validator/pkg/finder"
-	"github.com/Boeing/config-file-validator/pkg/reporter"
-	"github.com/Boeing/config-file-validator/pkg/schemastore"
-	"github.com/Boeing/config-file-validator/pkg/validator"
+	"github.com/Boeing/config-file-validator/v2/pkg/finder"
+	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
+	"github.com/Boeing/config-file-validator/v2/pkg/schemastore"
+	"github.com/Boeing/config-file-validator/v2/pkg/validator"
 )
 
 var (

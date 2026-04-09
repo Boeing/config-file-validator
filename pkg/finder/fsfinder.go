@@ -8,8 +8,8 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 
-	"github.com/Boeing/config-file-validator/pkg/filetype"
-	"github.com/Boeing/config-file-validator/pkg/tools"
+	"github.com/Boeing/config-file-validator/v2/pkg/filetype"
+	"github.com/Boeing/config-file-validator/v2/pkg/tools"
 )
 
 type TypeOverride struct {

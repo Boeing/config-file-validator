@@ -1,8 +1,8 @@
 package filetype
 
 import (
-	"github.com/Boeing/config-file-validator/pkg/tools"
-	"github.com/Boeing/config-file-validator/pkg/validator"
+	"github.com/Boeing/config-file-validator/v2/pkg/tools"
+	"github.com/Boeing/config-file-validator/v2/pkg/validator"
 )
 
 // The FileType object stores information

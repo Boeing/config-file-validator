@@ -23,8 +23,8 @@
   <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
   </a>  
 
-  <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator">
-  <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator.svg" alt="Go Reference">
+  <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator/v2">
+  <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v2.svg" alt="Go Reference">
   </a>
 
   <a href="https://goreportcard.com/report/github.com/Boeing/config-file-validator">
@@ -121,7 +121,7 @@ makepkg -si
 If you have a go environment on your desktop you can use [go install](https://go.dev/doc/go-get-install-deprecation) to install the validator executable. The validator executable will be installed to the directory named by the GOBIN environment variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH environment variable is not set.
 
 ```shell
-go install github.com/Boeing/config-file-validator/cmd/validator@latest
+go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
 ```
 
 ## GitHub Action
@@ -486,7 +486,7 @@ import (
 	"os"
 	"log"
 
-	"github.com/Boeing/config-file-validator/pkg/cli"
+	"github.com/Boeing/config-file-validator/v2/pkg/cli"
 )
 
 func main() {
@@ -515,8 +515,8 @@ import (
 	"os"
 	"log"
 
-	"github.com/Boeing/config-file-validator/pkg/cli"
-	"github.com/Boeing/config-file-validator/pkg/finder"
+	"github.com/Boeing/config-file-validator/v2/pkg/cli"
+	"github.com/Boeing/config-file-validator/v2/pkg/finder"
 )
 
 func main() {
@@ -552,8 +552,8 @@ import (
 	"os"
 	"log"
 
-	"github.com/Boeing/config-file-validator/pkg/cli"
-	"github.com/Boeing/config-file-validator/pkg/reporter"
+	"github.com/Boeing/config-file-validator/v2/pkg/cli"
+	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
 )
 
 func main() {
@@ -672,7 +672,7 @@ cfv := cli.Init(
 Use a local [SchemaStore](https://github.com/SchemaStore/schemastore) clone for automatic schema lookup by filename.
 
 ```go
-import "github.com/Boeing/config-file-validator/pkg/schemastore"
+import "github.com/Boeing/config-file-validator/v2/pkg/schemastore"
 
 store, err := schemastore.Open("/path/to/schemastore")
 if err != nil {
