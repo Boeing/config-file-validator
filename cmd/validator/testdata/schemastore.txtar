@@ -8,20 +8,20 @@
 # ============================================================
 
 # Valid package.json
-exec validator --schemastore schemastore valid/package.json
+exec validator --schemastore-path schemastore valid/package.json
 stdout '✓'
 
 # Invalid package.json (version must be string)
-! exec validator --schemastore schemastore invalid/package.json
+! exec validator --schemastore-path schemastore invalid/package.json
 stdout '×'
 stdout 'error:'
 
 # Valid nodemon.json
-exec validator --schemastore schemastore valid/nodemon.json
+exec validator --schemastore-path schemastore valid/nodemon.json
 stdout '✓'
 
 # Invalid nodemon.json (unknown field, additionalProperties: false)
-! exec validator --schemastore schemastore invalid/nodemon.json
+! exec validator --schemastore-path schemastore invalid/nodemon.json
 stdout '×'
 stdout 'error:'
 
@@ -30,20 +30,20 @@ stdout 'error:'
 # ============================================================
 
 # Valid GitHub workflow
-exec validator --schemastore schemastore valid/.github/workflows/ci.yml
+exec validator --schemastore-path schemastore valid/.github/workflows/ci.yml
 stdout '✓'
 
 # Invalid GitHub workflow (missing required 'jobs')
-! exec validator --schemastore schemastore invalid/.github/workflows/ci.yml
+! exec validator --schemastore-path schemastore invalid/.github/workflows/ci.yml
 stdout '×'
 stdout 'error:'
 
 # Valid artifacthub-repo.yml
-exec validator --schemastore schemastore valid/artifacthub-repo.yml
+exec validator --schemastore-path schemastore valid/artifacthub-repo.yml
 stdout '✓'
 
 # Invalid artifacthub-repo.yml (additionalProperties: false)
-! exec validator --schemastore schemastore invalid/artifacthub-repo.yml
+! exec validator --schemastore-path schemastore invalid/artifacthub-repo.yml
 stdout '×'
 stdout 'error:'
 
@@ -52,11 +52,11 @@ stdout 'error:'
 # ============================================================
 
 # Valid stylua.toml
-exec validator --schemastore schemastore valid/stylua.toml
+exec validator --schemastore-path schemastore valid/stylua.toml
 stdout '✓'
 
 # Invalid stylua.toml (column_width must be integer)
-! exec validator --schemastore schemastore invalid/stylua.toml
+! exec validator --schemastore-path schemastore invalid/stylua.toml
 stdout '×'
 stdout 'error:'
 
@@ -65,11 +65,11 @@ stdout 'error:'
 # ============================================================
 
 # Valid app.toon
-exec validator --schemastore schemastore valid/app.toon
+exec validator --schemastore-path schemastore valid/app.toon
 stdout '✓'
 
 # Invalid app.toon (port out of range)
-! exec validator --schemastore schemastore invalid/app.toon
+! exec validator --schemastore-path schemastore invalid/app.toon
 stdout '×'
 stdout 'error:'
 
@@ -77,10 +77,10 @@ stdout 'error:'
 # PART 5: Unmatched files pass syntax-only
 # ============================================================
 
-exec validator --schemastore schemastore valid/random.json
+exec validator --schemastore-path schemastore valid/random.json
 stdout '✓'
 
-exec validator --schemastore schemastore valid/random.yaml
+exec validator --schemastore-path schemastore valid/random.yaml
 stdout '✓'
 
 # ============================================================
@@ -88,16 +88,16 @@ stdout '✓'
 # ============================================================
 
 # Matched file passes
-exec validator --schemastore schemastore --require-schema valid/package.json
+exec validator --schemastore-path schemastore --require-schema valid/package.json
 stdout '✓'
 
 # Unmatched JSON fails (supports schema but none found)
-! exec validator --schemastore schemastore --require-schema valid/random.json
+! exec validator --schemastore-path schemastore --require-schema valid/random.json
 stdout '×'
 stdout 'no schema declared'
 
 # INI unaffected by --require-schema (no SchemaValidator)
-exec validator --schemastore schemastore --require-schema valid/good.ini
+exec validator --schemastore-path schemastore --require-schema valid/good.ini
 stdout '✓'
 
 # ============================================================
@@ -105,7 +105,7 @@ stdout '✓'
 # ============================================================
 
 # File declares its own $schema — that wins over schemastore catalog
-exec validator --schemastore schemastore valid/with_own_schema.json
+exec validator --schemastore-path schemastore valid/with_own_schema.json
 stdout '✓'
 
 # ============================================================
@@ -113,7 +113,7 @@ stdout '✓'
 # ============================================================
 
 # schema-map points to strict schema that rejects the file
-! exec validator --schema-map=package.json:strict_schema.json --schemastore schemastore valid/package.json
+! exec validator --schema-map=package.json:strict_schema.json --schemastore-path schemastore valid/package.json
 stdout '×'
 stdout 'error:'
 
@@ -165,25 +165,25 @@ stdout 'error:'
 # PART 13: Multiple files, mixed results
 # ============================================================
 
-! exec validator --schemastore schemastore valid/package.json invalid/package.json valid/nodemon.json valid/random.json
+! exec validator --schemastore-path schemastore valid/package.json invalid/package.json valid/nodemon.json valid/random.json
 stdout '✓.*valid/package\.json'
 stdout '×.*invalid/package\.json'
 stdout '✓.*valid/nodemon\.json'
 stdout '✓.*valid/random\.json'
 
 # ============================================================
-# PART 14: External-only schema in catalog is skipped
+# PART 14: External-only schema in catalog resolves to remote URL
 # ============================================================
 
-# external.json matches catalog but URL is not schemastore.org — passes syntax-only
-exec validator --schemastore schemastore valid/external.json
-stdout '✓'
+# external.json matches catalog with non-schemastore URL — remote fetch fails (404)
+! exec validator --schemastore-path schemastore valid/external.json
+stdout '×'
 
 # ============================================================
-# PART 15: --schemastore with invalid path
+# PART 15: --schemastore-path with invalid path
 # ============================================================
 
-! exec validator --schemastore /nonexistent/path .
+! exec validator --schemastore-path /nonexistent/path .
 stderr 'opening schemastore'
 
 # ============================================================

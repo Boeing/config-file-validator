@@ -7,9 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Boeing/config-file-validator/v2/internal/testhelper"
+	"github.com/Boeing/config-file-validator/v2/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v2/pkg/finder"
 	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v2/pkg/schemastore"
+	"github.com/Boeing/config-file-validator/v2/pkg/validator"
 )
 
 func Test_CLI(t *testing.T) {
@@ -68,7 +70,7 @@ func Test_CLIBadPath(t *testing.T) {
 	cli := Init(WithFinder(fsFinder))
 	exitStatus, err := cli.Run()
 	require.Error(t, err)
-	require.Equal(t, 1, exitStatus)
+	require.Equal(t, 2, exitStatus)
 }
 
 func Test_CLIWithGroup(t *testing.T) {
@@ -205,7 +207,7 @@ func Test_CLIWithUnreadableFile(t *testing.T) {
 	cli := Init(WithFinder(fsFinder))
 	exitStatus, err := cli.Run()
 	require.Error(t, err)
-	require.Equal(t, 1, exitStatus)
+	require.Equal(t, 2, exitStatus)
 }
 
 func Test_CLISingleGroupJSON(t *testing.T) {
@@ -606,6 +608,33 @@ func Test_CLISchemaMapXMLValid(t *testing.T) {
 	require.Equal(t, 0, exitStatus)
 }
 
+func Test_CLIStdinValid(t *testing.T) {
+	cli := Init(
+		WithStdinData([]byte(`{"key": "value"}`), filetype.JSONFileType),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLIStdinInvalid(t *testing.T) {
+	cli := Init(
+		WithStdinData([]byte(`{"key": value}`), filetype.JSONFileType),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+}
+
+func Test_CLIStdinYAML(t *testing.T) {
+	cli := Init(
+		WithStdinData([]byte("key: value\nlist:\n  - one\n"), filetype.YAMLFileType),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
 func Test_CLISchemaMapXMLInvalid(t *testing.T) {
 	dir := t.TempDir()
 	xsdContent := `<?xml version="1.0" encoding="UTF-8"?>
@@ -632,4 +661,37 @@ func Test_CLISchemaMapXMLInvalid(t *testing.T) {
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 1, exitStatus)
+}
+
+func Test_SchemaErrorsMethod(t *testing.T) {
+	t.Parallel()
+	se := &validator.SchemaErrors{
+		Prefix: "test: ",
+		Items:  []string{"error1", "error2"},
+	}
+	require.Equal(t, []string{"error1", "error2"}, se.Errors())
+	require.Equal(t, "test: error1; error2", se.Error())
+}
+
+func Test_CLINoJSONCNoteOnYAML(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "bad.yaml", "a: b\nc: d:::::::::::::::\n")
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir),
+	)
+	cli := Init(WithFinder(fsFinder))
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+}
+
+func Test_CLIStdinWithQuiet(t *testing.T) {
+	cli := Init(
+		WithStdinData([]byte(`{"key": "value"}`), filetype.JSONFileType),
+		WithQuiet(true),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
 }

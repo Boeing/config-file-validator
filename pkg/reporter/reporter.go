@@ -8,6 +8,7 @@ type Report struct {
 	IsValid          bool
 	ValidationError  error
 	ValidationErrors []string
+	Notes            []string
 	ErrorType        string
 	IsQuiet          bool
 	StartLine        int

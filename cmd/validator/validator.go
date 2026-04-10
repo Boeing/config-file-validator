@@ -37,6 +37,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"maps"
 	"os"
@@ -47,11 +48,13 @@ import (
 
 	configfilevalidator "github.com/Boeing/config-file-validator/v2"
 	"github.com/Boeing/config-file-validator/v2/pkg/cli"
+	"github.com/Boeing/config-file-validator/v2/pkg/configfile"
 	"github.com/Boeing/config-file-validator/v2/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v2/pkg/finder"
 	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v2/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/v2/pkg/tools"
+	"github.com/Boeing/config-file-validator/v2/pkg/validator"
 )
 
 var flagSet *flag.FlagSet
@@ -71,7 +74,10 @@ type validatorConfig struct {
 	noSchema         *bool
 	typeMap          typeMapFlags
 	schemaMap        schemaMapFlags
+	schemaStore      *bool
 	schemaStorePath  *string
+	configPath       *string
+	noConfig         *bool
 }
 
 type reporterFlags []string
@@ -185,11 +191,19 @@ func getFlags(args []string) (validatorConfig, error) {
 		noSchemaPtr = flagSet.Bool("no-schema", false,
 			"Disable all schema validation. Only syntax is checked.\n"+
 				"Cannot be used with --require-schema, --schema-map, or --schemastore.")
-		schemaStorePathPtr = flagSet.String("schemastore", "",
-			"Path to a local SchemaStore clone for automatic schema lookup by filename.\n"+
-				"Download with: git clone --depth=1 https://github.com/SchemaStore/schemastore.git\n"+
-				"Files matching the catalog are validated against the corresponding schema.\n"+
+		schemaStorePtr = flagSet.Bool("schemastore", false,
+			"Enable automatic schema lookup by filename using the SchemaStore catalog.\n"+
+				"Schemas are fetched remotely and cached locally.\n"+
 				"Document-declared schemas and --schema-map take priority over SchemaStore.")
+		schemaStorePathPtr = flagSet.String("schemastore-path", "",
+			"Path to a local SchemaStore clone for automatic schema lookup by filename.\n"+
+				"Implies --schemastore. Use for air-gapped environments.\n"+
+				"Download with: git clone --depth=1 https://github.com/SchemaStore/schemastore.git")
+		configPathPtr = flagSet.String("config", "",
+			"Path to a .cfv.toml configuration file.\n"+
+				"If not specified, searches for .cfv.toml in the current and parent directories.")
+		noConfigPtr = flagSet.Bool("no-config", false,
+			"Disable automatic discovery of .cfv.toml configuration files.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -259,7 +273,10 @@ func getFlags(args []string) (validatorConfig, error) {
 		noSchemaPtr,
 		typeMapConfigFlags,
 		schemaMapConfigFlags,
+		schemaStorePtr,
 		schemaStorePathPtr,
+		configPathPtr,
+		noConfigPtr,
 	}
 
 	return config, nil
@@ -427,6 +444,7 @@ func applyDefaultFlagsFromEnv() error {
 		"require-schema":     "CFV_REQUIRE_SCHEMA",
 		"no-schema":          "CFV_NO_SCHEMA",
 		"schemastore":        "CFV_SCHEMASTORE",
+		"schemastore-path":   "CFV_SCHEMASTORE_PATH",
 	}
 
 	for flagName, envVar := range flagsEnvMap {
@@ -454,16 +472,16 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 
 // Return the reporter associated with the
 // reportType string
-func getReporter(reportType, outputDest *string) reporter.Reporter {
-	switch *reportType {
+func getReporter(reportType, outputDest string) reporter.Reporter {
+	switch reportType {
 	case "junit":
-		return reporter.NewJunitReporter(*outputDest)
+		return reporter.NewJunitReporter(outputDest)
 	case "json":
-		return reporter.NewJSONReporter(*outputDest)
+		return reporter.NewJSONReporter(outputDest)
 	case "sarif":
-		return reporter.NewSARIFReporter(*outputDest)
+		return reporter.NewSARIFReporter(outputDest)
 	default:
-		return reporter.NewStdoutReporter(*outputDest)
+		return reporter.NewStdoutReporter(outputDest)
 	}
 }
 
@@ -479,7 +497,22 @@ func cleanString(command string) string {
 
 // Function to check if a string is a glob pattern
 func isGlobPattern(s string) bool {
-	return strings.ContainsAny(s, "*?[]")
+	return tools.IsGlobPattern(s)
+}
+
+// resolvedConfig holds the final merged configuration from CLI flags, config file, and env vars.
+type resolvedConfig struct {
+	reporters     []reporter.Reporter
+	groupOutput   []string
+	quiet         bool
+	requireSchema bool
+	noSchema      bool
+	schemaMap     map[string]string
+	store         *schemastore.Store
+	finderOpts    []finder.FSFinderOptions
+	stdinData     []byte
+	stdinFileType filetype.FileType
+	isStdin       bool
 }
 
 func mainInit() int {
@@ -494,7 +527,7 @@ func mainInit() int {
 		} else {
 			flag.Usage()
 		}
-		return 1
+		return 2
 	}
 
 	if *validatorConfig.versionQuery {
@@ -502,79 +535,164 @@ func mainInit() int {
 		return 0
 	}
 
-	chosenReporters := make([]reporter.Reporter, 0)
-	for reportType, outputFile := range validatorConfig.reportType {
-		rt, of := reportType, outputFile // avoid "Implicit memory aliasing in for loop"
-		chosenReporters = append(chosenReporters, getReporter(&rt, &of))
-	}
-
-	excludeFileTypes := getExcludeFileTypes(*validatorConfig.excludeFileTypes)
-	fsOpts, err := buildFinderOpts(validatorConfig, excludeFileTypes)
+	resolved, err := resolveConfig(&validatorConfig)
 	if err != nil {
 		log.Printf("An error occurred: %v", err)
-		return 1
+		return 2
 	}
 
-	groupOutput := strings.Split(*validatorConfig.groupOutput, ",")
-	quiet := *validatorConfig.quiet
-	requireSchema := *validatorConfig.requireSchema
-	noSchema := *validatorConfig.noSchema
+	c := buildCLI(resolved)
 
-	if noSchema && (requireSchema || len(validatorConfig.schemaMap) > 0 || *validatorConfig.schemaStorePath != "") {
-		log.Print("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
-		return 1
-	}
-
-	schemaMap, err := parseSchemaMapFlags(validatorConfig.schemaMap)
-	if err != nil {
-		log.Printf("An error occurred: %v", err)
-		return 1
-	}
-
-	var store *schemastore.Store
-	if *validatorConfig.schemaStorePath != "" {
-		store, err = schemastore.Open(*validatorConfig.schemaStorePath)
-		if err != nil {
-			log.Printf("An error occurred opening schemastore: %v", err)
-			return 1
-		}
-	}
-
-	// Initialize a file system finder
-	fileSystemFinder := finder.FileSystemFinderInit(fsOpts...)
-
-	// Initialize the CLI
-	c := cli.Init(
-		cli.WithReporters(chosenReporters...),
-		cli.WithFinder(fileSystemFinder),
-		cli.WithGroupOutput(groupOutput),
-		cli.WithQuiet(quiet),
-		cli.WithRequireSchema(requireSchema),
-		cli.WithNoSchema(noSchema),
-		cli.WithSchemaMap(schemaMap),
-		cli.WithSchemaStore(store),
-	)
-
-	// Run the config file validation
 	exitStatus, err := c.Run()
 	if err != nil {
 		log.Printf("An error occurred during CLI execution: %v", err)
 	}
-
 	return exitStatus
 }
-func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string) ([]finder.FSFinderOptions, error) {
+
+func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
+	validatorOpts, err := applyConfigFile(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("loading config file: %w", err)
+	}
+
+	quiet := *cfg.quiet
+	requireSchema := *cfg.requireSchema
+	noSchema := *cfg.noSchema
+	useSchemaStore := *cfg.schemaStore || *cfg.schemaStorePath != ""
+
+	if noSchema && (requireSchema || len(cfg.schemaMap) > 0 || useSchemaStore) {
+		return nil, errors.New("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
+	}
+
+	reporters, err := buildReporters(cfg.reportType)
+	if err != nil {
+		return nil, err
+	}
+
+	schemaMap, err := parseSchemaMapFlags(cfg.schemaMap)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := openSchemaStore(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	groupOutput := strings.Split(*cfg.groupOutput, ",")
+
+	resolved := &resolvedConfig{
+		reporters:     reporters,
+		groupOutput:   groupOutput,
+		quiet:         quiet,
+		requireSchema: requireSchema,
+		noSchema:      noSchema,
+		schemaMap:     schemaMap,
+		store:         store,
+	}
+
+	// Handle stdin mode
+	if len(cfg.searchPaths) == 1 && cfg.searchPaths[0] == "-" {
+		ft, data, err := readStdin(*cfg.fileTypes)
+		if err != nil {
+			return nil, err
+		}
+		resolved.isStdin = true
+		resolved.stdinData = data
+		resolved.stdinFileType = ft
+		return resolved, nil
+	}
+
+	excludeFileTypes := getExcludeFileTypes(*cfg.excludeFileTypes)
+	configuredTypes := applyValidatorOptions(validatorOpts)
+	fsOpts, err := buildFinderOpts(*cfg, excludeFileTypes, configuredTypes)
+	if err != nil {
+		return nil, err
+	}
+	resolved.finderOpts = fsOpts
+
+	return resolved, nil
+}
+
+func buildCLI(rc *resolvedConfig) *cli.CLI {
+	opts := []cli.Option{
+		cli.WithReporters(rc.reporters...),
+		cli.WithGroupOutput(rc.groupOutput),
+		cli.WithQuiet(rc.quiet),
+		cli.WithRequireSchema(rc.requireSchema),
+		cli.WithNoSchema(rc.noSchema),
+		cli.WithSchemaMap(rc.schemaMap),
+		cli.WithSchemaStore(rc.store),
+	}
+
+	if rc.isStdin {
+		opts = append(opts, cli.WithStdinData(rc.stdinData, rc.stdinFileType))
+	} else {
+		opts = append(opts, cli.WithFinder(finder.FileSystemFinderInit(rc.finderOpts...)))
+	}
+
+	return cli.Init(opts...)
+}
+
+func buildReporters(reportType map[string]string) ([]reporter.Reporter, error) {
+	reporters := make([]reporter.Reporter, 0, len(reportType))
+	for rt, of := range reportType {
+		reporters = append(reporters, getReporter(rt, of))
+	}
+	return reporters, nil
+}
+
+func openSchemaStore(cfg *validatorConfig) (*schemastore.Store, error) {
+	if *cfg.schemaStorePath != "" {
+		store, err := schemastore.Open(*cfg.schemaStorePath)
+		if err != nil {
+			return nil, fmt.Errorf("opening schemastore: %w", err)
+		}
+		return store, nil
+	}
+	if *cfg.schemaStore || *cfg.schemaStorePath != "" {
+		store, err := schemastore.OpenEmbedded()
+		if err != nil {
+			return nil, fmt.Errorf("opening embedded schemastore: %w", err)
+		}
+		return store, nil
+	}
+	return nil, nil
+}
+
+func readStdin(fileTypesFlag string) (filetype.FileType, []byte, error) {
+	if fileTypesFlag == "" {
+		return filetype.FileType{}, nil, errors.New("reading from stdin requires --file-types to specify exactly one file type")
+	}
+	fileTypeName := strings.ToLower(fileTypesFlag)
+	if strings.Contains(fileTypeName, ",") {
+		return filetype.FileType{}, nil, errors.New("reading from stdin requires exactly one file type")
+	}
+	for _, ft := range filetype.FileTypes {
+		if _, ok := ft.Extensions[fileTypeName]; ok {
+			data, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return filetype.FileType{}, nil, fmt.Errorf("reading stdin: %w", err)
+			}
+			return ft, data, nil
+		}
+	}
+	return filetype.FileType{}, nil, fmt.Errorf("unknown file type %q", fileTypeName)
+}
+func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string, fileTypes []filetype.FileType) ([]finder.FSFinderOptions, error) {
 	excludeDirs := strings.Split(*cfg.excludeDirs, ",")
 	fsOpts := []finder.FSFinderOptions{
 		finder.WithPathRoots(cfg.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes),
+		finder.WithFileTypes(fileTypes),
 	}
 
 	if *cfg.fileTypes != "" {
 		includeTypes := tools.ArrToMap(strings.Split(strings.ToLower(*cfg.fileTypes), ",")...)
 		var fileTypeFilter []filetype.FileType
-		for _, ft := range filetype.FileTypes {
+		for _, ft := range fileTypes {
 			for ext := range ft.Extensions {
 				if _, ok := includeTypes[ext]; ok {
 					fileTypeFilter = append(fileTypeFilter, ft)
@@ -660,6 +778,162 @@ func parseSchemaMapFlags(flags schemaMapFlags) (map[string]string, error) {
 		result[parts[0]] = parts[1]
 	}
 	return result, nil
+}
+
+func applyConfigFile(cfg *validatorConfig) (*configfile.ValidatorOptions, error) {
+	if *cfg.noConfig {
+		return nil, nil
+	}
+
+	var cfgPath string
+	if *cfg.configPath != "" {
+		cfgPath = *cfg.configPath
+	} else {
+		cfgPath = configfile.Discover(".")
+	}
+	if cfgPath == "" {
+		return nil, nil
+	}
+
+	fileCfg, err := configfile.Load(cfgPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply config values only when the CLI flag was not explicitly set.
+	// CLI flags > config file > env vars (env vars already applied to flags).
+	if !isFlagSet("exclude-dirs") && len(fileCfg.ExcludeDirs) > 0 {
+		v := strings.Join(fileCfg.ExcludeDirs, ",")
+		cfg.excludeDirs = &v
+	}
+	if !isFlagSet("exclude-file-types") && len(fileCfg.ExcludeFileTypes) > 0 {
+		v := strings.Join(fileCfg.ExcludeFileTypes, ",")
+		cfg.excludeFileTypes = &v
+	}
+	if !isFlagSet("file-types") && len(fileCfg.FileTypes) > 0 {
+		v := strings.Join(fileCfg.FileTypes, ",")
+		cfg.fileTypes = &v
+	}
+	if !isFlagSet("depth") && fileCfg.Depth != nil {
+		if err := flagSet.Set("depth", fmt.Sprintf("%d", *fileCfg.Depth)); err != nil {
+			return nil, fmt.Errorf("config file depth: %w", err)
+		}
+		cfg.depth = fileCfg.Depth
+	}
+	if !isFlagSet("reporter") && len(fileCfg.Reporter) > 0 {
+		conf, err := parseReporterFlags(reporterFlags(fileCfg.Reporter))
+		if err != nil {
+			return nil, fmt.Errorf("config file reporter: %w", err)
+		}
+		cfg.reportType = conf
+	}
+	if !isFlagSet("groupby") && len(fileCfg.GroupBy) > 0 {
+		v := strings.Join(fileCfg.GroupBy, ",")
+		cfg.groupOutput = &v
+	}
+	if !isFlagSet("quiet") && fileCfg.Quiet != nil {
+		cfg.quiet = fileCfg.Quiet
+	}
+	if !isFlagSet("require-schema") && fileCfg.RequireSchema != nil {
+		cfg.requireSchema = fileCfg.RequireSchema
+	}
+	if !isFlagSet("no-schema") && fileCfg.NoSchema != nil {
+		cfg.noSchema = fileCfg.NoSchema
+	}
+	if !isFlagSet("schemastore") && fileCfg.SchemaStore != nil {
+		cfg.schemaStore = fileCfg.SchemaStore
+	}
+	if !isFlagSet("schemastore-path") && fileCfg.SchemaStorePath != nil {
+		cfg.schemaStorePath = fileCfg.SchemaStorePath
+	}
+	if !isFlagSet("globbing") && fileCfg.Globbing != nil {
+		cfg.globbing = fileCfg.Globbing
+	}
+	if len(cfg.schemaMap) == 0 && len(fileCfg.SchemaMap) > 0 {
+		for pattern, schema := range fileCfg.SchemaMap {
+			cfg.schemaMap = append(cfg.schemaMap, pattern+":"+schema)
+		}
+	}
+	if len(cfg.typeMap) == 0 && len(fileCfg.TypeMap) > 0 {
+		for pattern, typeName := range fileCfg.TypeMap {
+			cfg.typeMap = append(cfg.typeMap, pattern+":"+typeName)
+		}
+	}
+
+	return &fileCfg.Validators, nil
+}
+
+func applyValidatorOptions(opts *configfile.ValidatorOptions) []filetype.FileType {
+	types := make([]filetype.FileType, len(filetype.FileTypes))
+	copy(types, filetype.FileTypes)
+
+	if opts == nil {
+		return types
+	}
+
+	for i, ft := range types {
+		switch ft.Name {
+		case "csv":
+			if opts.CSV != nil {
+				types[i].Validator = applyCSVOptions(opts.CSV)
+			}
+		case "json":
+			if opts.JSON != nil {
+				types[i].Validator = applyJSONOptions(opts.JSON)
+			}
+		case "ini":
+			if opts.INI != nil {
+				types[i].Validator = applyINIOptions(opts.INI)
+			}
+		default:
+		}
+	}
+
+	return types
+}
+
+func applyCSVOptions(opts *configfile.CSVOptions) validator.CsvValidator {
+	v := validator.CsvValidator{}
+	if opts.Delimiter != nil {
+		v.Delimiter = parseDelimiter(*opts.Delimiter)
+	}
+	if opts.Comment != nil {
+		r := []rune(*opts.Comment)
+		if len(r) == 1 {
+			v.Comment = r[0]
+		}
+	}
+	if opts.LazyQuotes != nil {
+		v.LazyQuotes = *opts.LazyQuotes
+	}
+	return v
+}
+
+func applyJSONOptions(opts *configfile.JSONOptions) validator.JSONValidator {
+	v := validator.JSONValidator{}
+	if opts.ForbidDuplicateKeys != nil {
+		v.ForbidDuplicateKeys = *opts.ForbidDuplicateKeys
+	}
+	return v
+}
+
+func applyINIOptions(opts *configfile.INIOptions) validator.IniValidator {
+	v := validator.IniValidator{}
+	if opts.ForbidDuplicateKeys != nil {
+		v.ForbidDuplicateKeys = *opts.ForbidDuplicateKeys
+	}
+	return v
+}
+
+func parseDelimiter(s string) rune {
+	if s == "\\t" || s == "\t" {
+		return '\t'
+	}
+	r := []rune(s)
+	if len(r) == 1 {
+		return r[0]
+	}
+	return 0
 }
 
 func main() {

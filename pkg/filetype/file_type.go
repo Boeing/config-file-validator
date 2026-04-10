@@ -88,7 +88,7 @@ var PropFileType = FileType{
 // represent a HCL file
 var HclFileType = FileType{
 	Name:       "hcl",
-	Extensions: tools.ArrToMap("hcl"),
+	Extensions: tools.ArrToMap("hcl", "tf", "tfvars"),
 	Validator:  validator.HclValidator{},
 }
 
@@ -148,6 +148,12 @@ var SarifFileType = FileType{
 	Validator:  validator.SarifValidator{},
 }
 
+var JSONCFileType = FileType{
+	Name:       "jsonc",
+	Extensions: tools.ArrToMap("jsonc"),
+	Validator:  validator.JSONCValidator{},
+}
+
 // An array of files types that are supported
 // by the validator
 var FileTypes = []FileType{
@@ -165,4 +171,5 @@ var FileTypes = []FileType{
 	EditorConfigFileType,
 	ToonFileType,
 	SarifFileType,
+	JSONCFileType,
 }

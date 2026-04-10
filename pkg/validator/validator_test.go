@@ -154,6 +154,11 @@ var testData = []struct {
 	{"validSarif210", validSarif210Bytes, true, SarifValidator{}},
 	{"validSarif22", validSarif22Bytes, true, SarifValidator{}},
 	{"invalidSarif", []byte(`{"not": "sarif"}`), false, SarifValidator{}},
+	{"validJsonc", []byte("// comment\n{\"key\": \"value\"}"), true, JSONCValidator{}},
+	{"validJsoncBlockComment", []byte("/* block */\n{\"key\": \"value\"}"), true, JSONCValidator{}},
+	{"validJsoncTrailingComma", []byte(`{"a": 1, "b": 2,}`), true, JSONCValidator{}},
+	{"invalidJsonc", []byte(`{"bad": }`), false, JSONCValidator{}},
+	{"validJsoncNoComments", []byte(`{"key": "value"}`), true, JSONCValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
@@ -815,4 +820,215 @@ func writeTestXSD(t *testing.T) string {
 	p := filepath.Join(dir, "schema.xsd")
 	require.NoError(t, os.WriteFile(p, []byte(xsd), 0600))
 	return p
+}
+
+func Test_JSONCValidateSchemaNoSchema(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`// comment
+{"key": "value"}`), "")
+	require.True(t, valid)
+	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_JSONCValidateSchemaValid(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	doc := `// server config
+{
+  "$schema": "` + schema + `",
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "mydb",
+}`
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), "")
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_JSONCValidateSchemaInvalidDoc(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	doc := `// server config
+{
+  "$schema": "` + schema + `",
+  "host": "db.example.com",
+  "port": "not_a_number", // wrong type
+  "database": "mydb"
+}`
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "schema validation failed")
+}
+
+func Test_JSONCMarshalToJSON(t *testing.T) {
+	t.Parallel()
+	input := []byte(`// comment
+{
+  "$schema": "test.json",
+  "key": "value",
+}`)
+	out, err := JSONCValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "key")
+}
+
+func Test_JSONCValidateSchemaEmptySchema(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{"$schema": "", "key": "value"}`), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "$schema must not be empty")
+}
+
+func Test_JSONCValidateSchemaArrayRoot(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`[1, 2, 3]`), "")
+	require.True(t, valid)
+	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_JSONCValidateSchemaInvalidSyntax(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{bad`), "")
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_JSONCValidateSchemaNonStringSchema(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{"$schema": 123}`), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "$schema must be a string")
+}
+
+func Test_JSONCMarshalToJSONArrayRoot(t *testing.T) {
+	t.Parallel()
+	out, err := JSONCValidator{}.MarshalToJSON([]byte(`// comment
+[1, 2, 3]`))
+	require.NoError(t, err)
+	require.Contains(t, string(out), "1")
+}
+
+func Test_JSONCMarshalToJSONInvalid(t *testing.T) {
+	t.Parallel()
+	_, err := JSONCValidator{}.MarshalToJSON([]byte(`{bad`))
+	require.Error(t, err)
+}
+
+func Test_CsvValidatorSemicolonDelimiter(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{Delimiter: ';'}
+	valid, err := v.ValidateSyntax([]byte("name;age\nAlice;30\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_CsvValidatorSemicolonDelimiterInvalid(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{Delimiter: ';'}
+	valid, err := v.ValidateSyntax([]byte("name;age;city\nAlice;30\n"))
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_CsvValidatorTabDelimiter(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{Delimiter: '\t'}
+	valid, err := v.ValidateSyntax([]byte("name\tage\nAlice\t30\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_CsvValidatorComment(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{Comment: '#'}
+	valid, err := v.ValidateSyntax([]byte("# comment\nname,age\nAlice,30\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_CsvValidatorLazyQuotes(t *testing.T) {
+	t.Parallel()
+	input := []byte("name,desc\nAlice,she said \"hello\"\n")
+	// Strict mode fails
+	v1 := CsvValidator{}
+	valid, _ := v1.ValidateSyntax(input)
+	require.False(t, valid)
+	// Lazy quotes mode passes
+	v2 := CsvValidator{LazyQuotes: true}
+	valid, err := v2.ValidateSyntax(input)
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_CsvValidatorDefaultUnchanged(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{}
+	valid, err := v.ValidateSyntax([]byte("a,b,c\n1,2,3\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_JSONDuplicateKeysAllowed(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{}
+	valid, err := v.ValidateSyntax([]byte(`{"key": 1, "key": 2}`))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_JSONDuplicateKeysForbidden(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte(`{"key": 1, "key": 2}`))
+	require.False(t, valid)
+	require.ErrorContains(t, err, `duplicate key "key"`)
+}
+
+func Test_JSONDuplicateKeysNested(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte(`{"outer": {"inner": 1, "inner": 2}}`))
+	require.False(t, valid)
+	require.ErrorContains(t, err, `duplicate key "inner"`)
+}
+
+func Test_JSONDuplicateKeysInArray(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte(`[{"a": 1}, {"a": 1}]`))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_JSONNoDuplicatesPasses(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte(`{"a": 1, "b": 2, "c": 3}`))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_INIDuplicateKeysAllowed(t *testing.T) {
+	t.Parallel()
+	v := IniValidator{}
+	valid, err := v.ValidateSyntax([]byte("[section]\nkey=1\nkey=2\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_INIDuplicateKeysForbidden(t *testing.T) {
+	t.Parallel()
+	v := IniValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte("[section]\nkey=1\nkey=2\n"))
+	require.False(t, valid)
+	require.ErrorContains(t, err, `duplicate key "key"`)
+}
+
+func Test_ININoDuplicatesPasses(t *testing.T) {
+	t.Parallel()
+	v := IniValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte("[section]\na=1\nb=2\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
 }

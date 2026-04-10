@@ -78,7 +78,7 @@ func Test_InvalidGroupOutput(t *testing.T) {
 
 			exitStatus, err := cli.Run()
 			require.Error(t, err)
-			require.Equal(t, 1, exitStatus)
+			require.Equal(t, 2, exitStatus)
 		})
 	}
 }
