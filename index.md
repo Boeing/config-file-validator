@@ -389,6 +389,15 @@ comment = "#"
 YAML duplicate keys are always rejected (enforced by the YAML parser).
 | `schema-map` | table (pattern = path) | `--schema-map` |
 | `type-map` | table (pattern = type) | `--type-map` |
+| `validators` | table | Per-validator options (see below) |
+
+**Validator options:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `validators.csv.delimiter` | string | `","` | Field delimiter. Use `"\t"` for tab. |
+| `validators.csv.comment` | string | (none) | Lines starting with this character are ignored. |
+| `validators.csv.lazy-quotes` | boolean | `false` | Allow quotes in unquoted fields. |
 
 ### Environment Variables
 
