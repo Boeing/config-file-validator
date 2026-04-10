@@ -72,6 +72,35 @@
       "type": "object",
       "additionalProperties": { "type": "string" },
       "description": "Map glob patterns to file types. Keys are patterns, values are type names."
+    },
+    "validators": {
+      "type": "object",
+      "properties": {
+        "csv": {
+          "type": "object",
+          "properties": {
+            "delimiter": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2,
+              "description": "Field delimiter character. Default: comma. Use \\t for tab."
+            },
+            "comment": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1,
+              "description": "Comment character. Lines starting with this character are ignored."
+            },
+            "lazy-quotes": {
+              "type": "boolean",
+              "description": "If true, a quote may appear in an unquoted field and a non-doubled quote may appear in a quoted field."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "Per-validator configuration options."
     }
   },
   "additionalProperties": false

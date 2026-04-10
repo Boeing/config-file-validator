@@ -32,6 +32,19 @@ type Config struct {
 	Globbing         *bool             `toml:"globbing"`
 	SchemaMap        map[string]string `toml:"schema-map"`
 	TypeMap          map[string]string `toml:"type-map"`
+	Validators       ValidatorOptions  `toml:"validators"`
+}
+
+// ValidatorOptions holds per-validator configuration.
+type ValidatorOptions struct {
+	CSV *CSVOptions `toml:"csv"`
+}
+
+// CSVOptions configures the CSV validator.
+type CSVOptions struct {
+	Delimiter  *string `toml:"delimiter"`
+	Comment    *string `toml:"comment"`
+	LazyQuotes *bool   `toml:"lazy-quotes"`
 }
 
 // Load reads and validates a .cfv.toml file at the given path.

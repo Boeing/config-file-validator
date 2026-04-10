@@ -914,3 +914,57 @@ func Test_JSONCMarshalToJSONInvalid(t *testing.T) {
 	_, err := JSONCValidator{}.MarshalToJSON([]byte(`{bad`))
 	require.Error(t, err)
 }
+
+func Test_CsvValidatorSemicolonDelimiter(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{Delimiter: ';'}
+	valid, err := v.ValidateSyntax([]byte("name;age\nAlice;30\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_CsvValidatorSemicolonDelimiterInvalid(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{Delimiter: ';'}
+	valid, err := v.ValidateSyntax([]byte("name;age;city\nAlice;30\n"))
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_CsvValidatorTabDelimiter(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{Delimiter: '\t'}
+	valid, err := v.ValidateSyntax([]byte("name\tage\nAlice\t30\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_CsvValidatorComment(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{Comment: '#'}
+	valid, err := v.ValidateSyntax([]byte("# comment\nname,age\nAlice,30\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_CsvValidatorLazyQuotes(t *testing.T) {
+	t.Parallel()
+	input := []byte("name,desc\nAlice,she said \"hello\"\n")
+	// Strict mode fails
+	v1 := CsvValidator{}
+	valid, _ := v1.ValidateSyntax(input)
+	require.False(t, valid)
+	// Lazy quotes mode passes
+	v2 := CsvValidator{LazyQuotes: true}
+	valid, err := v2.ValidateSyntax(input)
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_CsvValidatorDefaultUnchanged(t *testing.T) {
+	t.Parallel()
+	v := CsvValidator{}
+	valid, err := v.ValidateSyntax([]byte("a,b,c\n1,2,3\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}

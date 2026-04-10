@@ -54,6 +54,7 @@ import (
 	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v2/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/v2/pkg/tools"
+	"github.com/Boeing/config-file-validator/v2/pkg/validator"
 )
 
 var flagSet *flag.FlagSet
@@ -550,7 +551,8 @@ func mainInit() int {
 }
 
 func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
-	if err := applyConfigFile(cfg); err != nil {
+	validatorOpts, err := applyConfigFile(cfg)
+	if err != nil {
 		return nil, fmt.Errorf("loading config file: %w", err)
 	}
 
@@ -603,7 +605,8 @@ func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
 	}
 
 	excludeFileTypes := getExcludeFileTypes(*cfg.excludeFileTypes)
-	fsOpts, err := buildFinderOpts(*cfg, excludeFileTypes)
+	configuredTypes := applyValidatorOptions(validatorOpts)
+	fsOpts, err := buildFinderOpts(*cfg, excludeFileTypes, configuredTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -677,18 +680,19 @@ func readStdin(fileTypesFlag string) (filetype.FileType, []byte, error) {
 	}
 	return filetype.FileType{}, nil, fmt.Errorf("unknown file type %q", fileTypeName)
 }
-func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string) ([]finder.FSFinderOptions, error) {
+func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string, fileTypes []filetype.FileType) ([]finder.FSFinderOptions, error) {
 	excludeDirs := strings.Split(*cfg.excludeDirs, ",")
 	fsOpts := []finder.FSFinderOptions{
 		finder.WithPathRoots(cfg.searchPaths...),
 		finder.WithExcludeDirs(excludeDirs),
 		finder.WithExcludeFileTypes(excludeFileTypes),
+		finder.WithFileTypes(fileTypes),
 	}
 
 	if *cfg.fileTypes != "" {
 		includeTypes := tools.ArrToMap(strings.Split(strings.ToLower(*cfg.fileTypes), ",")...)
 		var fileTypeFilter []filetype.FileType
-		for _, ft := range filetype.FileTypes {
+		for _, ft := range fileTypes {
 			for ext := range ft.Extensions {
 				if _, ok := includeTypes[ext]; ok {
 					fileTypeFilter = append(fileTypeFilter, ft)
@@ -776,9 +780,9 @@ func parseSchemaMapFlags(flags schemaMapFlags) (map[string]string, error) {
 	return result, nil
 }
 
-func applyConfigFile(cfg *validatorConfig) error {
+func applyConfigFile(cfg *validatorConfig) (*configfile.ValidatorOptions, error) {
 	if *cfg.noConfig {
-		return nil
+		return nil, nil
 	}
 
 	var cfgPath string
@@ -788,12 +792,12 @@ func applyConfigFile(cfg *validatorConfig) error {
 		cfgPath = configfile.Discover(".")
 	}
 	if cfgPath == "" {
-		return nil
+		return nil, nil
 	}
 
 	fileCfg, err := configfile.Load(cfgPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Apply config values only when the CLI flag was not explicitly set.
@@ -812,14 +816,14 @@ func applyConfigFile(cfg *validatorConfig) error {
 	}
 	if !isFlagSet("depth") && fileCfg.Depth != nil {
 		if err := flagSet.Set("depth", fmt.Sprintf("%d", *fileCfg.Depth)); err != nil {
-			return fmt.Errorf("config file depth: %w", err)
+			return nil, fmt.Errorf("config file depth: %w", err)
 		}
 		cfg.depth = fileCfg.Depth
 	}
 	if !isFlagSet("reporter") && len(fileCfg.Reporter) > 0 {
 		conf, err := parseReporterFlags(reporterFlags(fileCfg.Reporter))
 		if err != nil {
-			return fmt.Errorf("config file reporter: %w", err)
+			return nil, fmt.Errorf("config file reporter: %w", err)
 		}
 		cfg.reportType = conf
 	}
@@ -856,7 +860,50 @@ func applyConfigFile(cfg *validatorConfig) error {
 		}
 	}
 
-	return nil
+	return &fileCfg.Validators, nil
+}
+
+func applyValidatorOptions(opts *configfile.ValidatorOptions) []filetype.FileType {
+	types := make([]filetype.FileType, len(filetype.FileTypes))
+	copy(types, filetype.FileTypes)
+
+	if opts == nil || opts.CSV == nil {
+		return types
+	}
+
+	for i, ft := range types {
+		if ft.Name != "csv" {
+			continue
+		}
+		csvVal := validator.CsvValidator{}
+		if opts.CSV.Delimiter != nil {
+			csvVal.Delimiter = parseDelimiter(*opts.CSV.Delimiter)
+		}
+		if opts.CSV.Comment != nil {
+			r := []rune(*opts.CSV.Comment)
+			if len(r) == 1 {
+				csvVal.Comment = r[0]
+			}
+		}
+		if opts.CSV.LazyQuotes != nil {
+			csvVal.LazyQuotes = *opts.CSV.LazyQuotes
+		}
+		types[i].Validator = csvVal
+		break
+	}
+
+	return types
+}
+
+func parseDelimiter(s string) rune {
+	if s == "\\t" || s == "\t" {
+		return '\t'
+	}
+	r := []rune(s)
+	if len(r) == 1 {
+		return r[0]
+	}
+	return 0
 }
 
 func main() {
