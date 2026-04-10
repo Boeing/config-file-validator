@@ -113,6 +113,8 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}) ([]FileMetadata, error) {
 	var matchingFiles []FileMetadata
 
+	pathRoot = strings.TrimRight(pathRoot, string(os.PathSeparator))
+
 	if _, err := os.Stat(pathRoot); os.IsNotExist(err) {
 		return nil, err
 	}

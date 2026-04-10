@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Boeing/config-file-validator/v2/internal/testhelper"
+	"github.com/Boeing/config-file-validator/v2/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v2/pkg/finder"
 	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v2/pkg/schemastore"
@@ -68,7 +69,7 @@ func Test_CLIBadPath(t *testing.T) {
 	cli := Init(WithFinder(fsFinder))
 	exitStatus, err := cli.Run()
 	require.Error(t, err)
-	require.Equal(t, 1, exitStatus)
+	require.Equal(t, 2, exitStatus)
 }
 
 func Test_CLIWithGroup(t *testing.T) {
@@ -205,7 +206,7 @@ func Test_CLIWithUnreadableFile(t *testing.T) {
 	cli := Init(WithFinder(fsFinder))
 	exitStatus, err := cli.Run()
 	require.Error(t, err)
-	require.Equal(t, 1, exitStatus)
+	require.Equal(t, 2, exitStatus)
 }
 
 func Test_CLISingleGroupJSON(t *testing.T) {
@@ -600,6 +601,33 @@ func Test_CLISchemaMapXMLValid(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithSchemaMap(map[string]string{"config.xml": schemaPath}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLIStdinValid(t *testing.T) {
+	cli := Init(
+		WithStdinData([]byte(`{"key": "value"}`), filetype.JSONFileType),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLIStdinInvalid(t *testing.T) {
+	cli := Init(
+		WithStdinData([]byte(`{"key": value}`), filetype.JSONFileType),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+}
+
+func Test_CLIStdinYAML(t *testing.T) {
+	cli := Init(
+		WithStdinData([]byte("key: value\nlist:\n  - one\n"), filetype.YAMLFileType),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)

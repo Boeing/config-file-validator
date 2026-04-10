@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +66,7 @@ func TestLookupExactMatch(t *testing.T) {
 	store, err := Open(dir)
 	require.NoError(t, err)
 
-	path, found := store.Lookup("/some/project/package.json")
+	path, found := store.Resolve("/some/project/package.json")
 	require.True(t, found)
 	require.Contains(t, path, "package.json")
 }
@@ -81,7 +82,7 @@ func TestLookupGlobMatch(t *testing.T) {
 	store, err := Open(dir)
 	require.NoError(t, err)
 
-	path, found := store.Lookup("/repo/.github/workflows/ci.yml")
+	path, found := store.Resolve("/repo/.github/workflows/ci.yml")
 	require.True(t, found)
 	require.Contains(t, path, "github-workflow.json")
 }
@@ -97,7 +98,7 @@ func TestLookupNoMatch(t *testing.T) {
 	store, err := Open(dir)
 	require.NoError(t, err)
 
-	_, found := store.Lookup("/some/project/tsconfig.json")
+	_, found := store.Resolve("/some/project/tsconfig.json")
 	require.False(t, found)
 }
 
@@ -111,8 +112,10 @@ func TestLookupExternalURLSkipped(t *testing.T) {
 	store, err := Open(dir)
 	require.NoError(t, err)
 
-	_, found := store.Lookup("/project/foo.json")
-	require.False(t, found)
+	// External URLs are now returned as remote fallback
+	path, found := store.Resolve("/project/foo.json")
+	require.True(t, found)
+	require.Equal(t, "https://example.com/foo.json", path)
 }
 
 func TestLookupMissingSchemaFile(t *testing.T) {
@@ -121,13 +124,15 @@ func TestLookupMissingSchemaFile(t *testing.T) {
 		{FileMatch: []string{"package.json"}, URL: "https://www.schemastore.org/package.json"},
 	}
 	dir := setupTestBundle(t, entries)
-	// Don't write the schema file
+	// Don't write the schema file — should fall back to remote URL or cache
 
 	store, err := Open(dir)
 	require.NoError(t, err)
 
-	_, found := store.Lookup("/project/package.json")
-	require.False(t, found)
+	path, found := store.Resolve("/project/package.json")
+	require.True(t, found)
+	// Result is either a cached local path or the remote URL
+	require.Contains(t, path, "package.json")
 }
 
 func TestLookupGlobStarJson(t *testing.T) {
@@ -141,7 +146,107 @@ func TestLookupGlobStarJson(t *testing.T) {
 	store, err := Open(dir)
 	require.NoError(t, err)
 
-	path, found := store.Lookup("tsconfig.build.json")
+	path, found := store.Resolve("tsconfig.build.json")
 	require.True(t, found)
 	require.Contains(t, path, "tsconfig.json")
+}
+
+func TestOpenEmbedded(t *testing.T) {
+	t.Parallel()
+	store, err := OpenEmbedded()
+	require.NoError(t, err)
+	require.NotEmpty(t, store.entries)
+	require.Empty(t, store.schemaDir)
+}
+
+func TestOpenEmbeddedLookupReturnsRemoteURL(t *testing.T) {
+	t.Parallel()
+	store, err := OpenEmbedded()
+	require.NoError(t, err)
+
+	// package.json is in the SchemaStore catalog
+	path, found := store.Resolve("/project/package.json")
+	require.True(t, found)
+	// Result is either a cached local path or the remote URL
+	require.Contains(t, path, "package.json")
+}
+
+func TestLookupLocalPriorityOverRemote(t *testing.T) {
+	t.Parallel()
+	entries := []catalogEntry{
+		{FileMatch: []string{"package.json"}, URL: "https://www.schemastore.org/package.json"},
+	}
+	dir := setupTestBundle(t, entries)
+	localPath := writeSchema(t, dir, "package.json", `{"type":"object"}`)
+
+	store, err := Open(dir)
+	require.NoError(t, err)
+
+	path, found := store.Resolve("/project/package.json")
+	require.True(t, found)
+	require.Equal(t, localPath, path)
+}
+
+func TestLookupCacheHit(t *testing.T) {
+	t.Parallel()
+	cacheDir := t.TempDir()
+
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: "https://example.com/schemas/config.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: defaultCacheTTL,
+	}
+
+	// Pre-populate cache
+	cachedPath := filepath.Join(cacheDir, "example.com", "schemas", "config.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(cachedPath), 0755))
+	require.NoError(t, os.WriteFile(cachedPath, []byte(`{"type":"object"}`), 0600))
+
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, cachedPath, path)
+}
+
+func TestLookupCacheExpired(t *testing.T) {
+	t.Parallel()
+	cacheDir := t.TempDir()
+
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: "https://example.com/nonexistent.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: 0, // expired immediately
+	}
+
+	// Pre-populate cache with old mtime
+	cachedPath := filepath.Join(cacheDir, "example.com", "nonexistent.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(cachedPath), 0755))
+	require.NoError(t, os.WriteFile(cachedPath, []byte(`{"type":"object"}`), 0600))
+	oldTime := time.Now().Add(-48 * time.Hour)
+	require.NoError(t, os.Chtimes(cachedPath, oldTime, oldTime))
+
+	// Cache is expired, fetch will fail (fake URL), falls back to remote URL
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, "https://example.com/nonexistent.json", path)
+}
+
+func TestLookupNoCacheDir(t *testing.T) {
+	t.Parallel()
+
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: "https://example.com/nonexistent.json"},
+		},
+		cacheDir: "",
+		cacheTTL: defaultCacheTTL,
+	}
+
+	// No cache dir, fetch will fail, falls back to remote URL
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, "https://example.com/nonexistent.json", path)
 }

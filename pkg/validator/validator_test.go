@@ -154,6 +154,11 @@ var testData = []struct {
 	{"validSarif210", validSarif210Bytes, true, SarifValidator{}},
 	{"validSarif22", validSarif22Bytes, true, SarifValidator{}},
 	{"invalidSarif", []byte(`{"not": "sarif"}`), false, SarifValidator{}},
+	{"validJsonc", []byte("// comment\n{\"key\": \"value\"}"), true, JSONCValidator{}},
+	{"validJsoncBlockComment", []byte("/* block */\n{\"key\": \"value\"}"), true, JSONCValidator{}},
+	{"validJsoncTrailingComma", []byte(`{"a": 1, "b": 2,}`), true, JSONCValidator{}},
+	{"invalidJsonc", []byte(`{"bad": }`), false, JSONCValidator{}},
+	{"validJsoncNoComments", []byte(`{"key": "value"}`), true, JSONCValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
@@ -815,4 +820,55 @@ func writeTestXSD(t *testing.T) string {
 	p := filepath.Join(dir, "schema.xsd")
 	require.NoError(t, os.WriteFile(p, []byte(xsd), 0600))
 	return p
+}
+
+func Test_JSONCValidateSchemaNoSchema(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`// comment
+{"key": "value"}`), "")
+	require.True(t, valid)
+	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_JSONCValidateSchemaValid(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	doc := `// server config
+{
+  "$schema": "` + schema + `",
+  "host": "db.example.com",
+  "port": 5432,
+  "database": "mydb",
+}`
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), "")
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_JSONCValidateSchemaInvalidDoc(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	doc := `// server config
+{
+  "$schema": "` + schema + `",
+  "host": "db.example.com",
+  "port": "not_a_number", // wrong type
+  "database": "mydb"
+}`
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "schema validation failed")
+}
+
+func Test_JSONCMarshalToJSON(t *testing.T) {
+	t.Parallel()
+	input := []byte(`// comment
+{
+  "$schema": "test.json",
+  "key": "value",
+}`)
+	out, err := JSONCValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "key")
 }

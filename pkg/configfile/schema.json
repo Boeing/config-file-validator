@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config File Validator Configuration",
+  "description": "Schema for .cfv.toml configuration files",
+  "type": "object",
+  "properties": {
+    "exclude-dirs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Subdirectories to exclude when searching for configuration files"
+    },
+    "exclude-file-types": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "File types to ignore"
+    },
+    "file-types": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "File types to validate (cannot be used with exclude-file-types)"
+    },
+    "depth": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Depth of recursion for search paths. 0 disables recursion."
+    },
+    "reporter": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Report formats and optional output paths. Format: type or type:path"
+    },
+    "groupby": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["filetype", "directory", "pass-fail", "error-type"]
+      },
+      "maxItems": 3,
+      "uniqueItems": true,
+      "description": "Group output by filetype, directory, pass-fail, or error-type"
+    },
+    "quiet": {
+      "type": "boolean",
+      "description": "Suppress all output to stdout"
+    },
+    "require-schema": {
+      "type": "boolean",
+      "description": "Fail validation if a file supports schema validation but does not declare a schema"
+    },
+    "no-schema": {
+      "type": "boolean",
+      "description": "Disable all schema validation. Only syntax is checked."
+    },
+    "schemastore": {
+      "type": "boolean",
+      "description": "Enable automatic schema lookup using the SchemaStore catalog"
+    },
+    "schemastore-path": {
+      "type": "string",
+      "description": "Path to a local SchemaStore clone. Implies schemastore = true."
+    },
+    "globbing": {
+      "type": "boolean",
+      "description": "Enable glob pattern matching for search paths"
+    },
+    "schema-map": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map glob patterns to schema files. Keys are patterns, values are schema paths."
+    },
+    "type-map": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map glob patterns to file types. Keys are patterns, values are type names."
+    }
+  },
+  "additionalProperties": false
+}

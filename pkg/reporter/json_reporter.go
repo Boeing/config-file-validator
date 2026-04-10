@@ -20,6 +20,7 @@ type fileStatus struct {
 	Path   string   `json:"path"`
 	Status string   `json:"status"`
 	Errors []string `json:"errors,omitempty"`
+	Notes  []string `json:"notes,omitempty"`
 }
 
 type summary struct {
@@ -217,6 +218,7 @@ func createJSONReport(reports []Report) (reportJSON, error) {
 			Path:   report.FilePath,
 			Status: status,
 			Errors: errs,
+			Notes:  report.Notes,
 		})
 
 		currentPassed := 0
