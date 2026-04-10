@@ -396,6 +396,10 @@ YAML duplicate keys are always rejected (enforced by the YAML parser).
 | `validators.csv.delimiter` | string | `","` | Field delimiter. Use `"\t"` for tab. |
 | `validators.csv.comment` | string | (none) | Lines starting with this character are ignored. |
 | `validators.csv.lazy-quotes` | boolean | `false` | Allow quotes in unquoted fields. |
+| `validators.json.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys in objects as errors. |
+| `validators.ini.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
+
+YAML duplicate keys are always rejected (enforced by the YAML parser).
 
 ### Environment Variables
 
