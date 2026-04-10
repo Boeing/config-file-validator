@@ -186,3 +186,16 @@ func writeConfig(t *testing.T, dir, content string) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, FileName), []byte(content), 0600))
 }
+
+func TestLoadMultipleErrors(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+unknown1 = true
+unknown2 = "bad"
+`)
+
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "schema validation failed")
+}

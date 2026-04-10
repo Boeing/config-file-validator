@@ -1,0 +1,55 @@
+# ============================================================
+# Functional tests for stdin support (- as search path)
+# ============================================================
+
+# Valid JSON from stdin
+stdin valid.json
+exec validator --file-types=json -
+stdout '✓.*stdin'
+
+# Invalid JSON from stdin
+stdin invalid.json
+! exec validator --file-types=json -
+stdout '×.*stdin'
+
+# Valid YAML from stdin
+stdin valid.yaml
+exec validator --file-types=yaml -
+stdout '✓.*stdin'
+
+# Valid TOML from stdin
+stdin valid.toml
+exec validator --file-types=toml -
+stdout '✓.*stdin'
+
+# Valid JSONC from stdin
+stdin valid.jsonc
+exec validator --file-types=jsonc -
+stdout '✓.*stdin'
+
+# Stdin with --quiet
+stdin valid.json
+exec validator --file-types=json --quiet -
+! stdout '.'
+
+# Stdin missing --file-types
+stdin valid.json
+! exec validator -
+stderr 'requires --file-types'
+
+# Stdin with multiple file types
+stdin valid.json
+! exec validator --file-types=json,yaml -
+stderr 'exactly one file type'
+
+-- valid.json --
+{"key": "value"}
+-- invalid.json --
+{"key": }
+-- valid.yaml --
+key: value
+-- valid.toml --
+key = "value"
+-- valid.jsonc --
+// comment
+{"key": "value"}

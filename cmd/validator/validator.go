@@ -811,6 +811,9 @@ func applyConfigFile(cfg *validatorConfig) error {
 		cfg.fileTypes = &v
 	}
 	if !isFlagSet("depth") && fileCfg.Depth != nil {
+		if err := flagSet.Set("depth", fmt.Sprintf("%d", *fileCfg.Depth)); err != nil {
+			return fmt.Errorf("config file depth: %w", err)
+		}
 		cfg.depth = fileCfg.Depth
 	}
 	if !isFlagSet("reporter") && len(fileCfg.Reporter) > 0 {

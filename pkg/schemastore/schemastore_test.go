@@ -2,6 +2,8 @@ package schemastore
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -249,4 +251,143 @@ func TestLookupNoCacheDir(t *testing.T) {
 	path, found := store.Resolve("/project/config.json")
 	require.True(t, found)
 	require.Equal(t, "https://example.com/nonexistent.json", path)
+}
+
+func TestFetchAndCacheSuccess(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"type":"object"}`))
+	}))
+	defer srv.Close()
+
+	cacheDir := t.TempDir()
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: srv.URL + "/schema.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: defaultCacheTTL,
+	}
+
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Contains(t, path, "schema.json")
+
+	// Verify file was cached
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"type":"object"}`, string(data))
+}
+
+func TestFetchAndCache404(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	cacheDir := t.TempDir()
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: srv.URL + "/missing.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: defaultCacheTTL,
+	}
+
+	// Fetch fails, falls back to remote URL
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, srv.URL+"/missing.json", path)
+}
+
+func TestFetchAndCache500(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	cacheDir := t.TempDir()
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: srv.URL + "/error.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: defaultCacheTTL,
+	}
+
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, srv.URL+"/error.json", path)
+}
+
+func TestFetchAndCacheNetworkError(t *testing.T) {
+	t.Parallel()
+	cacheDir := t.TempDir()
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: "http://127.0.0.1:1/unreachable.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: defaultCacheTTL,
+	}
+
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, "http://127.0.0.1:1/unreachable.json", path)
+}
+
+func TestFetchAndCacheThenHitCache(t *testing.T) {
+	t.Parallel()
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"type":"object"}`))
+	}))
+	defer srv.Close()
+
+	cacheDir := t.TempDir()
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: srv.URL + "/schema.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: defaultCacheTTL,
+	}
+
+	// First call fetches
+	path1, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, 1, callCount)
+
+	// Second call hits cache
+	path2, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, 1, callCount) // no additional fetch
+	require.Equal(t, path1, path2)
+}
+
+func TestFetchAndCacheUnwritableDir(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"type":"object"}`))
+	}))
+	defer srv.Close()
+
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: srv.URL + "/schema.json"},
+		},
+		cacheDir: "/nonexistent/readonly/path",
+		cacheTTL: defaultCacheTTL,
+	}
+
+	// Cache write fails, falls back to remote URL
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, srv.URL+"/schema.json", path)
 }

@@ -872,3 +872,45 @@ func Test_JSONCMarshalToJSON(t *testing.T) {
 	require.NotContains(t, string(out), "$schema")
 	require.Contains(t, string(out), "key")
 }
+
+func Test_JSONCValidateSchemaEmptySchema(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{"$schema": "", "key": "value"}`), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "$schema must not be empty")
+}
+
+func Test_JSONCValidateSchemaArrayRoot(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`[1, 2, 3]`), "")
+	require.True(t, valid)
+	require.ErrorIs(t, err, ErrNoSchema)
+}
+
+func Test_JSONCValidateSchemaInvalidSyntax(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{bad`), "")
+	require.False(t, valid)
+	require.Error(t, err)
+}
+
+func Test_JSONCValidateSchemaNonStringSchema(t *testing.T) {
+	t.Parallel()
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{"$schema": 123}`), "")
+	require.False(t, valid)
+	require.ErrorContains(t, err, "$schema must be a string")
+}
+
+func Test_JSONCMarshalToJSONArrayRoot(t *testing.T) {
+	t.Parallel()
+	out, err := JSONCValidator{}.MarshalToJSON([]byte(`// comment
+[1, 2, 3]`))
+	require.NoError(t, err)
+	require.Contains(t, string(out), "1")
+}
+
+func Test_JSONCMarshalToJSONInvalid(t *testing.T) {
+	t.Parallel()
+	_, err := JSONCValidator{}.MarshalToJSON([]byte(`{bad`))
+	require.Error(t, err)
+}
