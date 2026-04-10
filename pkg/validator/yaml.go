@@ -11,6 +11,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// YAMLValidator validates YAML files.
+// Note: yaml.v3 already rejects duplicate keys by default.
 type YAMLValidator struct{}
 
 var _ Validator = YAMLValidator{}
@@ -28,6 +30,7 @@ func (YAMLValidator) ValidateSyntax(b []byte) (bool, error) {
 		}
 		return false, err
 	}
+
 	return true, nil
 }
 

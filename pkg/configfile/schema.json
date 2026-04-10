@@ -97,6 +97,26 @@
             }
           },
           "additionalProperties": false
+        },
+        "json": {
+          "type": "object",
+          "properties": {
+            "forbid-duplicate-keys": {
+              "type": "boolean",
+              "description": "If true, duplicate keys in objects are reported as errors. Default: false."
+            }
+          },
+          "additionalProperties": false
+        },
+        "ini": {
+          "type": "object",
+          "properties": {
+            "forbid-duplicate-keys": {
+              "type": "boolean",
+              "description": "If true, duplicate keys within the same section are reported as errors. Default: false."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false,

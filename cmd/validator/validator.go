@@ -867,32 +867,62 @@ func applyValidatorOptions(opts *configfile.ValidatorOptions) []filetype.FileTyp
 	types := make([]filetype.FileType, len(filetype.FileTypes))
 	copy(types, filetype.FileTypes)
 
-	if opts == nil || opts.CSV == nil {
+	if opts == nil {
 		return types
 	}
 
 	for i, ft := range types {
-		if ft.Name != "csv" {
-			continue
-		}
-		csvVal := validator.CsvValidator{}
-		if opts.CSV.Delimiter != nil {
-			csvVal.Delimiter = parseDelimiter(*opts.CSV.Delimiter)
-		}
-		if opts.CSV.Comment != nil {
-			r := []rune(*opts.CSV.Comment)
-			if len(r) == 1 {
-				csvVal.Comment = r[0]
+		switch ft.Name {
+		case "csv":
+			if opts.CSV != nil {
+				types[i].Validator = applyCSVOptions(opts.CSV)
 			}
+		case "json":
+			if opts.JSON != nil {
+				types[i].Validator = applyJSONOptions(opts.JSON)
+			}
+		case "ini":
+			if opts.INI != nil {
+				types[i].Validator = applyINIOptions(opts.INI)
+			}
+		default:
 		}
-		if opts.CSV.LazyQuotes != nil {
-			csvVal.LazyQuotes = *opts.CSV.LazyQuotes
-		}
-		types[i].Validator = csvVal
-		break
 	}
 
 	return types
+}
+
+func applyCSVOptions(opts *configfile.CSVOptions) validator.CsvValidator {
+	v := validator.CsvValidator{}
+	if opts.Delimiter != nil {
+		v.Delimiter = parseDelimiter(*opts.Delimiter)
+	}
+	if opts.Comment != nil {
+		r := []rune(*opts.Comment)
+		if len(r) == 1 {
+			v.Comment = r[0]
+		}
+	}
+	if opts.LazyQuotes != nil {
+		v.LazyQuotes = *opts.LazyQuotes
+	}
+	return v
+}
+
+func applyJSONOptions(opts *configfile.JSONOptions) validator.JSONValidator {
+	v := validator.JSONValidator{}
+	if opts.ForbidDuplicateKeys != nil {
+		v.ForbidDuplicateKeys = *opts.ForbidDuplicateKeys
+	}
+	return v
+}
+
+func applyINIOptions(opts *configfile.INIOptions) validator.IniValidator {
+	v := validator.IniValidator{}
+	if opts.ForbidDuplicateKeys != nil {
+		v.ForbidDuplicateKeys = *opts.ForbidDuplicateKeys
+	}
+	return v
 }
 
 func parseDelimiter(s string) rune {

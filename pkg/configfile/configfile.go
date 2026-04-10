@@ -37,7 +37,9 @@ type Config struct {
 
 // ValidatorOptions holds per-validator configuration.
 type ValidatorOptions struct {
-	CSV *CSVOptions `toml:"csv"`
+	CSV  *CSVOptions  `toml:"csv"`
+	JSON *JSONOptions `toml:"json"`
+	INI  *INIOptions  `toml:"ini"`
 }
 
 // CSVOptions configures the CSV validator.
@@ -45,6 +47,16 @@ type CSVOptions struct {
 	Delimiter  *string `toml:"delimiter"`
 	Comment    *string `toml:"comment"`
 	LazyQuotes *bool   `toml:"lazy-quotes"`
+}
+
+// JSONOptions configures the JSON validator.
+type JSONOptions struct {
+	ForbidDuplicateKeys *bool `toml:"forbid-duplicate-keys"`
+}
+
+// INIOptions configures the INI validator.
+type INIOptions struct {
+	ForbidDuplicateKeys *bool `toml:"forbid-duplicate-keys"`
 }
 
 // Load reads and validates a .cfv.toml file at the given path.

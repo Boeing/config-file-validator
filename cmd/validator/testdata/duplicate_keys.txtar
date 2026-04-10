@@ -1,0 +1,62 @@
+# ============================================================
+# Functional tests for duplicate key detection
+# ============================================================
+
+# JSON duplicate keys detected
+! exec validator --config=cfv/strict.toml dup.json
+stdout '×'
+stdout 'duplicate key'
+
+# JSON without duplicates passes
+exec validator --config=cfv/strict.toml good.json
+stdout '✓'
+
+# JSON duplicates allowed by default
+exec validator --no-config dup.json
+stdout '✓'
+
+# INI duplicate keys detected
+! exec validator --config=cfv/strict.toml dup.ini
+stdout '×'
+stdout 'duplicate key'
+
+# INI without duplicates passes
+exec validator --config=cfv/strict.toml good.ini
+stdout '✓'
+
+# INI duplicates allowed by default
+exec validator --no-config dup.ini
+stdout '✓'
+
+# YAML already rejects duplicate keys by default (no config needed)
+! exec validator --no-config dup.yaml
+stdout '×'
+stdout 'already defined'
+
+-- cfv/strict.toml --
+[validators.json]
+forbid-duplicate-keys = true
+
+[validators.ini]
+forbid-duplicate-keys = true
+
+-- dup.json --
+{"host": "localhost", "port": 8080, "host": "production"}
+
+-- good.json --
+{"host": "localhost", "port": 8080}
+
+-- dup.yaml --
+host: localhost
+port: 8080
+host: production
+
+-- dup.ini --
+[server]
+host=localhost
+host=production
+
+-- good.ini --
+[server]
+host=localhost
+port=8080

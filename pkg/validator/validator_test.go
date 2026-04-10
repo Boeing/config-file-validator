@@ -968,3 +968,67 @@ func Test_CsvValidatorDefaultUnchanged(t *testing.T) {
 	require.True(t, valid)
 	require.NoError(t, err)
 }
+
+func Test_JSONDuplicateKeysAllowed(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{}
+	valid, err := v.ValidateSyntax([]byte(`{"key": 1, "key": 2}`))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_JSONDuplicateKeysForbidden(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte(`{"key": 1, "key": 2}`))
+	require.False(t, valid)
+	require.ErrorContains(t, err, `duplicate key "key"`)
+}
+
+func Test_JSONDuplicateKeysNested(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte(`{"outer": {"inner": 1, "inner": 2}}`))
+	require.False(t, valid)
+	require.ErrorContains(t, err, `duplicate key "inner"`)
+}
+
+func Test_JSONDuplicateKeysInArray(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte(`[{"a": 1}, {"a": 1}]`))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_JSONNoDuplicatesPasses(t *testing.T) {
+	t.Parallel()
+	v := JSONValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte(`{"a": 1, "b": 2, "c": 3}`))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_INIDuplicateKeysAllowed(t *testing.T) {
+	t.Parallel()
+	v := IniValidator{}
+	valid, err := v.ValidateSyntax([]byte("[section]\nkey=1\nkey=2\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
+func Test_INIDuplicateKeysForbidden(t *testing.T) {
+	t.Parallel()
+	v := IniValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte("[section]\nkey=1\nkey=2\n"))
+	require.False(t, valid)
+	require.ErrorContains(t, err, `duplicate key "key"`)
+}
+
+func Test_ININoDuplicatesPasses(t *testing.T) {
+	t.Parallel()
+	v := IniValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte("[section]\na=1\nb=2\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
