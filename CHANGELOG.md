@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extension exclusion cache no longer prevents known files from being found
 - Linguist known files that conflict with dedicated validators are automatically excluded (e.g. `.editorconfig` stays with EditorConfig, not INI)
 
-## [2.2.0] - 2026-04-10
 
 ### Changed
 

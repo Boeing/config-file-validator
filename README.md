@@ -121,6 +121,10 @@ For other `.json` files that use JSONC syntax (e.g., VS Code settings), map them
 
 ```shell
 validator --type-map="**/.vscode/*.json:jsonc" .
+Many tools use `.json` files that actually support JSONC syntax (e.g., `tsconfig.json`, VS Code settings). To validate these correctly, map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
+
+```shell
+validator --type-map="**/tsconfig.json:jsonc" --type-map="**/.vscode/*.json:jsonc" .
 ```
 
 Or in `.cfv.toml`:
@@ -131,6 +135,12 @@ Or in `.cfv.toml`:
 ```
 
 JSON and JSONC are treated as a **family** — `--file-types=json` includes JSONC files, and `--exclude-file-types=json` excludes both JSON and JSONC files.
+
+"**/tsconfig.json" = "jsonc"
+"**/jsconfig.json" = "jsonc"
+"**/devcontainer.json" = "jsonc"
+"**/.vscode/*.json" = "jsonc"
+```
 
 ## Demo
 
@@ -375,6 +385,8 @@ comment = "#"
 | `validators.ini.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
 
 YAML duplicate keys are always rejected (enforced by the YAML parser).
+| `schema-map` | table (pattern = path) | `--schema-map` |
+| `type-map` | table (pattern = type) | `--type-map` |
 
 ### Environment Variables
 
