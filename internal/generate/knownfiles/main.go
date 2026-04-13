@@ -180,9 +180,9 @@ func writeOutput(knownFiles map[string][]string) error {
 
 	for _, ft := range fileTypes {
 		files := knownFiles[ft]
-		b.WriteString(fmt.Sprintf("\t%q: {\n", ft))
+		fmt.Fprintf(&b, "\t%q: {\n", ft)
 		for _, f := range files {
-			b.WriteString(fmt.Sprintf("\t\t%q,\n", f))
+			fmt.Fprintf(&b, "\t\t%q,\n", f)
 		}
 		b.WriteString("\t},\n")
 	}
