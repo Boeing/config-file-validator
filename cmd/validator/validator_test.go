@@ -78,9 +78,10 @@ func Test_getExcludeFileTypes(t *testing.T) {
 	}{
 		{"exclude yaml", "yaml", []string{"yaml", "yml"}},
 		{"exclude yml", "yml", []string{"yaml", "yml"}},
-		{"exclude json", "json", []string{"json"}},
-		{"exclude json and yaml", "json,yaml", []string{"json", "yaml", "yml"}},
-		{"case insensitive", "jSon,YamL", []string{"json", "yaml", "yml"}},
+		{"exclude json", "json", []string{"json", "jsonc"}},
+		{"exclude jsonc", "jsonc", []string{"json", "jsonc"}},
+		{"exclude json and yaml", "json,yaml", []string{"json", "jsonc", "yaml", "yml"}},
+		{"case insensitive", "jSon,YamL", []string{"json", "jsonc", "yaml", "yml"}},
 	}
 
 	for _, tc := range cases {

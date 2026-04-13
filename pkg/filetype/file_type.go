@@ -1,7 +1,20 @@
+//go:generate go run ../../internal/generate/knownfiles/main.go
+
+// Package filetype defines the supported file types and their validators.
+//
+// KnownFiles are populated at init time from three sources:
+//  1. LinguistKnownFiles (generated from GitHub Linguist's languages.yml)
+//  2. extraKnownFiles (manual entries not in Linguist, e.g. .shellcheckrc)
+//  3. excludeKnownFiles (auto-detected conflicts with dedicated validators)
+//
+// Filenames in excludeKnownFiles are skipped during population. A conflict
+// is detected when a Linguist filename has an extension that belongs to a
+// file type outside fileTypeRegistry (e.g. .editorconfig → EditorConfig).
 package filetype
 
 import (
-	"github.com/Boeing/config-file-validator/v2/pkg/tools"
+	"strings"
+
 	"github.com/Boeing/config-file-validator/v2/pkg/validator"
 )
 
@@ -20,7 +33,7 @@ type FileType struct {
 // represent a JSON file
 var JSONFileType = FileType{
 	Name:       "json",
-	Extensions: tools.ArrToMap("json"),
+	Extensions: arrToMap("json"),
 	Validator:  validator.JSONValidator{},
 }
 
@@ -28,21 +41,15 @@ var JSONFileType = FileType{
 // represent a YAML file
 var YAMLFileType = FileType{
 	Name:       "yaml",
-	Extensions: tools.ArrToMap("yml", "yaml"),
-	KnownFiles: tools.ArrToMap(
-		".clang-format",
-		".clang-tidy",
-		".clangd",
-		".gemrc",
-	),
-	Validator: validator.YAMLValidator{},
+	Extensions: arrToMap("yml", "yaml"),
+	Validator:  validator.YAMLValidator{},
 }
 
 // Instance of FileType object to
 // represent a XML file
 var XMLFileType = FileType{
 	Name:       "xml",
-	Extensions: tools.ArrToMap("xml"),
+	Extensions: arrToMap("xml"),
 	Validator:  validator.XMLValidator{},
 }
 
@@ -50,7 +57,7 @@ var XMLFileType = FileType{
 // represent a Toml file
 var TomlFileType = FileType{
 	Name:       "toml",
-	Extensions: tools.ArrToMap("toml"),
+	Extensions: arrToMap("toml"),
 	Validator:  validator.TomlValidator{},
 }
 
@@ -58,29 +65,15 @@ var TomlFileType = FileType{
 // represent a Ini file
 var IniFileType = FileType{
 	Name:       "ini",
-	Extensions: tools.ArrToMap("ini"),
-	KnownFiles: tools.ArrToMap(
-		".editorconfig",
-		".gitconfig",
-		".gitmodules",
-		".shellcheckrc",
-		".npmrc",
-		"inputrc",
-		".inputrc",
-		".wgetrc",
-		".curlrc",
-		".nanorc",
-		".flake8",
-		".pylintrc",
-	),
-	Validator: validator.IniValidator{},
+	Extensions: arrToMap("ini"),
+	Validator:  validator.IniValidator{},
 }
 
 // Instance of FileType object to
 // represent a Properties file
 var PropFileType = FileType{
 	Name:       "properties",
-	Extensions: tools.ArrToMap("properties"),
+	Extensions: arrToMap("properties"),
 	Validator:  validator.PropValidator{},
 }
 
@@ -88,7 +81,7 @@ var PropFileType = FileType{
 // represent a HCL file
 var HclFileType = FileType{
 	Name:       "hcl",
-	Extensions: tools.ArrToMap("hcl"),
+	Extensions: arrToMap("hcl", "tf", "tfvars"),
 	Validator:  validator.HclValidator{},
 }
 
@@ -96,7 +89,7 @@ var HclFileType = FileType{
 // represent a Plist file
 var PlistFileType = FileType{
 	Name:       "plist",
-	Extensions: tools.ArrToMap("plist"),
+	Extensions: arrToMap("plist"),
 	Validator:  validator.PlistValidator{},
 }
 
@@ -104,7 +97,7 @@ var PlistFileType = FileType{
 // represent a CSV file
 var CsvFileType = FileType{
 	Name:       "csv",
-	Extensions: tools.ArrToMap("csv"),
+	Extensions: arrToMap("csv"),
 	Validator:  validator.CsvValidator{},
 }
 
@@ -112,7 +105,7 @@ var CsvFileType = FileType{
 // represent a HOCON file
 var HoconFileType = FileType{
 	Name:       "hocon",
-	Extensions: tools.ArrToMap("hocon"),
+	Extensions: arrToMap("hocon"),
 	Validator:  validator.HoconValidator{},
 }
 
@@ -120,7 +113,7 @@ var HoconFileType = FileType{
 // represent a ENV file
 var EnvFileType = FileType{
 	Name:       "env",
-	Extensions: tools.ArrToMap("env"),
+	Extensions: arrToMap("env"),
 	Validator:  validator.EnvValidator{},
 }
 
@@ -128,7 +121,7 @@ var EnvFileType = FileType{
 // represent an EDITORCONFIG file
 var EditorConfigFileType = FileType{
 	Name:       "editorconfig",
-	Extensions: tools.ArrToMap("editorconfig"),
+	Extensions: arrToMap("editorconfig"),
 	Validator:  validator.EditorConfigValidator{},
 }
 
@@ -136,7 +129,7 @@ var EditorConfigFileType = FileType{
 // represent a TOON file
 var ToonFileType = FileType{
 	Name:       "toon",
-	Extensions: tools.ArrToMap("toon"),
+	Extensions: arrToMap("toon"),
 	Validator:  validator.ToonValidator{},
 }
 
@@ -144,25 +137,132 @@ var ToonFileType = FileType{
 // represent a Sarif file
 var SarifFileType = FileType{
 	Name:       "sarif",
-	Extensions: tools.ArrToMap("sarif"),
+	Extensions: arrToMap("sarif"),
 	Validator:  validator.SarifValidator{},
 }
 
-// An array of files types that are supported
-// by the validator
-var FileTypes = []FileType{
-	JSONFileType,
-	YAMLFileType,
-	XMLFileType,
-	TomlFileType,
-	IniFileType,
-	PropFileType,
-	HclFileType,
-	PlistFileType,
-	CsvFileType,
-	HoconFileType,
-	EnvFileType,
-	EditorConfigFileType,
-	ToonFileType,
-	SarifFileType,
+var JSONCFileType = FileType{
+	Name:       "jsonc",
+	Extensions: arrToMap("jsonc"),
+	Validator:  validator.JSONCValidator{},
+}
+
+// extraKnownFiles contains manual entries not covered by Linguist.
+var extraKnownFiles = map[string][]string{
+	"ini": {
+		".shellcheckrc",
+	},
+}
+
+// fileTypeRegistry maps file type names to their package-level variables.
+var fileTypeRegistry = map[string]*FileType{
+	"json":       &JSONFileType,
+	"jsonc":      &JSONCFileType,
+	"yaml":       &YAMLFileType,
+	"xml":        &XMLFileType,
+	"toml":       &TomlFileType,
+	"ini":        &IniFileType,
+	"properties": &PropFileType,
+	"hcl":        &HclFileType,
+	"plist":      &PlistFileType,
+	"csv":        &CsvFileType,
+	"hocon":      &HoconFileType,
+	"env":        &EnvFileType,
+	"toon":       &ToonFileType,
+	"sarif":      &SarifFileType,
+}
+
+// excludeKnownFiles lists Linguist entries to skip because we have
+// a dedicated file type for them (e.g. .editorconfig → EditorConfig, not INI).
+// Built automatically in init() by detecting filenames whose extension
+// matches a file type that exists outside the Linguist registry.
+var excludeKnownFiles map[string]struct{}
+
+func init() {
+	// Collect extensions from types NOT in fileTypeRegistry.
+	// These have dedicated validators that Linguist doesn't know about.
+	registeredExts := make(map[string]struct{})
+	for _, ft := range fileTypeRegistry {
+		for ext := range ft.Extensions {
+			registeredExts[ext] = struct{}{}
+		}
+	}
+	unregisteredExts := make(map[string]struct{})
+	for _, ft := range []FileType{EditorConfigFileType} {
+		for ext := range ft.Extensions {
+			if _, inRegistry := registeredExts[ext]; !inRegistry {
+				unregisteredExts[ext] = struct{}{}
+			}
+		}
+	}
+
+	// Any Linguist filename whose extension matches an unregistered type
+	// should be excluded — it has its own dedicated validator.
+	excludeKnownFiles = make(map[string]struct{})
+	for name := range fileTypeRegistry {
+		for _, f := range LinguistKnownFiles[name] {
+			if ext := extOf(f); ext != "" {
+				if _, unregistered := unregisteredExts[ext]; unregistered {
+					excludeKnownFiles[f] = struct{}{}
+				}
+			}
+		}
+	}
+
+	for name, ft := range fileTypeRegistry {
+		ft.KnownFiles = make(map[string]struct{})
+		for _, f := range LinguistKnownFiles[name] {
+			if _, skip := excludeKnownFiles[f]; skip {
+				continue
+			}
+			ft.KnownFiles[f] = struct{}{}
+		}
+		for _, f := range extraKnownFiles[name] {
+			ft.KnownFiles[f] = struct{}{}
+		}
+	}
+
+	// Build FileTypes after KnownFiles are populated so the slice
+	// contains the fully initialized values.
+	FileTypes = []FileType{
+		JSONFileType,
+		YAMLFileType,
+		XMLFileType,
+		TomlFileType,
+		IniFileType,
+		PropFileType,
+		HclFileType,
+		PlistFileType,
+		CsvFileType,
+		HoconFileType,
+		EnvFileType,
+		EditorConfigFileType,
+		ToonFileType,
+		SarifFileType,
+		JSONCFileType,
+	}
+}
+
+// FileTypes contains all file types supported by the validator.
+// Populated in init() after KnownFiles are merged from Linguist data.
+var FileTypes []FileType
+
+func arrToMap(args ...string) map[string]struct{} {
+	m := make(map[string]struct{}, len(args))
+	for _, item := range args {
+		m[item] = struct{}{}
+	}
+	return m
+}
+
+// extOf returns the extension of a filename (lowercase, without the dot),
+// matching filepath.Ext behavior. For ".editorconfig" returns "editorconfig".
+// For files with no dot returns "".
+func extOf(name string) string {
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == '.' {
+			return strings.ToLower(name[i+1:])
+		}
+	}
+	return ""
 }

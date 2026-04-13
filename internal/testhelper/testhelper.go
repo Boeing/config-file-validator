@@ -28,13 +28,17 @@ var ValidContent = map[string]string{
 		"$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
 		"runs": [{"tool": {"driver": {"name": "test", "language": "en"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
 	}`,
+	"jsonc":  "// comment\n{\"key\": \"value\"}\n",
+	"tf":     "key = \"value\"\n",
+	"tfvars": "key = \"value\"\n",
 }
 
 var InvalidContent = map[string]string{
-	"json": `{"bad": }`,
-	"yaml": "a: b\nc: d:::::::::::::::\n",
-	"toml": "key = 123__456\n",
-	"csv":  "This string has a \\\" in it",
+	"json":  `{"bad": }`,
+	"yaml":  "a: b\nc: d:::::::::::::::\n",
+	"toml":  "key = 123__456\n",
+	"csv":   "This string has a \\\" in it",
+	"jsonc": `{"bad": }`,
 }
 
 // CreateFixtureDir creates a temp directory with valid config files for the given extensions.

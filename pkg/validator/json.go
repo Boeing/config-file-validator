@@ -7,11 +7,15 @@ import (
 	"strings"
 )
 
-type JSONValidator struct{}
+// JSONValidator validates JSON files. When ForbidDuplicateKeys is true,
+// duplicate keys in objects are reported as errors.
+type JSONValidator struct {
+	ForbidDuplicateKeys bool
+}
 
 var _ Validator = JSONValidator{}
 
-func (JSONValidator) ValidateSyntax(b []byte) (bool, error) {
+func (v JSONValidator) ValidateSyntax(b []byte) (bool, error) {
 	var output any
 	err := json.Unmarshal(b, &output)
 	if err != nil {
@@ -28,6 +32,13 @@ func (JSONValidator) ValidateSyntax(b []byte) (bool, error) {
 		}
 		return false, err
 	}
+
+	if v.ForbidDuplicateKeys {
+		if err := checkJSONDuplicateKeys(b); err != nil {
+			return false, err
+		}
+	}
+
 	return true, nil
 }
 
@@ -69,7 +80,6 @@ func (JSONValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 
 	schemaURL = resolveSchemaURL(schemaURL, filePath)
 
-	// Remove $schema from document before validation — it's metadata, not content
 	delete(doc, "$schema")
 	cleanDoc, err := json.Marshal(doc)
 	if err != nil {
@@ -77,4 +87,67 @@ func (JSONValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 	}
 
 	return JSONSchemaValidate(schemaURL, cleanDoc)
+}
+
+// checkJSONDuplicateKeys walks the JSON token stream and reports duplicate keys.
+func checkJSONDuplicateKeys(b []byte) error {
+	dec := json.NewDecoder(strings.NewReader(string(b)))
+	return checkDuplicateKeysInDecoder(dec)
+}
+
+func checkDuplicateKeysInDecoder(dec *json.Decoder) error {
+	tok, err := dec.Token()
+	if err != nil {
+		return nil
+	}
+
+	delim, ok := tok.(json.Delim)
+	if !ok {
+		return nil
+	}
+
+	if delim == '{' {
+		return checkDuplicateKeysInObject(dec)
+	}
+	if delim == '[' {
+		return checkDuplicateKeysInArray(dec)
+	}
+	return nil
+}
+
+func checkDuplicateKeysInObject(dec *json.Decoder) error {
+	seen := make(map[string]struct{})
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return nil
+		}
+		key, ok := tok.(string)
+		if !ok {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("duplicate key %q", key)
+		}
+		seen[key] = struct{}{}
+
+		// Consume the value — recurse to check nested objects
+		if err := checkDuplicateKeysInDecoder(dec); err != nil {
+			return err
+		}
+	}
+	// consume closing }
+	_, _ = dec.Token()
+	return nil
+}
+
+func checkDuplicateKeysInArray(dec *json.Decoder) error {
+	for dec.More() {
+		if err := checkDuplicateKeysInDecoder(dec); err != nil {
+			return err
+		}
+	}
+	// consume closing ]
+	_, _ = dec.Token()
+	return nil
 }

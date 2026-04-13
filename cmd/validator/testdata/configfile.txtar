@@ -1,0 +1,94 @@
+# ============================================================
+# Functional tests for .cfv.toml config file
+# ============================================================
+
+# Config file applies type-map (tsconfig passes as JSONC)
+exec validator --config=cfv/typemap.toml project/tsconfig.json
+stdout '✓'
+
+# Config file applies exclude-dirs
+exec validator --config=cfv/excludedir.toml project
+! stdout 'excluded'
+stdout '✓.*good.json'
+
+# Config file applies quiet
+exec validator --config=cfv/quiet.toml project/good.json
+! stdout '✓'
+
+# Config file applies depth=0 (no subdirs)
+exec validator --config=cfv/depth.toml project
+! stdout 'sub/'
+stdout '✓.*good.json'
+
+# CLI flag overrides config file quiet
+exec validator --config=cfv/quiet.toml --quiet=false project/good.json
+stdout '✓'
+
+# Invalid config file key
+! exec validator --config=cfv/bad_key.toml project/good.json
+stderr 'schema validation failed'
+
+# Invalid config file type
+! exec validator --config=cfv/bad_type.toml project/good.json
+stderr 'schema validation failed'
+
+# Invalid config file syntax
+! exec validator --config=cfv/bad_syntax.toml project/good.json
+stderr 'invalid TOML syntax'
+
+# --no-config ignores config file (type-map not applied, custom.cfg not recognized)
+exec validator --no-config project/custom.cfg
+! stdout 'custom.cfg'
+
+# With config file, custom.cfg is recognized as JSON via type-map
+exec validator --config=cfv/typemap.toml project/custom.cfg
+stdout '✓'
+
+-- cfv/typemap.toml --
+[type-map]
+"**/tsconfig.json" = "jsonc"
+"**/custom.cfg" = "json"
+
+-- cfv/excludedir.toml --
+exclude-dirs = ["excluded"]
+
+[type-map]
+"**/tsconfig.json" = "jsonc"
+
+-- cfv/quiet.toml --
+quiet = true
+
+-- cfv/depth.toml --
+depth = 0
+
+[type-map]
+"**/tsconfig.json" = "jsonc"
+
+-- cfv/bad_key.toml --
+unknown_key = true
+
+-- cfv/bad_type.toml --
+quiet = "yes"
+
+-- cfv/bad_syntax.toml --
+quiet = [broken
+
+-- project/tsconfig.json --
+// TypeScript config
+{
+  "compilerOptions": {
+    "target": "es2020",
+  }
+}
+
+-- project/good.json --
+{"key": "value"}
+
+-- project/excluded/config.json --
+{"key": "value"}
+
+-- project/sub/nested.json --
+{"key": "value"}
+
+-- project/custom.cfg --
+{"key": "value"}

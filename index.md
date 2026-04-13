@@ -4,26 +4,6 @@ description: "Single cross-platform CLI tool to validate and lint 14+ configurat
 canonical_url: https://boeing.github.io/config-file-validator/
 ---
 
-<div align="center">
-    <div style="width: 100%; text-align: center; position: relative;">
-        <div style="display: inline-block;">
-            <img src="./img/logo.png" width="200" height="200" alt="Config File Validator logo"/>
-        </div>
-        <div style="position: absolute; right: 0; top: 0">
-            <a href="https://github.com/Boeing/config-file-validator">
-                <img decoding="async" loading="lazy" width="149" height="149"
-                src="./img/fork-me-on-github.png" 
-                class="attachment-full size-full" alt="Fork me on GitHub" data-recalc-dims="1" style="background: transparent !important;">
-            </a>
-        </div>
-    </div>
-    <div>
-        <h1>Config File Validator</h1>
-        <p>Single cross-platform CLI tool to validate different configuration file types</p>
-    </div>
-    <br />
-</div>
-
 <p align="center">
 <img id="cov" src="https://img.shields.io/badge/Coverage-93.8%25-brightgreen" alt="Code Coverage">
 
@@ -41,7 +21,7 @@ canonical_url: https://boeing.github.io/config-file-validator/
 
   <a href="https://github.com/avelino/awesome-go">
   <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
-  </a> 
+  </a>  
 
   <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator/v2">
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v2.svg" alt="Go Reference">
@@ -56,10 +36,37 @@ canonical_url: https://boeing.github.io/config-file-validator/
   </a>
 </p>
 
-## Supported config file formats
+## About
 
-| Format | Syntax Validation | Schema Validation |
-|--------|:-----------------:|:-----------------:|
+Config File Validator is a cross-platform CLI tool that validates configuration files in your project. Catch syntax errors, schema violations, and misconfigurations across all your config files — with one tool.
+
+- **Single binary, zero dependencies** — no runtimes, no package managers, just one executable
+- **15 file formats** — JSON, JSONC, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, PList, SARIF, and TOON
+- **Syntax + schema validation** — validates structure with [JSON Schema](https://json-schema.org/) and XSD, with automatic [SchemaStore](https://www.schemastore.org/) integration
+- **CI/CD ready** — JSON, JUnit, and SARIF output for GitHub Actions, GitLab CI, Jenkins, and more
+- **Configurable** — project-level `.cfv.toml` config files, glob patterns, schema mappings, and environment variables
+- **Usable as a Go library** — embed validation in your own tools with the `cli` package
+
+## Table of Contents
+
+- [Supported File Types](#supported-file-types)
+- [Demo](#demo)
+- [Installation](#installation)
+- [GitHub Action](#github-action)
+- [Pre-commit Hook](#pre-commit-hook)
+- [Usage](#usage)
+  - [Configuration File](#configuration-file)
+  - [Environment Variables](#environment-variables)
+  - [Examples](#examples)
+  - [Schema Validation](#schema-validation)
+- [Go API](#calling-the-config-file-validator-programmatically)
+- [Build](#build)
+- [Contributing](#contributing)
+
+## Supported File Types
+
+| Format | Syntax | Schema |
+|--------|:------:|:------:|
 | Apple PList XML | ✅ | ❌ |
 | CSV | ✅ | ❌ |
 | EDITORCONFIG | ✅ | ❌ |
@@ -67,19 +74,66 @@ canonical_url: https://boeing.github.io/config-file-validator/
 | HCL | ✅ | ❌ |
 | HOCON | ✅ | ❌ |
 | INI | ✅ | ❌ |
-| JSON | ✅ | ✅ (`$schema` property) |
+| JSON | ✅ | ✅ |
+| JSONC | ✅ | ✅ |
 | Properties | ✅ | ❌ |
-| SARIF | ✅ | ✅ (built-in per version) |
-| TOML | ✅ | ✅ (`$schema` key) |
-| TOON | ✅ | ✅ (`"$schema"` key) |
-| XML | ✅ | ✅ (`xsi:noNamespaceSchemaLocation`) |
-| YAML | ✅ | ✅ (`yaml-language-server` comment) |
+| SARIF | ✅ | ✅ |
+| TOML | ✅ | ✅ |
+| TOON | ✅ | ✅ |
+| XML | ✅ | ✅ |
+| YAML | ✅ | ✅ |
 
 XML files with inline DTD declarations (`<!DOCTYPE>`) are automatically validated against the DTD during syntax checking.
 
+### Known Files
+
+The validator automatically recognizes common configuration files by filename, even without a standard extension. This means files like `.babelrc`, `.gitconfig`, `Pipfile`, and `pom.xml` are validated without any configuration.
+
+Known filenames are sourced from [GitHub Linguist](https://github.com/github-linguist/linguist) and updated automatically. Examples:
+
+| Type | Known Files |
+|------|-------------|
+| JSON | `.arcconfig`, `.watchmanconfig`, `composer.lock`, `bun.lock`, `deno.lock`, `flake.lock` |
+| JSONC | `.babelrc`, `.swcrc`, `.jshintrc`, `tsconfig.json`, `jsconfig.json`, `.eslintrc.json` |
+| YAML | `.clang-format`, `.clang-tidy`, `.clangd`, `.gemrc` |
+| TOML | `Pipfile`, `Cargo.lock`, `poetry.lock`, `uv.lock`, `pdm.lock` |
+| XML | `pom.xml`, `build.xml`, `ant.xml`, `.classpath`, `.project` |
+| INI | `.gitconfig`, `.gitmodules`, `.npmrc`, `.pylintrc`, `.flake8`, `.curlrc`, `.nanorc` |
+
+Known files take priority over extension matching. For example, `tsconfig.json` is validated as JSONC (not strict JSON) because it’s a known JSONC file.
+
+Use `--type-map` to override the automatic detection for any file:
+
+```shell
+# Force tsconfig.json to be validated as strict JSON
+validator --type-map="**/tsconfig.json:json" .
+
+### JSON vs JSONC
+
+Files with the `.json` extension are validated as **strict JSON** — no comments, no trailing commas. Files with the `.jsonc` extension are validated as **JSONC**, which allows `//` line comments, `/* */` block comments, and trailing commas.
+
+Many common `.json` files actually support JSONC syntax. The validator automatically detects these by filename and validates them as JSONC — no configuration needed:
+
+`tsconfig.json`, `jsconfig.json`, `.eslintrc.json`, `.devcontainer.json`, `devcontainer.json`, `.babelrc`, `.jshintrc`, `.jslintrc`, `.jscsrc`, `.swcrc`, `tslint.json`, `api-extractor.json`, `language-configuration.json`, `.oxlintrc.json`
+
+For other `.json` files that use JSONC syntax (e.g., VS Code settings), map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
+
+```shell
+validator --type-map="**/.vscode/*.json:jsonc" .
+```
+
+Or in `.cfv.toml`:
+
+```toml
+[type-map]
+"**/.vscode/*.json" = "jsonc"
+```
+
+JSON and JSONC are treated as a **family** — `--file-types=json` includes JSONC files, and `--exclude-file-types=json` excludes both JSON and JSONC files.
+
 ## Demo
 
-<img src="./img/demo.gif" alt="Config File Validator CLI demo showing JSON, YAML, TOML, and XML validation with pass and fail results" />
+<img src="./img/demo.gif" alt="Config File Validator CLI demo showing JSON YAML TOML XML validation" />
 
 ## Installation
 
@@ -150,13 +204,38 @@ A GitHub Action is available to run the config-file-validator as part of your CI
 
 See the [validate-configs-action](https://github.com/Boeing/validate-configs-action) repository for full usage and configuration options.
 
+## Pre-commit Hook
+
+The config-file-validator can be used as a [pre-commit](https://pre-commit.com/) hook to validate config files before every commit.
+
+```yaml
+repos:
+  - repo: https://github.com/Boeing/config-file-validator
+    rev: v2.1.0
+    hooks:
+      - id: config-file-validator
+```
+
+Two hooks are available:
+
+- `config-file-validator` — validates only changed config files (fast, for local development)
+- `config-file-validator-full` — validates all config files in the repo (for CI)
+
+To pass additional flags (e.g., `--schemastore`):
+
+```yaml
+hooks:
+  - id: config-file-validator
+    args: ['--schemastore']
+```
+
 ## Usage
 
 ```
 Usage: validator [OPTIONS] [<search_path>...]
 
 positional arguments:
-    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided
+    search_path: The search path on the filesystem for configuration files. Defaults to the current working directory if no search_path provided. Use "-" to read from stdin (requires --file-types).
 
 Schema validation runs automatically when a file declares a schema:
   JSON:  {"$schema": "schema.json", ...}
@@ -201,16 +280,94 @@ optional flags:
         Examples:
           --schema-map="**/package.json:schemas/package.schema.json"
           --schema-map="**/config.xml:schemas/config.xsd"
-  -schemastore string
-        Path to a local SchemaStore clone for automatic schema lookup by filename.
-        Download with: git clone --depth=1 https://github.com/SchemaStore/schemastore.git
-        Files matching the catalog are validated against the corresponding schema.
+  -schemastore
+        Enable automatic schema lookup by filename using the SchemaStore catalog.
+        Schemas are fetched remotely and cached in ~/.cache/cfv/schemas/ (24h TTL).
         Document-declared schemas and --schema-map take priority over SchemaStore.
+  -schemastore-path string
+        Path to a local SchemaStore clone for automatic schema lookup by filename.
+        Implies --schemastore. Use for air-gapped environments.
+        Download with: git clone --depth=1 https://github.com/SchemaStore/schemastore.git
+  -config string
+        Path to a .cfv.toml configuration file.
+        If not specified, searches for .cfv.toml in the current and parent directories.
+  -no-config
+        Disable automatic discovery of .cfv.toml configuration files.
   -type-map value
         Map a glob pattern to a file type. Format: <pattern>:<type> Example: --type-map="**/inventory:ini"
   -version
         Version prints the release version of validator
 ```
+
+### Configuration File
+
+The validator supports a `.cfv.toml` configuration file for setting project-level defaults. On startup, the validator searches for `.cfv.toml` in the current directory and walks up parent directories. Use `--config=<path>` to specify a file explicitly, or `--no-config` to disable auto-discovery.
+
+The config file is validated against a built-in schema — typos and invalid values are caught immediately.
+
+**Precedence order** (highest to lowest):
+
+1. CLI flags
+2. Configuration file (`.cfv.toml`)
+3. Environment variables (`CFV_*`)
+4. Built-in defaults
+
+**Example `.cfv.toml`:**
+
+```toml
+exclude-dirs = ["node_modules", ".git", "vendor"]
+exclude-file-types = ["csv"]
+depth = 3
+quiet = false
+schemastore = true
+require-schema = false
+reporter = ["standard"]
+groupby = ["filetype", "pass-fail"]
+
+[schema-map]
+"**/package.json" = "schemas/package.schema.json"
+"**/config.xml" = "schemas/config.xsd"
+
+[type-map]
+"**/inventory" = "ini"
+"**/*.cfg" = "json"
+
+[validators.csv]
+delimiter = ";"
+comment = "#"
+```
+
+**Supported keys:**
+
+| Key | Type | Equivalent Flag |
+|-----|------|-----------------|
+| `exclude-dirs` | array of strings | `--exclude-dirs` |
+| `exclude-file-types` | array of strings | `--exclude-file-types` |
+| `file-types` | array of strings | `--file-types` |
+| `depth` | integer (≥ 0) | `--depth` |
+| `reporter` | array of strings | `--reporter` |
+| `groupby` | array of strings | `--groupby` |
+| `quiet` | boolean | `--quiet` |
+| `require-schema` | boolean | `--require-schema` |
+| `no-schema` | boolean | `--no-schema` |
+| `schemastore` | boolean | `--schemastore` |
+| `schemastore-path` | string | `--schemastore-path` |
+| `globbing` | boolean | `--globbing` |
+| `schema-map` | table (pattern = path) | `--schema-map` |
+| `type-map` | table (pattern = type) | `--type-map` |
+| `validators` | table | Per-validator options (see below) |
+
+**Validator options:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `validators.csv.delimiter` | string | `","` | Field delimiter. Use `"\t"` for tab. |
+| `validators.csv.comment` | string | (none) | Lines starting with this character are ignored. |
+| `validators.csv.lazy-quotes` | boolean | `false` | Allow quotes in unquoted fields. |
+| `validators.json.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys in objects as errors. |
+| `validators.ini.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
+
+YAML duplicate keys are always rejected (enforced by the YAML parser).
 
 ### Environment Variables
 
@@ -228,6 +385,7 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_REQUIRE_SCHEMA`        | `-require-schema`      |
 | `CFV_NO_SCHEMA`             | `-no-schema`           |
 | `CFV_SCHEMASTORE`           | `-schemastore`         |
+| `CFV_SCHEMASTORE_PATH`      | `-schemastore-path`    |
 | `CFV_GLOBBING`          | `-globbing`  |
 
 ### Examples
@@ -264,11 +422,13 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 
 #### Exclude file types
 
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `toon`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. JSON and JSONC are treated as a family — excluding one excludes both. Similarly, excluding `yaml` also excludes `yml`.
 
 ```shell
 validator --exclude-file-types=json /path/to/search
 ```
+
+Note: `--exclude-file-types` filters by file extension. Extensionless known files (like `.gitconfig` or `.babelrc`) are not affected by this flag. Use `--type-map` or `.cfv.toml` for fine-grained control.
 
 ![Exclude File Types Run](./img/exclude_file_types.gif)
 
@@ -337,22 +497,25 @@ Passing the `--quiet` flag suppresses all output to stdout. If there are invalid
 validator --quiet /path/to/search
 ```
 
-### Search files using a glob pattern
+### Read from stdin
 
-Use the `-globbing` flag to validate files matching a specified pattern. Include the pattern as a positional argument in double quotes. Multiple glob patterns and direct file paths are supported. If invalid config files are detected, the validator tool exits with code 1, and errors (e.g., invalid patterns) are displayed.
-
-[Learn more about glob patterns](https://www.digitalocean.com/community/tools/glob)
+Use `-` as the search path to read from stdin. Requires `--file-types` to specify exactly one file type.
 
 ```shell
-# Validate all `.json` files in a directory
-validator -globbing "/path/to/files/*.json"
-
-# Recursively validate all `.json` files in subdirectories
-validator -globbing "/path/to/files/**/*.json"
-
-# Mix glob patterns and paths
-validator -globbing "/path/*.json" /path/to/search
+echo '{"key": "value"}' | validator --file-types=json -
+cat config.yaml | validator --file-types=yaml -
+curl -s https://example.com/config.json | validator --file-types=json -
 ```
+
+### Exit codes
+
+The validator uses the following exit codes:
+
+| Code | Meaning |
+|------|--------|
+| `0` | All files are valid |
+| `1` | One or more validation errors (syntax or schema) |
+| `2` | Runtime or configuration error (invalid flags, unreadable files, bad config) |
 
 
 ### Schema validation
@@ -431,17 +594,30 @@ Schema URLs can be absolute (`https://...`), absolute file paths, or relative pa
 
 With the `--schemastore` flag, the validator automatically matches files by name against the SchemaStore catalog and validates them against the corresponding schema — no `$schema` declaration needed in your files.
 
-**Setup:**
+**Usage:**
+
+```shell
+# Automatic schema lookup — schemas are fetched remotely and cached locally
+validator --schemastore /path/to/project
+```
+
+For example, if your project contains a `package.json`, `tsconfig.json`, and `.github/workflows/ci.yml`, the validator will automatically find and apply the correct schema for each file without any configuration.
+
+Schemas are cached in `~/.cache/cfv/schemas/` (or `$XDG_CACHE_HOME/cfv/schemas/`) with a 24-hour TTL, so subsequent runs don't require network access.
+
+**Air-gapped / offline environments:**
+
+For environments without internet access, use a local SchemaStore clone:
 
 ```shell
 # Clone the SchemaStore catalog (only needed once)
 git clone --depth=1 https://github.com/SchemaStore/schemastore.git
 
-# Validate your project using automatic schema lookup
-validator --schemastore=./schemastore /path/to/project
+# Validate using the local clone
+validator --schemastore-path=./schemastore /path/to/project
 ```
 
-For example, if your project contains a `package.json`, `tsconfig.json`, and `.github/workflows/ci.yml`, the validator will automatically find and apply the correct schema for each file without any configuration.
+`--schemastore-path` implies `--schemastore` — you don't need to pass both.
 
 **Priority order:** When multiple schema sources are available, the validator uses this precedence:
 
@@ -484,219 +660,45 @@ validator --type-map="**/configs/*:properties" /path/to/search
 validator --type-map="**/inventory:ini" --type-map="**/*.cfg:json" /path/to/search
 ```
 
+### Search files using a glob pattern
+
+Use the `-globbing` flag to validate files matching a specified pattern. Include the pattern as a positional argument in double quotes. Multiple glob patterns and direct file paths are supported. If invalid config files are detected, the validator tool exits with code 1, and errors (e.g., invalid patterns) are displayed.
+
+[Learn more about glob patterns](https://www.digitalocean.com/community/tools/glob)
+
+```shell
+# Validate all `.json` files in a directory
+validator -globbing "/path/to/files/*.json"
+
+# Recursively validate all `.json` files in subdirectories
+validator -globbing "/path/to/files/**/*.json"
+
+# Mix glob patterns and paths
+validator -globbing "/path/*.json" /path/to/search
+```
+
 ## Calling the config-file-validator programmatically
 
-The config-file-validator can be called programmatically from within a Go program through the `cli` package.
-
-### Default configuration
-
-The default configuration will perform the following actions:
-
-* Search for all supported configuration file types in the current directory and its subdirectories 
-* Uses the default reporter which will output validation results to console (stdout)
+The config-file-validator can be used as a Go library. See the [Go API documentation](./docs/go-api.md) for examples including custom search paths, reporters, schema validation, and all configuration options.
 
 ```go
 package main
 
 import (
-      "os"
-      "log"
+	"os"
+	"log"
 
-      "github.com/Boeing/config-file-validator/v2/pkg/cli"
+	"github.com/Boeing/config-file-validator/v2/pkg/cli"
 )
 
 func main() {
-
-      // Initialize the CLI
-      cfv := cli.Init()
-      
-      // Run the config file validation
-      exitStatus, err := cfv.Run()
-      if err != nil {
-        log.Printf("Errors occurred during execution: %v", err)
-      }
-      
-      os.Exit(exitStatus)
+	cfv := cli.Init()
+	exitStatus, err := cfv.Run()
+	if err != nil {
+	  log.Printf("Errors occurred during execution: %v", err)
+	}
+	os.Exit(exitStatus)
 }
-```
-
-### Custom Search Paths
-
-The below example will search the provided search paths.
-
-```go
-package main
-
-import (
-      "os"
-      "log"
-
-      "github.com/Boeing/config-file-validator/v2/pkg/cli"
-      "github.com/Boeing/config-file-validator/v2/pkg/finder"
-)
-
-func main() {
-
-      // Initialize a file system finder
-      fileSystemFinder := finder.FileSystemFinderInit(
-            finder.WithPathRoots("/path/to/search", "/another/path/to/search"),
-      )
-
-      // Initialize the CLI
-      cfv := cli.Init(
-            cli.WithFinder(fileSystemFinder),
-      )
-      
-      // Run the config file validation
-      exitStatus, err := cfv.Run()
-      if err != nil {
-        log.Printf("Errors occurred during execution: %v", err)
-      }
-      
-      os.Exit(exitStatus)
-}
-```
-
-### Custom Reporter
-
-Will output JSON to stdout. To output to a file, pass a value to the `reporter.NewJSONReporter` constructor.
-
-```go
-package main
-
-import (
-      "os"
-      "log"
-
-      "github.com/Boeing/config-file-validator/v2/pkg/cli"
-      "github.com/Boeing/config-file-validator/v2/pkg/reporter"
-)
-
-func main() {
-      // Initialize reporter type
-      var outputDir string
-      jsonReporter := reporter.NewJSONReporter(outputDir)
-
-      // Initialize the CLI
-      cfv := cli.Init(
-            cli.WithFinder(fileSystemFinder),
-            cli.WithReporters(jsonReporter),
-      )
-      
-      // Run the config file validation
-      exitStatus, err := cfv.Run()
-      if err != nil {
-        log.Printf("Errors occurred during execution: %v", err)
-      }
-      
-      os.Exit(exitStatus)
-}
-```
-
-### Additional Configuration Options
-
-#### Exclude Directories
-
-```go
-excludeDirs := []string{"test", "subdir"}
-fileSystemFinder := finder.FileSystemFinderInit(
-      finder.WithExcludeDirs(excludeDirs),
-)
-cfv := cli.Init(
-      cli.WithFinder(fileSystemFinder),
-)
-```
-
-#### Exclude File Types
-
-```go
-excludeFileTypes := []string{"yaml", "json"}
-fileSystemFinder := finder.FileSystemFinderInit(
-      finder.WithExcludeFileTypes(excludeFileTypes),
-)
-cfv := cli.Init(
-      cli.WithFinder(fileSystemFinder),
-)
-```
-
-#### Set Recursion Depth
-
-```go
-fileSystemFinder := finder.FileSystemFinderInit(
-      finder.WithDepth(0)
-)
-cfv := cli.Init(
-      cli.WithFinder(fileSystemFinder),
-)
-```
-
-### Suppress Output
-
-```go
-cfv := cli.Init(
-      cli.WithQuiet(true),
-)
-```
-
-### Group Output
-
-```go
-groupOutput := []string{"pass-fail"} 
-cfv := cli.Init(
-      cli.WithGroupOutput(groupOutput),
-)
-```
-
-### Schema Validation Options
-
-#### Require Schema
-
-Fail validation for files that support schema validation but don't declare one.
-
-```go
-cfv := cli.Init(
-      cli.WithRequireSchema(true),
-)
-```
-
-#### Disable Schema Validation
-
-Skip all schema validation. Only syntax is checked.
-
-```go
-cfv := cli.Init(
-      cli.WithNoSchema(true),
-)
-```
-
-#### Schema Map
-
-Map file patterns to schema files. Use JSON Schema (`.json`) for JSON, YAML, TOML, and TOON files. Use XSD (`.xsd`) for XML files.
-
-```go
-schemaMap := map[string]string{
-      "**/package.json": "schemas/package.schema.json",
-      "**/config.xml":   "schemas/config.xsd",
-}
-cfv := cli.Init(
-      cli.WithSchemaMap(schemaMap),
-)
-```
-
-#### SchemaStore
-
-Use a local [SchemaStore](https://github.com/SchemaStore/schemastore) clone for automatic schema lookup by filename.
-
-```go
-import "github.com/Boeing/config-file-validator/v2/pkg/schemastore"
-
-store, err := schemastore.Open("/path/to/schemastore")
-if err != nil {
-      log.Fatal(err)
-}
-cfv := cli.Init(
-      cli.WithSchemaStore(store),
-)
 ```
 
 ## Build
@@ -785,7 +787,7 @@ if (-not ($up.Split(';') -contains $install)) { `
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```shell
-docker build . -t config-file-validator:v1.8.1
+docker build . -t config-file-validator:latest
 ```
 
 ## Contributors

@@ -113,6 +113,8 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}) ([]FileMetadata, error) {
 	var matchingFiles []FileMetadata
 
+	pathRoot = strings.TrimRight(pathRoot, string(os.PathSeparator))
+
 	if _, err := os.Stat(pathRoot); os.IsNotExist(err) {
 		return nil, err
 	}
@@ -171,16 +173,18 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 		}
 	}
 
-	// Fall back to built-in file types
+	// Fall back to built-in file types.
+	// KnownFiles matches take priority over extension matches so that
+	// files like tsconfig.json resolve to jsonc (not json).
 	for _, fileType := range fsf.FileTypes {
-		_, isKnownFile := fileType.KnownFiles[walkFileName]
-		_, hasExtension := fileType.Extensions[extensionLowerCase]
-
-		if !isKnownFile && !hasExtension {
-			continue
+		if _, isKnownFile := fileType.KnownFiles[walkFileName]; isKnownFile {
+			return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
 		}
-
-		return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
+	}
+	for _, fileType := range fsf.FileTypes {
+		if _, hasExtension := fileType.Extensions[extensionLowerCase]; hasExtension {
+			return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
+		}
 	}
 
 	// Only cache exclusion if no type overrides are configured

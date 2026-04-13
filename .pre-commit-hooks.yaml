@@ -1,0 +1,15 @@
+- id: config-file-validator
+  name: config-file-validator
+  description: Validate configuration file syntax and schemas. Only changed files are validated.
+  entry: validator
+  language: golang
+  types_or: [json, yaml, toml, xml, ini, csv, hcl, terraform]
+  files: '\.(json|jsonc|yaml|yml|toml|xml|ini|csv|hcl|tf|tfvars|env|hocon|properties|plist|editorconfig|toon|sarif)$'
+
+- id: config-file-validator-full
+  name: config-file-validator-full
+  description: Validate all configuration files in the repo. Use this hook for CI.
+  entry: validator
+  language: golang
+  pass_filenames: false
+  always_run: true

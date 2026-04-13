@@ -303,6 +303,47 @@ func Test_fsFinderTypeOverridePriority(t *testing.T) {
 	require.Equal(t, "xml", files[0].FileType.Name)
 }
 
+func Test_fsFinderLinguistKnownFiles(t *testing.T) {
+	cases := []struct {
+		name     string
+		filename string
+		content  string
+		wantType string
+	}{
+		{"babelrc as jsonc", ".babelrc", `{"presets": ["env"]}`, "jsonc"},
+		{"clang-format as yaml", ".clang-format", "BasedOnStyle: LLVM\n", "yaml"},
+		{"gitconfig as ini", ".gitconfig", "[user]\nname=test\n", "ini"},
+		{"pom.xml as xml", "pom.xml", "<project><modelVersion>4.0.0</modelVersion></project>", "xml"},
+		{"Pipfile as toml", "Pipfile", "[packages]\n", "toml"},
+		{"tsconfig.json as jsonc", "tsconfig.json", `{"compilerOptions": {}}`, "jsonc"},
+		{"composer.lock as json", "composer.lock", `{"packages": []}`, "json"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			testhelper.WriteFile(t, dir, tc.filename, tc.content)
+
+			fsFinder := FileSystemFinderInit(WithPathRoots(dir))
+			files, err := fsFinder.Find()
+			require.NoError(t, err)
+			require.Len(t, files, 1, "should find %s", tc.filename)
+			require.Equal(t, tc.wantType, files[0].FileType.Name)
+		})
+	}
+}
+
+func Test_fsFinderLinguistKnownFileNotRecognized(t *testing.T) {
+	// A random extensionless file should NOT be found
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "randomfile", "some content")
+
+	fsFinder := FileSystemFinderInit(WithPathRoots(dir))
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Empty(t, files)
+}
+
 func Benchmark_Finder(b *testing.B) {
 	// Use a real directory for benchmarking
 	dir, err := os.MkdirTemp("", "bench_finder")

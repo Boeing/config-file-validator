@@ -133,6 +133,10 @@ func createStdoutReport(reports []Report, indentSize int) reportStdout {
 				paddedString := padErrorString(e)
 				result.Text += fmtRed.Sprintf("%serror: %v\n", errIndent, paddedString)
 			}
+			for _, n := range report.Notes {
+				paddedString := padErrorString(n)
+				result.Text += color.New(color.FgYellow).Sprintf("%snote: %v\n", errIndent, paddedString)
+			}
 			result.Summary.Failed++
 		} else {
 			result.Text += color.New(color.FgGreen).Sprintf("%s✓ %s\n", indent, report.FilePath)
