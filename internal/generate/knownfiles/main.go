@@ -22,7 +22,7 @@ import (
 
 const (
 	linguistURL = "https://raw.githubusercontent.com/github-linguist/linguist/refs/heads/main/lib/linguist/languages.yml"
-	outputFile  = "pkg/filetype/known_files_gen.go"
+	outputFile  = "known_files_gen.go"
 )
 
 // linguistLanguage represents the subset of fields we need from languages.yml.

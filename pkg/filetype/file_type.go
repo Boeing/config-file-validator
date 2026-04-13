@@ -1,4 +1,4 @@
-//go:generate go run ../../../internal/generate/knownfiles
+//go:generate go run ../../internal/generate/knownfiles
 
 package filetype
 
