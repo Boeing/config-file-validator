@@ -560,6 +560,42 @@ func Test_CLINoSchemaWithSchemaStore(t *testing.T) {
 	require.Equal(t, 0, exitStatus) // passes because schema is skipped
 }
 
+func Test_CLISchemaStoreExtensionlessValid(t *testing.T) {
+	// .babelrc is a Linguist known file (jsonc) and has a SchemaStore entry
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	testhelper.WriteFile(t, dir, ".babelrc", `{"presets": ["env"]}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaStore(bundle),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaStoreExtensionlessInvalid(t *testing.T) {
+	// .babelrc with invalid content should fail schema validation
+	dir := t.TempDir()
+	bundle := setupMiniSchemaStore(t)
+	testhelper.WriteFile(t, dir, ".babelrc", `{"presets": ["env"], "unknown_field": true}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithSchemaStore(bundle),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+}
+
 func setupMiniSchemaStore(t *testing.T) *schemastore.Store {
 	t.Helper()
 	dir := t.TempDir()
@@ -569,11 +605,17 @@ func setupMiniSchemaStore(t *testing.T) *schemastore.Store {
 	schemaDir := dir + "/src/schemas/json"
 	require.NoError(t, os.MkdirAll(schemaDir, 0755))
 
-	catalog := `{"schemas":[{"name":"package.json","fileMatch":["package.json"],"url":"https://www.schemastore.org/package.json"}]}`
+	catalog := `{"schemas":[
+		{"name":"package.json","fileMatch":["package.json"],"url":"https://www.schemastore.org/package.json"},
+		{"name":"babelrc","fileMatch":[".babelrc"],"url":"https://www.schemastore.org/babelrc.json"}
+	]}`
 	require.NoError(t, os.WriteFile(catalogDir+"/catalog.json", []byte(catalog), 0600))
 
 	pkgSchema := `{"type":"object","properties":{"name":{"type":"string"},"version":{"type":"string"}}}`
 	require.NoError(t, os.WriteFile(schemaDir+"/package.json", []byte(pkgSchema), 0600))
+
+	babelSchema := `{"type":"object","properties":{"presets":{"type":"array","items":{"type":"string"}}},"additionalProperties":false}`
+	require.NoError(t, os.WriteFile(schemaDir+"/babelrc.json", []byte(babelSchema), 0600))
 
 	store, err := schemastore.Open(dir)
 	require.NoError(t, err)

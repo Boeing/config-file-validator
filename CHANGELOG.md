@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Automatic file type detection from GitHub Linguist's `languages.yml` via `go generate`
+- ~90 known filenames auto-detected (`.babelrc`, `tsconfig.json`, `Pipfile`, `pom.xml`, `.gitconfig`, etc.)
+- SchemaStore now resolves schemas for extensionless known files (`.babelrc`, `.clangd`, etc.)
+- JSON and JSONC treated as a family for `--file-types` and `--exclude-file-types`
+- `go generate` step in CI pipeline to keep Linguist data fresh
+- CI lint check to ensure generated files are committed up to date
+
+### Fixed
+
+- KnownFiles now take priority over extension matching in the finder, so `tsconfig.json` resolves to JSONC (not JSON)
+- Extension exclusion cache no longer prevents known files from being found
+- Linguist known files that conflict with dedicated validators are automatically excluded (e.g. `.editorconfig` stays with EditorConfig, not INI)
+
 ## [2.2.0] - 2026-04-10
 
 ### Changed

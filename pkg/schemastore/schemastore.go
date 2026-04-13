@@ -245,11 +245,22 @@ func (s *Store) fetchAndCache(schemaURL string) (string, error) {
 
 func hasSupported(fileMatch []string) bool {
 	for _, fm := range fileMatch {
+		base := fm
+		if idx := strings.LastIndex(fm, "/"); idx >= 0 {
+			base = fm[idx+1:]
+		}
 		ext := ""
-		if idx := strings.LastIndex(fm, "."); idx >= 0 {
-			ext = fm[idx+1:]
+		if idx := strings.LastIndex(base, "."); idx >= 0 {
+			ext = base[idx+1:]
 		}
 		if _, ok := supportedExts[ext]; ok {
+			return true
+		}
+		// Keep entries for extensionless files (e.g. ".babelrc", "Pipfile").
+		// These are exact filename matches that SchemaStore explicitly provides
+		// schemas for. An extensionless file is one with no extension after
+		// stripping a leading dot (dotfiles like ".babelrc" have no extension).
+		if ext == "" || ext == base || "."+ext == base {
 			return true
 		}
 	}

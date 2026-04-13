@@ -1,0 +1,338 @@
+# ============================================================
+# Bug-hunting stress test
+# Each test targets a specific suspected bug vector
+# ============================================================
+
+# ============================================================
+# BUG VECTOR 1: Extension cache poisoning across multiple paths
+#
+# The ExcludeFileTypes cache persists across findOne() calls.
+# If path1 has an unrecognized .cfg file that caches "cfg" as
+# excluded, path2's .cfg files should still be skipped.
+# But what about known files? If path1 caches "json" as excluded
+# (because --file-types=yaml filters it out), does path2's
+# tsconfig.json (a JSONC known file) still get found?
+# ============================================================
+
+# Two paths: first has only yaml, second has tsconfig.json
+# With --file-types=yaml, json gets cached as excluded from path1
+# tsconfig.json in path2 should still be found as JSONC known file... or not?
+# Since --file-types=yaml (family doesn't include json/jsonc), JSONC isn't in FileTypes
+# so tsconfig.json should NOT be found. This is correct behavior.
+exec validator --file-types=yaml cache1 cache2
+stdout '✓.*config.yaml'
+! stdout 'tsconfig'
+
+# But with --file-types=json (family includes jsonc), tsconfig.json SHOULD be found
+# even if path1 processes a non-known .json file first that gets cached
+! exec validator --file-types=json cache1 cache2
+stdout '✓.*tsconfig'
+stdout '×.*bad.json'
+
+# ============================================================
+# BUG VECTOR 2: KnownFiles vs type-map priority
+#
+# type-map should override KnownFiles. If tsconfig.json is a
+# JSONC known file but --type-map forces it to json, it should
+# be validated as strict JSON.
+# ============================================================
+
+# type-map overrides KnownFiles — tsconfig.json forced to strict JSON fails
+! exec validator --type-map='**/tsconfig.json:json' priority/tsconfig.json
+stdout '×'
+
+# type-map overrides KnownFiles — .babelrc forced to xml should fail
+! exec validator --type-map='**/.babelrc:xml' priority/.babelrc
+stdout '×'
+
+# type-map to same type as KnownFiles — should still work
+exec validator --type-map='**/tsconfig.json:jsonc' priority/tsconfig.json
+stdout '✓'
+
+# ============================================================
+# BUG VECTOR 3: hasSupported edge cases
+#
+# Test the extensionless detection logic in hasSupported with
+# tricky filenames
+# ============================================================
+
+# Single char extension dotfile: .a — not a known file, not recognized
+# SchemaStore has an entry but the finder must recognize the file first
+exec validator edge/.a
+! stdout '.a'
+
+# With type-map, .a can be forced to json and then schemastore applies
+exec validator --type-map='**/.a:json' --schemastore-path schemastore_edge edge/.a
+stdout '✓'
+
+# File with multiple dots: .eslintrc.json — this has extension "json"
+# and is a JSONC known file
+exec validator edge/.eslintrc.json
+stdout '✓'
+
+# File named just "." — should be ignored (it's a directory usually)
+# We test with a regular file named ".hidden" that's not a known file
+exec validator edge
+stdout '✓.*eslintrc'
+! stdout '.hidden'
+! stdout '.unknown'
+
+# ============================================================
+# BUG VECTOR 4: EditorConfig not in fileTypeRegistry
+#
+# EditorConfig is NOT in fileTypeRegistry, so init() never
+# populates its KnownFiles. But .editorconfig is in Linguist's
+# INI known files. Does .editorconfig get found as INI or
+# EditorConfig?
+# ============================================================
+
+# .editorconfig should be found and validated as EditorConfig (not INI).
+# Linguist categorizes it as INI, but we exclude it from INI's KnownFiles
+# so it falls through to extension matching → EditorConfig.
+exec validator editorconfig_test/.editorconfig
+stdout '✓'
+
+# A file with .editorconfig extension should use EditorConfig validator
+exec validator editorconfig_test/custom.editorconfig
+stdout '✓'
+
+# ============================================================
+# BUG VECTOR 5: Case sensitivity of known files
+#
+# Extensions are lowercased but KnownFiles are case-sensitive.
+# TSCONFIG.JSON won't match the known file "tsconfig.json"
+# so it falls through to extension matching as JSON.
+# ============================================================
+
+# Uppercase known file name — should NOT match JSONC known file
+# Should be treated as strict JSON and fail (has comments)
+! exec validator case/TSCONFIG.JSON
+stdout '×'
+
+# Mixed case extension — should still match by extension (lowercased)
+exec validator case/good.JSON
+stdout '✓'
+
+# Lowercase known file — should match JSONC
+exec validator case/tsconfig.json
+stdout '✓'
+
+# ============================================================
+# BUG VECTOR 6: Duplicate known file across multiple paths
+# ============================================================
+
+# Same file via same path twice should be deduped (only one line of output)
+exec validator dedup/a/tsconfig.json dedup/a/tsconfig.json
+stdout '✓.*tsconfig'
+
+# ============================================================
+# BUG VECTOR 7: Known file in excluded directory
+# ============================================================
+
+# Known file in excluded dir should NOT be found
+exec validator --exclude-dirs=excluded excluded_test
+stdout '✓.*root.json'
+! stdout 'tsconfig'
+
+# ============================================================
+# BUG VECTOR 8: Empty directory with known files at depth=0
+# ============================================================
+
+# depth=0 should only find root-level known files
+exec validator --depth=0 depth_test
+stdout '✓.*gitconfig'
+! stdout 'nested'
+
+# ============================================================
+# BUG VECTOR 9: Known file that conflicts with extension
+#
+# What if a file is in KnownFiles for type A but has an
+# extension registered to type B? KnownFiles should win.
+# ============================================================
+
+# .eslintrc.json: extension=json (JSONFileType), KnownFiles=jsonc (JSONCFileType)
+# Has comments — valid JSONC, invalid JSON. KnownFiles should win.
+exec validator conflict/.eslintrc.json
+stdout '✓'
+
+# devcontainer.json (no leading dot): KnownFiles=jsonc
+# Has trailing comma — valid JSONC, invalid JSON
+exec validator conflict/devcontainer.json
+stdout '✓'
+
+# ant.xml: extension=xml (XMLFileType), KnownFiles=xml (XMLFileType)
+# No conflict — both resolve to XML
+exec validator conflict/ant.xml
+stdout '✓'
+
+# ============================================================
+# BUG VECTOR 10: --exclude-file-types with extensionless known files
+#
+# Excluding "ini" should skip .ini files. But .gitconfig has no
+# extension — the exclude check uses extensionLowerCase which is
+# empty string for extensionless files. Does "" match "ini"? No.
+# So .gitconfig should NOT be excluded by --exclude-file-types=ini.
+# ============================================================
+
+# .gitconfig has no extension — not excluded by extension-based filter
+exec validator --exclude-file-types=ini ext_exclude
+stdout '✓.*gitconfig'
+
+# .ini file IS excluded
+exec validator --exclude-file-types=ini ext_exclude
+! stdout 'config.ini'
+
+# ============================================================
+# BUG VECTOR 11: Globbing with known files that have extensions
+#
+# Glob pattern *.json should match tsconfig.json.
+# But tsconfig.json resolves to JSONC via KnownFiles.
+# Does globbing respect KnownFiles priority?
+# ============================================================
+
+exec validator -globbing 'glob_test/*.json'
+stdout '✓.*tsconfig.json'
+stdout '✓.*good.json'
+
+# ============================================================
+# BUG VECTOR 12: stdin with JSONC family
+#
+# --file-types=json should accept jsonc too (family expansion).
+# But stdin uses readStdin() which does exact type matching.
+# Does family expansion apply to stdin?
+# ============================================================
+
+# --file-types=jsonc with JSONC content
+stdin jsonc_stdin.jsonc
+exec validator --file-types=jsonc -
+stdout '✓'
+
+# --file-types=json with strict JSON content
+stdin json_stdin.json
+exec validator --file-types=json -
+stdout '✓'
+
+# ============================================================
+# BUG VECTOR 13: Multiple known files in same directory
+#
+# A directory with many known files of different types.
+# The extension cache should not interfere.
+# ============================================================
+
+exec validator multi_known
+stdout '✓.*babelrc'
+stdout '✓.*gitconfig'
+stdout '✓.*clang-format'
+stdout '✓.*Pipfile'
+stdout '✓.*arcconfig'
+stdout '✓.*good.json'
+stdout '✓.*config.yaml'
+
+# ============================================================
+# Test data
+# ============================================================
+
+-- cache1/config.yaml --
+key: value
+-- cache1/bad.json --
+{"bad": }
+-- cache2/tsconfig.json --
+// TypeScript config
+{"compilerOptions": {}}
+
+-- priority/tsconfig.json --
+// TypeScript config
+{"compilerOptions": {"strict": true}}
+-- priority/.babelrc --
+{"presets": ["env"], "nested": {"key": [1,2,3]}}
+
+-- edge/.a --
+{"key": "value"}
+-- edge/.eslintrc.json --
+// ESLint config
+{"extends": ["eslint:recommended"]}
+-- edge/.hidden --
+not a config file
+-- edge/.unknown --
+not a config file
+
+-- editorconfig_test/.editorconfig --
+root = true
+[*]
+indent_style = space
+-- editorconfig_test/custom.editorconfig --
+root = true
+
+-- case/TSCONFIG.JSON --
+// uppercase
+{"compilerOptions": {}}
+-- case/good.JSON --
+{"key": "value"}
+-- case/tsconfig.json --
+// lowercase
+{"compilerOptions": {}}
+
+-- dedup/a/tsconfig.json --
+// dedup test
+{"compilerOptions": {}}
+
+-- excluded_test/root.json --
+{"key": "value"}
+-- excluded_test/excluded/tsconfig.json --
+// should not be found
+{"compilerOptions": {}}
+
+-- depth_test/.gitconfig --
+[user]
+name=test
+-- depth_test/nested/.babelrc --
+{"presets": ["env"]}
+
+-- conflict/.eslintrc.json --
+// ESLint with comments
+{"extends": ["eslint:recommended"]}
+-- conflict/devcontainer.json --
+{"name": "dev", "image": "node:18",}
+-- conflict/ant.xml --
+<project><target name="build"/></project>
+
+-- ext_exclude/.gitconfig --
+[user]
+name=test
+-- ext_exclude/config.ini --
+[section]
+key=value
+
+-- glob_test/tsconfig.json --
+// glob test
+{"compilerOptions": {}}
+-- glob_test/good.json --
+{"key": "value"}
+
+-- jsonc_stdin.jsonc --
+// comment
+{"key": "value"}
+-- json_stdin.json --
+{"key": "value"}
+
+-- multi_known/.babelrc --
+{"presets": ["env"]}
+-- multi_known/.gitconfig --
+[user]
+name=test
+-- multi_known/.clang-format --
+BasedOnStyle: LLVM
+-- multi_known/Pipfile --
+[packages]
+requests = "*"
+-- multi_known/.arcconfig --
+{"project_id": "test"}
+-- multi_known/good.json --
+{"key": "value"}
+-- multi_known/config.yaml --
+key: value
+
+-- schemastore_edge/src/api/json/catalog.json --
+{"schemas":[{"name":"dotA","fileMatch":[".a"],"url":"https://www.schemastore.org/dota.json"}]}
+-- schemastore_edge/src/schemas/json/dota.json --
+{"type":"object"}

@@ -1,0 +1,527 @@
+# ============================================================
+# Cross-feature stress test for all 2.0+ features
+#
+# Tests interactions between:
+#   - Schema validation (JSON/YAML/TOML/TOON/XML/SARIF/JSONC)
+#   - SchemaStore (local bundle, extensionless files)
+#   - --schema-map, --require-schema, --no-schema
+#   - --type-map, --file-types, --exclude-file-types (json/jsonc family)
+#   - .cfv.toml config file
+#   - Stdin support
+#   - Reporters (standard, json, junit, sarif) + multiple
+#   - Groupby (filetype, directory, pass-fail, error-type)
+#   - Exit codes (0, 1, 2)
+#   - Known files (Linguist)
+#   - Globbing
+#   - Duplicate key detection
+#   - JSONC support
+#   - CSV/INI validator options
+# ============================================================
+
+# ============================================================
+# PART 1: Stdin + schema validation
+# ============================================================
+
+# Stdin JSON with inline $schema passes
+stdin valid_schema.json
+exec validator --file-types=json -
+stdout '✓'
+
+# Stdin JSON with inline $schema fails validation
+stdin invalid_schema.json
+! exec validator --file-types=json -
+stdout '×'
+stdout 'error:'
+
+# Stdin YAML with schema comment
+stdin valid_schema.yaml
+exec validator --file-types=yaml -
+stdout '✓'
+
+# Stdin JSONC with schema
+stdin valid_schema.jsonc
+exec validator --file-types=jsonc -
+stdout '✓'
+
+# Stdin + --no-schema skips schema
+stdin invalid_schema.json
+exec validator --file-types=json --no-schema -
+stdout '✓'
+
+# Stdin + --require-schema with no schema fails
+stdin plain.json
+! exec validator --file-types=json --require-schema -
+stdout '×'
+stdout 'no schema declared'
+
+# Stdin + SARIF reporter
+stdin plain.json
+exec validator --file-types=json --reporter=sarif:- -
+stdout '"version": "2.1.0"'
+stdout '"kind": "pass"'
+
+# Stdin + JUnit reporter on failure
+stdin bad.json
+! exec validator --file-types=json --reporter=junit:- -
+stdout 'errors="1"'
+
+# Stdin + JSON reporter on failure
+stdin bad.json
+! exec validator --file-types=json --reporter=json:- -
+stdout '"status": "failed"'
+
+# ============================================================
+# PART 2: JSONC schema validation
+# ============================================================
+
+# JSONC with $schema passes
+exec validator jsonc/valid_with_schema.jsonc
+stdout '✓'
+
+# JSONC with $schema fails
+! exec validator jsonc/invalid_with_schema.jsonc
+stdout '×'
+stdout 'error:'
+
+# JSONC known file (tsconfig.json) with schema-map
+exec validator --schema-map='tsconfig.json:schemas/tsconfig.schema.json' jsonc/tsconfig.json
+stdout '✓'
+
+# JSONC known file fails schema-map
+! exec validator --schema-map='tsconfig.json:schemas/tsconfig.schema.json' jsonc/bad_tsconfig.json
+stdout '×'
+
+# JSONC with schemastore
+exec validator --schemastore-path schemastore jsonc/tsconfig.json
+stdout '✓'
+
+# JSONC + --require-schema without schema fails
+! exec validator --require-schema jsonc/plain.jsonc
+stdout '×'
+stdout 'no schema declared'
+
+# ============================================================
+# PART 3: Error-type groupby with mixed errors
+# ============================================================
+
+# error-type groupby separates syntax and schema errors
+! exec validator -groupby=error-type mixed_errors
+stdout 'syntax'
+stdout 'schema'
+stdout 'Passed'
+
+# Triple groupby: error-type + filetype + pass-fail
+! exec validator -groupby=error-type,filetype,pass-fail mixed_errors
+stdout 'syntax'
+stdout 'Passed'
+
+# ============================================================
+# PART 4: Multiple reporters with failures
+# ============================================================
+
+# Multiple reporters: JSON to file + standard to stdout
+! exec validator --reporter=json:report.json --reporter=standard:- mixed_errors
+stdout '✓'
+stdout '×'
+exists report.json
+
+# Multiple reporters: SARIF + JUnit to files
+! exec validator --reporter=sarif:report.sarif --reporter=junit:report.xml mixed_errors
+exists report.sarif
+exists report.xml
+
+# SARIF reporter includes region for syntax errors with line info
+! exec validator --reporter=sarif:- mixed_errors/bad_syntax.json
+stdout '"kind": "fail"'
+stdout '"startLine"'
+
+# ============================================================
+# PART 5: .cfv.toml + schema features
+# ============================================================
+
+# Config file enables schemastore
+exec validator --config=cfv/schemastore.toml schemastore_project/package.json
+stdout '✓'
+
+# Config file sets schema-map
+exec validator --config=cfv/schema_map.toml schema_project/config.json
+stdout '✓'
+
+# Config file sets schema-map — invalid data fails
+! exec validator --config=cfv/schema_map.toml schema_project/bad_config.json
+stdout '×'
+
+# Config file with require-schema
+! exec validator --config=cfv/require_schema.toml schema_project/plain.json
+stdout '×'
+stdout 'no schema declared'
+
+# Config file with type-map + schema-map together
+exec validator --config=cfv/combined.toml combined_project
+stdout '✓.*inventory'
+stdout '✓.*config.json'
+
+# Config file with exclude-dirs + schemastore
+exec validator --config=cfv/exclude_schema.toml schemastore_project
+! stdout 'vendor'
+stdout '✓.*package.json'
+
+# ============================================================
+# PART 6: Exit code 2 scenarios
+# ============================================================
+
+# Bad search path
+! exec validator /nonexistent/path/to/nowhere
+stderr 'error'
+
+# --no-schema + --require-schema conflict
+! exec validator --no-schema --require-schema plain.json
+stderr 'cannot be used'
+
+# --no-schema + --schemastore conflict
+! exec validator --no-schema --schemastore plain.json
+stderr 'cannot be used'
+
+# --no-schema + --schema-map conflict
+! exec validator --no-schema --schema-map='*.json:schema.json' plain.json
+stderr 'cannot be used'
+
+# Invalid --schema-map format
+! exec validator --schema-map=badformat .
+stderr 'invalid schema-map'
+
+# Invalid --schemastore-path
+! exec validator --schemastore-path=/nonexistent/path .
+stderr 'opening schemastore'
+
+# ============================================================
+# PART 7: Known files + config file
+# ============================================================
+
+# Config file with type-map overrides Linguist known file
+! exec validator --config=cfv/override_known.toml jsonc/tsconfig.json
+stdout '×'
+
+# Config file with CSV options + known files in same project
+exec validator --config=cfv/csv_and_known.toml csv_project
+stdout '✓.*data.csv'
+stdout '✓.*gitconfig'
+
+# ============================================================
+# PART 8: Globbing + known files + schema
+# ============================================================
+
+# Glob finds known files
+exec validator -globbing 'glob_project/.*'
+stdout '✓.*babelrc'
+stdout '✓.*gitconfig'
+
+# Glob + schemastore
+exec validator -globbing --schemastore-path schemastore 'glob_project/*.json'
+stdout '✓.*package.json'
+
+# ============================================================
+# PART 9: Duplicate key detection + known files
+# ============================================================
+
+# JSON duplicate keys detected via config
+! exec validator --config=cfv/strict_keys.toml dup/dup.json
+stdout '×'
+stdout 'duplicate'
+
+# JSON without duplicates passes
+exec validator --config=cfv/strict_keys.toml dup/good.json
+stdout '✓'
+
+# INI duplicate keys in known file
+! exec validator --config=cfv/strict_keys.toml dup/.gitconfig
+stdout '×'
+stdout 'duplicate'
+
+# ============================================================
+# PART 10: SARIF file validation
+# ============================================================
+
+# Valid SARIF passes with built-in schema
+exec validator sarif/good.sarif
+stdout '✓'
+
+# SARIF passes with --require-schema (built-in schema)
+exec validator --require-schema sarif/good.sarif
+stdout '✓'
+
+# Invalid SARIF fails schema
+! exec validator sarif/bad.sarif
+stdout '×'
+
+# SARIF + --no-schema passes (syntax only)
+exec validator --no-schema sarif/bad.sarif
+stdout '✓'
+
+# ============================================================
+# PART 11: XML DTD + XSD + --no-schema interactions
+# ============================================================
+
+# DTD validation is syntax-level — --no-schema does NOT skip it
+! exec validator --no-schema xml/bad_dtd.xml
+stdout '×'
+
+# XSD validation IS schema — --no-schema skips it
+exec validator --no-schema xml/bad_xsd.xml
+stdout '✓'
+
+# Without --no-schema, XSD fails
+! exec validator xml/bad_xsd.xml
+stdout '×'
+
+# Valid DTD + XSD
+exec validator xml/good_dtd.xml
+stdout '✓'
+
+# ============================================================
+# PART 12: HCL .tf and .tfvars extensions
+# ============================================================
+
+exec validator hcl/main.tf
+stdout '✓'
+
+exec validator hcl/dev.tfvars
+stdout '✓'
+
+! exec validator hcl/bad.tf
+stdout '×'
+
+# ============================================================
+# PART 13: JSON/JSONC family in config file
+# ============================================================
+
+# Config file excludes json — should also exclude jsonc
+exec validator --config=cfv/exclude_json.toml family_project
+! stdout 'json'
+! stdout 'tsconfig'
+stdout '✓.*config.yaml'
+
+# ============================================================
+# PART 14: Depth + trailing slash fix (2.2 bugfix)
+# ============================================================
+
+# depth=0 with trailing slash should NOT recurse
+exec validator --depth=0 depth_project/
+stdout '✓.*root.json'
+! stdout 'nested'
+
+# depth=0 without trailing slash — same behavior
+exec validator --depth=0 depth_project
+stdout '✓.*root.json'
+! stdout 'nested'
+
+# ============================================================
+# Test data
+# ============================================================
+
+-- schemas/simple.schema.json --
+{"type":"object","properties":{"host":{"type":"string"},"port":{"type":"integer"}},"additionalProperties":false}
+-- schemas/tsconfig.schema.json --
+{"type":"object","properties":{"compilerOptions":{"type":"object"}},"additionalProperties":false}
+
+-- valid_schema.json --
+{"$schema":"schemas/simple.schema.json","host":"db","port":5432}
+-- invalid_schema.json --
+{"$schema":"schemas/simple.schema.json","host":"db","port":"bad"}
+-- valid_schema.yaml --
+# yaml-language-server: $schema=schemas/simple.schema.json
+host: db
+port: 5432
+-- valid_schema.jsonc --
+{"$schema":"schemas/simple.schema.json","host":"db","port":5432}
+-- plain.json --
+{"key": "value"}
+-- bad.json --
+{"bad": }
+
+-- jsonc/valid_with_schema.jsonc --
+{"$schema":"../schemas/simple.schema.json","host":"db","port":5432}
+-- jsonc/invalid_with_schema.jsonc --
+{"$schema":"../schemas/simple.schema.json","host":"db","port":"bad"}
+-- jsonc/tsconfig.json --
+// TypeScript config
+{"compilerOptions": {"strict": true}}
+-- jsonc/bad_tsconfig.json --
+// Bad tsconfig
+{"compilerOptions": "not_an_object"}
+-- jsonc/plain.jsonc --
+// no schema
+{"key": "value"}
+
+-- mixed_errors/good.json --
+{"key": "value"}
+-- mixed_errors/bad_syntax.json --
+{"bad": }
+-- mixed_errors/invalid_schema.json --
+{"$schema":"../schemas/simple.schema.json","host":"db","port":"bad"}
+
+-- schemastore_project/package.json --
+{"name": "test", "version": "1.0.0"}
+-- schemastore_project/vendor/dep.json --
+{"dep": true}
+
+-- schema_project/config.json --
+{"host": "db", "port": 5432}
+-- schema_project/bad_config.json --
+{"host": "db", "port": "bad"}
+-- schema_project/plain.json --
+{"key": "value"}
+
+-- combined_project/inventory --
+[servers]
+host=10.0.0.1
+-- combined_project/config.json --
+{"host": "db", "port": 5432}
+
+-- csv_project/data.csv --
+a;b;c
+1;2;3
+-- csv_project/.gitconfig --
+[user]
+name=test
+
+-- glob_project/.babelrc --
+{"presets": ["env"]}
+-- glob_project/.gitconfig --
+[user]
+name=test
+-- glob_project/package.json --
+{"name": "test", "version": "1.0.0"}
+
+-- dup/dup.json --
+{"key": "one", "key": "two"}
+-- dup/good.json --
+{"key": "one", "other": "two"}
+-- dup/.gitconfig --
+[user]
+name=alice
+name=bob
+
+-- sarif/good.sarif --
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [{"tool": {"driver": {"name": "test", "language": "en"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
+}
+-- sarif/bad.sarif --
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [{"tool": {"driver": {"name": "test"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
+}
+
+-- xml/good_dtd.xml --
+<?xml version="1.0"?>
+<!DOCTYPE note [
+  <!ELEMENT note (to,body)>
+  <!ELEMENT to (#PCDATA)>
+  <!ELEMENT body (#PCDATA)>
+]>
+<note><to>User</to><body>Hello</body></note>
+-- xml/bad_dtd.xml --
+<?xml version="1.0"?>
+<!DOCTYPE note [
+  <!ELEMENT note (to,body)>
+  <!ELEMENT to (#PCDATA)>
+  <!ELEMENT body (#PCDATA)>
+]>
+<note><to>User</to><extra>bad</extra></note>
+-- xml/bad_xsd.xml --
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="schemas/config.xsd">
+  <host>db</host>
+  <port>bad</port>
+</config>
+-- schemas/config.xsd --
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="config">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="host" type="xs:string"/>
+        <xs:element name="port" type="xs:integer"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+
+-- hcl/main.tf --
+variable "region" {
+  default = "us-east-1"
+}
+-- hcl/dev.tfvars --
+region = "us-west-2"
+-- hcl/bad.tf --
+variable "region" {
+  default = "us-east-1"
+
+-- family_project/good.json --
+{"key": "value"}
+-- family_project/tsconfig.json --
+// ts config
+{"compilerOptions": {}}
+-- family_project/config.yaml --
+key: value
+
+-- depth_project/root.json --
+{"key": "value"}
+-- depth_project/nested/deep.json --
+{"key": "value"}
+
+-- cfv/schemastore.toml --
+schemastore = true
+schemastore-path = "schemastore"
+-- cfv/schema_map.toml --
+[schema-map]
+"**/config.json" = "schemas/simple.schema.json"
+"**/bad_config.json" = "schemas/simple.schema.json"
+-- cfv/require_schema.toml --
+require-schema = true
+-- cfv/combined.toml --
+[type-map]
+"**/inventory" = "ini"
+[schema-map]
+"config.json" = "schemas/simple.schema.json"
+-- cfv/exclude_schema.toml --
+schemastore = true
+schemastore-path = "schemastore"
+exclude-dirs = ["vendor"]
+-- cfv/override_known.toml --
+[type-map]
+"**/tsconfig.json" = "json"
+-- cfv/csv_and_known.toml --
+[validators.csv]
+delimiter = ";"
+-- cfv/strict_keys.toml --
+[validators.json]
+forbid-duplicate-keys = true
+[validators.ini]
+forbid-duplicate-keys = true
+-- cfv/exclude_json.toml --
+exclude-file-types = ["json"]
+
+-- schemastore/src/api/json/catalog.json --
+{
+  "schemas": [
+    {
+      "name": "package.json",
+      "fileMatch": ["package.json"],
+      "url": "https://www.schemastore.org/package.json"
+    },
+    {
+      "name": "tsconfig",
+      "fileMatch": ["tsconfig.json", "tsconfig.*.json"],
+      "url": "https://www.schemastore.org/tsconfig.json"
+    }
+  ]
+}
+-- schemastore/src/schemas/json/package.json --
+{"type":"object","properties":{"name":{"type":"string"},"version":{"type":"string"}}}
+-- schemastore/src/schemas/json/tsconfig.json --
+{"type":"object","properties":{"compilerOptions":{"type":"object"}},"additionalProperties":false}

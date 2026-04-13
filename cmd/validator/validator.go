@@ -691,6 +691,17 @@ func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string, fileTypes [
 
 	if *cfg.fileTypes != "" {
 		includeTypes := tools.ArrToMap(strings.Split(strings.ToLower(*cfg.fileTypes), ",")...)
+		// Expand families: json ↔ jsonc
+		for _, family := range fileTypeFamilies {
+			for _, member := range family {
+				if _, ok := includeTypes[member]; ok {
+					for _, sibling := range family {
+						includeTypes[sibling] = struct{}{}
+					}
+					break
+				}
+			}
+		}
 		var fileTypeFilter []filetype.FileType
 		for _, ft := range fileTypes {
 			for ext := range ft.Extensions {
@@ -718,12 +729,31 @@ func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string, fileTypes [
 	return fsOpts, nil
 }
 
+// fileTypeFamilies maps file type names that should be treated as a single
+// family for --exclude-file-types and --file-types. Excluding one member
+// of a family excludes all members.
+var fileTypeFamilies = [][]string{
+	{"json", "jsonc"},
+}
+
 func getExcludeFileTypes(configExcludeFileTypes string) []string {
 	if configExcludeFileTypes == "" {
 		return nil
 	}
 	excludeFileTypes := strings.Split(strings.ToLower(configExcludeFileTypes), ",")
 	uniqueFileTypes := tools.ArrToMap(excludeFileTypes...)
+
+	// Expand families: json ↔ jsonc
+	for _, family := range fileTypeFamilies {
+		for _, member := range family {
+			if _, ok := uniqueFileTypes[member]; ok {
+				for _, sibling := range family {
+					uniqueFileTypes[sibling] = struct{}{}
+				}
+				break
+			}
+		}
+	}
 
 	for _, ft := range filetype.FileTypes {
 		for ext := range ft.Extensions {

@@ -41,7 +41,7 @@ func TestOpen(t *testing.T) {
 	t.Parallel()
 	entries := []catalogEntry{
 		{FileMatch: []string{"package.json"}, URL: "https://www.schemastore.org/package.json"},
-		{FileMatch: []string{"*.hcl"}, URL: "https://www.schemastore.org/hcl.json"},         // unsupported ext
+		{FileMatch: []string{"*.hcl"}, URL: "https://www.schemastore.org/hcl.json"},         // unsupported ext, not extensionless
 		{FileMatch: []string{"tsconfig*.json"}, URL: "https://www.schemastore.org/ts.json"}, // supported
 	}
 	dir := setupTestBundle(t, entries)
@@ -390,4 +390,50 @@ func TestFetchAndCacheUnwritableDir(t *testing.T) {
 	path, found := store.Resolve("/project/config.json")
 	require.True(t, found)
 	require.Equal(t, srv.URL+"/schema.json", path)
+}
+
+func TestOpenKeepsExtensionlessFileMatch(t *testing.T) {
+	t.Parallel()
+	entries := []catalogEntry{
+		{FileMatch: []string{".babelrc"}, URL: "https://www.schemastore.org/babelrc.json"},
+		{FileMatch: []string{"Pipfile"}, URL: "https://example.com/pipfile.json"},
+		{FileMatch: []string{".clangd"}, URL: "https://www.schemastore.org/clangd.json"},
+		{FileMatch: []string{"*.css"}, URL: "https://example.com/css.json"}, // unsupported, not extensionless
+	}
+	dir := setupTestBundle(t, entries)
+	store, err := Open(dir)
+	require.NoError(t, err)
+	// .babelrc, Pipfile, .clangd should be kept; *.css should be filtered
+	require.Len(t, store.entries, 3)
+}
+
+func TestResolveExtensionlessFile(t *testing.T) {
+	t.Parallel()
+	entries := []catalogEntry{
+		{FileMatch: []string{".babelrc"}, URL: "https://www.schemastore.org/babelrc.json"},
+	}
+	dir := setupTestBundle(t, entries)
+	writeSchema(t, dir, "babelrc.json", `{"type":"object"}`)
+
+	store, err := Open(dir)
+	require.NoError(t, err)
+
+	path, found := store.Resolve("/project/.babelrc")
+	require.True(t, found)
+	require.Contains(t, path, "babelrc.json")
+}
+
+func TestResolveExtensionlessDotfileNoMatch(t *testing.T) {
+	t.Parallel()
+	entries := []catalogEntry{
+		{FileMatch: []string{".babelrc"}, URL: "https://www.schemastore.org/babelrc.json"},
+	}
+	dir := setupTestBundle(t, entries)
+
+	store, err := Open(dir)
+	require.NoError(t, err)
+
+	// Different dotfile should not match
+	_, found := store.Resolve("/project/.eslintrc")
+	require.False(t, found)
 }

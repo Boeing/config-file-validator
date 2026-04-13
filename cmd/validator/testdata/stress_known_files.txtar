@@ -1,0 +1,521 @@
+# ============================================================
+# Stress test for 2.2 features:
+#   1. Linguist known files (auto file type detection)
+#   2. KnownFiles priority over extension matching
+#   3. SchemaStore extensionless file support
+#   4. Interactions with --type-map, --exclude-file-types,
+#      --file-types, --require-schema, --no-schema, --schema-map,
+#      --depth, --exclude-dirs, --groupby, reporters
+# ============================================================
+
+# ============================================================
+# PART 1: KnownFiles priority — filename wins over extension
+# ============================================================
+
+# tsconfig.json is JSONC (known file) not JSON (extension)
+# This file has comments and trailing commas — valid JSONC, invalid JSON
+exec validator project/tsconfig.json
+stdout '✓'
+
+# jsconfig.json is JSONC (known file)
+exec validator project/jsconfig.json
+stdout '✓'
+
+# .eslintrc.json is JSONC (known file)
+exec validator project/.eslintrc.json
+stdout '✓'
+
+# .devcontainer.json is JSONC (known file)
+exec validator project/.devcontainer.json
+stdout '✓'
+
+# Regular .json files still validate as strict JSON
+! exec validator project/bad_strict.json
+stdout '×'
+
+# A normal .json file without comments passes as JSON
+exec validator project/good.json
+stdout '✓'
+
+# ============================================================
+# PART 2: Extensionless known files — all types
+# ============================================================
+
+# JSONC extensionless
+exec validator dotfiles/.babelrc
+stdout '✓'
+
+exec validator dotfiles/.swcrc
+stdout '✓'
+
+# JSON extensionless
+exec validator dotfiles/.arcconfig
+stdout '✓'
+
+exec validator dotfiles/.watchmanconfig
+stdout '✓'
+
+exec validator lockfiles/composer.lock
+stdout '✓'
+
+exec validator lockfiles/bun.lock
+stdout '✓'
+
+# YAML extensionless
+exec validator dotfiles/.clang-format
+stdout '✓'
+
+exec validator dotfiles/.clangd
+stdout '✓'
+
+exec validator dotfiles/.gemrc
+stdout '✓'
+
+# INI extensionless
+exec validator dotfiles/.gitconfig
+stdout '✓'
+
+exec validator dotfiles/.npmrc
+stdout '✓'
+
+exec validator dotfiles/.shellcheckrc
+stdout '✓'
+
+exec validator dotfiles/.curlrc
+stdout '✓'
+
+exec validator dotfiles/.pylintrc
+stdout '✓'
+
+exec validator dotfiles/.flake8
+stdout '✓'
+
+# TOML extensionless
+exec validator lockfiles/Pipfile
+stdout '✓'
+
+exec validator lockfiles/Cargo.lock
+stdout '✓'
+
+# XML known files with extensions
+exec validator project/pom.xml
+stdout '✓'
+
+exec validator project/.classpath
+stdout '✓'
+
+# ============================================================
+# PART 3: Invalid extensionless known files fail
+# ============================================================
+
+! exec validator invalid/.babelrc
+stdout '×'
+
+! exec validator invalid/.clang-format
+stdout '×'
+
+! exec validator invalid/.gitconfig
+stdout '×'
+
+! exec validator invalid/Pipfile
+stdout '×'
+
+! exec validator invalid/composer.lock
+stdout '×'
+
+# ============================================================
+# PART 4: --type-map overrides KnownFiles
+# ============================================================
+
+# Force tsconfig.json to be treated as strict JSON (override JSONC known file)
+! exec validator --type-map='**/tsconfig.json:json' project/tsconfig.json
+stdout '×'
+
+# Force .babelrc to be treated as JSON (not JSONC)
+# .babelrc content has no comments so it passes as JSON too
+exec validator --type-map='**/.babelrc:json' dotfiles/.babelrc
+stdout '✓'
+
+# ============================================================
+# PART 5: --exclude-file-types with known files
+# ============================================================
+
+# --exclude-file-types treats json and jsonc as a family (like yaml/yml).
+# Excluding "json" also excludes JSONC files and known files.
+exec validator --exclude-file-types=json project
+! stdout 'good.json'
+! stdout 'tsconfig'
+! stdout 'eslintrc'
+stdout '✓.*pom.xml'
+
+# Excluding "jsonc" also excludes JSON files
+exec validator --exclude-file-types=jsonc project
+! stdout 'good.json'
+! stdout 'tsconfig'
+stdout '✓.*pom.xml'
+
+# Exclude ini — .gitconfig has no extension so it's not excluded by extension.
+exec validator --exclude-file-types=ini dotfiles
+stdout 'gitconfig'
+
+# ============================================================
+# PART 6: --file-types with known files
+# ============================================================
+
+# --file-types also treats json and jsonc as a family.
+# --file-types=jsonc includes both JSONC and JSON files
+! exec validator --file-types=jsonc project
+stdout '✓.*tsconfig'
+stdout '✓.*eslintrc'
+stdout '✓.*good.json'
+stdout '×.*bad_strict'
+! stdout 'pom.xml'
+
+# --file-types=json also includes JSONC known files
+! exec validator --file-types=json project
+stdout '✓.*tsconfig'
+stdout '✓.*good.json'
+stdout '×.*bad_strict'
+
+# Only validate YAML — should find .clang-format
+exec validator --file-types=yaml dotfiles
+stdout '✓.*clang-format'
+! stdout 'babelrc'
+
+# ============================================================
+# PART 7: --depth with known files
+# ============================================================
+
+# depth=0 on root should find only root-level files
+exec validator --depth=0 mixed
+stdout '✓.*root.json'
+! stdout 'nested'
+
+# depth=1 should find nested known files
+exec validator --depth=1 mixed
+stdout '✓.*root.json'
+stdout '✓.*nested/.clang-format'
+
+# ============================================================
+# PART 8: --exclude-dirs with known files
+# ============================================================
+
+exec validator --exclude-dirs=excluded mixed
+stdout '✓.*root.json'
+stdout '✓.*nested'
+! stdout 'excluded'
+
+# ============================================================
+# PART 9: Multiple search paths with known files
+# ============================================================
+
+exec validator dotfiles/.babelrc dotfiles/.gitconfig lockfiles/Pipfile
+stdout '✓.*babelrc'
+stdout '✓.*gitconfig'
+stdout '✓.*Pipfile'
+
+# ============================================================
+# PART 10: SchemaStore with extensionless known files
+# ============================================================
+
+# .babelrc valid against schema
+exec validator --schemastore-path schemastore dotfiles/.babelrc
+stdout '✓'
+
+# .babelrc invalid against schema (additionalProperties: false)
+! exec validator --schemastore-path schemastore invalid-schema/.babelrc
+stdout '×'
+stdout 'error:'
+
+# .clangd valid against schema
+exec validator --schemastore-path schemastore dotfiles/.clangd
+stdout '✓'
+
+# Regular JSON file still matches schemastore by name
+exec validator --schemastore-path schemastore project/package.json
+stdout '✓'
+
+# Invalid package.json fails schema
+! exec validator --schemastore-path schemastore invalid-schema/package.json
+stdout '×'
+stdout 'error:'
+
+# ============================================================
+# PART 11: --require-schema with extensionless known files
+# ============================================================
+
+# .babelrc with schemastore — has schema, should pass
+exec validator --schemastore-path schemastore --require-schema dotfiles/.babelrc
+stdout '✓'
+
+# .gitconfig with --require-schema — INI has no SchemaValidator, unaffected
+exec validator --require-schema dotfiles/.gitconfig
+stdout '✓'
+
+# .arcconfig without schemastore — JSON supports schema but none declared
+! exec validator --require-schema dotfiles/.arcconfig
+stdout '×'
+stdout 'no schema declared'
+
+# ============================================================
+# PART 12: --no-schema with extensionless known files
+# ============================================================
+
+# .babelrc with invalid schema content but --no-schema skips validation
+exec validator --no-schema invalid-schema/.babelrc
+stdout '✓'
+
+# ============================================================
+# PART 13: --schema-map overrides schemastore for known files
+# ============================================================
+
+# schema-map with strict schema rejects .babelrc
+! exec validator --schema-map='.babelrc:strict_schema.json' --schemastore-path schemastore dotfiles/.babelrc
+stdout '×'
+stdout 'error:'
+
+# ============================================================
+# PART 14: --groupby with known files
+# ============================================================
+
+exec validator --groupby=filetype dotfiles
+stdout 'babelrc'
+stdout 'arcconfig'
+stdout 'clang-format'
+stdout 'gitconfig'
+
+! exec validator --groupby=pass-fail dotfiles invalid
+stdout 'Pass'
+stdout 'Fail'
+
+# ============================================================
+# PART 15: JSON reporter with known files
+# ============================================================
+
+exec validator --reporter=json:- dotfiles/.babelrc
+stdout '"status":.*"passed"'
+stdout '.babelrc'
+
+# ============================================================
+# PART 16: Mixed directory with known files + extension files
+# ============================================================
+
+# A directory with both known files and extension-based files
+exec validator mixed
+stdout '✓.*root.json'
+stdout '✓.*clang-format'
+stdout '✓.*babelrc'
+stdout '✓.*gitconfig'
+
+# ============================================================
+# PART 17: Quiet mode with known files
+# ============================================================
+
+exec validator --quiet dotfiles/.babelrc
+! stdout '.'
+
+! exec validator --quiet invalid/.babelrc
+! stdout '.'
+
+# ============================================================
+# PART 18: Edge cases
+# ============================================================
+
+# Unknown extensionless file — should be silently ignored
+exec validator edge/unknown_file
+! stdout '.'
+
+# File with only a dot — should be ignored
+exec validator edge/.hidden_no_ext
+! stdout '.'
+
+# Known file in a subdirectory
+exec validator edge/sub/.babelrc
+stdout '✓'
+
+# ============================================================
+# PART 19: Globbing with known files
+# ============================================================
+
+exec validator -globbing 'dotfiles/.*'
+stdout '✓.*babelrc'
+stdout '✓.*clang-format'
+stdout '✓.*gitconfig'
+
+# ============================================================
+# Test data files
+# ============================================================
+
+# --- Project files (JSONC known files with comments/trailing commas) ---
+
+-- project/tsconfig.json --
+// TypeScript config
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "strict": true,
+  }
+}
+-- project/jsconfig.json --
+// JavaScript config
+{
+  "compilerOptions": {
+    "target": "es2020",
+  }
+}
+-- project/.eslintrc.json --
+// ESLint config
+{
+  "extends": ["eslint:recommended"],
+}
+-- project/.devcontainer.json --
+// Dev container
+{
+  "name": "dev",
+  "image": "node:18",
+}
+-- project/good.json --
+{"key": "value"}
+-- project/bad_strict.json --
+// This comment makes it invalid JSON
+{"key": "value"}
+-- project/pom.xml --
+<project><modelVersion>4.0.0</modelVersion></project>
+-- project/.classpath --
+<classpath><classpathentry kind="src" path="src"/></classpath>
+-- project/package.json --
+{"name": "test", "version": "1.0.0"}
+-- dotfiles/.babelrc --
+{"presets": ["env"]}
+-- dotfiles/.swcrc --
+{"jsc": {"parser": {"syntax": "ecmascript"}}}
+-- dotfiles/.arcconfig --
+{"project_id": "myproject"}
+-- dotfiles/.watchmanconfig --
+{"settle": 20}
+-- dotfiles/.clang-format --
+BasedOnStyle: LLVM
+IndentWidth: 4
+-- dotfiles/.clangd --
+CompileFlags:
+  Add: [-Wall]
+-- dotfiles/.gemrc --
+gem: --no-document
+-- dotfiles/.gitconfig --
+[user]
+name=test
+email=test@example.com
+-- dotfiles/.npmrc --
+registry=https://registry.npmjs.org/
+-- dotfiles/.shellcheckrc --
+disable=SC2034
+-- dotfiles/.curlrc --
+max-time = 30
+-- dotfiles/.pylintrc --
+[MASTER]
+load-plugins=pylint_django
+-- dotfiles/.flake8 --
+[flake8]
+max-line-length = 120
+-- lockfiles/composer.lock --
+{"packages": [], "_readme": ["This file locks the dependencies"]}
+-- lockfiles/bun.lock --
+{"lockfileVersion": 1, "packages": {}}
+-- lockfiles/Pipfile --
+[packages]
+requests = "*"
+-- lockfiles/Cargo.lock --
+version = 3
+
+[[package]]
+name = "test"
+version = "0.1.0"
+-- invalid/.babelrc --
+{"bad": }
+-- invalid/.clang-format --
+BasedOnStyle: LLVM
+  bad indentation:
+    - this: is broken
+  ::::::
+-- invalid/.gitconfig --
+[section
+broken
+-- invalid/Pipfile --
+key = 123__456
+-- invalid/composer.lock --
+{"bad": }
+-- invalid-schema/.babelrc --
+{"presets": ["env"], "unknown_field": true}
+-- invalid-schema/package.json --
+{"name": "test", "version": 123}
+-- mixed/root.json --
+{"key": "value"}
+-- mixed/nested/.clang-format --
+BasedOnStyle: Google
+-- mixed/nested/.babelrc --
+{"presets": ["env"]}
+-- mixed/nested/.gitconfig --
+[core]
+autocrlf=true
+-- mixed/excluded/secret.json --
+{"secret": "value"}
+-- edge/unknown_file --
+this is not a config file
+-- edge/.hidden_no_ext --
+not a known file
+-- edge/sub/.babelrc --
+{"presets": ["env"]}
+-- strict_schema.json --
+{
+  "type": "object",
+  "required": ["id"],
+  "properties": {"id": {"type": "integer"}},
+  "additionalProperties": false
+}
+-- schemastore/src/api/json/catalog.json --
+{
+  "schemas": [
+    {
+      "name": "Babel",
+      "fileMatch": [".babelrc"],
+      "url": "https://www.schemastore.org/babelrc.json"
+    },
+    {
+      "name": "clangd",
+      "fileMatch": [".clangd"],
+      "url": "https://www.schemastore.org/clangd.json"
+    },
+    {
+      "name": "package.json",
+      "fileMatch": ["package.json"],
+      "url": "https://www.schemastore.org/package.json"
+    }
+  ]
+}
+-- schemastore/src/schemas/json/babelrc.json --
+{
+  "type": "object",
+  "properties": {
+    "presets": {"type": "array", "items": {"type": "string"}},
+    "plugins": {"type": "array"}
+  },
+  "additionalProperties": false
+}
+-- schemastore/src/schemas/json/clangd.json --
+{
+  "type": "object",
+  "properties": {
+    "CompileFlags": {"type": "object"},
+    "Diagnostics": {"type": "object"},
+    "InlayHints": {"type": "object"}
+  }
+}
+-- schemastore/src/schemas/json/package.json --
+{
+  "type": "object",
+  "properties": {
+    "name": {"type": "string"},
+    "version": {"type": "string"},
+    "description": {"type": "string"}
+  }
+}

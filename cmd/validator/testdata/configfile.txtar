@@ -36,13 +36,18 @@ stderr 'schema validation failed'
 ! exec validator --config=cfv/bad_syntax.toml project/good.json
 stderr 'invalid TOML syntax'
 
-# --no-config ignores config file (tsconfig fails as strict JSON)
-! exec validator --no-config project/tsconfig.json
-stdout '×'
+# --no-config ignores config file (type-map not applied, custom.cfg not recognized)
+exec validator --no-config project/custom.cfg
+! stdout 'custom.cfg'
+
+# With config file, custom.cfg is recognized as JSON via type-map
+exec validator --config=cfv/typemap.toml project/custom.cfg
+stdout '✓'
 
 -- cfv/typemap.toml --
 [type-map]
 "**/tsconfig.json" = "jsonc"
+"**/custom.cfg" = "json"
 
 -- cfv/excludedir.toml --
 exclude-dirs = ["excluded"]
@@ -83,4 +88,7 @@ quiet = [broken
 {"key": "value"}
 
 -- project/sub/nested.json --
+{"key": "value"}
+
+-- project/custom.cfg --
 {"key": "value"}
