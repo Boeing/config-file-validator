@@ -124,7 +124,7 @@ validator --type-map="**/.vscode/*.json:jsonc" .
 Many tools use `.json` files that actually support JSONC syntax (e.g., `tsconfig.json`, VS Code settings). To validate these correctly, map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
 
 ```shell
-validator --type-map="**/tsconfig.json:jsonc" --type-map="**/.vscode/*.json:jsonc" .
+validator --type-map="**/.vscode/*.json:jsonc" .
 ```
 
 Or in `.cfv.toml`:
@@ -141,6 +141,8 @@ JSON and JSONC are treated as a **family** — `--file-types=json` includes JSON
 "**/devcontainer.json" = "jsonc"
 "**/.vscode/*.json" = "jsonc"
 ```
+
+JSON and JSONC are treated as a **family** — `--file-types=json` includes JSONC files, and `--exclude-file-types=json` excludes both JSON and JSONC files.
 
 ## Demo
 
