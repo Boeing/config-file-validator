@@ -85,25 +85,51 @@ Config File Validator is a cross-platform CLI tool that validates configuration 
 
 XML files with inline DTD declarations (`<!DOCTYPE>`) are automatically validated against the DTD during syntax checking.
 
+### Known Files
+
+The validator automatically recognizes common configuration files by filename, even without a standard extension. This means files like `.babelrc`, `.gitconfig`, `Pipfile`, and `pom.xml` are validated without any configuration.
+
+Known filenames are sourced from [GitHub Linguist](https://github.com/github-linguist/linguist) and updated automatically. Examples:
+
+| Type | Known Files |
+|------|-------------|
+| JSON | `.arcconfig`, `.watchmanconfig`, `composer.lock`, `bun.lock`, `deno.lock`, `flake.lock` |
+| JSONC | `.babelrc`, `.swcrc`, `.jshintrc`, `tsconfig.json`, `jsconfig.json`, `.eslintrc.json` |
+| YAML | `.clang-format`, `.clang-tidy`, `.clangd`, `.gemrc` |
+| TOML | `Pipfile`, `Cargo.lock`, `poetry.lock`, `uv.lock`, `pdm.lock` |
+| XML | `pom.xml`, `build.xml`, `ant.xml`, `.classpath`, `.project` |
+| INI | `.gitconfig`, `.gitmodules`, `.npmrc`, `.pylintrc`, `.flake8`, `.curlrc`, `.nanorc` |
+
+Known files take priority over extension matching. For example, `tsconfig.json` is validated as JSONC (not strict JSON) because it’s a known JSONC file.
+
+Use `--type-map` to override the automatic detection for any file:
+
+```shell
+# Force tsconfig.json to be validated as strict JSON
+validator --type-map="**/tsconfig.json:json" .
+
 ### JSON vs JSONC
 
 Files with the `.json` extension are validated as **strict JSON** — no comments, no trailing commas. Files with the `.jsonc` extension are validated as **JSONC**, which allows `//` line comments, `/* */` block comments, and trailing commas.
 
-Many tools use `.json` files that actually support JSONC syntax (e.g., `tsconfig.json`, VS Code settings). To validate these correctly, map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
+Many common `.json` files actually support JSONC syntax. The validator automatically detects these by filename and validates them as JSONC — no configuration needed:
+
+`tsconfig.json`, `jsconfig.json`, `.eslintrc.json`, `.devcontainer.json`, `devcontainer.json`, `.babelrc`, `.jshintrc`, `.jslintrc`, `.jscsrc`, `.swcrc`, `tslint.json`, `api-extractor.json`, `language-configuration.json`, `.oxlintrc.json`
+
+For other `.json` files that use JSONC syntax (e.g., VS Code settings), map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
 
 ```shell
-validator --type-map="**/tsconfig.json:jsonc" --type-map="**/.vscode/*.json:jsonc" .
+validator --type-map="**/.vscode/*.json:jsonc" .
 ```
 
 Or in `.cfv.toml`:
 
 ```toml
 [type-map]
-"**/tsconfig.json" = "jsonc"
-"**/jsconfig.json" = "jsonc"
-"**/devcontainer.json" = "jsonc"
 "**/.vscode/*.json" = "jsonc"
 ```
+
+JSON and JSONC are treated as a **family** — `--file-types=json` includes JSONC files, and `--exclude-file-types=json` excludes both JSON and JSONC files.
 
 ## Demo
 
@@ -396,11 +422,13 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 
 #### Exclude file types
 
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `toon`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. JSON and JSONC are treated as a family — excluding one excludes both. Similarly, excluding `yaml` also excludes `yml`.
 
 ```shell
 validator --exclude-file-types=json /path/to/search
 ```
+
+Note: `--exclude-file-types` filters by file extension. Extensionless known files (like `.gitconfig` or `.babelrc`) are not affected by this flag. Use `--type-map` or `.cfv.toml` for fine-grained control.
 
 ![Exclude File Types Run](./img/exclude_file_types.gif)
 

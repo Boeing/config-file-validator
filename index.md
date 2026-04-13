@@ -4,26 +4,6 @@ description: "Single cross-platform CLI tool to validate and lint 14+ configurat
 canonical_url: https://boeing.github.io/config-file-validator/
 ---
 
-<div align="center">
-    <div style="width: 100%; text-align: center; position: relative;">
-        <div style="display: inline-block;">
-            <img src="./img/logo.png" width="200" height="200" alt="Config File Validator logo"/>
-        </div>
-        <div style="position: absolute; right: 0; top: 0">
-            <a href="https://github.com/Boeing/config-file-validator">
-                <img decoding="async" loading="lazy" width="149" height="149"
-                src="./img/fork-me-on-github.png" 
-                class="attachment-full size-full" alt="Fork me on GitHub" data-recalc-dims="1" style="background: transparent !important;">
-            </a>
-        </div>
-    </div>
-    <div>
-        <h1>Config File Validator</h1>
-        <p>Single cross-platform CLI tool to validate different configuration file types</p>
-    </div>
-    <br />
-</div>
-
 <p align="center">
 <img id="cov" src="https://img.shields.io/badge/Coverage-93.8%25-brightgreen" alt="Code Coverage">
 
@@ -41,7 +21,7 @@ canonical_url: https://boeing.github.io/config-file-validator/
 
   <a href="https://github.com/avelino/awesome-go">
   <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
-  </a> 
+  </a>  
 
   <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator/v2">
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v2.svg" alt="Go Reference">
@@ -55,6 +35,33 @@ canonical_url: https://boeing.github.io/config-file-validator/
   <img src="https://github.com/boeing/config-file-validator/actions/workflows/go.yml/badge.svg" alt="Pipeline Status">
   </a>
 </p>
+
+## About
+
+Config File Validator is a cross-platform CLI tool that validates configuration files in your project. Catch syntax errors, schema violations, and misconfigurations across all your config files — with one tool.
+
+- **Single binary, zero dependencies** — no runtimes, no package managers, just one executable
+- **15 file formats** — JSON, JSONC, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, PList, SARIF, and TOON
+- **Syntax + schema validation** — validates structure with [JSON Schema](https://json-schema.org/) and XSD, with automatic [SchemaStore](https://www.schemastore.org/) integration
+- **CI/CD ready** — JSON, JUnit, and SARIF output for GitHub Actions, GitLab CI, Jenkins, and more
+- **Configurable** — project-level `.cfv.toml` config files, glob patterns, schema mappings, and environment variables
+- **Usable as a Go library** — embed validation in your own tools with the `cli` package
+
+## Table of Contents
+
+- [Supported File Types](#supported-file-types)
+- [Demo](#demo)
+- [Installation](#installation)
+- [GitHub Action](#github-action)
+- [Pre-commit Hook](#pre-commit-hook)
+- [Usage](#usage)
+  - [Configuration File](#configuration-file)
+  - [Environment Variables](#environment-variables)
+  - [Examples](#examples)
+  - [Schema Validation](#schema-validation)
+- [Go API](#calling-the-config-file-validator-programmatically)
+- [Build](#build)
+- [Contributing](#contributing)
 
 ## Supported File Types
 
@@ -78,29 +85,55 @@ canonical_url: https://boeing.github.io/config-file-validator/
 
 XML files with inline DTD declarations (`<!DOCTYPE>`) are automatically validated against the DTD during syntax checking.
 
+### Known Files
+
+The validator automatically recognizes common configuration files by filename, even without a standard extension. This means files like `.babelrc`, `.gitconfig`, `Pipfile`, and `pom.xml` are validated without any configuration.
+
+Known filenames are sourced from [GitHub Linguist](https://github.com/github-linguist/linguist) and updated automatically. Examples:
+
+| Type | Known Files |
+|------|-------------|
+| JSON | `.arcconfig`, `.watchmanconfig`, `composer.lock`, `bun.lock`, `deno.lock`, `flake.lock` |
+| JSONC | `.babelrc`, `.swcrc`, `.jshintrc`, `tsconfig.json`, `jsconfig.json`, `.eslintrc.json` |
+| YAML | `.clang-format`, `.clang-tidy`, `.clangd`, `.gemrc` |
+| TOML | `Pipfile`, `Cargo.lock`, `poetry.lock`, `uv.lock`, `pdm.lock` |
+| XML | `pom.xml`, `build.xml`, `ant.xml`, `.classpath`, `.project` |
+| INI | `.gitconfig`, `.gitmodules`, `.npmrc`, `.pylintrc`, `.flake8`, `.curlrc`, `.nanorc` |
+
+Known files take priority over extension matching. For example, `tsconfig.json` is validated as JSONC (not strict JSON) because it’s a known JSONC file.
+
+Use `--type-map` to override the automatic detection for any file:
+
+```shell
+# Force tsconfig.json to be validated as strict JSON
+validator --type-map="**/tsconfig.json:json" .
+
 ### JSON vs JSONC
 
 Files with the `.json` extension are validated as **strict JSON** — no comments, no trailing commas. Files with the `.jsonc` extension are validated as **JSONC**, which allows `//` line comments, `/* */` block comments, and trailing commas.
 
-Many tools use `.json` files that actually support JSONC syntax (e.g., `tsconfig.json`, VS Code settings). To validate these correctly, map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
+Many common `.json` files actually support JSONC syntax. The validator automatically detects these by filename and validates them as JSONC — no configuration needed:
+
+`tsconfig.json`, `jsconfig.json`, `.eslintrc.json`, `.devcontainer.json`, `devcontainer.json`, `.babelrc`, `.jshintrc`, `.jslintrc`, `.jscsrc`, `.swcrc`, `tslint.json`, `api-extractor.json`, `language-configuration.json`, `.oxlintrc.json`
+
+For other `.json` files that use JSONC syntax (e.g., VS Code settings), map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
 
 ```shell
-validator --type-map="**/tsconfig.json:jsonc" --type-map="**/.vscode/*.json:jsonc" .
+validator --type-map="**/.vscode/*.json:jsonc" .
 ```
 
 Or in `.cfv.toml`:
 
 ```toml
 [type-map]
-"**/tsconfig.json" = "jsonc"
-"**/jsconfig.json" = "jsonc"
-"**/devcontainer.json" = "jsonc"
 "**/.vscode/*.json" = "jsonc"
 ```
 
+JSON and JSONC are treated as a **family** — `--file-types=json` includes JSONC files, and `--exclude-file-types=json` excludes both JSON and JSONC files.
+
 ## Demo
 
-<img src="./img/demo.gif" alt="Config File Validator CLI demo showing JSON, YAML, TOML, and XML validation with pass and fail results" />
+<img src="./img/demo.gif" alt="Config File Validator CLI demo showing JSON YAML TOML XML validation" />
 
 ## Installation
 
@@ -389,11 +422,13 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 
 #### Exclude file types
 
-Exclude file types in the search path. Available file types are `csv`, `env`, `hcl`, `hocon`, `ini`, `json`, `plist`, `properties`, `toml`, `toon`, `xml`, `yaml`, and `yml`
+Exclude file types in the search path. JSON and JSONC are treated as a family — excluding one excludes both. Similarly, excluding `yaml` also excludes `yml`.
 
 ```shell
 validator --exclude-file-types=json /path/to/search
 ```
+
+Note: `--exclude-file-types` filters by file extension. Extensionless known files (like `.gitconfig` or `.babelrc`) are not affected by this flag. Use `--type-map` or `.cfv.toml` for fine-grained control.
 
 ![Exclude File Types Run](./img/exclude_file_types.gif)
 
@@ -481,23 +516,6 @@ The validator uses the following exit codes:
 | `0` | All files are valid |
 | `1` | One or more validation errors (syntax or schema) |
 | `2` | Runtime or configuration error (invalid flags, unreadable files, bad config) |
-
-### Search files using a glob pattern
-
-Use the `-globbing` flag to validate files matching a specified pattern. Include the pattern as a positional argument in double quotes. Multiple glob patterns and direct file paths are supported. If invalid config files are detected, the validator tool exits with code 1, and errors (e.g., invalid patterns) are displayed.
-
-[Learn more about glob patterns](https://www.digitalocean.com/community/tools/glob)
-
-```shell
-# Validate all `.json` files in a directory
-validator -globbing "/path/to/files/*.json"
-
-# Recursively validate all `.json` files in subdirectories
-validator -globbing "/path/to/files/**/*.json"
-
-# Mix glob patterns and paths
-validator -globbing "/path/*.json" /path/to/search
-```
 
 
 ### Schema validation
@@ -642,6 +660,23 @@ validator --type-map="**/configs/*:properties" /path/to/search
 validator --type-map="**/inventory:ini" --type-map="**/*.cfg:json" /path/to/search
 ```
 
+### Search files using a glob pattern
+
+Use the `-globbing` flag to validate files matching a specified pattern. Include the pattern as a positional argument in double quotes. Multiple glob patterns and direct file paths are supported. If invalid config files are detected, the validator tool exits with code 1, and errors (e.g., invalid patterns) are displayed.
+
+[Learn more about glob patterns](https://www.digitalocean.com/community/tools/glob)
+
+```shell
+# Validate all `.json` files in a directory
+validator -globbing "/path/to/files/*.json"
+
+# Recursively validate all `.json` files in subdirectories
+validator -globbing "/path/to/files/**/*.json"
+
+# Mix glob patterns and paths
+validator -globbing "/path/*.json" /path/to/search
+```
+
 ## Calling the config-file-validator programmatically
 
 The config-file-validator can be used as a Go library. See the [Go API documentation](./docs/go-api.md) for examples including custom search paths, reporters, schema validation, and all configuration options.
@@ -650,19 +685,19 @@ The config-file-validator can be used as a Go library. See the [Go API documenta
 package main
 
 import (
-      "os"
-      "log"
+	"os"
+	"log"
 
-      "github.com/Boeing/config-file-validator/v2/pkg/cli"
+	"github.com/Boeing/config-file-validator/v2/pkg/cli"
 )
 
 func main() {
-      cfv := cli.Init()
-      exitStatus, err := cfv.Run()
-      if err != nil {
-        log.Printf("Errors occurred during execution: %v", err)
-      }
-      os.Exit(exitStatus)
+	cfv := cli.Init()
+	exitStatus, err := cfv.Run()
+	if err != nil {
+	  log.Printf("Errors occurred during execution: %v", err)
+	}
+	os.Exit(exitStatus)
 }
 ```
 
@@ -752,7 +787,7 @@ if (-not ($up.Split(';') -contains $install)) { `
 You can also use the provided Dockerfile to build the config file validator tool as a container
 
 ```shell
-docker build . -t config-file-validator:v1.8.1
+docker build . -t config-file-validator:latest
 ```
 
 ## Contributors

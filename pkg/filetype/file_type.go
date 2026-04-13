@@ -1,5 +1,15 @@
 //go:generate go run ../../internal/generate/knownfiles/main.go
 
+// Package filetype defines the supported file types and their validators.
+//
+// KnownFiles are populated at init time from three sources:
+//  1. LinguistKnownFiles (generated from GitHub Linguist's languages.yml)
+//  2. extraKnownFiles (manual entries not in Linguist, e.g. .shellcheckrc)
+//  3. excludeKnownFiles (auto-detected conflicts with dedicated validators)
+//
+// Filenames in excludeKnownFiles are skipped during population. A conflict
+// is detected when a Linguist filename has an extension that belongs to a
+// file type outside fileTypeRegistry (e.g. .editorconfig → EditorConfig).
 package filetype
 
 import (
