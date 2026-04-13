@@ -1,3 +1,5 @@
+//go:build ignore
+
 // Command knownfiles generates known_files_gen.go from GitHub Linguist's languages.yml.
 //
 // It maps Linguist language names to config-file-validator file types and extracts
