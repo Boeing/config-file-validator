@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	xmlLineColRe   = regexp.MustCompile(`at line (\d+), column (\d+)`)
-	xsdErrorLineRe = regexp.MustCompile(`^\(string\):(\d+): Schemas validity error : (.+)`)
+	xmlLineColRe     = regexp.MustCompile(`at line (\d+), column (\d+)`)
+	xmlStripPosition = regexp.MustCompile(`\s*at line \d+, column \d+`)
+	xsdErrorLineRe   = regexp.MustCompile(`^\(string\):(\d+): Schemas validity error : (.+)`)
 )
 
 type XMLValidator struct{}
@@ -32,10 +33,12 @@ func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	ctx := context.Background()
 	_, err := helium.NewParser().ValidateDTD(true).Parse(ctx, b)
 	if err != nil {
-		if m := xmlLineColRe.FindStringSubmatch(err.Error()); m != nil {
+		errMsg := err.Error()
+		if m := xmlLineColRe.FindStringSubmatch(errMsg); m != nil {
 			line, _ := strconv.Atoi(m[1])
 			col, _ := strconv.Atoi(m[2])
-			return false, &ValidationError{Err: err, Line: line, Column: col}
+			cleanMsg := xmlStripPosition.ReplaceAllString(errMsg, "")
+			return false, &ValidationError{Err: fmt.Errorf("%s", strings.TrimSpace(cleanMsg)), Line: line, Column: col}
 		}
 		return false, err
 	}
