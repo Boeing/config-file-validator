@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -59,7 +60,8 @@ func (YAMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 		return false, err
 	}
 
-	return JSONSchemaValidate(resolveSchemaURL(schemaURL, filePath), docJSON)
+	posMap := buildYAMLPositionMap(b)
+	return JSONSchemaValidateWithPositions(resolveSchemaURL(schemaURL, filePath), docJSON, posMap)
 }
 
 // extractYAMLSchemaComment scans for the yaml-language-server schema modeline:
@@ -86,4 +88,40 @@ func extractYAMLSchemaComment(b []byte) string {
 		}
 	}
 	return ""
+}
+
+// buildYAMLPositionMap parses YAML into a Node tree and builds a map from
+// gojsonschema context paths (e.g. "(root).server.port") to source positions.
+func buildYAMLPositionMap(b []byte) map[string]SourcePosition {
+	var root yaml.Node
+	if err := yaml.Unmarshal(b, &root); err != nil {
+		return nil
+	}
+	positions := make(map[string]SourcePosition)
+	if root.Kind == yaml.DocumentNode && len(root.Content) > 0 {
+		walkYAMLNode(root.Content[0], "(root)", positions)
+	}
+	return positions
+}
+
+func walkYAMLNode(node *yaml.Node, path string, positions map[string]SourcePosition) {
+	switch node.Kind {
+	case yaml.MappingNode:
+		positions[path] = SourcePosition{Line: node.Line, Column: node.Column}
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			keyNode := node.Content[i]
+			valNode := node.Content[i+1]
+			childPath := path + "." + keyNode.Value
+			positions[childPath] = SourcePosition{Line: keyNode.Line, Column: keyNode.Column}
+			walkYAMLNode(valNode, childPath, positions)
+		}
+	case yaml.SequenceNode:
+		positions[path] = SourcePosition{Line: node.Line, Column: node.Column}
+		for i, child := range node.Content {
+			childPath := fmt.Sprintf("%s.%d", path, i)
+			positions[childPath] = SourcePosition{Line: child.Line, Column: child.Column}
+			walkYAMLNode(child, childPath, positions)
+		}
+	default:
+	}
 }

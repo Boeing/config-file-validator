@@ -164,7 +164,7 @@ func (c *CLI) validate(content []byte, ft filetype.FileType, name, path string) 
 		col = ve.Column
 	}
 
-	validationErrors := formatErrors(err, line, col)
+	validationErrors, errLines, errCols := formatErrors(err, line, col)
 	notes := checkJSONCFallback(syntaxErr, ft, content, name)
 
 	return reporter.Report{
@@ -178,6 +178,8 @@ func (c *CLI) validate(content []byte, ft filetype.FileType, name, path string) 
 		IsQuiet:          c.quiet,
 		StartLine:        line,
 		StartColumn:      col,
+		ErrorLines:       errLines,
+		ErrorColumns:     errCols,
 	}
 }
 
@@ -195,17 +197,33 @@ func (c *CLI) runSingle(content []byte, ft filetype.FileType, name string) (int,
 	return 0, nil
 }
 
-func formatErrors(err error, line, col int) []string {
+func formatErrors(err error, line, col int) (errs []string, lines []int, cols []int) {
 	if err == nil {
-		return nil
+		return nil, nil, nil
 	}
 	var se *validator.SchemaErrors
 	if errors.As(err, &se) {
 		var errs []string
-		for _, e := range se.Errors() {
-			errs = append(errs, "schema: "+e)
+		var lines, cols []int
+		for i, e := range se.Errors() {
+			var pos validator.SchemaErrorPosition
+			if i < len(se.Positions) {
+				pos = se.Positions[i]
+			}
+			var prefix string
+			switch {
+			case pos.Line > 0 && pos.Column > 0:
+				prefix = fmt.Sprintf("schema: line %d, column %d: ", pos.Line, pos.Column)
+			case pos.Line > 0:
+				prefix = fmt.Sprintf("schema: line %d: ", pos.Line)
+			default:
+				prefix = "schema: "
+			}
+			errs = append(errs, prefix+e)
+			lines = append(lines, pos.Line)
+			cols = append(cols, pos.Column)
 		}
-		return errs
+		return errs, lines, cols
 	}
 
 	msg := err.Error()
@@ -224,7 +242,7 @@ func formatErrors(err error, line, col int) []string {
 		prefix = "syntax: "
 	}
 
-	return []string{prefix + msg}
+	return []string{prefix + msg}, []int{line}, []int{col}
 }
 
 // checkJSONCFallback checks if a failed JSON file is valid JSONC and returns a note if so.
