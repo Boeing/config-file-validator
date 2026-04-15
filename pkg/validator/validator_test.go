@@ -151,6 +151,9 @@ var testData = []struct {
 	{"invalidEditorConfig", []byte("[*.md\nworking=false"), false, EditorConfigValidator{}},
 	{"validToon", []byte("users[2]{id,name,role}:\n  1,Alice,admin\n  2,Bob,user\n"), true, ToonValidator{}},
 	{"invalidToon", []byte("users2]{id,name,role}:\n  1,Alice,admin\n  2,Bob,user\n"), false, ToonValidator{}},
+	{"validJustfile", []byte("default:\n    echo hello\n"), true, JustfileValidator{}},
+	{"validJustfileParams", []byte("build target=\"linux\":\n    GOOS={{target}} go build\n"), true, JustfileValidator{}},
+	{"invalidJustfileUnterminatedString", []byte("name := \"hello\n"), false, JustfileValidator{}},
 	{"validSarif210", validSarif210Bytes, true, SarifValidator{}},
 	{"validSarif22", validSarif22Bytes, true, SarifValidator{}},
 	{"invalidSarif", []byte(`{"not": "sarif"}`), false, SarifValidator{}},
@@ -1145,4 +1148,30 @@ func Test_SchemaErrorPositionZeroWhenNoMatch(t *testing.T) {
 	// "host is required" error is on (root) which should have a position
 	// but the missing field itself has no position — (root) maps to line 1
 	require.NotEmpty(t, se.Positions)
+}
+
+func Test_JustfileValidateSyntaxError(t *testing.T) {
+	t.Parallel()
+	valid, err := JustfileValidator{}.ValidateSyntax([]byte("name := \"unterminated\n"))
+	require.False(t, valid)
+	var ve *ValidationError
+	require.ErrorAs(t, err, &ve)
+	require.Positive(t, ve.Line)
+}
+
+func Test_JustfileValidateSemanticError(t *testing.T) {
+	t.Parallel()
+	// Recipe depends on undefined recipe
+	valid, err := JustfileValidator{}.ValidateSyntax([]byte("build: nonexistent\n    echo build\n"))
+	require.False(t, valid)
+	var ve *ValidationError
+	require.ErrorAs(t, err, &ve)
+	require.Contains(t, ve.Err.Error(), "undefined recipe")
+}
+
+func Test_JustfileValidateValid(t *testing.T) {
+	t.Parallel()
+	valid, err := JustfileValidator{}.ValidateSyntax([]byte("# comment\ndefault:\n    echo hello\n"))
+	require.True(t, valid)
+	require.NoError(t, err)
 }

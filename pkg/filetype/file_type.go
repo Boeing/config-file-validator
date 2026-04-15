@@ -153,7 +153,12 @@ var JSONCFileType = FileType{
 var JustfileFileType = FileType{
 	Name:       "justfile",
 	Extensions: arrToMap("just"),
-	Validator:  validator.JustfileValidator{},
+	KnownFiles: map[string]struct{}{
+		"justfile":  {},
+		"Justfile":  {},
+		".justfile": {},
+	},
+	Validator: validator.JustfileValidator{},
 }
 
 // extraKnownFiles contains manual entries not covered by Linguist.
