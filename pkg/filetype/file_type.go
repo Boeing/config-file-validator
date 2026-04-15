@@ -147,10 +147,26 @@ var JSONCFileType = FileType{
 	Validator:  validator.JSONCValidator{},
 }
 
+var JustfileFileType = FileType{
+	Name:       "justfile",
+	Extensions: arrToMap("just"),
+	KnownFiles: map[string]struct{}{
+		"justfile":  {},
+		"Justfile":  {},
+		".justfile": {},
+	},
+	Validator: validator.JustfileValidator{},
+}
+
 // extraKnownFiles contains manual entries not covered by Linguist.
 var extraKnownFiles = map[string][]string{
 	"ini": {
 		".shellcheckrc",
+	},
+	"justfile": {
+		"justfile",
+		"Justfile",
+		".justfile",
 	},
 }
 
@@ -170,6 +186,7 @@ var fileTypeRegistry = map[string]*FileType{
 	"env":        &EnvFileType,
 	"toon":       &ToonFileType,
 	"sarif":      &SarifFileType,
+	"justfile":   &JustfileFileType,
 }
 
 // excludeKnownFiles lists Linguist entries to skip because we have
@@ -240,6 +257,7 @@ func init() {
 		ToonFileType,
 		SarifFileType,
 		JSONCFileType,
+		JustfileFileType,
 	}
 }
 
