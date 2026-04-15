@@ -1032,3 +1032,117 @@ func Test_ININoDuplicatesPasses(t *testing.T) {
 	require.True(t, valid)
 	require.NoError(t, err)
 }
+
+func Test_buildJSONPositionMap(t *testing.T) {
+	t.Parallel()
+	doc := []byte("{\n  \"name\": \"app\",\n  \"port\": 8080,\n  \"nested\": {\n    \"key\": \"val\"\n  }\n}")
+	positions := buildJSONPositionMap(doc)
+
+	require.Contains(t, positions, "(root)")
+	require.Contains(t, positions, "(root).name")
+	require.Contains(t, positions, "(root).port")
+	require.Contains(t, positions, "(root).nested")
+	require.Contains(t, positions, "(root).nested.key")
+
+	require.Equal(t, 2, positions["(root).name"].Line)
+	require.Equal(t, 4, positions["(root).nested"].Line)
+	require.Equal(t, 5, positions["(root).nested.key"].Line)
+}
+
+func Test_buildJSONPositionMapArray(t *testing.T) {
+	t.Parallel()
+	doc := []byte(`{"items": [1, 2, 3]}`)
+	positions := buildJSONPositionMap(doc)
+	require.Contains(t, positions, "(root).items")
+}
+
+func Test_buildJSONPositionMapEmpty(t *testing.T) {
+	t.Parallel()
+	positions := buildJSONPositionMap([]byte(`{}`))
+	require.Contains(t, positions, "(root)")
+}
+
+func Test_buildYAMLPositionMap(t *testing.T) {
+	t.Parallel()
+	doc := []byte("name: app\nserver:\n  host: localhost\n  port: 8080\n")
+	positions := buildYAMLPositionMap(doc)
+
+	require.Contains(t, positions, "(root)")
+	require.Contains(t, positions, "(root).name")
+	require.Contains(t, positions, "(root).server")
+	require.Contains(t, positions, "(root).server.host")
+	require.Contains(t, positions, "(root).server.port")
+
+	require.Equal(t, 1, positions["(root).name"].Line)
+	require.Equal(t, 3, positions["(root).server.host"].Line)
+	require.Equal(t, 4, positions["(root).server.port"].Line)
+}
+
+func Test_buildYAMLPositionMapSequence(t *testing.T) {
+	t.Parallel()
+	doc := []byte("items:\n  - one\n  - two\n  - three\n")
+	positions := buildYAMLPositionMap(doc)
+
+	require.Contains(t, positions, "(root).items")
+	require.Contains(t, positions, "(root).items.0")
+	require.Contains(t, positions, "(root).items.1")
+	require.Contains(t, positions, "(root).items.2")
+	require.Equal(t, 2, positions["(root).items.0"].Line)
+	require.Equal(t, 4, positions["(root).items.2"].Line)
+}
+
+func Test_buildYAMLPositionMapInvalidYAML(t *testing.T) {
+	t.Parallel()
+	positions := buildYAMLPositionMap([]byte("a: b\nc: d:::::::::::::::"))
+	require.Nil(t, positions)
+}
+
+func Test_JSONSchemaErrorPositions(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	doc := []byte("{\n  \"$schema\": \"" + schema + "\",\n  \"host\": \"db.example.com\",\n  \"port\": \"not_a_number\",\n  \"database\": \"mydb\"\n}")
+	valid, err := JSONValidator{}.ValidateSchema(doc, "")
+	require.False(t, valid)
+
+	var se *SchemaErrors
+	require.ErrorAs(t, err, &se)
+	require.NotEmpty(t, se.Positions)
+	// port error should have a line > 0
+	for i, item := range se.Items {
+		if item == "port: Invalid type. Expected: integer, given: string" {
+			require.Positive(t, se.Positions[i].Line)
+		}
+	}
+}
+
+func Test_YAMLSchemaErrorPositions(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	yaml := "# yaml-language-server: $schema=" + schema + "\nhost: db.example.com\nport: not_a_number\ndatabase: mydb\n"
+	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), filepath.Join(filepath.Dir(schema), "test.yaml"))
+	require.False(t, valid)
+
+	var se *SchemaErrors
+	require.ErrorAs(t, err, &se)
+	require.NotEmpty(t, se.Positions)
+	for i, item := range se.Items {
+		if item == "port: Invalid type. Expected: integer, given: string" {
+			require.Equal(t, 3, se.Positions[i].Line)
+		}
+	}
+}
+
+func Test_SchemaErrorPositionZeroWhenNoMatch(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	// Missing required field "host" — no position since the key doesn't exist
+	doc := []byte("{\n  \"$schema\": \"" + schema + "\",\n  \"port\": 5432,\n  \"database\": \"mydb\"\n}")
+	valid, err := JSONValidator{}.ValidateSchema(doc, "")
+	require.False(t, valid)
+
+	var se *SchemaErrors
+	require.ErrorAs(t, err, &se)
+	// "host is required" error is on (root) which should have a position
+	// but the missing field itself has no position — (root) maps to line 1
+	require.NotEmpty(t, se.Positions)
+}

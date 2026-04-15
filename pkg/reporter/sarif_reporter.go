@@ -106,7 +106,7 @@ func createSARIFReport(reports []Report) (*SARIFLog, error) {
 			continue
 		}
 
-		for _, errMsg := range report.ValidationErrors {
+		for i, errMsg := range report.ValidationErrors {
 			r := result{
 				Kind:    "fail",
 				Level:   "error",
@@ -117,10 +117,17 @@ func createSARIFReport(reports []Report) (*SARIFLog, error) {
 					},
 				}},
 			}
-			if report.StartLine > 0 {
+			errLine, errCol := report.StartLine, report.StartColumn
+			if i < len(report.ErrorLines) && report.ErrorLines[i] > 0 {
+				errLine = report.ErrorLines[i]
+				if i < len(report.ErrorColumns) {
+					errCol = report.ErrorColumns[i]
+				}
+			}
+			if errLine > 0 {
 				r.Locations[0].PhysicalLocation.Region = &region{
-					StartLine:   report.StartLine,
-					StartColumn: report.StartColumn,
+					StartLine:   errLine,
+					StartColumn: errCol,
 				}
 			}
 			runs.Results = append(runs.Results, r)
