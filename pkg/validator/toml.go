@@ -19,7 +19,7 @@ func (TomlValidator) ValidateSyntax(b []byte) (bool, error) {
 	if errors.As(err, &derr) {
 		row, col := derr.Position()
 		return false, &ValidationError{
-			Err:    fmt.Errorf("error at line %v column %v: %w", row, col, err),
+			Err:    err,
 			Line:   row,
 			Column: col,
 		}

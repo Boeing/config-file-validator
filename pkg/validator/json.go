@@ -25,7 +25,7 @@ func (v JSONValidator) ValidateSyntax(b []byte) (bool, error) {
 			line := 1 + strings.Count(string(b)[:offset], "\n")
 			column := 1 + offset - (strings.LastIndex(string(b)[:offset], "\n") + len("\n"))
 			return false, &ValidationError{
-				Err:    fmt.Errorf("error at line %v column %v: %w", line, column, synErr),
+				Err:    synErr,
 				Line:   line,
 				Column: column,
 			}

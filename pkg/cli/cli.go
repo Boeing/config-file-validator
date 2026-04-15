@@ -164,7 +164,7 @@ func (c *CLI) validate(content []byte, ft filetype.FileType, name, path string) 
 		col = ve.Column
 	}
 
-	validationErrors := formatErrors(err)
+	validationErrors := formatErrors(err, line, col)
 	notes := checkJSONCFallback(syntaxErr, ft, content, name)
 
 	return reporter.Report{
@@ -195,7 +195,7 @@ func (c *CLI) runSingle(content []byte, ft filetype.FileType, name string) (int,
 	return 0, nil
 }
 
-func formatErrors(err error) []string {
+func formatErrors(err error, line, col int) []string {
 	if err == nil {
 		return nil
 	}
@@ -207,7 +207,24 @@ func formatErrors(err error) []string {
 		}
 		return errs
 	}
-	return []string{"syntax: " + err.Error()}
+
+	msg := err.Error()
+	var ve *validator.ValidationError
+	if errors.As(err, &ve) {
+		msg = ve.Err.Error()
+	}
+
+	var prefix string
+	switch {
+	case line > 0 && col > 0:
+		prefix = fmt.Sprintf("syntax: line %d, column %d: ", line, col)
+	case line > 0:
+		prefix = fmt.Sprintf("syntax: line %d: ", line)
+	default:
+		prefix = "syntax: "
+	}
+
+	return []string{prefix + msg}
 }
 
 // checkJSONCFallback checks if a failed JSON file is valid JSONC and returns a note if so.
