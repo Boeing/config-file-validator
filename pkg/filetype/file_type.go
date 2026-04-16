@@ -158,7 +158,6 @@ var JustfileFileType = FileType{
 	Validator: validator.JustfileValidator{},
 }
 
-
 // extraKnownFiles contains manual entries not covered by Linguist.
 var extraKnownFiles = map[string][]string{
 	"ini": {
@@ -169,7 +168,6 @@ var extraKnownFiles = map[string][]string{
 		"Justfile",
 		".justfile",
 	},
-
 }
 
 // fileTypeRegistry maps file type names to their package-level variables.
@@ -189,7 +187,6 @@ var fileTypeRegistry = map[string]*FileType{
 	"toon":       &ToonFileType,
 	"sarif":      &SarifFileType,
 	"justfile":   &JustfileFileType,
-
 }
 
 // excludeKnownFiles lists Linguist entries to skip because we have
@@ -261,7 +258,6 @@ func init() {
 		SarifFileType,
 		JSONCFileType,
 		JustfileFileType,
-
 	}
 }
 
