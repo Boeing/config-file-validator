@@ -253,3 +253,5 @@ func checkDuplicateKeysInArray(dec *json.Decoder) error {
 	_, _ = dec.Token()
 	return nil
 }
+
+

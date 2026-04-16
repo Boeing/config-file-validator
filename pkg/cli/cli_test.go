@@ -759,6 +759,7 @@ func Test_formatErrorsNil(t *testing.T) {
 	require.Nil(t, cols)
 }
 
+
 func Test_CLINoJSONCNoteOnYAML(t *testing.T) {
 	dir := t.TempDir()
 	testhelper.WriteFile(t, dir, "bad.yaml", "a: b\nc: d:::::::::::::::\n")
