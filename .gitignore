@@ -19,3 +19,4 @@ vendor/
 .vscode
 .idea
 megalinter-reports/
+.kiro/
