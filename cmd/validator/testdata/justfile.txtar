@@ -1,0 +1,20 @@
+# Justfile syntax validation
+! exec validator project
+stdout '✓.*valid.just'
+stdout '×.*invalid.just'
+
+# Known filenames detected without extension
+exec validator knownfile
+stdout '✓.*justfile'
+
+-- project/valid.just --
+default:
+    echo "hello"
+
+build:
+    echo "building"
+-- project/invalid.just --
+this is not valid {{{
+-- knownfile/justfile --
+greet name:
+    echo "hi {{name}}"

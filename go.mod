@@ -26,6 +26,7 @@ require (
 )
 
 require (
+	github.com/Boeing/go-just v0.0.0
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
@@ -50,3 +51,5 @@ require (
 	golang.org/x/tools v0.43.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
+
+replace github.com/Boeing/go-just => ./pkg/validator/justfile
