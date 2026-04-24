@@ -26,7 +26,7 @@ import (
 
 const (
 	linguistURL = "https://raw.githubusercontent.com/github-linguist/linguist/refs/heads/main/lib/linguist/languages.yml"
-	outputFile  = "pkg/filetype/known_files_gen.go"
+	outputFile  = "known_files_gen.go"
 )
 
 // linguistLanguage represents the subset of fields we need from languages.yml.
@@ -93,8 +93,6 @@ func fetchLanguages() ([]byte, error) {
 	}
 
 	resp, err := http.DefaultClient.Do(req)
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(linguistURL)
 	if err != nil {
 		return nil, err
 	}

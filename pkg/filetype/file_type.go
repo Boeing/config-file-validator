@@ -9,7 +9,7 @@
 // is detected when a Linguist filename has an extension that belongs to a
 // file type outside fileTypeRegistry (e.g. .editorconfig → EditorConfig).
 //
-//go:generate go run ../../internal/generate/knownfiles
+//go:generate go run ../../internal/generate/knownfiles/main.go
 package filetype
 
 import (
