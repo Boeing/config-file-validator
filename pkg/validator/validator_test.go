@@ -1067,7 +1067,7 @@ func Test_buildJSONPositionMapEmpty(t *testing.T) {
 
 func Test_buildYAMLPositionMap(t *testing.T) {
 	t.Parallel()
-	doc := []byte("name: app\nserver:\n  host: localhost\n  port: 8080\n")
+	doc := []byte("name: app\nserver:\n  host: example.local\n  port: 8080\n")
 	positions := buildYAMLPositionMap(doc)
 
 	require.Contains(t, positions, "(root)")
