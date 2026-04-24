@@ -30,6 +30,7 @@ type Config struct {
 	SchemaStore      *bool             `toml:"schemastore"`
 	SchemaStorePath  *string           `toml:"schemastore-path"`
 	Globbing         *bool             `toml:"globbing"`
+	Gitignore        *bool             `toml:"gitignore"`
 	SchemaMap        map[string]string `toml:"schema-map"`
 	TypeMap          map[string]string `toml:"type-map"`
 	Validators       ValidatorOptions  `toml:"validators"`

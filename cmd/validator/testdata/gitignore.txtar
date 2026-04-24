@@ -1,0 +1,60 @@
+# --gitignore skips files matched by .gitignore
+exec git init project
+exec git config -f project/.git/config user.email test@test.com
+exec git config -f project/.git/config user.name test
+
+exec validator --gitignore project
+stdout '✓.*keep.json'
+stdout '✓.*keep.yaml'
+! stdout 'ignored.json'
+! stdout 'build'
+
+# Without --gitignore, all files are found
+exec validator project
+stdout 'keep.json'
+stdout 'keep.yaml'
+stdout 'ignored.json'
+stdout 'build.output.json'
+
+# --gitignore is a no-op outside a git repo
+exec validator --gitignore norepo
+stdout 'a.json'
+stdout 'b.json'
+
+# .cfv.toml gitignore key works
+exec git init cfvproject
+exec validator --config=cfvproject/.cfv.toml cfvproject
+stdout '✓.*app.json'
+! stdout 'out.json'
+
+# CFV_GITIGNORE env var works (last because env persists in testscript)
+env CFV_GITIGNORE=true
+exec validator project
+stdout '✓.*keep.json'
+! stdout 'ignored.json'
+
+-- project/.gitignore --
+ignored.json
+build/
+-- project/keep.json --
+{"key": "value"}
+-- project/keep.yaml --
+key: value
+-- project/ignored.json --
+{"ignored": true}
+-- project/build/output.json --
+{"build": true}
+-- norepo/a.json --
+{"a": 1}
+-- norepo/b.json --
+{"b": 2}
+-- norepo/.gitignore --
+b.json
+-- cfvproject/.gitignore --
+gen/
+-- cfvproject/.cfv.toml --
+gitignore = true
+-- cfvproject/app.json --
+{"app": true}
+-- cfvproject/gen/out.json --
+{"gen": true}

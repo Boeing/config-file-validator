@@ -78,6 +78,7 @@ type validatorConfig struct {
 	schemaStorePath  *string
 	configPath       *string
 	noConfig         *bool
+	gitignore        *bool
 }
 
 type reporterFlags []string
@@ -204,6 +205,8 @@ func getFlags(args []string) (validatorConfig, error) {
 				"If not specified, searches for .cfv.toml in the current and parent directories.")
 		noConfigPtr = flagSet.Bool("no-config", false,
 			"Disable automatic discovery of .cfv.toml configuration files.")
+		gitignorePtr = flagSet.Bool("gitignore", false,
+			"Skip files and directories matched by .gitignore patterns.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -277,6 +280,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		schemaStorePathPtr,
 		configPathPtr,
 		noConfigPtr,
+		gitignorePtr,
 	}
 
 	return config, nil
@@ -445,6 +449,7 @@ func applyDefaultFlagsFromEnv() error {
 		"no-schema":          "CFV_NO_SCHEMA",
 		"schemastore":        "CFV_SCHEMASTORE",
 		"schemastore-path":   "CFV_SCHEMASTORE_PATH",
+		"gitignore":          "CFV_GITIGNORE",
 	}
 
 	for flagName, envVar := range flagsEnvMap {
@@ -726,6 +731,10 @@ func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string, fileTypes [
 		fsOpts = append(fsOpts, finder.WithTypeOverrides(typeOverrides))
 	}
 
+	if *cfg.gitignore {
+		fsOpts = append(fsOpts, finder.WithGitignore(true))
+	}
+
 	return fsOpts, nil
 }
 
@@ -878,6 +887,9 @@ func applyConfigFile(cfg *validatorConfig) (*configfile.ValidatorOptions, error)
 	}
 	if !isFlagSet("globbing") && fileCfg.Globbing != nil {
 		cfg.globbing = fileCfg.Globbing
+	}
+	if !isFlagSet("gitignore") && fileCfg.Gitignore != nil {
+		cfg.gitignore = fileCfg.Gitignore
 	}
 	if len(cfg.schemaMap) == 0 && len(fileCfg.SchemaMap) > 0 {
 		for pattern, schema := range fileCfg.SchemaMap {

@@ -254,6 +254,10 @@ optional flags:
         A comma separated list of file types to ignore
   -file-types string
         A comma separated list of file types to validate
+  -gitignore
+        Skip files and directories matched by .gitignore patterns.
+        Respects nested .gitignore files, .git/info/exclude, and global git ignore config.
+        Only active inside a Git repository; ignored otherwise.
   -globbing
         If globbing flag is set, check for glob patterns in the arguments.
   -groupby string
@@ -321,6 +325,7 @@ depth = 3
 quiet = false
 schemastore = true
 require-schema = false
+gitignore = false
 reporter = ["standard"]
 groupby = ["filetype", "pass-fail"]
 
@@ -353,6 +358,7 @@ comment = "#"
 | `schemastore` | boolean | `--schemastore` |
 | `schemastore-path` | string | `--schemastore-path` |
 | `globbing` | boolean | `--globbing` |
+| `gitignore` | boolean | `--gitignore` |
 | `schema-map` | table (pattern = path) | `--schema-map` |
 | `type-map` | table (pattern = type) | `--type-map` |
 | `validators` | table | Per-validator options (see below) |
@@ -387,6 +393,7 @@ The config-file-validator supports setting options via environment variables. If
 | `CFV_SCHEMASTORE`           | `-schemastore`         |
 | `CFV_SCHEMASTORE_PATH`      | `-schemastore-path`    |
 | `CFV_GLOBBING`          | `-globbing`  |
+| `CFV_GITIGNORE`         | `-gitignore` |
 
 ### Examples
 
@@ -419,6 +426,14 @@ validator --exclude-dirs=/path/to/search/tests /path/to/search
 ```
 
 ![Exclude Dirs Run](./img/exclude_dirs.gif)
+
+#### Skip gitignored files
+
+Skip files and directories matched by `.gitignore` patterns. Respects nested `.gitignore` files, `.git/info/exclude`, and global git ignore config. Only active inside a Git repository.
+
+```shell
+validator --gitignore /path/to/search
+```
 
 #### Exclude file types
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `--gitignore` flag to skip files and directories matched by `.gitignore` patterns, including nested `.gitignore` files, `.git/info/exclude`, and global git ignore config. Supported via CLI flag, `CFV_GITIGNORE` env var, and `gitignore = true` in `.cfv.toml`.
 - Automatic file type detection from GitHub Linguist's `languages.yml` via `go generate`
 - ~90 known filenames auto-detected (`.babelrc`, `tsconfig.json`, `Pipfile`, `pom.xml`, `.gitconfig`, etc.)
 - SchemaStore now resolves schemas for extensionless known files (`.babelrc`, `.clangd`, etc.)
