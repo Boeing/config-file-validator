@@ -45,4 +45,4 @@ require (
 	golang.org/x/tools v0.42.0 // indirect
 )
 
-replace github.com/Boeing/go-just => /Users/se456c/src/experimental/go-just
+replace github.com/Boeing/go-just => ./pkg/validator/justfile
