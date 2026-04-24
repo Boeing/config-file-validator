@@ -43,9 +43,9 @@ exec validator --no-config project/custom.cfg
 # With config file, custom.cfg is recognized as JSON via type-map
 exec validator --config=cfv/typemap.toml project/custom.cfg
 stdout '✓'
-# --no-config ignores config file (tsconfig fails as strict JSON)
-! exec validator --no-config project/tsconfig.json
-stdout '×'
+# --no-config ignores config file (tsconfig passes as JSONC via known files, not config)
+exec validator --no-config project/tsconfig.json
+stdout '✓'
 
 -- cfv/typemap.toml --
 [type-map]
