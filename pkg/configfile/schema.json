@@ -63,6 +63,10 @@
       "type": "boolean",
       "description": "Enable glob pattern matching for search paths"
     },
+    "gitignore": {
+      "type": "boolean",
+      "description": "Skip files and directories matched by .gitignore patterns"
+    },
     "schema-map": {
       "type": "object",
       "additionalProperties": { "type": "string" },

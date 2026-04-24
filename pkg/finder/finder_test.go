@@ -1,7 +1,9 @@
 package finder
 
 import (
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -364,4 +366,234 @@ func Benchmark_Finder(b *testing.B) {
 	for b.Loop() {
 		_, _ = fsFinder.Find()
 	}
+}
+
+// initGitRepo creates a temp directory with a real git repo and returns the path.
+func initGitRepo(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	ctx := context.Background()
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "test@test.com"},
+		{"config", "user.name", "test"},
+	} {
+		cmd := exec.CommandContext(ctx, "git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %s: %v", args, out, err)
+		}
+	}
+	return dir
+}
+
+func fileNames(files []FileMetadata) []string {
+	names := make([]string, len(files))
+	for i, f := range files {
+		names[i] = f.Name
+	}
+	return names
+}
+
+func Test_fsFinderGitignore(t *testing.T) {
+	tests := []struct {
+		name     string
+		useRepo  bool
+		setup    func(t *testing.T, dir string)
+		pathRoot func(dir string) string // defaults to dir if nil
+		opts     []FSFinderOptions
+		expected []string
+	}{
+		{
+			name:    "root gitignore excludes files",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, "ignored.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, ".gitignore", "ignored.json\n")
+			},
+			expected: []string{"good.json"},
+		},
+		{
+			name:    "directory pattern skips entire dir",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "keep.json", testhelper.ValidContent["json"])
+				sub := testhelper.CreateSubdir(t, dir, "build")
+				testhelper.WriteFile(t, sub, "skip.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, ".gitignore", "build/\n")
+			},
+			expected: []string{"keep.json"},
+		},
+		{
+			name:    "nested gitignore file",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "root.json", testhelper.ValidContent["json"])
+				sub := testhelper.CreateSubdir(t, dir, "sub")
+				testhelper.WriteFile(t, sub, "keep.yaml", testhelper.ValidContent["yaml"])
+				testhelper.WriteFile(t, sub, "local.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, sub, ".gitignore", "local.json\n")
+			},
+			expected: []string{"root.json", "keep.yaml"},
+		},
+		{
+			name:    "git info exclude",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "keep.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, "secret.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, filepath.Join(dir, ".git", "info"), "exclude", "secret.json\n")
+			},
+			expected: []string{"keep.json"},
+		},
+		{
+			name:    "no-op without git repo",
+			useRepo: false,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "a.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, "b.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, ".gitignore", "b.json\n")
+			},
+			expected: []string{"a.json", "b.json"},
+		},
+		{
+			name:    "negation pattern",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "a.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, "b.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, "important.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, ".gitignore", "*.json\n!important.json\n")
+			},
+			expected: []string{"important.json"},
+		},
+		{
+			name:    "doublestar pattern",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "keep.json", testhelper.ValidContent["json"])
+				sub := testhelper.CreateSubdir(t, dir, "a")
+				deep := testhelper.CreateSubdir(t, sub, "b")
+				testhelper.WriteFile(t, deep, "debug.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, deep, "keep.yaml", testhelper.ValidContent["yaml"])
+				testhelper.WriteFile(t, dir, ".gitignore", "**/debug.json\n")
+			},
+			expected: []string{"keep.json", "keep.yaml"},
+		},
+		{
+			name:    "additive with exclude-dirs",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "app.json", testhelper.ValidContent["json"])
+				vendor := testhelper.CreateSubdir(t, dir, "vendor")
+				tests := testhelper.CreateSubdir(t, dir, "tests")
+				testhelper.WriteFile(t, vendor, "dep.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, tests, "test.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, ".gitignore", "vendor/\n")
+			},
+			opts:     []FSFinderOptions{WithExcludeDirs([]string{"tests"})},
+			expected: []string{"app.json"},
+		},
+		{
+			name:    "subdirectory search path inherits parent gitignore",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				sub := testhelper.CreateSubdir(t, dir, "sub")
+				testhelper.WriteFile(t, sub, "keep.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, sub, "drop.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, ".gitignore", "drop.json\n")
+			},
+			pathRoot: func(dir string) string { return filepath.Join(dir, "sub") },
+			expected: []string{"keep.json"},
+		},
+		{
+			name:    "intermediate directory gitignore",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				mid := testhelper.CreateSubdir(t, dir, "mid")
+				leaf := testhelper.CreateSubdir(t, mid, "leaf")
+				testhelper.WriteFile(t, leaf, "keep.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, leaf, "drop.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, mid, ".gitignore", "drop.json\n")
+			},
+			pathRoot: func(dir string) string { return filepath.Join(dir, "mid", "leaf") },
+			expected: []string{"keep.json"},
+		},
+		{
+			name:    "works with depth flag",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "root.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, "drop.json", testhelper.ValidContent["json"])
+				sub := testhelper.CreateSubdir(t, dir, "sub")
+				testhelper.WriteFile(t, sub, "deep.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, ".gitignore", "drop.json\n")
+			},
+			opts:     []FSFinderOptions{WithDepth(0)},
+			expected: []string{"root.json"},
+		},
+		{
+			name:    "handles BOM in gitignore",
+			useRepo: true,
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				testhelper.WriteFile(t, dir, "keep.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, "drop.json", testhelper.ValidContent["json"])
+				testhelper.WriteFile(t, dir, ".gitignore", "\xef\xbb\xbfdrop.json\n")
+			},
+			expected: []string{"keep.json"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var dir string
+			if tc.useRepo {
+				dir = initGitRepo(t)
+			} else {
+				dir = t.TempDir()
+			}
+			tc.setup(t, dir)
+
+			root := dir
+			if tc.pathRoot != nil {
+				root = tc.pathRoot(dir)
+			}
+			opts := append([]FSFinderOptions{WithPathRoots(root), WithGitignore(true)}, tc.opts...)
+			fsFinder := FileSystemFinderInit(opts...)
+			files, err := fsFinder.Find()
+			require.NoError(t, err)
+
+			names := fileNames(files)
+			require.Len(t, names, len(tc.expected))
+			for _, exp := range tc.expected {
+				require.Contains(t, names, exp)
+			}
+		})
+	}
+}
+
+func Test_fsFinderGitignoreDisabled(t *testing.T) {
+	dir := initGitRepo(t)
+	testhelper.WriteFile(t, dir, "a.json", testhelper.ValidContent["json"])
+	testhelper.WriteFile(t, dir, "b.json", testhelper.ValidContent["json"])
+	testhelper.WriteFile(t, dir, ".gitignore", "b.json\n")
+
+	fsFinder := FileSystemFinderInit(WithPathRoots(dir))
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 2, "without WithGitignore, .gitignore should have no effect")
 }
