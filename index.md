@@ -226,7 +226,7 @@ The config-file-validator can be used as a [pre-commit](https://pre-commit.com/)
 ```yaml
 repos:
   - repo: https://github.com/Boeing/config-file-validator
-    rev: v2.1.0
+    rev: v2.2.0
     hooks:
       - id: config-file-validator
 ```
