@@ -52,8 +52,12 @@ jobs:
           # The location of the configuration file can be changed by using `--config=`
           args: --timeout=10m
 
-          # Optional: show only new issues if it's a pull request. The default value is `false`.
-          # only-new-issues: true
+          install-mode: "goinstall"
 
-          # Optional:The mode to install golangci-lint. It can be 'binary' or 'goinstall'.
+      - name: golangci-lint (go-just nested module)
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: v2.11.4
+          working-directory: pkg/validator/justfile
+          args: --timeout=10m
           install-mode: "goinstall"

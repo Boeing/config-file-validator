@@ -41,7 +41,7 @@
 Config File Validator is a cross-platform CLI tool that validates configuration files in your project. Catch syntax errors, schema violations, and misconfigurations across all your config files — with one tool.
 
 - **Single binary, zero dependencies** — no runtimes, no package managers, just one executable
-- **15 file formats** — JSON, JSONC, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, PList, SARIF, and TOON
+- **16 file formats** — JSON, JSONC, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, Justfile, PList, SARIF, and TOON
 - **Syntax + schema validation** — validates structure with [JSON Schema](https://json-schema.org/) and XSD, with automatic [SchemaStore](https://www.schemastore.org/) integration
 - **CI/CD ready** — JSON, JUnit, and SARIF output for GitHub Actions, GitLab CI, Jenkins, and more
 - **Configurable** — project-level `.cfv.toml` config files, glob patterns, schema mappings, and environment variables
@@ -74,6 +74,7 @@ Config File Validator is a cross-platform CLI tool that validates configuration 
 | HCL | ✅ | ❌ |
 | HOCON | ✅ | ❌ |
 | INI | ✅ | ❌ |
+| Justfile | ✅ | ❌ |
 | JSON | ✅ | ✅ |
 | JSONC | ✅ | ✅ |
 | Properties | ✅ | ❌ |

@@ -50,10 +50,14 @@ jobs:
           go-version: "1.26"
 
       - name: Static Analysis
-        run: go vet ./...
+        run: |
+          go vet ./...
+          cd pkg/validator/justfile && go vet ./...
 
       - name: Check Formatting
-        run: test -z "$(gofmt -s -l -e .)"
+        run: |
+          test -z "$(gofmt -s -l -e .)"
+          cd pkg/validator/justfile && test -z "$(gofmt -s -l -e .)"
 
       - name: Check generated files are up to date
         run: |
@@ -106,7 +110,9 @@ jobs:
           go-version: "1.26"
 
       - name: Unit test
-        run: go test -v -cover -coverprofile coverage.out ./...
+        run: |
+          go test -v -cover -coverprofile coverage.out ./...
+          cd pkg/validator/justfile && go test -v -count=1 ./...
 
       - name: Check coverage
         id: check-coverage
