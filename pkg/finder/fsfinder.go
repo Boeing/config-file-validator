@@ -319,8 +319,11 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 		}
 	}
 
-	// Only cache exclusion if no type overrides are configured
-	if len(fsf.TypeOverrides) == 0 {
+	// Only cache exclusion if no type overrides are configured.
+	// Never cache "" (extensionless files) — one unrecognized extensionless
+	// file (e.g. .gitignore) must not prevent known extensionless files
+	// (e.g. Pipfile) from being found later.
+	if len(fsf.TypeOverrides) == 0 && extensionLowerCase != "" {
 		fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
 	}
 	return nil
