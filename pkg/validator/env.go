@@ -3,7 +3,6 @@ package validator
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/hashicorp/go-envparse"
 )
@@ -21,7 +20,7 @@ func (EnvValidator) ValidateSyntax(b []byte) (bool, error) {
 		var customError *envparse.ParseError
 		if errors.As(err, &customError) {
 			return false, &ValidationError{
-				Err:  fmt.Errorf("error at line %v: %w", customError.Line, customError.Err),
+				Err:  customError.Err,
 				Line: customError.Line,
 			}
 		}

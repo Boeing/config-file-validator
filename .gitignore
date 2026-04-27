@@ -20,3 +20,4 @@ vendor/
 .idea
 megalinter-reports/
 .kiro/
+.kiro/

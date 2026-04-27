@@ -2,6 +2,7 @@ package validator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
 )
@@ -29,12 +30,19 @@ func (HclValidator) ValidateSyntax(b []byte) (bool, error) {
 	}
 
 	subject := diags[0].Subject
-
 	row := subject.Start.Line
 	col := subject.Start.Column
 
+	msg := diags[0].Summary
+	if diags[0].Detail != "" {
+		msg += ": " + diags[0].Detail
+	}
+	if len(diags) > 1 {
+		msg += fmt.Sprintf(" (and %d other diagnostic(s))", len(diags)-1)
+	}
+
 	return false, &ValidationError{
-		Err:    fmt.Errorf("error at line %v column %v: %w", row, col, diags),
+		Err:    fmt.Errorf("%s", strings.TrimSpace(msg)),
 		Line:   row,
 		Column: col,
 	}

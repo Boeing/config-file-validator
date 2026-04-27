@@ -65,6 +65,8 @@ Config File Validator is a cross-platform CLI tool that validates configuration 
 
 ## Supported File Types
 
+## Supported File Types
+
 | Format | Syntax | Schema |
 |--------|:------:|:------:|
 | Apple PList XML | ✅ | ❌ |
@@ -121,12 +123,24 @@ For other `.json` files that use JSONC syntax (e.g., VS Code settings), map them
 
 ```shell
 validator --type-map="**/.vscode/*.json:jsonc" .
+Many tools use `.json` files that actually support JSONC syntax (e.g., `tsconfig.json`, VS Code settings). To validate these correctly, map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
+
+```shell
+validator --type-map="**/.vscode/*.json:jsonc" .
 ```
 
 Or in `.cfv.toml`:
 
 ```toml
 [type-map]
+"**/.vscode/*.json" = "jsonc"
+```
+
+JSON and JSONC are treated as a **family** — `--file-types=json` includes JSONC files, and `--exclude-file-types=json` excludes both JSON and JSONC files.
+
+"**/tsconfig.json" = "jsonc"
+"**/jsconfig.json" = "jsonc"
+"**/devcontainer.json" = "jsonc"
 "**/.vscode/*.json" = "jsonc"
 ```
 
@@ -212,7 +226,7 @@ The config-file-validator can be used as a [pre-commit](https://pre-commit.com/)
 ```yaml
 repos:
   - repo: https://github.com/Boeing/config-file-validator
-    rev: v2.1.0
+    rev: v2.2.0
     hooks:
       - id: config-file-validator
 ```
@@ -375,6 +389,21 @@ comment = "#"
 | `validators.ini.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
 
 YAML duplicate keys are always rejected (enforced by the YAML parser).
+| `schema-map` | table (pattern = path) | `--schema-map` |
+| `type-map` | table (pattern = type) | `--type-map` |
+| `validators` | table | Per-validator options (see below) |
+
+**Validator options:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `validators.csv.delimiter` | string | `","` | Field delimiter. Use `"\t"` for tab. |
+| `validators.csv.comment` | string | (none) | Lines starting with this character are ignored. |
+| `validators.csv.lazy-quotes` | boolean | `false` | Allow quotes in unquoted fields. |
+| `validators.json.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys in objects as errors. |
+| `validators.ini.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
+
+YAML duplicate keys are always rejected (enforced by the YAML parser).
 
 ### Environment Variables
 
@@ -514,6 +543,26 @@ validator --quiet /path/to/search
 ```
 
 ### Read from stdin
+
+Use `-` as the search path to read from stdin. Requires `--file-types` to specify exactly one file type.
+
+```shell
+echo '{"key": "value"}' | validator --file-types=json -
+cat config.yaml | validator --file-types=yaml -
+curl -s https://example.com/config.json | validator --file-types=json -
+```
+
+### Exit codes
+
+The validator uses the following exit codes:
+
+| Code | Meaning |
+|------|--------|
+| `0` | All files are valid |
+| `1` | One or more validation errors (syntax or schema) |
+| `2` | Runtime or configuration error (invalid flags, unreadable files, bad config) |
+
+### Search files using a glob pattern
 
 Use `-` as the search path to read from stdin. Requires `--file-types` to specify exactly one file type.
 
@@ -714,6 +763,12 @@ func main() {
 	  log.Printf("Errors occurred during execution: %v", err)
 	}
 	os.Exit(exitStatus)
+      cfv := cli.Init()
+      exitStatus, err := cfv.Run()
+      if err != nil {
+        log.Printf("Errors occurred during execution: %v", err)
+      }
+      os.Exit(exitStatus)
 }
 ```
 

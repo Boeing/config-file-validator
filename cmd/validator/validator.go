@@ -466,7 +466,7 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 		return nil
 	}
 
-	if envVarValue, ok := os.LookupEnv(envVar); ok {
+	if envVarValue, ok := os.LookupEnv(envVar); ok && envVarValue != "" {
 		if err := flagSet.Set(flagName, envVarValue); err != nil {
 			return err
 		}

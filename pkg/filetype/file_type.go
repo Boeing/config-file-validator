@@ -1,5 +1,3 @@
-//go:generate go run ../../internal/generate/knownfiles/main.go
-
 // Package filetype defines the supported file types and their validators.
 //
 // KnownFiles are populated at init time from three sources:
@@ -10,6 +8,8 @@
 // Filenames in excludeKnownFiles are skipped during population. A conflict
 // is detected when a Linguist filename has an extension that belongs to a
 // file type outside fileTypeRegistry (e.g. .editorconfig → EditorConfig).
+//
+//go:generate go run ../../internal/generate/knownfiles/main.go
 package filetype
 
 import (
@@ -150,7 +150,12 @@ var JSONCFileType = FileType{
 var JustfileFileType = FileType{
 	Name:       "justfile",
 	Extensions: arrToMap("just"),
-	Validator:  validator.JustfileValidator{},
+	KnownFiles: map[string]struct{}{
+		"justfile":  {},
+		"Justfile":  {},
+		".justfile": {},
+	},
+	Validator: validator.JustfileValidator{},
 }
 
 // extraKnownFiles contains manual entries not covered by Linguist.

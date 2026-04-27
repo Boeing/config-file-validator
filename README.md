@@ -121,12 +121,24 @@ For other `.json` files that use JSONC syntax (e.g., VS Code settings), map them
 
 ```shell
 validator --type-map="**/.vscode/*.json:jsonc" .
+Many tools use `.json` files that actually support JSONC syntax (e.g., `tsconfig.json`, VS Code settings). To validate these correctly, map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
+
+```shell
+validator --type-map="**/.vscode/*.json:jsonc" .
 ```
 
 Or in `.cfv.toml`:
 
 ```toml
 [type-map]
+"**/.vscode/*.json" = "jsonc"
+```
+
+JSON and JSONC are treated as a **family** — `--file-types=json` includes JSONC files, and `--exclude-file-types=json` excludes both JSON and JSONC files.
+
+"**/tsconfig.json" = "jsonc"
+"**/jsconfig.json" = "jsonc"
+"**/devcontainer.json" = "jsonc"
 "**/.vscode/*.json" = "jsonc"
 ```
 
@@ -212,7 +224,7 @@ The config-file-validator can be used as a [pre-commit](https://pre-commit.com/)
 ```yaml
 repos:
   - repo: https://github.com/Boeing/config-file-validator
-    rev: v2.1.0
+    rev: v2.2.0
     hooks:
       - id: config-file-validator
 ```
@@ -360,6 +372,21 @@ comment = "#"
 | `schemastore-path` | string | `--schemastore-path` |
 | `globbing` | boolean | `--globbing` |
 | `gitignore` | boolean | `--gitignore` |
+| `schema-map` | table (pattern = path) | `--schema-map` |
+| `type-map` | table (pattern = type) | `--type-map` |
+| `validators` | table | Per-validator options (see below) |
+
+**Validator options:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `validators.csv.delimiter` | string | `","` | Field delimiter. Use `"\t"` for tab. |
+| `validators.csv.comment` | string | (none) | Lines starting with this character are ignored. |
+| `validators.csv.lazy-quotes` | boolean | `false` | Allow quotes in unquoted fields. |
+| `validators.json.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys in objects as errors. |
+| `validators.ini.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
+
+YAML duplicate keys are always rejected (enforced by the YAML parser).
 | `schema-map` | table (pattern = path) | `--schema-map` |
 | `type-map` | table (pattern = type) | `--type-map` |
 | `validators` | table | Per-validator options (see below) |
