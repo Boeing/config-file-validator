@@ -26,7 +26,7 @@ optional flags:
 		Usage: --reporter <format>:<optional_file_path>
 		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
 		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
-		Supported formats: standard, json, junit, and sarif (default: "standard")
+		Supported formats: standard, json, junit, sarif, and github (default: "standard")
   -version
     	Version prints the release version of validator
 */
@@ -211,7 +211,7 @@ func getFlags(args []string) (validatorConfig, error) {
 	flagSet.Var(
 		&reporterConfigFlags,
 		"reporter",
-		"Report format and optional output path. Format: <type>:<path> Supported: standard, json, junit, sarif (default: standard)",
+		"Report format and optional output path. Format: <type>:<path> Supported: standard, json, junit, sarif, github (default: standard)",
 	)
 
 	typeMapConfigFlags := typeMapFlags{}
@@ -322,13 +322,13 @@ func validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr *string) error {
 }
 
 func validateReporterConf(conf map[string]string, groupBy *string) error {
-	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true}
+	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true, "github": true}
 	groupOutputReportTypes := map[string]bool{"standard": true, "json": true}
 
 	for reportType := range conf {
 		_, ok := acceptedReportTypes[reportType]
 		if !ok {
-			return errors.New("wrong parameter value for reporter, only supports standard, json, junit, or sarif")
+			return errors.New("wrong parameter value for reporter, only supports standard, json, junit, sarif, or github")
 		}
 
 		if !groupOutputReportTypes[reportType] && groupBy != nil && *groupBy != "" {
@@ -485,6 +485,8 @@ func getReporter(reportType, outputDest string) reporter.Reporter {
 		return reporter.NewJSONReporter(outputDest)
 	case "sarif":
 		return reporter.NewSARIFReporter(outputDest)
+	case "github":
+		return reporter.NewGitHubReporter(outputDest)
 	default:
 		return reporter.NewStdoutReporter(outputDest)
 	}
