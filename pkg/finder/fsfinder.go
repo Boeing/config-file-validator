@@ -290,10 +290,6 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 	walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 	extensionLowerCase := strings.ToLower(walkFileExtension)
 
-	if _, isExcluded := fsf.ExcludeFileTypes[extensionLowerCase]; isExcluded {
-		return nil
-	}
-
 	// Check type overrides first (user-specified mappings take priority)
 	for _, override := range fsf.TypeOverrides {
 		matched, err := doublestar.PathMatch(override.Pattern, path)
@@ -301,7 +297,7 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 			return err
 		}
 		if matched {
-			return fsf.addFile(path, dirEntry, override.FileType, seenMap, matchingFiles)
+			return fsf.addFileIfNotExcluded(path, dirEntry, override.FileType, seenMap, matchingFiles)
 		}
 	}
 
@@ -310,12 +306,12 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 	// files like tsconfig.json resolve to jsonc (not json).
 	for _, fileType := range fsf.FileTypes {
 		if _, isKnownFile := fileType.KnownFiles[walkFileName]; isKnownFile {
-			return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
+			return fsf.addFileIfNotExcluded(path, dirEntry, fileType, seenMap, matchingFiles)
 		}
 	}
 	for _, fileType := range fsf.FileTypes {
 		if _, hasExtension := fileType.Extensions[extensionLowerCase]; hasExtension {
-			return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
+			return fsf.addFileIfNotExcluded(path, dirEntry, fileType, seenMap, matchingFiles)
 		}
 	}
 
@@ -324,6 +320,25 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 		fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
 	}
 	return nil
+}
+
+func (fsf FileSystemFinder) addFileIfNotExcluded(path string, dirEntry fs.DirEntry, fileType filetype.FileType, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
+	if fsf.isFileTypeExcluded(fileType) {
+		return nil
+	}
+	return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
+}
+
+func (fsf FileSystemFinder) isFileTypeExcluded(fileType filetype.FileType) bool {
+	if _, isExcluded := fsf.ExcludeFileTypes[fileType.Name]; isExcluded {
+		return true
+	}
+	for extension := range fileType.Extensions {
+		if _, isExcluded := fsf.ExcludeFileTypes[extension]; isExcluded {
+			return true
+		}
+	}
+	return false
 }
 
 func (FileSystemFinder) addFile(path string, dirEntry fs.DirEntry, fileType filetype.FileType, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
