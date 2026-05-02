@@ -50,6 +50,38 @@ func Test_fsFinderExcludeFileTypes(t *testing.T) {
 	require.Len(t, files, 1)
 }
 
+func Test_fsFinderExcludeFileTypesKnownFiles(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, ".gitconfig", testhelper.ValidContent["ini"])
+	testhelper.WriteFile(t, dir, "config.ini", testhelper.ValidContent["ini"])
+	testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithExcludeFileTypes([]string{"ini"}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "good.json", files[0].Name)
+}
+
+func Test_fsFinderExcludeFileTypesKnownFilesByExtensionAlias(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "justfile", "test:\n\techo test\n")
+	testhelper.WriteFile(t, dir, "task.just", "test:\n\techo test\n")
+	testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithExcludeFileTypes([]string{"just"}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "good.json", files[0].Name)
+}
+
 func Test_fsFinderWithDepth(t *testing.T) {
 	// root/good.json, root/sub/good.yaml
 	dir := testhelper.CreateFixtureDir(t, "json")

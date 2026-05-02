@@ -473,7 +473,7 @@ Exclude file types in the search path. JSON and JSONC are treated as a family â€
 validator --exclude-file-types=json /path/to/search
 ```
 
-Note: `--exclude-file-types` filters by file extension. Extensionless known files (like `.gitconfig` or `.babelrc`) are not affected by this flag. Use `--type-map` or `.cfv.toml` for fine-grained control.
+Note: `--exclude-file-types` filters by resolved file type. Extensionless known files (like `.gitconfig` or `.babelrc`) are excluded when they resolve to an excluded type.
 
 ![Exclude File Types Run](./img/exclude_file_types.gif)
 
