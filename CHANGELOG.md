@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - KnownFiles now take priority over extension matching in the finder, so `tsconfig.json` resolves to JSONC (not JSON)
 - Extension exclusion cache no longer prevents known files from being found
 - Linguist known files that conflict with dedicated validators are automatically excluded (e.g. `.editorconfig` stays with EditorConfig, not INI)
+- `--exclude-file-types` now excludes files by resolved file type, including extensionless known files like `.gitconfig` and `justfile`
 
 ## [2.2.0] - 2026-04-10
 
