@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CUE (Configure, Unify, Execute) syntax validation (`.cue`) via [cuelang.org/go](https://cuelang.org/go) parser (closes #462)
 - Documentation website at https://boeing.github.io/config-file-validator
 - `--reporter=github` option that emits validation errors as GitHub Actions workflow commands so they appear as inline PR annotations, without requiring the separate `validate-configs-action` wrapper (closes #459)
 - Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded [go-just](https://github.com/Boeing/go-just) parser
