@@ -154,6 +154,8 @@ var testData = []struct {
 	{"validJustfile", []byte("default:\n    echo hello\n"), true, JustfileValidator{}},
 	{"validJustfileParams", []byte("build target=\"linux\":\n    GOOS={{target}} go build\n"), true, JustfileValidator{}},
 	{"invalidJustfileUnterminatedString", []byte("name := \"hello\n"), false, JustfileValidator{}},
+	{"validCue", []byte("a: 1\nb: \"hello\""), true, CueValidator{}},
+	{"invalidCue", []byte("a: 1 b:"), false, CueValidator{}},
 	{"validSarif210", validSarif210Bytes, true, SarifValidator{}},
 	{"validSarif22", validSarif22Bytes, true, SarifValidator{}},
 	{"invalidSarif", []byte(`{"not": "sarif"}`), false, SarifValidator{}},
