@@ -154,9 +154,9 @@ exec validator --exclude-file-types=jsonc project
 ! stdout 'tsconfig'
 stdout '✓.*pom.xml'
 
-# Exclude ini — .gitconfig has no extension so it's not excluded by extension.
+# Exclude ini — .gitconfig resolves to INI, so it is excluded.
 exec validator --exclude-file-types=ini dotfiles
-stdout 'gitconfig'
+! stdout 'gitconfig'
 
 # ============================================================
 # PART 6: --file-types with known files
