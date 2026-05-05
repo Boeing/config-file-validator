@@ -20,7 +20,7 @@ require (
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
 	github.com/toon-format/toon-go v0.0.0-20251108125615-44b4cd22477f
 	github.com/xeipuuv/gojsonschema v1.2.0
-	gopkg.in/ini.v1 v1.67.1
+	gopkg.in/ini.v1 v1.67.2
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 )
