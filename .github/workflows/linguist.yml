@@ -41,7 +41,7 @@ jobs:
             --state open \
             --search "in:title \"chore: update github-linguist SHA to ${{ steps.fetch-sha.outputs.sha }}\"" \
             --json number \
-            --jq 'length' \ 
+            --jq 'length' \
             --repo "${{ github.repository }}")
 
           if [[ "$SHA_EXISTS" != "0" ]]; then
