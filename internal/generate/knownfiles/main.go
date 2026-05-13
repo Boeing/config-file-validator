@@ -1,5 +1,7 @@
 //go:build ignore
 
+//go:generate go run ../../internal/generate/knownfiles
+
 // Command knownfiles generates known_files_gen.go from GitHub Linguist's languages.yml.
 //
 // It maps Linguist language names to config-file-validator file types and extracts
@@ -8,9 +10,9 @@
 // Manually running this command should not be necessary, as it's invoked by the GitHub Actions workflow. 
 // However, if you want to run it locally, make sure to update the linguistSHA constant to the latest commit SHA of GitHub Linguist before running.
 // Command to run locally: 
-// go generate ./pkg/filetype/...
 //
-//go:generate go run ../../internal/generate/knownfiles
+// go generate ./pkg/filetype/...
+
 package main
 
 import (
