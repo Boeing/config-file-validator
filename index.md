@@ -5,7 +5,7 @@ canonical_url: https://boeing.github.io/config-file-validator/
 ---
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-93.5%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-90.1%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
