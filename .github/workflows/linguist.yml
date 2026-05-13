@@ -45,12 +45,14 @@ jobs:
             --repo "${{ github.repository }}")
 
           if [[ "$SHA_EXISTS" != "0" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Skipping PR creation - existing PR with same SHA found"
-            exit 0 
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Update pinned SHA in internal/generate/knownfiles/main.go
         id: update-sha
+        if: steps.check-pr.outputs.skip != 'true'
         run: |
           FILEPATH=internal/generate/knownfiles/main.go
           SHA_REGEX='[0-9a-f]{40}'
@@ -77,13 +79,13 @@ jobs:
           fi
 
       - name: Generate known_files_gen.go
-        if: steps.update-sha.outputs.sha_updated == 'true'
+        if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
         run: |
           go generate  ./pkg/filetype/file_type.go   
           git diff pkg/filetype/known_files_gen.go
 
       - name: Commit changes
-        if: steps.update-sha.outputs.sha_updated == 'true'
+        if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -92,7 +94,7 @@ jobs:
 
       - name: Create branch and push
         id: create-branch
-        if: steps.update-sha.outputs.sha_updated == 'true'
+        if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
         run: |
           BRANCH="autopr/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git checkout -b "$BRANCH"
@@ -100,7 +102,7 @@ jobs:
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
-        if: steps.update-sha.outputs.sha_updated == 'true'
+        if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
