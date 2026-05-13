@@ -33,7 +33,9 @@ jobs:
           [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]] && { echo "Invalid SHA format"; exit 1; }
 
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
       - name: Check existing PR
+        id: check-pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -50,6 +52,7 @@ jobs:
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+
       - name: Update pinned SHA in internal/generate/knownfiles/main.go
         id: update-sha
         if: steps.check-pr.outputs.skip != 'true'
