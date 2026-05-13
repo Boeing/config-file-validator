@@ -7,6 +7,11 @@ on:
   schedule:
     - cron: '0 0 * * 1'     # every monday at midnight
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Force update"
+        required: false
+        default: "false"
   
 permissions:
   contents: write
