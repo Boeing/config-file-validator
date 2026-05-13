@@ -63,7 +63,7 @@ jobs:
 
       - name: Generate known_files_gen.go
         if: steps.update-sha.outputs.sha_updated == 'true'
-        run: go generate ./internal/generate/knownfiles
+        run: go run ./internal/generate/knownfiles
 
       - name: Commit changes
         if: steps.update-sha.outputs.sha_updated == 'true'
