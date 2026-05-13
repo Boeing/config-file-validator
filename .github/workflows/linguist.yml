@@ -39,7 +39,7 @@ jobs:
         run: |
           SHA_EXISTS=$(gh pr list \
             --state open \
-            --search 'in:title "chore: update github-linguist SHA to ${{ steps.fetch-sha.outputs.sha }}"' \
+            --search "in:title \"chore: update github-linguist SHA to ${{ steps.fetch-sha.outputs.sha }}\"" \
             --json number \
             --jq 'length' \ 
             --repo "${{ github.repository }}")
