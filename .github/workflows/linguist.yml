@@ -48,12 +48,12 @@ jobs:
 
           EXISTING_SHA=$(grep -oE "${FIELD_REGEX}${SHA_REGEX}" "$FILEPATH" | grep -oE "$SHA_REGEX")
 
-          if [[ "$EXISTING_SHA" == "$SHA" ]]; then
+          if [[ "$EXISTING_SHA" == "${{ steps.fetch-sha.outputs.sha }}" ]]; then
             echo "SHA already up to date, skipping"
             exit 0
           fi
 
-          sed -E -i "s/(${FIELD_REGEX})${SHA_REGEX}(\")/\1$SHA\2/" "$FILEPATH"
+          sed -E -i "s/(${FIELD_REGEX})${SHA_REGEX}(\")/\1${{ steps.fetch-sha.outputs.sha }}\2/" "$FILEPATH"
 
           if git diff --quiet; then
             echo "sha_updated=false" >> "$GITHUB_OUTPUT"
