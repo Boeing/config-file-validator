@@ -6,7 +6,8 @@ name: Linguist SHA update
 on:
   schedule:
     - cron: '0 0 * * 1'     # every monday at midnight
-
+  workflow_dispatch:
+  
 permissions:
   contents: write
   pull-requests: write
