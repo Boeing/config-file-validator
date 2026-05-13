@@ -33,6 +33,22 @@ jobs:
           [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]] && { echo "Invalid SHA format"; exit 1; }
 
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+      - name: Check existing PR
+        id: pr-check
+        if: steps.update-sha.outputs.sha_updated == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA_EXISTS=$(gh pr list \
+            --state open \
+            --search "repo:${{ github.repository }} is:pr \"update github-linguist SHA to ${{ steps.fetch-sha.outputs.sha }}\"" \
+            --json number \
+            --jq 'length')
+
+          if [[  "$SHA_EXISTS" != "0" ]]; then
+            echo "Skipping PR creation - existing PR with same SHA found"
+            exit 0 
+          fi
 
       - name: Update pinned SHA in internal/generate/knownfiles/main.go
         id: update-sha
@@ -84,25 +100,8 @@ jobs:
           git push --set-upstream origin "$BRANCH"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
-      - name: Check existing PR
-        id: pr-check
-        if: steps.update-sha.outputs.sha_updated == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          EXISTS=$(gh pr list \
-            --head "${{ steps.create-branch.outputs.branch }}" \
-            --json number \
-            --jq 'length')
-
-          if [[ "$EXISTS" != "0" ]]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Create pull request
-        if: steps.update-sha.outputs.sha_updated == 'true' && steps.pr-check.outputs.skip != 'true'
+        if: steps.update-sha.outputs.sha_updated == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
