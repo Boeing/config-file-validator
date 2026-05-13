@@ -6,12 +6,8 @@ name: Linguist SHA update
 on:
   schedule:
     - cron: '0 0 * * 1'     # every monday at midnight
-  workflow_dispatch:
-    inputs:
-      force:
-        description: "Force update"
-        required: false
-        default: "false"
+  workflow_dispatch:        # yamllint disable-line rule:truthy - false positive
+
 permissions:
   contents: write
   pull-requests: write
