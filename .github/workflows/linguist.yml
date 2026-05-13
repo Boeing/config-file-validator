@@ -41,11 +41,12 @@ jobs:
         run: |
           SHA_EXISTS=$(gh pr list \
             --state open \
-            --search "repo:${{ github.repository }} is:pr \"update github-linguist SHA to ${{ steps.fetch-sha.outputs.sha }}\"" \
+            --search 'in:title "chore: update github-linguist SHA to ${{ steps.fetch-sha.outputs.sha }}"' \
             --json number \
-            --jq 'length')
+            --jq 'length' \ 
+            --repo "${{ github.repository }}")
 
-          if [[  "$SHA_EXISTS" != "0" ]]; then
+          if [[ "$SHA_EXISTS" != "0" ]]; then
             echo "Skipping PR creation - existing PR with same SHA found"
             exit 0 
           fi
