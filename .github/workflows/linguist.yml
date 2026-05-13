@@ -12,7 +12,6 @@ on:
         description: "Force update"
         required: false
         default: "false"
-  
 permissions:
   contents: write
   pull-requests: write
