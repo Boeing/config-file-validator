@@ -34,8 +34,6 @@ jobs:
 
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
       - name: Check existing PR
-        id: pr-check
-        if: steps.update-sha.outputs.sha_updated == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
