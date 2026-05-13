@@ -7,7 +7,7 @@ on:
   schedule:
     - cron: '0 0 * * 1'     # every monday at midnight
   workflow_dispatch:        # yamllint disable-line rule:truthy - false positive
-  
+
 permissions:
   contents: read
   pull-requests: read
@@ -61,12 +61,16 @@ jobs:
             echo "sha_updated=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Generate known_files_gen.go
+        if: steps.update-sha.outputs.sha_updated == 'true'
+        run: go generate ./internal/generate/knownfiles
+
       - name: Commit changes
         if: steps.update-sha.outputs.sha_updated == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add internal/generate/knownfiles/main.go
+          git add internal/generate/knownfiles/main.go pkg/filetype/known_files_gen.go
           git commit -m "chore: update github-linguist SHA"
 
       - name: Create branch and push
