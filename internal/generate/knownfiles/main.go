@@ -25,7 +25,8 @@ import (
 )
 
 const (
-	linguistURL = "https://raw.githubusercontent.com/github-linguist/linguist/refs/heads/main/lib/linguist/languages.yml"
+	linguistSHA	= "e535c9adf5306132e9df0b75ffe1ce2679873fe8"
+	linguistURL = "https://raw.githubusercontent.com/github-linguist/linguist/" + linguistSHA + "/lib/linguist/languages.yml"
 	outputFile  = "known_files_gen.go"
 )
 
