@@ -7,9 +7,9 @@
 // It maps Linguist language names to config-file-validator file types and extracts
 // the "filenames" entries for each supported type.
 //
-// Manually running this command should not be necessary, as it's invoked by the GitHub Actions workflow. 
+// Manually running this command should not be necessary, as it's invoked by the GitHub Actions workflow.
 // However, if you want to run it locally, make sure to update the linguistSHA constant to the latest commit SHA of GitHub Linguist before running.
-// Command to run locally: 
+// Command to run locally:
 //
 // go generate ./pkg/filetype/...
 
