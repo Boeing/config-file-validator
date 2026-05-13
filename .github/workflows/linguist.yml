@@ -1,7 +1,7 @@
 # GitHub Actions Workflow: Linguist
 # This workflow file defines automation tasks for the Linguist tool
 ---
-name: Linguist SHA update
+name: Linguist update
 
 on:
   schedule:
@@ -112,7 +112,7 @@ jobs:
 
            Bumps the pinned [github/linguist](https://github.com/github/linguist) SHA in the file [internal/generate/knownfiles/main.go](internal/generate/knownfiles/main.go) to the latest version.
            Also regenerates the [pkg/filetype/known_files_gen.go](pkg/filetype/known_files_gen.go) file with the updated SHA and includes it in the PR.
-           
+
           > This PR was automatically created by workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
           --base ${{ github.event.repository.default_branch }} \
           --head ${{ steps.create-branch.outputs.branch }}
