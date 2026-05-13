@@ -1,4 +1,4 @@
-//go:generate go run ../../internal/generate/knownfiles
+//go:generate go run .
 
 // Command knownfiles generates known_files_gen.go from GitHub Linguist's languages.yml.
 //
