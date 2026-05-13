@@ -9,9 +9,7 @@ on:
   workflow_dispatch:        # yamllint disable-line rule:truthy - false positive
 
 permissions:
-  contents: write
-  pull-requests: write
-
+  contents: read
 jobs:
   update-sha:
     name: Update Linguist SHA
@@ -34,6 +32,8 @@ jobs:
 
       - name: Update pinned SHA in internal/generate/knownfiles/main.go
         id: update-sha
+        permissions:
+          contents: write
         run: |
           FILEPATH=internal/generate/knownfiles/main.go
           SHA_REGEX='[0-9a-f]{40}'
@@ -95,6 +95,8 @@ jobs:
 
       - name: Create pull request
         if: steps.update-sha.outputs.sha_updated == 'true' && steps.pr-check.outputs.skip != 'true'
+        permissions:
+          pull-requests: write
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
