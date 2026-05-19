@@ -84,7 +84,7 @@ jobs:
       - name: Generate known_files_gen.go
         if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
         run: |
-          go generate  ./pkg/filetype/file_type.go   
+          go generate  ./pkg/filetype/file_type.go
           git diff pkg/filetype/known_files_gen.go
 
       - name: Commit changes
