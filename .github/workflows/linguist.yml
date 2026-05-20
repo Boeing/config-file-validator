@@ -44,81 +44,33 @@ jobs:
 
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Check existing PR
-        id: check-pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          SHA_EXISTS=$(gh pr list \
-            --state open \
-            --search "in:title \"chore: update github-linguist SHA to ${{ steps.fetch-sha.outputs.sha }}\"" \
-            --json number \
-            --jq 'length' \
-            --repo "${{ github.repository }}")
-
-          if [[ "$SHA_EXISTS" != "0" ]]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Skipping PR creation - existing PR with same SHA found"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Update pinned SHA in internal/generate/knownfiles/main.go
+      - name: Update pinned SHA and regenerate
         id: update-sha
-        if: steps.check-pr.outputs.skip != 'true'
+        env:
+          SHA: ${{ steps.linguist.outputs.sha }}
+          FILEPATH: "internal/generate/knownfiles/main.go"
+          SHA_REGEX: "[0-9a-f]{40}"
+          FIELD_REGEX: 'linguistSHA\s*=\s*"'
         run: |
-          FILEPATH=internal/generate/knownfiles/main.go
-          SHA_REGEX='[0-9a-f]{40}'
-          FIELD_REGEX='linguistSHA\s*=\s*"'
-
-          if ! grep -qE 'linguistSHA\s*=\s*"[0-9a-f]{40}"' "$FILEPATH"; then
+          if ! grep -qE "${FIELD_REGEX}${SHA_REGEX}" "$FILEPATH"; then
             echo "Missing linguistSHA line"
             exit 1
           fi
 
           EXISTING_SHA=$(grep -oE "${FIELD_REGEX}${SHA_REGEX}" "$FILEPATH" | grep -oE "$SHA_REGEX")
 
-          if [[ "$EXISTING_SHA" == "${{ steps.fetch-sha.outputs.sha }}" ]]; then
+          if [[ "$EXISTING_SHA" == "${SHA}" ]]; then
             echo "SHA already up to date, skipping"
             exit 0
           fi
 
-          sed -E -i "s/(${FIELD_REGEX})${SHA_REGEX}(\")/\1${{ steps.fetch-sha.outputs.sha }}\2/" "$FILEPATH"
-
-          if git diff --quiet; then
-            echo "sha_updated=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha_updated=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate known_files_gen.go
-        if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
-        run: |
+          sed -E -i "s/(${FIELD_REGEX})${SHA_REGEX}(\")/\1${SHA}\2/" "$FILEPATH"
           go generate  ./pkg/filetype/file_type.go
-          git diff pkg/filetype/known_files_gen.go
-
-      - name: Commit changes
-        if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add internal/generate/knownfiles/main.go pkg/filetype/known_files_gen.go
-          git commit -m "chore: update github-linguist SHA"
-
-      - name: Create branch and push
-        id: create-branch
-        if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
-        run: |
-          BRANCH="autopr/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          git checkout -b "$BRANCH"
-          git push --set-upstream origin "$BRANCH"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        if: steps.update-sha.outputs.sha_updated == 'true' && steps.check-pr.outputs.skip != 'true'
         with:
-          branch: ${{ steps.create-branch.outputs.branch }}
+          branch: "auto/linguist-update"
           commit-message: "chore: update github-linguist SHA"
           title: "chore: update github-linguist SHA"
           body: |
