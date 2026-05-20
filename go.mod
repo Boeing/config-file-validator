@@ -7,7 +7,7 @@ require (
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-billy/v5 v5.9.0
-	github.com/go-git/go-git/v5 v5.19.0
+	github.com/go-git/go-git/v5 v5.19.1
 	github.com/gurkankaymak/hocon v1.2.23
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.23.0
