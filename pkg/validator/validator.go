@@ -20,12 +20,21 @@ type ValidationError struct {
 func (e *ValidationError) Error() string { return e.Err.Error() }
 func (e *ValidationError) Unwrap() error { return e.Err }
 
+// SchemaErrorPosition holds the source position for a single schema error.
+type SchemaErrorPosition struct {
+	Line   int
+	Column int
+}
+
 // SchemaErrors holds multiple schema validation errors.
 // The joined Error() string is used for backward compatibility,
 // while Errors() returns individual error messages.
+// Positions is parallel to Items — Positions[i] is the source position
+// for Items[i]. A zero-value position means the location is unknown.
 type SchemaErrors struct {
-	Prefix string
-	Items  []string
+	Prefix    string
+	Items     []string
+	Positions []SchemaErrorPosition
 }
 
 func (e *SchemaErrors) Error() string {

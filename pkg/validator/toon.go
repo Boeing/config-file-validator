@@ -10,7 +10,7 @@ import (
 	"github.com/toon-format/toon-go"
 )
 
-var toonLineRe = regexp.MustCompile(`line (\d+):`)
+var toonLineRe = regexp.MustCompile(`line (\d+): (.*)`)
 
 type ToonValidator struct{}
 
@@ -21,7 +21,7 @@ func (ToonValidator) ValidateSyntax(b []byte) (bool, error) {
 	if err != nil {
 		if m := toonLineRe.FindStringSubmatch(err.Error()); m != nil {
 			if line, convErr := strconv.Atoi(m[1]); convErr == nil {
-				return false, &ValidationError{Err: err, Line: line}
+				return false, &ValidationError{Err: errors.New(m[2]), Line: line}
 			}
 		}
 		return false, err

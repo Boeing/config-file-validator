@@ -19,7 +19,7 @@ func (JSONCValidator) ValidateSyntax(b []byte) (bool, error) {
 		line, col := parseHujsonError(err)
 		if line > 0 {
 			return false, &ValidationError{
-				Err:    fmt.Errorf("error at line %v column %v: %w", line, col, err),
+				Err:    err,
 				Line:   line,
 				Column: col,
 			}

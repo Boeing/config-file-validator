@@ -715,6 +715,50 @@ func Test_SchemaErrorsMethod(t *testing.T) {
 	require.Equal(t, "test: error1; error2", se.Error())
 }
 
+func Test_formatErrorsSchemaWithPositions(t *testing.T) {
+	t.Parallel()
+	se := &validator.SchemaErrors{
+		Prefix: "schema validation failed: ",
+		Items:  []string{"port: Invalid type", "name is required"},
+		Positions: []validator.SchemaErrorPosition{
+			{Line: 3, Column: 5},
+			{Line: 0, Column: 0},
+		},
+	}
+	errs, lines, cols := formatErrors(se, 0, 0)
+	require.Len(t, errs, 2)
+	require.Contains(t, errs[0], "line 3, column 5")
+	require.Contains(t, errs[1], "schema: ")
+	require.NotContains(t, errs[1], "line")
+	require.Equal(t, 3, lines[0])
+	require.Equal(t, 0, lines[1])
+	require.Equal(t, 5, cols[0])
+}
+
+func Test_formatErrorsSchemaLineOnly(t *testing.T) {
+	t.Parallel()
+	se := &validator.SchemaErrors{
+		Prefix: "schema validation failed: ",
+		Items:  []string{"port: Invalid type"},
+		Positions: []validator.SchemaErrorPosition{
+			{Line: 7, Column: 0},
+		},
+	}
+	errs, lines, _ := formatErrors(se, 0, 0)
+	require.Len(t, errs, 1)
+	require.Contains(t, errs[0], "line 7:")
+	require.NotContains(t, errs[0], "column")
+	require.Equal(t, 7, lines[0])
+}
+
+func Test_formatErrorsNil(t *testing.T) {
+	t.Parallel()
+	errs, lines, cols := formatErrors(nil, 0, 0)
+	require.Nil(t, errs)
+	require.Nil(t, lines)
+	require.Nil(t, cols)
+}
+
 func Test_CLINoJSONCNoteOnYAML(t *testing.T) {
 	dir := t.TempDir()
 	testhelper.WriteFile(t, dir, "bad.yaml", "a: b\nc: d:::::::::::::::\n")

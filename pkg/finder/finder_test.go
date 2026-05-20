@@ -50,6 +50,38 @@ func Test_fsFinderExcludeFileTypes(t *testing.T) {
 	require.Len(t, files, 1)
 }
 
+func Test_fsFinderExcludeFileTypesKnownFiles(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, ".gitconfig", testhelper.ValidContent["ini"])
+	testhelper.WriteFile(t, dir, "config.ini", testhelper.ValidContent["ini"])
+	testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithExcludeFileTypes([]string{"ini"}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "good.json", files[0].Name)
+}
+
+func Test_fsFinderExcludeFileTypesKnownFilesByExtensionAlias(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "justfile", "test:\n\techo test\n")
+	testhelper.WriteFile(t, dir, "task.just", "test:\n\techo test\n")
+	testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithExcludeFileTypes([]string{"just"}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "good.json", files[0].Name)
+}
+
 func Test_fsFinderWithDepth(t *testing.T) {
 	// root/good.json, root/sub/good.yaml
 	dir := testhelper.CreateFixtureDir(t, "json")
@@ -596,4 +628,42 @@ func Test_fsFinderGitignoreDisabled(t *testing.T) {
 	files, err := fsFinder.Find()
 	require.NoError(t, err)
 	require.Len(t, files, 2, "without WithGitignore, .gitignore should have no effect")
+}
+
+// Test_fsFinderExtensionCacheNoPoison verifies that an unrecognized
+// extensionless file (e.g. LICENSE) does not poison the extension
+// cache and prevent subsequent extensionless known files from being found.
+func Test_fsFinderExtensionCacheNoPoison(t *testing.T) {
+	dir := t.TempDir()
+
+	// LICENSE sorts before Pipfile, is truly extensionless (filepath.Ext = ""),
+	// and is not a known file. Without the fix, it caches "" in
+	// ExcludeFileTypes and blocks Pipfile.
+	testhelper.WriteFile(t, dir, "LICENSE", "MIT License\n")
+	testhelper.WriteFile(t, dir, "Pipfile", "[packages]\nrequests = \"*\"\n")
+	testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	pipfileType := filetype.FileType{
+		Name:       "toml",
+		Extensions: tools.ArrToMap("toml"),
+		KnownFiles: tools.ArrToMap("Pipfile"),
+		Validator:  validator.TomlValidator{},
+	}
+	jsonType := filetype.FileType{
+		Name:       "json",
+		Extensions: tools.ArrToMap("json"),
+		Validator:  validator.JSONValidator{},
+	}
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes([]filetype.FileType{pipfileType, jsonType}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+
+	names := fileNames(files)
+	require.Contains(t, names, "Pipfile", "extensionless known file must not be blocked by cache")
+	require.Contains(t, names, "good.json")
+	require.Len(t, names, 2, "LICENSE should not be found (unrecognized)")
 }

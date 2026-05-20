@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-93.3%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-93.5%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -41,7 +41,7 @@
 Config File Validator is a cross-platform CLI tool that validates configuration files in your project. Catch syntax errors, schema violations, and misconfigurations across all your config files — with one tool.
 
 - **Single binary, zero dependencies** — no runtimes, no package managers, just one executable
-- **15 file formats** — JSON, JSONC, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, PList, SARIF, and TOON
+- **16 file formats** — JSON, JSONC, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, Justfile, PList, SARIF, and TOON
 - **Syntax + schema validation** — validates structure with [JSON Schema](https://json-schema.org/) and XSD, with automatic [SchemaStore](https://www.schemastore.org/) integration
 - **CI/CD ready** — JSON, JUnit, and SARIF output for GitHub Actions, GitLab CI, Jenkins, and more
 - **Configurable** — project-level `.cfv.toml` config files, glob patterns, schema mappings, and environment variables
@@ -74,6 +74,7 @@ Config File Validator is a cross-platform CLI tool that validates configuration 
 | HCL | ✅ | ❌ |
 | HOCON | ✅ | ❌ |
 | INI | ✅ | ❌ |
+| Justfile | ✅ | ❌ |
 | JSON | ✅ | ✅ |
 | JSONC | ✅ | ✅ |
 | Properties | ✅ | ❌ |
@@ -120,12 +121,24 @@ For other `.json` files that use JSONC syntax (e.g., VS Code settings), map them
 
 ```shell
 validator --type-map="**/.vscode/*.json:jsonc" .
+Many tools use `.json` files that actually support JSONC syntax (e.g., `tsconfig.json`, VS Code settings). To validate these correctly, map them to the `jsonc` type using `--type-map` or `.cfv.toml`:
+
+```shell
+validator --type-map="**/.vscode/*.json:jsonc" .
 ```
 
 Or in `.cfv.toml`:
 
 ```toml
 [type-map]
+"**/.vscode/*.json" = "jsonc"
+```
+
+JSON and JSONC are treated as a **family** — `--file-types=json` includes JSONC files, and `--exclude-file-types=json` excludes both JSON and JSONC files.
+
+"**/tsconfig.json" = "jsonc"
+"**/jsconfig.json" = "jsonc"
+"**/devcontainer.json" = "jsonc"
 "**/.vscode/*.json" = "jsonc"
 ```
 
@@ -211,7 +224,7 @@ The config-file-validator can be used as a [pre-commit](https://pre-commit.com/)
 ```yaml
 repos:
   - repo: https://github.com/Boeing/config-file-validator
-    rev: v2.1.0
+    rev: v2.2.0
     hooks:
       - id: config-file-validator
 ```
@@ -374,6 +387,21 @@ comment = "#"
 | `validators.ini.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
 
 YAML duplicate keys are always rejected (enforced by the YAML parser).
+| `schema-map` | table (pattern = path) | `--schema-map` |
+| `type-map` | table (pattern = type) | `--type-map` |
+| `validators` | table | Per-validator options (see below) |
+
+**Validator options:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `validators.csv.delimiter` | string | `","` | Field delimiter. Use `"\t"` for tab. |
+| `validators.csv.comment` | string | (none) | Lines starting with this character are ignored. |
+| `validators.csv.lazy-quotes` | boolean | `false` | Allow quotes in unquoted fields. |
+| `validators.json.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys in objects as errors. |
+| `validators.ini.forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
+
+YAML duplicate keys are always rejected (enforced by the YAML parser).
 
 ### Environment Variables
 
@@ -443,7 +471,7 @@ Exclude file types in the search path. JSON and JSONC are treated as a family �
 validator --exclude-file-types=json /path/to/search
 ```
 
-Note: `--exclude-file-types` filters by file extension. Extensionless known files (like `.gitconfig` or `.babelrc`) are not affected by this flag. Use `--type-map` or `.cfv.toml` for fine-grained control.
+Note: `--exclude-file-types` filters by resolved file type. Extensionless known files (like `.gitconfig` or `.babelrc`) are excluded when they resolve to an excluded type.
 
 ![Exclude File Types Run](./img/exclude_file_types.gif)
 

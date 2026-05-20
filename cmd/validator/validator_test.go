@@ -120,3 +120,15 @@ func Test_parseTypeMapFlags(t *testing.T) {
 		})
 	}
 }
+
+func Test_emptyBoolEnvVarNoParseError(t *testing.T) {
+	// Setting a CFV_* bool env var to "" should not cause a parse error.
+	// Go's flag.Set("gitignore", "") fails, so we skip empty values.
+	for _, envVar := range []string{"CFV_GITIGNORE", "CFV_QUIET", "CFV_GLOBBING", "CFV_REQUIRE_SCHEMA", "CFV_NO_SCHEMA", "CFV_SCHEMASTORE"} {
+		t.Run(envVar, func(t *testing.T) {
+			t.Setenv(envVar, "")
+			_, err := getFlags([]string{"."})
+			require.NoError(t, err)
+		})
+	}
+}

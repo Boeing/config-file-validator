@@ -13,6 +13,8 @@ type Report struct {
 	IsQuiet          bool
 	StartLine        int
 	StartColumn      int
+	ErrorLines       []int
+	ErrorColumns     []int
 }
 
 // Reporter is the interface that wraps the Print method

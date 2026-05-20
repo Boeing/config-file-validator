@@ -25,7 +25,7 @@ func (v JSONValidator) ValidateSyntax(b []byte) (bool, error) {
 			line := 1 + strings.Count(string(b)[:offset], "\n")
 			column := 1 + offset - (strings.LastIndex(string(b)[:offset], "\n") + len("\n"))
 			return false, &ValidationError{
-				Err:    fmt.Errorf("error at line %v column %v: %w", line, column, synErr),
+				Err:    synErr,
 				Line:   line,
 				Column: column,
 			}
@@ -86,13 +86,115 @@ func (JSONValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 		return false, err
 	}
 
-	return JSONSchemaValidate(schemaURL, cleanDoc)
+	posMap := buildJSONPositionMap(b)
+	return JSONSchemaValidateWithPositions(schemaURL, cleanDoc, posMap)
 }
 
 // checkJSONDuplicateKeys walks the JSON token stream and reports duplicate keys.
 func checkJSONDuplicateKeys(b []byte) error {
 	dec := json.NewDecoder(strings.NewReader(string(b)))
 	return checkDuplicateKeysInDecoder(dec)
+}
+
+// buildJSONPositionMap scans JSON bytes and builds a map from gojsonschema
+// context paths (e.g. "(root).name") to their source position.
+func buildJSONPositionMap(b []byte) map[string]SourcePosition {
+	positions := make(map[string]SourcePosition)
+	dec := json.NewDecoder(strings.NewReader(string(b)))
+
+	offsetToPos := func(offset int64) SourcePosition {
+		if int(offset) > len(b) {
+			offset = int64(len(b))
+		}
+		prefix := b[:offset]
+		line := 1 + strings.Count(string(prefix), "\n")
+		lastNL := strings.LastIndex(string(prefix), "\n")
+		col := int(offset) - lastNL
+		return SourcePosition{Line: line, Column: col}
+	}
+
+	findKeyStart := func(endOffset int64) SourcePosition {
+		for i := int(endOffset) - 1; i >= 0; i-- {
+			if b[i] == '"' {
+				for j := i - 1; j >= 0; j-- {
+					if b[j] == '"' {
+						return offsetToPos(int64(j))
+					}
+				}
+			}
+		}
+		return offsetToPos(endOffset)
+	}
+
+	type frame struct {
+		isArray bool
+		key     string
+	}
+
+	var stack []frame
+	var pendingKey string
+	expectingKey := false
+
+	pathStr := func() string {
+		parts := []string{"(root)"}
+		for _, f := range stack {
+			if f.key != "" {
+				parts = append(parts, f.key)
+			}
+		}
+		if pendingKey != "" {
+			parts = append(parts, pendingKey)
+		}
+		return strings.Join(parts, ".")
+	}
+
+	recordAndReset := func() {
+		pendingKey = ""
+		expectingKey = len(stack) > 0 && !stack[len(stack)-1].isArray
+	}
+
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			break
+		}
+		afterOffset := dec.InputOffset()
+
+		switch v := tok.(type) {
+		case json.Delim:
+			switch v {
+			case '{':
+				stack = append(stack, frame{isArray: false, key: pendingKey})
+				pendingKey = ""
+				expectingKey = true
+				p := pathStr()
+				if _, exists := positions[p]; !exists {
+					positions[p] = offsetToPos(afterOffset - 1)
+				}
+			case '[':
+				stack = append(stack, frame{isArray: true, key: pendingKey})
+				pendingKey = ""
+			case '}', ']':
+				if len(stack) > 0 {
+					stack = stack[:len(stack)-1]
+				}
+				expectingKey = len(stack) > 0 && !stack[len(stack)-1].isArray
+			default:
+			}
+		case string:
+			if expectingKey && len(stack) > 0 && !stack[len(stack)-1].isArray {
+				pendingKey = v
+				positions[pathStr()] = findKeyStart(afterOffset)
+				expectingKey = false
+			} else {
+				recordAndReset()
+			}
+		default:
+			recordAndReset()
+		}
+	}
+
+	return positions
 }
 
 func checkDuplicateKeysInDecoder(dec *json.Decoder) error {

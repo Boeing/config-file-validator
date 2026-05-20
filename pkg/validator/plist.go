@@ -2,13 +2,18 @@ package validator
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"howett.net/plist"
 )
 
-var plistLineColRe = regexp.MustCompile(`at line (\d+) character (\d+)`)
+var (
+	plistLineColRe     = regexp.MustCompile(`at line (\d+) character (\d+)`)
+	plistStripPosition = regexp.MustCompile(`\s*at line \d+ character \d+`)
+)
 
 // PlistValidator is used to validate a byte slice that is intended to represent a
 // Apple Property List file (plist).
@@ -22,10 +27,12 @@ func (PlistValidator) ValidateSyntax(b []byte) (bool, error) {
 	plistDecoder := plist.NewDecoder(bytes.NewReader(b))
 	err := plistDecoder.Decode(&output)
 	if err != nil {
-		if m := plistLineColRe.FindStringSubmatch(err.Error()); m != nil {
+		errMsg := err.Error()
+		if m := plistLineColRe.FindStringSubmatch(errMsg); m != nil {
 			line, _ := strconv.Atoi(m[1])
 			col, _ := strconv.Atoi(m[2])
-			return false, &ValidationError{Err: err, Line: line, Column: col}
+			cleanMsg := plistStripPosition.ReplaceAllString(errMsg, "")
+			return false, &ValidationError{Err: fmt.Errorf("%s", strings.TrimSpace(cleanMsg)), Line: line, Column: col}
 		}
 		return false, err
 	}

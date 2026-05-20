@@ -168,15 +168,13 @@ stdout '✓'
 # ============================================================
 # BUG VECTOR 10: --exclude-file-types with extensionless known files
 #
-# Excluding "ini" should skip .ini files. But .gitconfig has no
-# extension — the exclude check uses extensionLowerCase which is
-# empty string for extensionless files. Does "" match "ini"? No.
-# So .gitconfig should NOT be excluded by --exclude-file-types=ini.
+# Excluding "ini" should skip both .ini files and known files that
+# resolve to the INI type, such as .gitconfig.
 # ============================================================
 
-# .gitconfig has no extension — not excluded by extension-based filter
+# .gitconfig resolves to INI and is excluded
 exec validator --exclude-file-types=ini ext_exclude
-stdout '✓.*gitconfig'
+! stdout 'gitconfig'
 
 # .ini file IS excluded
 exec validator --exclude-file-types=ini ext_exclude

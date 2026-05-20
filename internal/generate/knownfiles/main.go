@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -145,6 +146,7 @@ func extractKnownFiles(languages map[string]linguistLanguage) map[string][]strin
 
 	for ft := range result {
 		slices.Sort(result[ft])
+		sort.Strings(result[ft])
 	}
 	return result
 }
