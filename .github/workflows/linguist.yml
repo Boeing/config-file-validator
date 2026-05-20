@@ -38,7 +38,7 @@ jobs:
       - name: Fetch latest Linguist SHA
         id: fetch-sha
         run: |
-          SHA=$(git ls-remote https://github.com/github/linguist.git HEAD | awk '{print $1}')
+          SHA=$(git ls-remote https://github.com/github-linguist/linguist.git HEAD | awk '{print $1}')
           [[ -z "$SHA" ]] && { echo "Empty output"; exit 1; }
           [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]] && { echo "Invalid SHA format"; exit 1; }
 
