@@ -131,6 +131,6 @@ func TestGitHubReporter_QuietModeSuppressesStdout(t *testing.T) {
 	// output (outputDest) and helpers like buildGitHubReport are
 	// unaffected.
 	if buildGitHubReport(reports) == "" {
-		t.Fatalf("buildGitHubReport should still emit content in quiet mode (only Print suppresses stdout)")
+		t.Fatal("buildGitHubReport should still emit content in quiet mode (only Print suppresses stdout)")
 	}
 }

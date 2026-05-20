@@ -35,7 +35,7 @@ func buildGitHubReport(reports []Report) string {
 			continue
 		}
 		b.WriteString(formatGitHubAnnotation(r))
-		b.WriteByte('\n')
+		_ = b.WriteByte('\n')
 	}
 	return b.String()
 }
