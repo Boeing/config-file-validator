@@ -47,7 +47,7 @@ jobs:
       - name: Update pinned SHA and regenerate
         id: update-sha
         env:
-          SHA: ${{ steps.linguist.outputs.sha }}
+          SHA: ${{ steps.fetch-sha.outputs.sha }}
           FILEPATH: "internal/generate/knownfiles/main.go"
           SHA_REGEX: "[0-9a-f]{40}"
           FIELD_REGEX: 'linguistSHA\s*=\s*"'
