@@ -78,8 +78,3 @@ jobs:
             `internal/generate/knownfiles/main.go` and regenerated `known_files_gen.go`.
             > This PR was automatically created by workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           delete-branch: true
-
-      - name: Cleanup branch on failure
-        if: failure() && steps.create-branch.outputs.branch != ''
-        run: |
-          git push origin --delete "${{ steps.create-branch.outputs.branch }}" || true
