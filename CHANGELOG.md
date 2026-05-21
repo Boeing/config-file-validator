@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `--reporter=github` option that emits validation errors as GitHub Actions workflow commands so they appear as inline PR annotations, without requiring the separate `validate-configs-action` wrapper (closes #459)
 - Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded [go-just](https://github.com/Boeing/go-just) parser
 - Automatic file type detection from GitHub Linguist's `languages.yml` via `go generate`
 - ~90 known filenames auto-detected (`.babelrc`, `tsconfig.json`, `Pipfile`, `pom.xml`, `.gitconfig`, etc.)
