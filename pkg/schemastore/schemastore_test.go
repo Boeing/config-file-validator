@@ -328,7 +328,7 @@ func TestFetchAndCacheNetworkError(t *testing.T) {
 	cacheDir := t.TempDir()
 	store := &Store{
 		entries: []catalogEntry{
-			{FileMatch: []string{"config.json"}, URL: "http://127.0.0.1:1/unreachable.json"},
+			{FileMatch: []string{"config.json"}, URL: "http://127.0.0.1:1/unreachable.json"}, // DevSkim: ignore DS162092 - test server address, not debug code
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
@@ -336,7 +336,7 @@ func TestFetchAndCacheNetworkError(t *testing.T) {
 
 	path, found := store.Resolve("/project/config.json")
 	require.True(t, found)
-	require.Equal(t, "http://127.0.0.1:1/unreachable.json", path)
+	require.Equal(t, "http://127.0.0.1:1/unreachable.json", path) // DevSkim: ignore DS162092 - test server address, not debug code
 }
 
 func TestFetchAndCacheThenHitCache(t *testing.T) {

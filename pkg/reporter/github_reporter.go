@@ -9,6 +9,12 @@ type GitHubReporter struct {
 	outputDest string
 }
 
+type githubAnnotation struct {
+	message string
+	line    int
+	column  int
+}
+
 func NewGitHubReporter(outputDest string) *GitHubReporter {
 	return &GitHubReporter{outputDest: outputDest}
 }
@@ -34,29 +40,57 @@ func buildGitHubReport(reports []Report) string {
 		if r.IsValid {
 			continue
 		}
-		b.WriteString(formatGitHubAnnotation(r))
-		_ = b.WriteByte('\n')
+		for _, annotation := range githubAnnotations(r) {
+			b.WriteString(formatGitHubAnnotation(r, annotation))
+			_ = b.WriteByte('\n')
+		}
 	}
 	return b.String()
 }
 
-func formatGitHubAnnotation(r Report) string {
+func githubAnnotations(r Report) []githubAnnotation {
+	if len(r.ValidationErrors) > 1 {
+		annotations := make([]githubAnnotation, 0, len(r.ValidationErrors))
+		for i, errMsg := range r.ValidationErrors {
+			line, column := r.StartLine, r.StartColumn
+			if i < len(r.ErrorLines) && r.ErrorLines[i] > 0 {
+				line = r.ErrorLines[i]
+			}
+			if i < len(r.ErrorColumns) && r.ErrorColumns[i] > 0 {
+				column = r.ErrorColumns[i]
+			}
+			annotations = append(annotations, githubAnnotation{
+				message: errMsg,
+				line:    line,
+				column:  column,
+			})
+		}
+		return annotations
+	}
+
+	return []githubAnnotation{{
+		message: errorMessage(r),
+		line:    r.StartLine,
+		column:  r.StartColumn,
+	}}
+}
+
+func formatGitHubAnnotation(r Report, annotation githubAnnotation) string {
 	props := make([]string, 0, 3)
 	if r.FilePath != "" {
 		props = append(props, "file="+escapeGitHubProperty(r.FilePath))
 	}
-	if r.StartLine > 0 {
-		props = append(props, fmt.Sprintf("line=%d", r.StartLine))
+	if annotation.line > 0 {
+		props = append(props, fmt.Sprintf("line=%d", annotation.line))
 	}
-	if r.StartColumn > 0 {
-		props = append(props, fmt.Sprintf("col=%d", r.StartColumn))
+	if annotation.column > 0 {
+		props = append(props, fmt.Sprintf("col=%d", annotation.column))
 	}
 
-	msg := errorMessage(r)
 	if len(props) == 0 {
-		return "::error::" + escapeGitHubMessage(msg)
+		return "::error::" + escapeGitHubMessage(annotation.message)
 	}
-	return "::error " + strings.Join(props, ",") + "::" + escapeGitHubMessage(msg)
+	return "::error " + strings.Join(props, ",") + "::" + escapeGitHubMessage(annotation.message)
 }
 
 func errorMessage(r Report) string {

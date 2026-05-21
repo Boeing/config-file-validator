@@ -47,12 +47,76 @@ func TestGitHubReporter_FallsBackToValidationErrorsSlice(t *testing.T) {
 	reports := []Report{
 		{
 			FilePath: "p.yaml", IsValid: false,
-			ValidationErrors: []string{"missing field: name", "extra field: foo"},
+			ValidationErrors: []string{"missing field: name"},
 		},
 	}
 	got := buildGitHubReport(reports)
 	if !strings.Contains(got, "missing field: name") {
 		t.Fatalf("expected first ValidationErrors entry, got %q", got)
+	}
+}
+
+func TestGitHubReporter_MultipleValidationErrorsEmitMultipleAnnotations(t *testing.T) {
+	reports := []Report{
+		{
+			FilePath: "schema/config.json", IsValid: false,
+			ValidationErrors: []string{
+				"field one must be string",
+				"field two must be integer",
+				"field three is required",
+			},
+			ErrorLines:   []int{4, 8, 12},
+			ErrorColumns: []int{2, 6, 10},
+			StartLine:    1,
+			StartColumn:  1,
+		},
+	}
+
+	got := buildGitHubReport(reports)
+	want := strings.Join([]string{
+		"::error file=schema/config.json,line=4,col=2::field one must be string",
+		"::error file=schema/config.json,line=8,col=6::field two must be integer",
+		"::error file=schema/config.json,line=12,col=10::field three is required",
+		"",
+	}, "\n")
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestGitHubReporter_SingleValidationErrorUsesStartLocation(t *testing.T) {
+	reports := []Report{
+		{
+			FilePath:         "schema/config.json",
+			IsValid:          false,
+			ValidationErrors: []string{"field one must be string"},
+			StartLine:        7,
+			StartColumn:      3,
+		},
+	}
+
+	got := buildGitHubReport(reports)
+	want := "::error file=schema/config.json,line=7,col=3::field one must be string\n"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestGitHubReporter_ValidationErrorWithoutValidationErrorsEmitsOneAnnotation(t *testing.T) {
+	reports := []Report{
+		{
+			FilePath:        "schema/config.json",
+			IsValid:         false,
+			ValidationError: errors.New("syntax: unexpected token"),
+			StartLine:       9,
+			StartColumn:     5,
+		},
+	}
+
+	got := buildGitHubReport(reports)
+	want := "::error file=schema/config.json,line=9,col=5::syntax: unexpected token\n"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }
 
