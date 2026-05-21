@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON and JSONC treated as a family for `--file-types` and `--exclude-file-types`
 - `go generate` step in CI pipeline to keep Linguist data fresh
 - CI lint check to ensure generated files are committed up to date
+- Automated Linguist SHA updates via scheduled GitHub Actions workflow (`linguist.yml`) that checks SHA weekly
 
 ### Fixed
 
