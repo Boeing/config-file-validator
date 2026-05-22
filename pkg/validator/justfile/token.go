@@ -1,4 +1,4 @@
-package gojust
+package justfile
 
 import "fmt"
 
@@ -93,6 +93,7 @@ const (
 	tokenEOF
 )
 
+//nolint:gosec // G101 false positive: tokenNames maps token types to display names, not credentials
 var tokenNames = map[tokenType]string{
 	tokenIdentifier:             "identifier",
 	tokenString:                 "string",
