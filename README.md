@@ -35,27 +35,58 @@
   </a>
 </p>
 
-<p align="center">
-  <a href="https://boeing.github.io/config-file-validator/">Website</a> |
-  <a href="https://boeing.github.io/config-file-validator/docs/quick-start">Quick Start</a> |
-  <a href="https://boeing.github.io/config-file-validator/docs/reference/cli-flags">CLI Reference</a> |
-  <a href="https://boeing.github.io/config-file-validator/docs/guides/schema-validation">Schema Validation</a> |
-  <a href="https://boeing.github.io/config-file-validator/docs/integrations/github-actions">Integrations</a>
-</p>
+Config File Validator validates config files across 16 formats.
 
-## What is it?
+It recursively searches directories for config files, detects their format by extension or filename, and reports errors.
 
-Config File Validator validates configuration files across 16 formats. A single static binary that replaces per-format tools like yamllint, jsonlint, and xmllint.
+## Install
 
-Point it at a directory and it finds every config file, detects the format, and checks syntax. Add `--schemastore` and it also validates content against the correct schema, automatically, with no configuration.
+**Homebrew**
+```shell
+brew install config-file-validator
+```
+
+**Winget**
+```shell
+winget install Boeing.config-file-validator
+```
+
+**Go Install**
+```shell
+go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
+```
+
+<details>
+<summary>More install options</summary>
+
+### MacPorts
 
 ```shell
-validator --schemastore .
+sudo port install config-file-validator
 ```
+
+### Scoop
+
+```shell
+scoop install config-file-validator
+```
+
+### Binary releases
+
+Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/Boeing/config-file-validator/releases).
+
+</details>
+
+## Usage
+
+Validate all config files in the current directory:
+
+<img src="./img/demo.svg" alt="Config File Validator output showing pass/fail results" width="800" />
+
+See the [CLI reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags) for all options.
 
 ## Features
 
-- JSON, JSONC, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, Justfile, PList, SARIF, and TOON
 - Schema validation via JSON Schema, XSD, and automatic [SchemaStore](https://www.schemastore.org/) lookup
 - Auto-detects file types by extension and [known filename](https://boeing.github.io/config-file-validator/docs/reference/known-files)
 - JSON, JUnit, and SARIF output for CI pipelines
@@ -64,17 +95,19 @@ validator --schemastore .
 - Project-level [`.cfv.toml`](https://boeing.github.io/config-file-validator/docs/guides/configuration-file) configuration
 - Usable as a [Go library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
 
-Check out the [quick start](https://boeing.github.io/config-file-validator/docs/quick-start) to try it.
+## Documentation
+
+Documentation is hosted at https://boeing.github.io/config-file-validator.
+
+## Contributing
+
+We welcome contributions! See the [contributing guide](./CONTRIBUTING.md).
 
 ## Contributors
 
 <a href="https://github.com/Boeing/config-file-validator/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Boeing/config-file-validator" alt="Config File Validator contributors" />
 </a>
-
-## Contributing
-
-We welcome contributions! See the [contributing guide](./CONTRIBUTING.md).
 
 ## License
 

@@ -1,0 +1,4 @@
+# Dev-only dependencies (webpack-dev-server) — no fix published yet.
+# Re-evaluate when webpack-dev-server >5.2.3 and ws >8.20.0 are released.
+CVE-2026-6402
+CVE-2026-45736

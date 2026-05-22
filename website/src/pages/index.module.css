@@ -6,36 +6,36 @@
   overflow: hidden;
 }
 
-.heroInner {
+.hero-inner {
   max-width: 800px;
   margin: 0 auto;
 }
 
-.heroLogo {
+.hero-logo {
   width: 80px;
   height: 80px;
   margin-bottom: 0.75rem;
 }
 
-.heroTitle {
+.hero-title {
   font-size: 2rem;
   margin-bottom: 0.25rem;
 }
 
-.heroSubtitle {
+.hero-subtitle {
   font-size: 1.1rem;
   color: var(--ifm-color-emphasis-700);
   margin-bottom: 1rem;
 }
 
-.heroActions {
+.hero-actions {
   display: flex;
   gap: 1rem;
   justify-content: center;
   margin-bottom: 1rem;
 }
 
-.primaryButton {
+.primary-button {
   display: inline-block;
   padding: 0.75rem 1.5rem;
   border-radius: 4px;
@@ -45,13 +45,13 @@
   text-decoration: none;
 }
 
-.primaryButton:hover {
+.primary-button:hover {
   background: var(--ifm-color-primary-dark);
   color: #fff;
   text-decoration: none;
 }
 
-.secondaryButton {
+.secondary-button {
   display: inline-block;
   padding: 0.75rem 1.5rem;
   border-radius: 4px;
@@ -61,33 +61,33 @@
   text-decoration: none;
 }
 
-.secondaryButton:hover {
+.secondary-button:hover {
   border-color: var(--ifm-color-primary);
   color: var(--ifm-color-primary);
   text-decoration: none;
 }
 
-.installSnippet {
+.install-snippet {
   display: inline-block;
   padding: 0.5rem 1.5rem;
   font-size: 0.9rem;
   color: var(--ifm-color-emphasis-700);
 }
 
-.installSnippet a {
+.install-snippet a {
   color: var(--ifm-color-primary);
   text-decoration: none;
 }
 
-.installSnippet a:hover {
+.install-snippet a:hover {
   text-decoration: underline;
 }
 
-.heroDemo {
+.hero-demo {
   margin-top: 1.5rem;
   max-width: 100%;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
 }
 
 .features {
@@ -96,25 +96,25 @@
   margin: 0 auto;
 }
 
-.featuresGrid {
+.features-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
 }
 
-.featureCard {
+.feature-card {
   padding: 1.5rem;
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: 8px;
   background: var(--ifm-color-emphasis-100);
 }
 
-.featureCard h3 {
+.feature-card h3 {
   margin-top: 0;
   margin-bottom: 0.5rem;
 }
 
-.featureCard p {
+.feature-card p {
   margin: 0;
   color: var(--ifm-color-emphasis-700);
 }

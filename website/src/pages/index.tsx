@@ -6,34 +6,34 @@ import styles from './index.module.css';
 function Hero() {
   return (
     <header className={styles.hero}>
-      <div className={styles.heroInner}>
+      <div className={styles['hero-inner']}>
         <img
           src="/config-file-validator/img/logo.png"
           alt="Config File Validator"
-          className={styles.heroLogo}
+          className={styles['hero-logo']}
         />
-        <h1 className={styles.heroTitle}>Config File Validator</h1>
-        <p className={styles.heroSubtitle}>
+        <h1 className={styles['hero-title']}>Config File Validator</h1>
+        <p className={styles['hero-subtitle']}>
           One tool to validate every config file in your repo
         </p>
-        <div className={styles.heroActions}>
-          <Link className={styles.primaryButton} to="/docs/introduction">
+        <div className={styles['hero-actions']}>
+          <Link className={styles['primary-button']} to="/docs/introduction">
             Get Started
           </Link>
           <Link
-            className={styles.secondaryButton}
+            className={styles['secondary-button']}
             to="https://github.com/Boeing/config-file-validator"
           >
             GitHub
           </Link>
         </div>
-        <div className={styles.installSnippet}>
+        <div className={styles['install-snippet']}>
           <Link to="/docs/installation">See installation options →</Link>
         </div>
         <img
           src="/config-file-validator/img/demo.svg"
           alt="Config File Validator validating JSON, YAML, TOML, and XML files"
-          className={styles.heroDemo}
+          className={styles['hero-demo']}
         />
       </div>
     </header>
@@ -76,9 +76,9 @@ const features = [
 function Features() {
   return (
     <section className={styles.features}>
-      <div className={styles.featuresGrid}>
+      <div className={styles['features-grid']}>
         {features.map((feature) => (
-          <div key={feature.title} className={styles.featureCard}>
+          <div key={feature.title} className={styles['feature-card']}>
             <h3>{feature.title}</h3>
             <p>{feature.description}</p>
           </div>
@@ -92,7 +92,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Config File Validator"
-      description="Single cross-platform CLI tool to validate configuration files"
+      description="Validates config files across 16 formats"
     >
       <Hero />
       <main>

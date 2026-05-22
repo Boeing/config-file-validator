@@ -5,9 +5,9 @@ slug: /introduction
 
 # Introduction
 
-Config File Validator validates configuration files across 16 formats. A single static binary that replaces per-format tools like yamllint, jsonlint, and xmllint.
+Config File Validator validates config files across 16 formats.
 
-Point it at a directory and it finds every config file, detects the format, and checks syntax. Add `--schemastore` and it also validates content against the correct schema, automatically, with no configuration.
+It recursively searches directories for config files, detects their format by extension or filename, and reports errors.
 
 ## Supported formats
 
