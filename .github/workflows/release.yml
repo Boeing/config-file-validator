@@ -99,7 +99,7 @@ jobs:
       - name: Generate checksums
         working-directory: artifacts
         run: |
-          sha256sum * > SHA256SUMS
+          sha256sum ./* > SHA256SUMS
 
       - name: Upload to release
         env:
