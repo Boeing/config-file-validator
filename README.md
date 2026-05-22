@@ -59,19 +59,19 @@ go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
 <details>
 <summary>More install options</summary>
 
-### MacPorts
+**MacPorts**
 
 ```shell
 sudo port install config-file-validator
 ```
 
-### Scoop
+**Scoop**
 
 ```shell
 scoop install config-file-validator
 ```
 
-### Binary releases
+**Binary releases**
 
 Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/Boeing/config-file-validator/releases).
 
