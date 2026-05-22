@@ -5,16 +5,12 @@ on:
   release:
     types: [created]
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 permissions:
   contents: read
 
 jobs:
-  releases-matrix:
-    name: Release Go Binary
+  build:
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,45 +21,137 @@ jobs:
             goos: darwin
           - goarch: arm64
             goos: windows
-
-    permissions:
-      packages: write
-      contents: write
-
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
 
       - name: Update SchemaStore catalog
         run: |
           curl -sL https://www.schemastore.org/api/json/catalog.json \
             -o pkg/schemastore/catalog.json
 
-      - uses: wangyoucao577/go-release-action@279495102627de7960cbc33434ab01a12bae144b # v1.55
+      - name: Build binary
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          BINARY="validator"
+          if [ "$GOOS" = "windows" ]; then
+            BINARY="validator.exe"
+          fi
+          go build \
+            -ldflags="-w -s -extldflags '-static' -X github.com/Boeing/config-file-validator.version=${{ github.event.release.tag_name }}" \
+            -tags netgo \
+            -o "$BINARY" \
+            cmd/validator/validator.go
+
+      - name: Create archive
+        id: archive
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          MAJOR_MINOR="${VERSION%.*}"
+          NAME="validator-v${MAJOR_MINOR}-${{ matrix.goos }}-${{ matrix.goarch }}"
+
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip "${NAME}.zip" validator.exe LICENSE README.md
+            echo "filename=${NAME}.zip" >> "$GITHUB_OUTPUT"
+          else
+            tar czf "${NAME}.tar.gz" validator LICENSE README.md
+            echo "filename=${NAME}.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
-          go_version: 1.26
-          binary_name: "validator"
-          ldflags: -w -s -extldflags "-static" -X github.com/Boeing/config-file-validator.version=${{ github.event.release.tag_name }}
-          build_tags: -tags netgo
-          project_path: cmd/validator
-          extra_files: LICENSE README.md
+          name: ${{ steps.archive.outputs.filename }}
+          path: ${{ steps.archive.outputs.filename }}
+          retention-days: 1
+
+  release:
+    name: Upload Release Assets
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: artifacts
+        run: |
+          sha256sum ./* > SHA256SUMS
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            artifacts/* \
+            --repo "${{ github.repository }}" \
+            --clobber
+
+  attest:
+    name: Attestation
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: "artifacts/*"
 
   aur-publish:
+    name: Publish AUR Package
+    needs: release
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set version in PKGBUILD
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          sed "s/pkgver=VERSION/pkgver=${VERSION}/" PKGBUILD.template > PKGBUILD
 
       - name: Publish AUR package
         uses: KSXGitHub/github-actions-deploy-aur@da03e160361ce01bf087e790b6ffd196d7dccff7 # v4.1.3

@@ -91,9 +91,7 @@ jobs:
   test:
     needs: download
     runs-on: ubuntu-latest
-    name: Update coverage badge
-    permissions:
-      contents: write
+    name: Test and check coverage
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
@@ -101,8 +99,6 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -115,11 +111,9 @@ jobs:
           cd pkg/validator/justfile && go test -v -count=1 ./...
 
       - name: Check coverage
-        id: check-coverage
         env:
           COVERAGE_THRESHOLD: 90
         run: |
-          # Validate that the coverage is above or at the required threshold
           echo "Checking if test coverage is above threshold ..."
           echo "Coverage threshold: ${COVERAGE_THRESHOLD} %"
           totalCoverage=$(go tool cover -func coverage.out | grep 'total' | grep -Eo '[0-9]+\.[0-9]+')
@@ -130,33 +124,3 @@ jobs:
             echo "Current test coverage is below threshold"
             exit 1
           fi
-          echo "total_coverage=${totalCoverage}" >> "${GITHUB_OUTPUT}"
-
-      - name: Create badge img tag and apply to README files
-        id: generate-badge
-        run: |
-          # Create Badge URL
-          # Badge will always be green because of coverage threshold check
-          # so we just have to populate the total coverage
-          totalCoverage=${{ steps.check-coverage.outputs.total_coverage }}
-          BADGE_URL="https://img.shields.io/badge/Coverage-${totalCoverage}%25-brightgreen"
-          BADGE_IMG_TAG="<img id=\"cov\" src=\"${BADGE_URL}\" alt=\"Code Coverage\">"
-
-          # Update README.md
-          sed -i "/id=\"cov\"/c\\${BADGE_IMG_TAG}" README.md
-
-          # Check to see if files were updated
-          if git diff --quiet; then
-            echo "badge_updates=false" >> "${GITHUB_OUTPUT}"
-          else
-            echo "badge_updates=true" >> "${GITHUB_OUTPUT}"
-          fi
-
-      - name: Commit changes
-        if: steps.generate-badge.outputs.badge_updates == 'true' && github.event_name == 'push'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -- README.md
-          git commit -m "chore: Updated coverage badge."
-          git push
