@@ -23,3 +23,7 @@ We use GitHub issues to track public bugs. Report a bug by [opening a new issue]
 
 ## Functional Testing
 Until we can automate the functional testing, you must run through the [functional testing](./functional_test.md) procedures before submitting your PR for review.
+
+## Using AI Coding Agents
+
+[`AGENTS.md`](./AGENTS.md) has step-by-step recipes for adding a new validator or reporter, the full local CI pipeline, and common linter pitfalls. It's written for AI agents but works as a quick-start for humans too.
