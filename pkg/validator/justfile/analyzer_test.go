@@ -1,4 +1,4 @@
-package gojust
+package justfile
 
 import (
 	"strings"

@@ -1,6 +1,6 @@
 //go:build justdump
 
-package gojust
+package justfile
 
 import (
 	"encoding/json"
@@ -303,7 +303,7 @@ func dumpExpression(expr Expression) interface{} {
 	case *Comparison:
 		return []interface{}{e.Operator, dumpExpression(e.Left), dumpExpression(e.Right)}
 	default:
-		panic(fmt.Sprintf("gojust: unhandled expression type %T in dumpExpression", expr))
+		panic(fmt.Sprintf("justfile: unhandled expression type %T in dumpExpression", expr))
 	}
 }
 

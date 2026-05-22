@@ -1,4 +1,4 @@
-package gojust
+package justfile
 
 import (
 	"errors"
@@ -252,7 +252,7 @@ func TestParseErrorMissingColon(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing colon")
 	}
-	pe, ok := err.(*ParseError)
+	pe, ok := err.(*ParseError) //nolint:errorlint // test intentionally checks the concrete type
 	if !ok {
 		t.Fatalf("expected *ParseError, got %T", err)
 	}
