@@ -28,6 +28,12 @@ Append `:<path>` to the reporter name to write results to a file:
 validator --reporter=json:output.json .
 ```
 
+Repeat the same reporter type with different paths to write the same format to more than one file:
+
+```shell
+validator --reporter=json:summary.json --reporter=json:artifacts/summary.json .
+```
+
 Use `:-` to explicitly direct output to stdout (useful when combining reporters):
 
 ```shell

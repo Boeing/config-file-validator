@@ -4,7 +4,7 @@
 <h1 align="center">Config File Validator</h1>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-93.4%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-93.3%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -59,19 +59,19 @@ go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
 <details>
 <summary>More install options</summary>
 
-### MacPorts
+**MacPorts**
 
 ```shell
 sudo port install config-file-validator
 ```
 
-### Scoop
+**Scoop**
 
 ```shell
 scoop install config-file-validator
 ```
 
-### Binary releases
+**Binary releases**
 
 Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/Boeing/config-file-validator/releases).
 

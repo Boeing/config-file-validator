@@ -64,7 +64,7 @@ type validatorConfig struct {
 	excludeDirs      *string
 	excludeFileTypes *string
 	fileTypes        *string
-	reportType       map[string]string
+	reportType       []reporterConfig
 	depth            *int
 	versionQuery     *bool
 	groupOutput      *string
@@ -82,6 +82,11 @@ type validatorConfig struct {
 }
 
 type reporterFlags []string
+
+type reporterConfig struct {
+	reportType string
+	outputDest string
+}
 
 func (rf *reporterFlags) String() string {
 	return fmt.Sprint(*rf)
@@ -286,7 +291,7 @@ func getFlags(args []string) (validatorConfig, error) {
 	return config, nil
 }
 
-func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf map[string]string, groupOutputPtr *string) error {
+func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf []reporterConfig, groupOutputPtr *string) error {
 	if err := validateReporterConf(reporterConf, groupOutputPtr); err != nil {
 		return err
 	}
@@ -321,17 +326,17 @@ func validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr *string) error {
 	return nil
 }
 
-func validateReporterConf(conf map[string]string, groupBy *string) error {
+func validateReporterConf(conf []reporterConfig, groupBy *string) error {
 	acceptedReportTypes := map[string]bool{"standard": true, "json": true, "junit": true, "sarif": true, "github": true}
 	groupOutputReportTypes := map[string]bool{"standard": true, "json": true}
 
-	for reportType := range conf {
-		_, ok := acceptedReportTypes[reportType]
+	for _, reporterConf := range conf {
+		_, ok := acceptedReportTypes[reporterConf.reportType]
 		if !ok {
 			return errors.New("wrong parameter value for reporter, only supports standard, json, junit, sarif, or github")
 		}
 
-		if !groupOutputReportTypes[reportType] && groupBy != nil && *groupBy != "" {
+		if !groupOutputReportTypes[reporterConf.reportType] && groupBy != nil && *groupBy != "" {
 			return errors.New("wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
 		}
 	}
@@ -397,18 +402,18 @@ func handleGlobbing(searchPaths []string) ([]string, error) {
 	return searchPaths, nil
 }
 
-func parseReporterFlags(flags reporterFlags) (map[string]string, error) {
-	conf := make(map[string]string)
+func parseReporterFlags(flags reporterFlags) ([]reporterConfig, error) {
+	conf := make([]reporterConfig, 0, len(flags))
 	for _, reportFlag := range flags {
-		parts := strings.Split(reportFlag, ":")
+		parts := strings.SplitN(reportFlag, ":", 2)
 		switch len(parts) {
 		case 1:
-			conf[parts[0]] = ""
+			conf = append(conf, reporterConfig{reportType: parts[0]})
 		case 2:
 			if parts[1] == "-" {
-				conf[parts[0]] = ""
+				conf = append(conf, reporterConfig{reportType: parts[0]})
 			} else {
-				conf[parts[0]] = parts[1]
+				conf = append(conf, reporterConfig{reportType: parts[0], outputDest: parts[1]})
 			}
 		default:
 			return nil, errors.New("wrong parameter value format for reporter, expected format is `report_type:optional_file_path`")
@@ -416,7 +421,7 @@ func parseReporterFlags(flags reporterFlags) (map[string]string, error) {
 	}
 
 	if len(conf) == 0 {
-		conf["standard"] = ""
+		conf = append(conf, reporterConfig{reportType: "standard"})
 	}
 
 	return conf, nil
@@ -642,10 +647,10 @@ func buildCLI(rc *resolvedConfig) *cli.CLI {
 	return cli.Init(opts...)
 }
 
-func buildReporters(reportType map[string]string) ([]reporter.Reporter, error) {
-	reporters := make([]reporter.Reporter, 0, len(reportType))
-	for rt, of := range reportType {
-		reporters = append(reporters, getReporter(rt, of))
+func buildReporters(reporterConfigs []reporterConfig) ([]reporter.Reporter, error) {
+	reporters := make([]reporter.Reporter, 0, len(reporterConfigs))
+	for _, rc := range reporterConfigs {
+		reporters = append(reporters, getReporter(rc.reportType, rc.outputDest))
 	}
 	return reporters, nil
 }
