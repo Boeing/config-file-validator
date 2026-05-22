@@ -142,10 +142,8 @@ jobs:
           BADGE_URL="https://img.shields.io/badge/Coverage-${totalCoverage}%25-brightgreen"
           BADGE_IMG_TAG="<img id=\"cov\" src=\"${BADGE_URL}\" alt=\"Code Coverage\">"
 
-          # Update README.md and index.md
-          for markdown_file in README.md index.md; do
-            sed -i "/id=\"cov\"/c\\${BADGE_IMG_TAG}" "${markdown_file}"
-          done
+          # Update README.md
+          sed -i "/id=\"cov\"/c\\${BADGE_IMG_TAG}" README.md
 
           # Check to see if files were updated
           if git diff --quiet; then
@@ -159,6 +157,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add -- README.md index.md
+          git add -- README.md
           git commit -m "chore: Updated coverage badge."
           git push
