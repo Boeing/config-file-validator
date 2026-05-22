@@ -17,14 +17,14 @@ The validator recognizes common configuration files by filename, even without a 
 
 Examples:
 
-| Type | Known filenames |
-|------|-----------------|
-| JSON | `.arcconfig`, `.watchmanconfig`, `composer.lock`, `bun.lock`, `deno.lock`, `flake.lock` |
-| JSONC | `.babelrc`, `.swcrc`, `.jshintrc`, `tsconfig.json`, `jsconfig.json`, `.eslintrc.json` |
-| YAML | `.clang-format`, `.clang-tidy`, `.clangd`, `.gemrc` |
-| TOML | `Pipfile`, `Cargo.lock`, `poetry.lock`, `uv.lock`, `pdm.lock` |
-| XML | `pom.xml`, `build.xml`, `ant.xml`, `.classpath`, `.project` |
-| INI | `.gitconfig`, `.gitmodules`, `.npmrc`, `.pylintrc`, `.flake8`, `.curlrc`, `.nanorc` |
+| Type  | Known filenames                                                                         |
+|-------|-----------------------------------------------------------------------------------------|
+| JSON  | `.arcconfig`, `.watchmanconfig`, `composer.lock`, `bun.lock`, `deno.lock`, `flake.lock` |
+| JSONC | `.babelrc`, `.swcrc`, `.jshintrc`, `tsconfig.json`, `jsconfig.json`, `.eslintrc.json`   |
+| YAML  | `.clang-format`, `.clang-tidy`, `.clangd`, `.gemrc`                                     |
+| TOML  | `Pipfile`, `Cargo.lock`, `poetry.lock`, `uv.lock`, `pdm.lock`                           |
+| XML   | `pom.xml`, `build.xml`, `ant.xml`, `.classpath`, `.project`                             |
+| INI   | `.gitconfig`, `.gitmodules`, `.npmrc`, `.pylintrc`, `.flake8`, `.curlrc`, `.nanorc`     |
 
 Known filenames take priority over extension matching. For example, `tsconfig.json` is validated as JSONC (not strict JSON) because it's a known JSONC file.
 

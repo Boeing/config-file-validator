@@ -15,10 +15,10 @@ DISABLE_LINTERS:
   - REPOSITORY_GRYPE
   # Spell checker, https://megalinter.io/latest/descriptors/spell_lychee/
   - SPELL_LYCHEE
+  # Spell checker — too many false positives for this project
+  - SPELL_CSPELL
 
 DISABLE_ERRORS_LINTERS:
-  # To prevent unnecessary spelling errors (will spit out warnings)
-  - SPELL_CSPELL
   # copypaste checker (JSCPD), can be added in a separate PR as this will need test refactor
   - COPYPASTE_JSCPD
 

@@ -21,10 +21,10 @@ repos:
 
 Two hooks are provided:
 
-| Hook | Behavior |
-|------|----------|
-| `config-file-validator` | Validates only changed config files. Fast, intended for local development. |
-| `config-file-validator-full` | Validates all config files in the repo. Intended for CI. |
+| Hook                         | Behavior                                                                   |
+|------------------------------|----------------------------------------------------------------------------|
+| `config-file-validator`      | Validates only changed config files. Fast, intended for local development. |
+| `config-file-validator-full` | Validates all config files in the repo. Intended for CI.                   |
 
 ## Passing flags
 

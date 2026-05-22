@@ -51,11 +51,11 @@ stage('Validate Config') {
 
 ## Output formats for CI
 
-| Format | Flag | Use case |
-|--------|------|----------|
-| JUnit | `--reporter=junit:results.xml` | Jenkins, GitLab, Azure DevOps |
-| SARIF | `--reporter=sarif:results.sarif` | GitHub Code Scanning |
-| JSON | `--reporter=json:results.json` | Custom tooling, scripts |
+| Format | Flag                             | Use case                      |
+|--------|----------------------------------|-------------------------------|
+| JUnit  | `--reporter=junit:results.xml`   | Jenkins, GitLab, Azure DevOps |
+| SARIF  | `--reporter=sarif:results.sarif` | GitHub Code Scanning          |
+| JSON   | `--reporter=json:results.json`   | Custom tooling, scripts       |
 
 Multiple reporters can run in a single invocation:
 
@@ -65,10 +65,10 @@ validator --reporter=junit:results.xml --reporter=sarif:results.sarif --schemast
 
 ## Exit codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | All files valid |
-| `1` | One or more validation errors |
-| `2` | Runtime or configuration error |
+| Code | Meaning                        |
+|------|--------------------------------|
+| `0`  | All files valid                |
+| `1`  | One or more validation errors  |
+| `2`  | Runtime or configuration error |
 
 Use exit code `1` as your CI gate. Exit code `2` indicates a problem with the validator invocation itself (bad flags, unreadable files).

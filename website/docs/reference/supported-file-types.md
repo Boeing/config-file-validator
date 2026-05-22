@@ -3,24 +3,24 @@
 
 # Supported File Types
 
-| Format | Extensions | Syntax | Schema |
-|--------|-----------|:------:|:------:|
-| JSON | `.json` | ✅ | ✅ |
-| JSONC | `.jsonc` | ✅ | ✅ |
-| YAML | `.yaml`, `.yml` | ✅ | ✅ |
-| TOML | `.toml` | ✅ | ✅ |
-| XML | `.xml` | ✅ | ✅ |
-| TOON | `.toon` | ✅ | ✅ |
-| SARIF | `.sarif` | ✅ | ✅ |
-| HCL | `.hcl`, `.tf` | ✅ | — |
-| INI | `.ini`, `.cfg` | ✅ | — |
-| HOCON | `.conf` | ✅ | — |
-| ENV | `.env` | ✅ | — |
-| CSV | `.csv` | ✅ | — |
-| Properties | `.properties` | ✅ | — |
-| EDITORCONFIG | `.editorconfig` | ✅ | — |
-| Justfile | `justfile`, `.justfile` | ✅ | — |
-| Apple PList XML | `.plist` | ✅ | — |
+| Format          | Extensions              | Syntax | Schema |
+|-----------------|-------------------------|:------:|:------:|
+| JSON            | `.json`                 |   ✅    |   ✅    |
+| JSONC           | `.jsonc`                |   ✅    |   ✅    |
+| YAML            | `.yaml`, `.yml`         |   ✅    |   ✅    |
+| TOML            | `.toml`                 |   ✅    |   ✅    |
+| XML             | `.xml`                  |   ✅    |   ✅    |
+| TOON            | `.toon`                 |   ✅    |   ✅    |
+| SARIF           | `.sarif`                |   ✅    |   ✅    |
+| HCL             | `.hcl`, `.tf`           |   ✅    |   —    |
+| INI             | `.ini`, `.cfg`          |   ✅    |   —    |
+| HOCON           | `.conf`                 |   ✅    |   —    |
+| ENV             | `.env`                  |   ✅    |   —    |
+| CSV             | `.csv`                  |   ✅    |   —    |
+| Properties      | `.properties`           |   ✅    |   —    |
+| EDITORCONFIG    | `.editorconfig`         |   ✅    |   —    |
+| Justfile        | `justfile`, `.justfile` |   ✅    |   —    |
+| Apple PList XML | `.plist`                |   ✅    |   —    |
 
 ## Schema types
 

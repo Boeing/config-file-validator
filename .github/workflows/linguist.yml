@@ -5,8 +5,8 @@ name: Linguist update
 
 on:
   schedule:
-    - cron: '0 0 * * 1'     # every monday at midnight
-  workflow_dispatch:        # yamllint disable-line rule:truthy - false positive
+    - cron: "0 0 * * 1" # every monday at midnight
+  workflow_dispatch: # yamllint disable-line rule:truthy - false positive
 
 permissions:
   contents: read

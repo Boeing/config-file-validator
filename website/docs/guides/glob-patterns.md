@@ -41,23 +41,23 @@ The validator expands the glob patterns into file lists and traverses the direct
 
 ## Pattern syntax
 
-| Pattern | Matches |
-|---------|---------|
-| `*` | Any sequence of characters within a single path segment |
-| `**` | Any sequence of characters across path segments (recursive) |
-| `?` | Any single character |
-| `[abc]` | Any character in the set |
-| `[a-z]` | Any character in the range |
-| `[!abc]` | Any character not in the set |
+| Pattern  | Matches                                                     |
+|----------|-------------------------------------------------------------|
+| `*`      | Any sequence of characters within a single path segment     |
+| `**`     | Any sequence of characters across path segments (recursive) |
+| `?`      | Any single character                                        |
+| `[abc]`  | Any character in the set                                    |
+| `[a-z]`  | Any character in the range                                  |
+| `[!abc]` | Any character not in the set                                |
 
 ### Examples
 
-| Pattern | Matches | Does not match |
-|---------|---------|----------------|
-| `*.json` | `config.json` | `dir/config.json` |
-| `**/*.json` | `config.json`, `a/b/c.json` | |
-| `config.{json,yaml}` | `config.json`, `config.yaml` | `config.toml` |
-| `**/test?.yaml` | `test1.yaml`, `dir/testA.yaml` | `tests.yaml` |
+| Pattern              | Matches                        | Does not match    |
+|----------------------|--------------------------------|-------------------|
+| `*.json`             | `config.json`                  | `dir/config.json` |
+| `**/*.json`          | `config.json`, `a/b/c.json`    |                   |
+| `config.{json,yaml}` | `config.json`, `config.yaml`   | `config.toml`     |
+| `**/test?.yaml`      | `test1.yaml`, `dir/testA.yaml` | `tests.yaml`      |
 
 ## Configuration
 

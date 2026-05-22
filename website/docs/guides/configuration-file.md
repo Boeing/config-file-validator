@@ -61,24 +61,24 @@ forbid-duplicate-keys = true
 
 ## All configuration keys
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `exclude-dirs` | array of strings | `[]` | Subdirectories to skip during traversal |
-| `exclude-file-types` | array of strings | `[]` | File types to ignore |
-| `file-types` | array of strings | all | Only validate these file types |
-| `depth` | integer (≥ 0) | unlimited | Maximum recursion depth |
-| `reporter` | array of strings | `["standard"]` | Output formats: `standard`, `json`, `junit`, `sarif` |
-| `groupby` | array of strings | `[]` | Group output by: `filetype`, `directory`, `pass-fail`, `error-type` |
-| `quiet` | boolean | `false` | Suppress stdout output |
-| `require-schema` | boolean | `false` | Fail files that support schemas but don't declare one |
-| `no-schema` | boolean | `false` | Disable all schema validation |
-| `schemastore` | boolean | `false` | Enable SchemaStore catalog lookup |
-| `schemastore-path` | string | — | Path to local SchemaStore clone (implies `schemastore`) |
-| `globbing` | boolean | `false` | Treat positional arguments as glob patterns |
-| `gitignore` | boolean | `false` | Skip files matched by `.gitignore` patterns |
-| `schema-map` | table | — | Map glob patterns to schema files |
-| `type-map` | table | — | Map glob patterns to file types |
-| `validators` | table | — | Per-validator options (see below) |
+| Key                  | Type             | Default        | Description                                                         |
+|----------------------|------------------|----------------|---------------------------------------------------------------------|
+| `exclude-dirs`       | array of strings | `[]`           | Subdirectories to skip during traversal                             |
+| `exclude-file-types` | array of strings | `[]`           | File types to ignore                                                |
+| `file-types`         | array of strings | all            | Only validate these file types                                      |
+| `depth`              | integer (≥ 0)    | unlimited      | Maximum recursion depth                                             |
+| `reporter`           | array of strings | `["standard"]` | Output formats: `standard`, `json`, `junit`, `sarif`                |
+| `groupby`            | array of strings | `[]`           | Group output by: `filetype`, `directory`, `pass-fail`, `error-type` |
+| `quiet`              | boolean          | `false`        | Suppress stdout output                                              |
+| `require-schema`     | boolean          | `false`        | Fail files that support schemas but don't declare one               |
+| `no-schema`          | boolean          | `false`        | Disable all schema validation                                       |
+| `schemastore`        | boolean          | `false`        | Enable SchemaStore catalog lookup                                   |
+| `schemastore-path`   | string           | —              | Path to local SchemaStore clone (implies `schemastore`)             |
+| `globbing`           | boolean          | `false`        | Treat positional arguments as glob patterns                         |
+| `gitignore`          | boolean          | `false`        | Skip files matched by `.gitignore` patterns                         |
+| `schema-map`         | table            | —              | Map glob patterns to schema files                                   |
+| `type-map`           | table            | —              | Map glob patterns to file types                                     |
+| `validators`         | table            | —              | Per-validator options (see below)                                   |
 
 ## Schema and type maps
 
@@ -102,11 +102,11 @@ Some validators accept format-specific options that control how files are parsed
 
 ### CSV
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `delimiter` | string | `","` | Field delimiter character. Use `"\t"` for tab-separated. |
-| `comment` | string | — | Lines starting with this character are skipped. |
-| `lazy-quotes` | boolean | `false` | Allow bare quotes in unquoted fields. |
+| Key           | Type    | Default | Description                                              |
+|---------------|---------|---------|----------------------------------------------------------|
+| `delimiter`   | string  | `","`   | Field delimiter character. Use `"\t"` for tab-separated. |
+| `comment`     | string  | —       | Lines starting with this character are skipped.          |
+| `lazy-quotes` | boolean | `false` | Allow bare quotes in unquoted fields.                    |
 
 ```toml
 [validators.csv]
@@ -117,8 +117,8 @@ lazy-quotes = true
 
 ### JSON
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
+| Key                     | Type    | Default | Description                                 |
+|-------------------------|---------|---------|---------------------------------------------|
 | `forbid-duplicate-keys` | boolean | `false` | Report duplicate keys in objects as errors. |
 
 ```toml
@@ -128,8 +128,8 @@ forbid-duplicate-keys = true
 
 ### INI
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
+| Key                     | Type    | Default | Description                                              |
+|-------------------------|---------|---------|----------------------------------------------------------|
 | `forbid-duplicate-keys` | boolean | `false` | Report duplicate keys within the same section as errors. |
 
 ```toml

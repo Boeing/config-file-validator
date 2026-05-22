@@ -7,12 +7,12 @@ The validator writes results to stdout by default. Use `--reporter` to control t
 
 ## Reporter types
 
-| Reporter | Description | Use case |
-|----------|-------------|----------|
-| `standard` | Human-readable table (default) | Terminal use, local development |
-| `json` | Structured JSON | CI pipelines, scripting, programmatic consumption |
-| `junit` | JUnit XML | Jenkins, GitLab CI, any system that reads JUnit reports |
-| `sarif` | SARIF 2.1.0 | GitHub Code Scanning, VS Code SARIF Viewer |
+| Reporter   | Description                    | Use case                                                |
+|------------|--------------------------------|---------------------------------------------------------|
+| `standard` | Human-readable table (default) | Terminal use, local development                         |
+| `json`     | Structured JSON                | CI pipelines, scripting, programmatic consumption       |
+| `junit`    | JUnit XML                      | Jenkins, GitLab CI, any system that reads JUnit reports |
+| `sarif`    | SARIF 2.1.0                    | GitHub Code Scanning, VS Code SARIF Viewer              |
 
 ## Basic usage
 
@@ -60,12 +60,12 @@ Grouping only applies to the `standard` and `json` reporters.
 
 Use `--groupby` to organize the report. Supported groupings:
 
-| Value | Groups by |
-|-------|-----------|
-| `filetype` | File format (JSON, YAML, TOML, etc.) |
-| `directory` | Parent directory |
-| `pass-fail` | Validation result |
-| `error-type` | Type of error (syntax, schema) |
+| Value        | Groups by                            |
+|--------------|--------------------------------------|
+| `filetype`   | File format (JSON, YAML, TOML, etc.) |
+| `directory`  | Parent directory                     |
+| `pass-fail`  | Validation result                    |
+| `error-type` | Type of error (syntax, schema)       |
 
 Combine multiple groupings:
 
