@@ -24,5 +24,5 @@ It recursively searches directories for config files, detects their format by ex
 
 ## Next steps
 
-- [Installation](./installation.md) — install via Homebrew, binary download, `go install`, or Docker
+- [Installation](./installation.md) — install via Homebrew, Winget, `go install`, or binary download
 - [Quick Start](./quick-start.md) — validate your first directory in under a minute

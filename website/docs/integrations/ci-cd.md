@@ -49,14 +49,6 @@ stage('Validate Config') {
   condition: always()
 ```
 
-## Docker-based CI
-
-For CI systems without Go, use the Docker image:
-
-```shell
-docker run --rm -v "$(pwd):/work" config-file-validator:latest --schemastore /work
-```
-
 ## Output formats for CI
 
 | Format | Flag | Use case |

@@ -72,20 +72,6 @@ go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
 
 The binary installs to `$GOBIN` (defaults to `$GOPATH/bin` or `$HOME/go/bin`).
 
-## Docker
-
-A Dockerfile is included in the repository:
-
-```shell
-docker build . -t config-file-validator:latest
-```
-
-Run against a local directory:
-
-```shell
-docker run --rm -v "$(pwd):/work" config-file-validator:latest /work
-```
-
 ## Build from source
 
 If you need a custom build, see [Development Setup](./contributing/development-setup.md) for platform-specific build instructions.
