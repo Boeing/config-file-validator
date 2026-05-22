@@ -26,6 +26,17 @@ exec validator --reporter=json:multi.json --reporter=standard:- good.json
 stdout '✓'
 exists multi.json
 
+# Duplicate reporter type to separate files
+exec validator --reporter=json:first.json --reporter=json:second.json good.json
+exists first.json
+exists second.json
+
+# Duplicate reporter type to the same file leaves one valid report
+exec validator --reporter=json:same.json --reporter=json:same.json good.json
+exists same.json
+exec validator same.json
+stdout '✓'
+
 # Invalid reporter
 ! exec validator --reporter=bad good.json
 

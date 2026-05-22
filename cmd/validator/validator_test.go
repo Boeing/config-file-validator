@@ -33,7 +33,7 @@ func Test_getFlags(t *testing.T) {
 		// Invalid flag combinations
 		{"negative depth", []string{"-depth=-1", "."}, true},
 		{"wrong reporter", []string{"--reporter=wrong", "."}, true},
-		{"bad reporter format", []string{"--reporter", "json:/a:/b", "."}, true},
+		{"reporter output path with colon", []string{"--reporter", "json:/a:/b", "."}, false},
 		{"invalid groupby", []string{"-groupby=badgroup", "."}, true},
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, true},
 		{"grouped junit", []string{"-groupby=directory", "--reporter=junit", "."}, true},
