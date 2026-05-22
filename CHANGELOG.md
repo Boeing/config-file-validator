@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Repeating the same `--reporter` type with different output paths now writes each requested output.
+- `--schema-map` now warns instead of silently skipping files whose validators do not support external schema validation.
 - KnownFiles now take priority over extension matching in the finder, so `tsconfig.json` resolves to JSONC (not JSON)
 - Extension exclusion cache no longer prevents known files from being found
 - Linguist known files that conflict with dedicated validators are automatically excluded (e.g. `.editorconfig` stays with EditorConfig, not INI)
