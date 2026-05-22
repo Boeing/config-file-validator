@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Documentation website at https://boeing.github.io/config-file-validator
 - `--reporter=github` option that emits validation errors as GitHub Actions workflow commands so they appear as inline PR annotations, without requiring the separate `validate-configs-action` wrapper (closes #459)
-- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded [go-just](https://github.com/Boeing/go-just) parser
+- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded justfile parser (`pkg/validator/justfile`)
 - Automatic file type detection from GitHub Linguist's `languages.yml` via `go generate`
 - ~90 known filenames auto-detected (`.babelrc`, `tsconfig.json`, `Pipfile`, `pom.xml`, `.gitconfig`, etc.)
 - SchemaStore now resolves schemas for extensionless known files (`.babelrc`, `.clangd`, etc.)
@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- External consumers of this module (e.g. `validate-configs-action`) can now resolve all dependencies without workarounds. The justfile parser was previously a separate nested module (`github.com/Boeing/go-just`) with a `replace` directive that didn't propagate to downstream `go.mod` files.
 - Repeating the same `--reporter` type with different output paths now writes each requested output.
 - KnownFiles now take priority over extension matching in the finder, so `tsconfig.json` resolves to JSONC (not JSON)
 - Extension exclusion cache no longer prevents known files from being found
@@ -31,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded [go-just](https://github.com/Boeing/go-just) parser
+- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded justfile parser (`pkg/validator/justfile`)
 - `--gitignore` flag to skip files and directories matched by `.gitignore` patterns, including nested `.gitignore` files, `.git/info/exclude`, and global git ignore config. Supported via CLI flag, `CFV_GITIGNORE` env var, and `gitignore = true` in `.cfv.toml`.
 - Automatic file type detection from GitHub Linguist's `languages.yml` via `go generate`
 - ~90 known filenames auto-detected (`.babelrc`, `tsconfig.json`, `Pipfile`, `pom.xml`, `.gitconfig`, etc.)

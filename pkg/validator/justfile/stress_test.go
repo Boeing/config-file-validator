@@ -1,4 +1,4 @@
-package gojust
+package justfile
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type stressGen struct {
 }
 
 func newStressGen(seed int64) *stressGen {
-	return &stressGen{rng: rand.New(rand.NewPCG(uint64(seed), uint64(seed)))}
+	return &stressGen{rng: rand.New(rand.NewPCG(uint64(seed), uint64(seed)))} //nolint:gosec // G404: deterministic RNG is intentional for reproducible stress tests
 }
 
 func (g *stressGen) id() string {
