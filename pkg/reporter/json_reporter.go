@@ -17,10 +17,11 @@ func NewJSONReporter(outputDest string) *JSONReporter {
 }
 
 type fileStatus struct {
-	Path   string   `json:"path"`
-	Status string   `json:"status"`
-	Errors []string `json:"errors,omitempty"`
-	Notes  []string `json:"notes,omitempty"`
+	Path     string   `json:"path"`
+	Status   string   `json:"status"`
+	Errors   []string `json:"errors,omitempty"`
+	Notes    []string `json:"notes,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 type summary struct {
@@ -165,10 +166,11 @@ func createJSONReport(reports []Report) (reportJSON, error) {
 		}
 
 		jsonReport.Files = append(jsonReport.Files, fileStatus{
-			Path:   report.FilePath,
-			Status: status,
-			Errors: errs,
-			Notes:  report.Notes,
+			Path:     report.FilePath,
+			Status:   status,
+			Errors:   errs,
+			Notes:    report.Notes,
+			Warnings: report.Warnings,
 		})
 
 		currentPassed := 0

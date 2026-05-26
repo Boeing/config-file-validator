@@ -143,8 +143,9 @@ func (c *CLI) validate(content []byte, ft filetype.FileType, name, path string) 
 	isValid, syntaxErr := ft.Validator.ValidateSyntax(content)
 
 	var schemaErr error
+	var warnings []string
 	if isValid {
-		isValid, schemaErr = c.validateSchema(ft.Validator, content, path)
+		isValid, warnings, schemaErr = c.validateSchema(ft.Validator, content, path)
 	}
 
 	err := syntaxErr
@@ -174,6 +175,7 @@ func (c *CLI) validate(content []byte, ft filetype.FileType, name, path string) 
 		ValidationError:  err,
 		ValidationErrors: validationErrors,
 		Notes:            notes,
+		Warnings:         warnings,
 		ErrorType:        errorType,
 		IsQuiet:          c.quiet,
 		StartLine:        line,
@@ -263,33 +265,43 @@ func checkJSONCFallback(syntaxErr error, ft filetype.FileType, content []byte, n
 	return nil
 }
 
-func (c *CLI) validateSchema(v validator.Validator, content []byte, filePath string) (bool, error) {
+func (c *CLI) validateSchema(v validator.Validator, content []byte, filePath string) (bool, []string, error) {
 	if c.noSchema {
-		return true, nil
+		return true, nil, nil
 	}
 
 	sv, hasSV := v.(validator.SchemaValidator)
 	if hasSV {
 		valid, err := sv.ValidateSchema(content, filePath)
 		if !errors.Is(err, validator.ErrNoSchema) {
-			return valid, err
+			return valid, nil, err
 		}
 	}
 
 	if schemaPath, ok := c.lookupSchemaMap(filePath); ok {
-		return validateWithExternal(v, content, schemaPath)
+		valid, skipped, err := validateWithExternal(v, content, schemaPath)
+		if skipped {
+			if c.requireSchema {
+				return false, nil, &validator.SchemaErrors{
+					Items: []string{schemaMapUnsupportedError(schemaPath)},
+				}
+			}
+			return valid, []string{schemaMapUnsupportedWarning(schemaPath)}, nil
+		}
+		return valid, nil, err
 	}
 
 	if c.schemaStore != nil {
 		if schemaPath, ok := c.schemaStore.Resolve(filePath); ok {
-			return validateWithExternal(v, content, schemaPath)
+			valid, _, err := validateWithExternal(v, content, schemaPath)
+			return valid, nil, err
 		}
 	}
 
 	if hasSV && c.requireSchema {
-		return false, validator.ErrNoSchema
+		return false, nil, validator.ErrNoSchema
 	}
-	return true, nil
+	return true, nil, nil
 }
 
 func (c *CLI) lookupSchemaMap(filePath string) (string, bool) {
@@ -312,31 +324,41 @@ func (c *CLI) lookupSchemaMap(filePath string) (string, bool) {
 	return "", false
 }
 
-func validateWithExternal(v validator.Validator, content []byte, schemaPath string) (bool, error) {
+func validateWithExternal(v validator.Validator, content []byte, schemaPath string) (valid bool, skipped bool, err error) {
 	if _, ok := v.(validator.XMLSchemaValidator); ok {
 		absSchema, err := filepath.Abs(schemaPath)
 		if err != nil {
-			return false, fmt.Errorf("resolving schema path: %w", err)
+			return false, false, fmt.Errorf("resolving schema path: %w", err)
 		}
-		return validator.ValidateXSD(content, absSchema)
+		valid, err := validator.ValidateXSD(content, absSchema)
+		return valid, false, err
 	}
 
 	jm, ok := v.(validator.JSONMarshaler)
 	if !ok {
-		return true, nil
+		return true, true, nil
 	}
 
 	schemaURL, err := toSchemaURL(schemaPath)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	docJSON, err := jm.MarshalToJSON(content)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
-	return validator.JSONSchemaValidate(schemaURL, docJSON)
+	valid, err = validator.JSONSchemaValidate(schemaURL, docJSON)
+	return valid, false, err
+}
+
+func schemaMapUnsupportedWarning(schemaPath string) string {
+	return fmt.Sprintf("--schema-map matched this file, but its validator does not support schema validation; skipping schema %q", schemaPath)
+}
+
+func schemaMapUnsupportedError(schemaPath string) string {
+	return fmt.Sprintf("--schema-map matched this file, but its validator does not support schema validation for schema %q", schemaPath)
 }
 
 func toSchemaURL(schemaPath string) (string, error) {
