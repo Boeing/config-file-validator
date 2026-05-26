@@ -35,7 +35,7 @@
   </a>
 </p>
 
-Config File Validator validates config files across 16 formats.
+Config File Validator validates config files across 17 formats.
 
 It recursively searches directories for config files, detects their format by extension or filename, and reports errors.
 
