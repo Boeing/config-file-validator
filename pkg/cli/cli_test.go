@@ -14,6 +14,15 @@ import (
 	"github.com/Boeing/config-file-validator/v2/pkg/validator"
 )
 
+type captureReporter struct {
+	reports []reporter.Report
+}
+
+func (r *captureReporter) Print(reports []reporter.Report) error {
+	r.reports = reports
+	return nil
+}
+
 func Test_CLI(t *testing.T) {
 	dir := testhelper.CreateFixtureDir(t, "json", "yaml", "toml")
 
@@ -391,6 +400,56 @@ func Test_CLISchemaMapUnmatched(t *testing.T) {
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 0, exitStatus)
+}
+
+func Test_CLISchemaMapUnsupportedValidatorWarnsAndPasses(t *testing.T) {
+	dir := t.TempDir()
+	envFile := testhelper.WriteFile(t, dir, ".env", "KEY=VALUE\n")
+	schema := testhelper.WriteFile(t, dir, "schema.json", `{"type": "object"}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(envFile),
+	)
+	capturingReporter := &captureReporter{}
+	cli := Init(
+		WithFinder(fsFinder),
+		WithReporters(capturingReporter),
+		WithSchemaMap(map[string]string{".env": schema}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+	require.Len(t, capturingReporter.reports, 1)
+	require.True(t, capturingReporter.reports[0].IsValid)
+	require.Len(t, capturingReporter.reports[0].Warnings, 1)
+	require.Contains(t, capturingReporter.reports[0].Warnings[0], "--schema-map matched this file")
+	require.Contains(t, capturingReporter.reports[0].Warnings[0], "does not support schema validation")
+}
+
+func Test_CLISchemaMapUnsupportedValidatorFailsWithRequireSchema(t *testing.T) {
+	dir := t.TempDir()
+	envFile := testhelper.WriteFile(t, dir, ".env", "KEY=VALUE\n")
+	schema := testhelper.WriteFile(t, dir, "schema.json", `{"type": "object"}`)
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(envFile),
+	)
+	capturingReporter := &captureReporter{}
+	cli := Init(
+		WithFinder(fsFinder),
+		WithReporters(capturingReporter),
+		WithSchemaMap(map[string]string{".env": schema}),
+		WithRequireSchema(true),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+	require.Len(t, capturingReporter.reports, 1)
+	require.False(t, capturingReporter.reports[0].IsValid)
+	require.Empty(t, capturingReporter.reports[0].Warnings)
+	require.Equal(t, "schema", capturingReporter.reports[0].ErrorType)
+	require.Contains(t, capturingReporter.reports[0].ValidationErrors[0], "--schema-map matched this file")
+	require.Contains(t, capturingReporter.reports[0].ValidationErrors[0], "does not support schema validation")
 }
 
 func Test_CLISchemaStoreValid(t *testing.T) {
