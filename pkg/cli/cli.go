@@ -281,6 +281,11 @@ func (c *CLI) validateSchema(v validator.Validator, content []byte, filePath str
 	if schemaPath, ok := c.lookupSchemaMap(filePath); ok {
 		valid, skipped, err := validateWithExternal(v, content, schemaPath)
 		if skipped {
+			if c.requireSchema {
+				return false, nil, &validator.SchemaErrors{
+					Items: []string{schemaMapUnsupportedError(schemaPath)},
+				}
+			}
 			return valid, []string{schemaMapUnsupportedWarning(schemaPath)}, nil
 		}
 		return valid, nil, err
@@ -350,6 +355,10 @@ func validateWithExternal(v validator.Validator, content []byte, schemaPath stri
 
 func schemaMapUnsupportedWarning(schemaPath string) string {
 	return fmt.Sprintf("--schema-map matched this file, but its validator does not support schema validation; skipping schema %q", schemaPath)
+}
+
+func schemaMapUnsupportedError(schemaPath string) string {
+	return fmt.Sprintf("--schema-map matched this file, but its validator does not support schema validation for schema %q", schemaPath)
 }
 
 func toSchemaURL(schemaPath string) (string, error) {
