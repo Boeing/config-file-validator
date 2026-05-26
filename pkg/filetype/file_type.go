@@ -158,6 +158,15 @@ var JustfileFileType = FileType{
 	Validator: validator.JustfileValidator{},
 }
 
+// Instance of the FileType object to
+// represent a KDL (KDL Document Language) file.
+// See https://kdl.dev/ for the spec.
+var KdlFileType = FileType{
+	Name:       "kdl",
+	Extensions: arrToMap("kdl"),
+	Validator:  validator.KdlValidator{},
+}
+
 // extraKnownFiles contains manual entries not covered by Linguist.
 var extraKnownFiles = map[string][]string{
 	"ini": {
@@ -187,6 +196,7 @@ var fileTypeRegistry = map[string]*FileType{
 	"toon":       &ToonFileType,
 	"sarif":      &SarifFileType,
 	"justfile":   &JustfileFileType,
+	"kdl":        &KdlFileType,
 }
 
 // excludeKnownFiles lists Linguist entries to skip because we have
@@ -258,6 +268,7 @@ func init() {
 		SarifFileType,
 		JSONCFileType,
 		JustfileFileType,
+		KdlFileType,
 	}
 }
 

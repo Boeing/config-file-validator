@@ -25,6 +25,8 @@ require (
 	howett.net/plist v1.0.1
 )
 
+require github.com/sblinch/kdl-go v0.0.0-20260121213736-8b7053306ca6
+
 require (
 	github.com/Boeing/go-just v0.0.0
 	github.com/agext/levenshtein v1.2.1 // indirect
