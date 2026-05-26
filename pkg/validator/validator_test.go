@@ -162,6 +162,10 @@ var testData = []struct {
 	{"validJsoncTrailingComma", []byte(`{"a": 1, "b": 2,}`), true, JSONCValidator{}},
 	{"invalidJsonc", []byte(`{"bad": }`), false, JSONCValidator{}},
 	{"validJsoncNoComments", []byte(`{"key": "value"}`), true, JSONCValidator{}},
+	{"validKdl", []byte("name \"Bob\"\nage 76\nactive true\n"), true, KdlValidator{}},
+	{"validKdlChildren", []byte("package {\n    name \"foo\"\n    version \"1.0\"\n}\n"), true, KdlValidator{}},
+	{"invalidKdlUnterminatedString", []byte("name \"Bob\n"), false, KdlValidator{}},
+	{"invalidKdlUnclosedChildren", []byte("package {\n    name \"foo\"\n"), false, KdlValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
