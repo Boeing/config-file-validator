@@ -25,6 +25,7 @@ type FileSystemFinder struct {
 	FileTypes        []filetype.FileType
 	ExcludeDirs      map[string]struct{}
 	ExcludeFileTypes map[string]struct{}
+	extCache         map[string]struct{}
 	Depth            *int
 	TypeOverrides    []TypeOverride
 	Gitignore        bool
@@ -91,6 +92,7 @@ func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 		FileTypes:        filetype.FileTypes,
 		ExcludeDirs:      defaultExcludeDirs,
 		ExcludeFileTypes: defaultExcludeFileTypes,
+		extCache:         make(map[string]struct{}),
 	}
 
 	for _, opt := range opts {
@@ -289,10 +291,11 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 	walkFileName := filepath.Base(path)
 	walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 	extensionLowerCase := strings.ToLower(walkFileExtension)
+	pathForPatternMatch := filepath.ToSlash(path)
 
 	// Check type overrides first (user-specified mappings take priority)
 	for _, override := range fsf.TypeOverrides {
-		matched, err := doublestar.PathMatch(override.Pattern, path)
+		matched, err := doublestar.PathMatch(filepath.ToSlash(override.Pattern), pathForPatternMatch)
 		if err != nil {
 			return err
 		}
@@ -309,20 +312,32 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 			return fsf.addFileIfNotExcluded(path, dirEntry, fileType, seenMap, matchingFiles)
 		}
 	}
+	if fsf.isExtensionCached(extensionLowerCase) {
+		return nil
+	}
 	for _, fileType := range fsf.FileTypes {
 		if _, hasExtension := fileType.Extensions[extensionLowerCase]; hasExtension {
 			return fsf.addFileIfNotExcluded(path, dirEntry, fileType, seenMap, matchingFiles)
 		}
 	}
 
-	// Only cache exclusion if no type overrides are configured.
-	// Never cache "" (extensionless files) — one unrecognized extensionless
-	// file (e.g. .gitignore) must not prevent known extensionless files
-	// (e.g. Pipfile) from being found later.
-	if len(fsf.TypeOverrides) == 0 && extensionLowerCase != "" {
-		fsf.ExcludeFileTypes[extensionLowerCase] = struct{}{}
-	}
+	fsf.cacheUnsupportedExtension(extensionLowerCase)
 	return nil
+}
+
+func (fsf FileSystemFinder) isExtensionCached(extension string) bool {
+	if len(fsf.TypeOverrides) > 0 || extension == "" || fsf.extCache == nil {
+		return false
+	}
+	_, isCached := fsf.extCache[extension]
+	return isCached
+}
+
+func (fsf FileSystemFinder) cacheUnsupportedExtension(extension string) {
+	if len(fsf.TypeOverrides) > 0 || extension == "" || fsf.extCache == nil {
+		return
+	}
+	fsf.extCache[extension] = struct{}{}
 }
 
 func (fsf FileSystemFinder) addFileIfNotExcluded(path string, dirEntry fs.DirEntry, fileType filetype.FileType, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
