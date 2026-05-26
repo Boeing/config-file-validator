@@ -201,6 +201,29 @@ func Test_stdoutGroupedReports(t *testing.T) {
 	}
 	err = PrintTripleGroupStdout(tripleGroup)
 	require.NoError(t, err)
+
+	groupTree := &GroupNode{
+		Children: []*GroupNode{
+			{
+				Key: "xml",
+				Children: []*GroupNode{
+					{
+						Key: "directory",
+						Children: []*GroupNode{
+							{
+								Key: "Passed",
+								Children: []*GroupNode{
+									{Key: "Passed", Reports: []Report{validReport}},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = PrintGroupStdout(groupTree)
+	require.NoError(t, err)
 }
 
 // --- Grouped JSON tests ---
@@ -222,6 +245,29 @@ func Test_jsonGroupedReports(t *testing.T) {
 		"xml": {"directory": {"pass-fail": mixedReports}},
 	}
 	err = PrintTripleGroupJSON(tripleGroup)
+	require.NoError(t, err)
+
+	groupTree := &GroupNode{
+		Children: []*GroupNode{
+			{
+				Key: "xml",
+				Children: []*GroupNode{
+					{
+						Key: "directory",
+						Children: []*GroupNode{
+							{
+								Key: "Passed",
+								Children: []*GroupNode{
+									{Key: "Passed", Reports: []Report{validReport}},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = PrintGroupJSON(groupTree)
 	require.NoError(t, err)
 }
 

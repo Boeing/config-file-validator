@@ -34,24 +34,10 @@ type reportJSON struct {
 }
 
 type groupReportJSON struct {
-	Files       map[string][]fileStatus `json:"files"`
-	Summary     map[string][]summary    `json:"summary"`
-	TotalPassed int                     `json:"totalPassed"`
-	TotalFailed int                     `json:"totalFailed"`
-}
-
-type doubleGroupReportJSON struct {
-	Files       map[string]map[string][]fileStatus `json:"files"`
-	Summary     map[string]map[string][]summary    `json:"summary"`
-	TotalPassed int                                `json:"totalPassed"`
-	TotalFailed int                                `json:"totalFailed"`
-}
-
-type tripleGroupReportJSON struct {
-	Files       map[string]map[string]map[string][]fileStatus `json:"files"`
-	Summary     map[string]map[string]map[string][]summary    `json:"summary"`
-	TotalPassed int                                           `json:"totalPassed"`
-	TotalFailed int                                           `json:"totalFailed"`
+	Files       map[string]any `json:"files"`
+	Summary     map[string]any `json:"summary"`
+	TotalPassed int            `json:"totalPassed"`
+	TotalFailed int            `json:"totalFailed"`
 }
 
 // Print implements the Reporter interface by outputting
@@ -81,120 +67,84 @@ func (jr JSONReporter) Print(reports []Report) error {
 	return nil
 }
 
-// Prints the report for when one group is passed in the groupby flag
-func PrintSingleGroupJSON(groupReports map[string][]Report) error {
-	var jsonReport groupReportJSON
-	totalPassed := 0
-	totalFailed := 0
-	jsonReport.Files = make(map[string][]fileStatus)
-	jsonReport.Summary = make(map[string][]summary)
+// PrintGroupJSON prints a recursive grouped report to stdout as JSON.
+func PrintGroupJSON(groupReports *GroupNode) error {
+	files, summaries, totalSummary, err := createGroupJSON(groupReports)
+	if err != nil {
+		return err
+	}
 
-	for group, reports := range groupReports {
-		report, err := createJSONReport(reports)
+	jsonReport := groupReportJSON{
+		Files:       files,
+		Summary:     summaries,
+		TotalPassed: totalSummary.Passed,
+		TotalFailed: totalSummary.Failed,
+	}
+	jsonBytes, err := json.MarshalIndent(jsonReport, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(jsonBytes))
+	return nil
+}
+
+func createGroupJSON(node *GroupNode) (files map[string]any, summaries map[string]any, total summary, err error) {
+	files = make(map[string]any)
+	summaries = make(map[string]any)
+
+	for _, child := range node.Children {
+		childFiles, childSummary, reportSummary, err := createGroupJSONNode(child)
 		if err != nil {
-			return err
+			return nil, nil, summary{}, err
 		}
-
-		jsonReport.Files[group] = report.Files
-		jsonReport.Summary[group] = append(jsonReport.Summary[group], report.Summary)
-
-		totalPassed += report.Summary.Passed
-		totalFailed += report.Summary.Failed
-
+		files[child.Key] = childFiles
+		summaries[child.Key] = childSummary
+		total.Passed += reportSummary.Passed
+		total.Failed += reportSummary.Failed
 	}
 
-	jsonReport.TotalPassed = totalPassed
-	jsonReport.TotalFailed = totalFailed
-
-	jsonBytes, err := json.MarshalIndent(jsonReport, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(string(jsonBytes))
-	return nil
+	return files, summaries, total, nil
 }
 
-// Prints the report for when two groups are passed in the groupby flag
+func createGroupJSONNode(node *GroupNode) (files any, summaries any, total summary, err error) {
+	if len(node.Children) == 0 {
+		report, err := createJSONReport(node.Reports)
+		if err != nil {
+			return nil, nil, summary{}, err
+		}
+		return report.Files, []summary{report.Summary}, report.Summary, nil
+	}
+
+	childFiles := make(map[string]any)
+	childSummaries := make(map[string]any)
+	for _, child := range node.Children {
+		files, summaries, reportSummary, err := createGroupJSONNode(child)
+		if err != nil {
+			return nil, nil, summary{}, err
+		}
+		childFiles[child.Key] = files
+		childSummaries[child.Key] = summaries
+		total.Passed += reportSummary.Passed
+		total.Failed += reportSummary.Failed
+	}
+
+	return childFiles, childSummaries, total, nil
+}
+
+// PrintSingleGroupJSON prints a grouped JSON report with one grouping level.
+func PrintSingleGroupJSON(groupReports map[string][]Report) error {
+	return PrintGroupJSON(groupNodeFromSingle(groupReports))
+}
+
+// PrintDoubleGroupJSON prints a grouped JSON report with two grouping levels.
 func PrintDoubleGroupJSON(groupReports map[string]map[string][]Report) error {
-	var jsonReport doubleGroupReportJSON
-	totalPassed := 0
-	totalFailed := 0
-	jsonReport.Files = make(map[string]map[string][]fileStatus)
-	jsonReport.Summary = make(map[string]map[string][]summary)
-
-	for group, group2 := range groupReports {
-		jsonReport.Files[group] = make(map[string][]fileStatus, 0)
-		jsonReport.Summary[group] = make(map[string][]summary, 0)
-		for group2, reports := range group2 {
-			report, err := createJSONReport(reports)
-			if err != nil {
-				return err
-			}
-
-			jsonReport.Files[group][group2] = report.Files
-			jsonReport.Summary[group][group2] = append(jsonReport.Summary[group][group2], report.Summary)
-
-			totalPassed += report.Summary.Passed
-			totalFailed += report.Summary.Failed
-
-		}
-	}
-
-	jsonReport.TotalPassed = totalPassed
-	jsonReport.TotalFailed = totalFailed
-
-	jsonBytes, err := json.MarshalIndent(jsonReport, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(jsonBytes))
-	return nil
+	return PrintGroupJSON(groupNodeFromDouble(groupReports))
 }
 
-// Prints the report for when three groups are passed in the groupby flag
+// PrintTripleGroupJSON prints a grouped JSON report with three grouping levels.
 func PrintTripleGroupJSON(groupReports map[string]map[string]map[string][]Report) error {
-	var jsonReport tripleGroupReportJSON
-	totalPassed := 0
-	totalFailed := 0
-	jsonReport.Files = make(map[string]map[string]map[string][]fileStatus)
-	jsonReport.Summary = make(map[string]map[string]map[string][]summary)
-
-	for group, group2 := range groupReports {
-		jsonReport.Files[group] = make(map[string]map[string][]fileStatus, 0)
-		jsonReport.Summary[group] = make(map[string]map[string][]summary, 0)
-
-		for group2, group3 := range group2 {
-			jsonReport.Files[group][group2] = make(map[string][]fileStatus, 0)
-			jsonReport.Summary[group][group2] = make(map[string][]summary, 0)
-
-			for group3, reports := range group3 {
-				report, err := createJSONReport(reports)
-				if err != nil {
-					return err
-				}
-
-				jsonReport.Files[group][group2][group3] = report.Files
-				jsonReport.Summary[group][group2][group3] = append(jsonReport.Summary[group][group2][group3], report.Summary)
-
-				totalPassed += report.Summary.Passed
-				totalFailed += report.Summary.Failed
-
-			}
-
-		}
-	}
-
-	jsonReport.TotalPassed = totalPassed
-	jsonReport.TotalFailed = totalFailed
-
-	jsonBytes, err := json.MarshalIndent(jsonReport, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(string(jsonBytes))
-	return nil
+	return PrintGroupJSON(groupNodeFromTriple(groupReports))
 }
 
 // Creates the json report
