@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,6 +52,57 @@ var (
 
 	mixedReports = []Report{validReport, invalidReport, multiLineErrorReport}
 )
+
+func captureStdout(t *testing.T, writeOutput func() error) (string, error) {
+	t.Helper()
+
+	originalStdout := os.Stdout
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+
+	os.Stdout = writer
+	printErr := writeOutput()
+	os.Stdout = originalStdout
+
+	require.NoError(t, writer.Close())
+	output, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.NoError(t, reader.Close())
+
+	return string(output), printErr
+}
+
+func decodeJSONOutput(t *testing.T, output string) map[string]any {
+	t.Helper()
+
+	var report map[string]any
+	require.NoError(t, json.Unmarshal([]byte(output), &report))
+	return report
+}
+
+func requireJSONMap(t *testing.T, value any) map[string]any {
+	t.Helper()
+
+	actual, ok := value.(map[string]any)
+	require.Truef(t, ok, "expected JSON object, got %T", value)
+	return actual
+}
+
+func requireJSONArray(t *testing.T, value any) []any {
+	t.Helper()
+
+	actual, ok := value.([]any)
+	require.Truef(t, ok, "expected JSON array, got %T", value)
+	return actual
+}
+
+func requireJSONNumber(t *testing.T, value any, expected float64) {
+	t.Helper()
+
+	actual, ok := value.(float64)
+	require.Truef(t, ok, "expected JSON number, got %T", value)
+	require.InDelta(t, expected, actual, 0.000001)
+}
 
 // --- Basic Print tests ---
 
@@ -176,31 +229,50 @@ func Test_sarifReportToFile(t *testing.T) {
 // --- Grouped stdout tests ---
 
 func Test_stdoutGroupedReports(t *testing.T) {
-	singleGroup := map[string][]Report{
-		"xml": mixedReports,
-	}
-	err := PrintSingleGroupStdout(singleGroup)
+	output, err := captureStdout(t, func() error {
+		return PrintSingleGroupStdout(map[string][]Report{
+			"xml": mixedReports,
+		})
+	})
 	require.NoError(t, err)
+	assert.Contains(t, output, "xml\n")
+	assert.Contains(t, output, "/fake/path/good.xml")
+	assert.Contains(t, output, "Summary: 1 succeeded, 2 failed")
+	assert.Contains(t, output, "Total Summary: 1 succeeded, 2 failed")
 
 	// With "Passed"/"Failed" keys to hit checkGroupsForPassFail returning false
-	passfailGroup := map[string][]Report{
-		"Passed": {validReport},
-		"Failed": {invalidReport},
-	}
-	err = PrintSingleGroupStdout(passfailGroup)
+	output, err = captureStdout(t, func() error {
+		return PrintSingleGroupStdout(map[string][]Report{
+			"Passed": {validReport},
+			"Failed": {invalidReport},
+		})
+	})
 	require.NoError(t, err)
+	assert.Contains(t, output, "Passed\n")
+	assert.Contains(t, output, "Failed\n")
+	assert.Contains(t, output, "Total Summary: 1 succeeded, 1 failed")
+	require.Equal(t, 1, strings.Count(output, "Summary:"))
 
-	doubleGroup := map[string]map[string][]Report{
-		"xml": {"directory": mixedReports},
-	}
-	err = PrintDoubleGroupStdout(doubleGroup)
+	output, err = captureStdout(t, func() error {
+		return PrintDoubleGroupStdout(map[string]map[string][]Report{
+			"xml": {"directory": mixedReports},
+		})
+	})
 	require.NoError(t, err)
+	assert.Contains(t, output, "xml\n")
+	assert.Contains(t, output, "    directory\n")
+	assert.Contains(t, output, "Total Summary: 1 succeeded, 2 failed")
 
-	tripleGroup := map[string]map[string]map[string][]Report{
-		"xml": {"directory": {"pass-fail": mixedReports}},
-	}
-	err = PrintTripleGroupStdout(tripleGroup)
+	output, err = captureStdout(t, func() error {
+		return PrintTripleGroupStdout(map[string]map[string]map[string][]Report{
+			"xml": {"directory": {"pass-fail": mixedReports}},
+		})
+	})
 	require.NoError(t, err)
+	assert.Contains(t, output, "xml\n")
+	assert.Contains(t, output, "    directory\n")
+	assert.Contains(t, output, "        pass-fail\n")
+	assert.Contains(t, output, "Total Summary: 1 succeeded, 2 failed")
 
 	groupTree := &GroupNode{
 		Children: []*GroupNode{
@@ -222,30 +294,76 @@ func Test_stdoutGroupedReports(t *testing.T) {
 			},
 		},
 	}
-	err = PrintGroupStdout(groupTree)
+	output, err = captureStdout(t, func() error {
+		return PrintGroupStdout(groupTree)
+	})
 	require.NoError(t, err)
+	assert.Contains(t, output, "xml\n")
+	assert.Contains(t, output, "    directory\n")
+	assert.Contains(t, output, "/fake/path/good.xml")
+	assert.Contains(t, output, "Total Summary: 1 succeeded, 0 failed")
+}
+
+func Test_stdoutGroupedLeafRootDoesNotDuplicateSummary(t *testing.T) {
+	output, err := captureStdout(t, func() error {
+		return PrintGroupStdout(&GroupNode{
+			Reports: []Report{validReport, invalidReport},
+		})
+	})
+	require.NoError(t, err)
+	assert.Contains(t, output, "/fake/path/good.xml")
+	assert.Contains(t, output, "/fake/path/bad.xml")
+	assert.Contains(t, output, "Total Summary: 1 succeeded, 1 failed")
+	require.Equal(t, 1, strings.Count(output, "Summary:"))
 }
 
 // --- Grouped JSON tests ---
 
 func Test_jsonGroupedReports(t *testing.T) {
-	singleGroup := map[string][]Report{
-		"xml": mixedReports,
-	}
-	err := PrintSingleGroupJSON(singleGroup)
+	output, err := captureStdout(t, func() error {
+		return PrintSingleGroupJSON(map[string][]Report{
+			"xml": mixedReports,
+		})
+	})
 	require.NoError(t, err)
+	report := decodeJSONOutput(t, output)
+	requireJSONNumber(t, report["totalPassed"], 1)
+	requireJSONNumber(t, report["totalFailed"], 2)
+	xmlFiles := requireJSONArray(t, requireJSONMap(t, report["files"])["xml"])
+	require.Len(t, xmlFiles, 3)
+	firstFile := requireJSONMap(t, xmlFiles[0])
+	require.Equal(t, "/fake/path/good.xml", firstFile["path"])
+	xmlSummaries := requireJSONArray(t, requireJSONMap(t, report["summary"])["xml"])
+	require.Len(t, xmlSummaries, 1)
+	xmlSummary := requireJSONMap(t, xmlSummaries[0])
+	requireJSONNumber(t, xmlSummary["passed"], 1)
+	requireJSONNumber(t, xmlSummary["failed"], 2)
 
-	doubleGroup := map[string]map[string][]Report{
-		"xml": {"directory": mixedReports},
-	}
-	err = PrintDoubleGroupJSON(doubleGroup)
+	output, err = captureStdout(t, func() error {
+		return PrintDoubleGroupJSON(map[string]map[string][]Report{
+			"xml": {"directory": mixedReports},
+		})
+	})
 	require.NoError(t, err)
+	report = decodeJSONOutput(t, output)
+	requireJSONNumber(t, report["totalPassed"], 1)
+	requireJSONNumber(t, report["totalFailed"], 2)
+	doubleFiles := requireJSONMap(t, requireJSONMap(t, report["files"])["xml"])
+	require.Len(t, requireJSONArray(t, doubleFiles["directory"]), 3)
+	doubleSummaries := requireJSONMap(t, requireJSONMap(t, report["summary"])["xml"])
+	require.Len(t, requireJSONArray(t, doubleSummaries["directory"]), 1)
 
-	tripleGroup := map[string]map[string]map[string][]Report{
-		"xml": {"directory": {"pass-fail": mixedReports}},
-	}
-	err = PrintTripleGroupJSON(tripleGroup)
+	output, err = captureStdout(t, func() error {
+		return PrintTripleGroupJSON(map[string]map[string]map[string][]Report{
+			"xml": {"directory": {"pass-fail": mixedReports}},
+		})
+	})
 	require.NoError(t, err)
+	report = decodeJSONOutput(t, output)
+	requireJSONNumber(t, report["totalPassed"], 1)
+	requireJSONNumber(t, report["totalFailed"], 2)
+	tripleFiles := requireJSONMap(t, requireJSONMap(t, requireJSONMap(t, report["files"])["xml"])["directory"])
+	require.Len(t, requireJSONArray(t, tripleFiles["pass-fail"]), 3)
 
 	groupTree := &GroupNode{
 		Children: []*GroupNode{
@@ -267,8 +385,36 @@ func Test_jsonGroupedReports(t *testing.T) {
 			},
 		},
 	}
-	err = PrintGroupJSON(groupTree)
+	output, err = captureStdout(t, func() error {
+		return PrintGroupJSON(groupTree)
+	})
 	require.NoError(t, err)
+	report = decodeJSONOutput(t, output)
+	requireJSONNumber(t, report["totalPassed"], 1)
+	requireJSONNumber(t, report["totalFailed"], 0)
+	treeFiles := requireJSONMap(t, requireJSONMap(t, requireJSONMap(t, requireJSONMap(t, report["files"])["xml"])["directory"])["Passed"])
+	require.Len(t, requireJSONArray(t, treeFiles["Passed"]), 1)
+}
+
+func Test_jsonGroupedLeafRootIncludesReports(t *testing.T) {
+	output, err := captureStdout(t, func() error {
+		return PrintGroupJSON(&GroupNode{
+			Reports: []Report{validReport, invalidReport},
+		})
+	})
+	require.NoError(t, err)
+	report := decodeJSONOutput(t, output)
+	requireJSONNumber(t, report["totalPassed"], 1)
+	requireJSONNumber(t, report["totalFailed"], 1)
+	files := requireJSONArray(t, report["files"])
+	require.Len(t, files, 2)
+	firstFile := requireJSONMap(t, files[0])
+	require.Equal(t, "/fake/path/good.xml", firstFile["path"])
+	summaries := requireJSONArray(t, report["summary"])
+	require.Len(t, summaries, 1)
+	reportSummary := requireJSONMap(t, summaries[0])
+	requireJSONNumber(t, reportSummary["passed"], 1)
+	requireJSONNumber(t, reportSummary["failed"], 1)
 }
 
 // --- Reporter file output tests (shared pattern) ---

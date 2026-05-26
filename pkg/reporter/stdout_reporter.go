@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fatih/color"
@@ -50,7 +51,7 @@ func printGroupNodeStdout(node *GroupNode, groupPath []string, depth int) summar
 
 	for _, child := range node.Children {
 		fmt.Printf("%s%s\n", strings.Repeat("    ", depth), child.Key)
-		childSummary := printGroupNodeStdout(child, append(groupPath, child.Key), depth+1)
+		childSummary := printGroupNodeStdout(child, append(slices.Clone(groupPath), child.Key), depth+1)
 		totalSummary.Passed += childSummary.Passed
 		totalSummary.Failed += childSummary.Failed
 	}
@@ -63,7 +64,7 @@ func printGroupNodeStdout(node *GroupNode, groupPath []string, depth int) summar
 	totalSummary.Passed += stdoutReport.Summary.Passed
 	totalSummary.Failed += stdoutReport.Summary.Failed
 	fmt.Println(stdoutReport.Text)
-	if checkGroupsForPassFail(groupPath...) {
+	if len(groupPath) > 0 && checkGroupsForPassFail(groupPath...) {
 		summaryDepth := depth - 1
 		if summaryDepth < 0 {
 			summaryDepth = 0

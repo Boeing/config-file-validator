@@ -35,10 +35,10 @@ type reportJSON struct {
 }
 
 type groupReportJSON struct {
-	Files       map[string]any `json:"files"`
-	Summary     map[string]any `json:"summary"`
-	TotalPassed int            `json:"totalPassed"`
-	TotalFailed int            `json:"totalFailed"`
+	Files       any `json:"files"`
+	Summary     any `json:"summary"`
+	TotalPassed int `json:"totalPassed"`
+	TotalFailed int `json:"totalFailed"`
 }
 
 // Print implements the Reporter interface by outputting
@@ -90,22 +90,25 @@ func PrintGroupJSON(groupReports *GroupNode) error {
 	return nil
 }
 
-func createGroupJSON(node *GroupNode) (files map[string]any, summaries map[string]any, total summary, err error) {
-	files = make(map[string]any)
-	summaries = make(map[string]any)
+func createGroupJSON(node *GroupNode) (files any, summaries any, total summary, err error) {
+	if len(node.Children) == 0 {
+		return createGroupJSONNode(node)
+	}
 
+	groupFiles := make(map[string]any)
+	groupSummaries := make(map[string]any)
 	for _, child := range node.Children {
 		childFiles, childSummary, reportSummary, err := createGroupJSONNode(child)
 		if err != nil {
 			return nil, nil, summary{}, err
 		}
-		files[child.Key] = childFiles
-		summaries[child.Key] = childSummary
+		groupFiles[child.Key] = childFiles
+		groupSummaries[child.Key] = childSummary
 		total.Passed += reportSummary.Passed
 		total.Failed += reportSummary.Failed
 	}
 
-	return files, summaries, total, nil
+	return groupFiles, groupSummaries, total, nil
 }
 
 func createGroupJSONNode(node *GroupNode) (files any, summaries any, total summary, err error) {
