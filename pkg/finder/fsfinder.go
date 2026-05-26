@@ -71,7 +71,11 @@ func WithDepth(depthVal int) FSFinderOptions {
 // WithTypeOverrides adds glob pattern to file type mappings
 func WithTypeOverrides(overrides []TypeOverride) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
-		fsf.TypeOverrides = overrides
+		normalized := append([]TypeOverride(nil), overrides...)
+		for i := range normalized {
+			normalized[i].Pattern = filepath.ToSlash(normalized[i].Pattern)
+		}
+		fsf.TypeOverrides = normalized
 	}
 }
 
@@ -92,7 +96,6 @@ func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 		FileTypes:        filetype.FileTypes,
 		ExcludeDirs:      defaultExcludeDirs,
 		ExcludeFileTypes: defaultExcludeFileTypes,
-		extCache:         make(map[string]struct{}),
 	}
 
 	for _, opt := range opts {
@@ -106,12 +109,15 @@ func FileSystemFinderInit(opts ...FSFinderOptions) *FileSystemFinder {
 // all the PathRoots and providing the aggregated FileMetadata after
 // ignoring all the duplicate files
 func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
+	finder := fsf
+	finder.extCache = make(map[string]struct{})
+
 	seen := make(map[string]struct{}, 0)
 	uniqueMatches := make([]FileMetadata, 0)
-	for _, pathRoot := range fsf.PathRoots {
+	for _, pathRoot := range finder.PathRoots {
 		// remove all leading and trailing whitespace
 		trimmedPathRoot := strings.TrimSpace(pathRoot)
-		matches, err := fsf.findOne(trimmedPathRoot, seen)
+		matches, err := finder.findOne(trimmedPathRoot, seen)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +129,7 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 // findOne recursively walks through all subdirectories (excluding the excluded subdirectories)
 // and identifying if the file matches a type defined in the fileTypes array for a
 // single path and returns the file metadata.
-func (fsf FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}) ([]FileMetadata, error) {
+func (fsf *FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{}) ([]FileMetadata, error) {
 	var matchingFiles []FileMetadata
 
 	pathRoot = strings.TrimRight(pathRoot, string(os.PathSeparator))
@@ -279,7 +285,7 @@ func findRepoRoot(absDir string) string {
 	}
 }
 
-func (fsf FileSystemFinder) handleDir(path string, dirEntry fs.DirEntry, maxDepth int) error {
+func (fsf *FileSystemFinder) handleDir(path string, dirEntry fs.DirEntry, maxDepth int) error {
 	_, isExcluded := fsf.ExcludeDirs[dirEntry.Name()]
 	if isExcluded || (fsf.Depth != nil && strings.Count(path, string(os.PathSeparator)) > maxDepth) {
 		return filepath.SkipDir
@@ -287,7 +293,7 @@ func (fsf FileSystemFinder) handleDir(path string, dirEntry fs.DirEntry, maxDept
 	return nil
 }
 
-func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
+func (fsf *FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
 	walkFileName := filepath.Base(path)
 	walkFileExtension := strings.TrimPrefix(filepath.Ext(path), ".")
 	extensionLowerCase := strings.ToLower(walkFileExtension)
@@ -295,7 +301,7 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 
 	// Check type overrides first (user-specified mappings take priority)
 	for _, override := range fsf.TypeOverrides {
-		matched, err := doublestar.PathMatch(filepath.ToSlash(override.Pattern), pathForPatternMatch)
+		matched, err := doublestar.PathMatch(override.Pattern, pathForPatternMatch)
 		if err != nil {
 			return err
 		}
@@ -325,7 +331,7 @@ func (fsf FileSystemFinder) handleFile(path string, dirEntry fs.DirEntry, seenMa
 	return nil
 }
 
-func (fsf FileSystemFinder) isExtensionCached(extension string) bool {
+func (fsf *FileSystemFinder) isExtensionCached(extension string) bool {
 	if len(fsf.TypeOverrides) > 0 || extension == "" || fsf.extCache == nil {
 		return false
 	}
@@ -333,21 +339,21 @@ func (fsf FileSystemFinder) isExtensionCached(extension string) bool {
 	return isCached
 }
 
-func (fsf FileSystemFinder) cacheUnsupportedExtension(extension string) {
+func (fsf *FileSystemFinder) cacheUnsupportedExtension(extension string) {
 	if len(fsf.TypeOverrides) > 0 || extension == "" || fsf.extCache == nil {
 		return
 	}
 	fsf.extCache[extension] = struct{}{}
 }
 
-func (fsf FileSystemFinder) addFileIfNotExcluded(path string, dirEntry fs.DirEntry, fileType filetype.FileType, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
+func (fsf *FileSystemFinder) addFileIfNotExcluded(path string, dirEntry fs.DirEntry, fileType filetype.FileType, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
 	if fsf.isFileTypeExcluded(fileType) {
 		return nil
 	}
 	return fsf.addFile(path, dirEntry, fileType, seenMap, matchingFiles)
 }
 
-func (fsf FileSystemFinder) isFileTypeExcluded(fileType filetype.FileType) bool {
+func (fsf *FileSystemFinder) isFileTypeExcluded(fileType filetype.FileType) bool {
 	if _, isExcluded := fsf.ExcludeFileTypes[fileType.Name]; isExcluded {
 		return true
 	}
@@ -359,7 +365,7 @@ func (fsf FileSystemFinder) isFileTypeExcluded(fileType filetype.FileType) bool 
 	return false
 }
 
-func (FileSystemFinder) addFile(path string, dirEntry fs.DirEntry, fileType filetype.FileType, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
+func (*FileSystemFinder) addFile(path string, dirEntry fs.DirEntry, fileType filetype.FileType, seenMap map[string]struct{}, matchingFiles *[]FileMetadata) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err

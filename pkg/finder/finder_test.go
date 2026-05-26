@@ -100,6 +100,32 @@ func Test_fsFinderExcludeFileTypesNotMutated(t *testing.T) {
 	require.NotContains(t, fsFinder.ExcludeFileTypes, "unknown")
 }
 
+func Test_fsFinderExtensionCacheResetsEachFind(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "config.custom", "key=value\n")
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes([]filetype.FileType{}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Empty(t, files)
+
+	fsFinder.FileTypes = []filetype.FileType{
+		{
+			Name:       "custom",
+			Extensions: tools.ArrToMap("custom"),
+			Validator:  validator.PropValidator{},
+		},
+	}
+	files, err = fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "config.custom", files[0].Name)
+	require.Equal(t, "custom", files[0].FileType.Name)
+}
+
 func Test_fsFinderWithDepth(t *testing.T) {
 	// root/good.json, root/sub/good.yaml
 	dir := testhelper.CreateFixtureDir(t, "json")
