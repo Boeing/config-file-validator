@@ -28,9 +28,18 @@ stdout 'json'
 exec validator -groupby=pass-fail,filetype,directory files
 stdout 'Passed'
 
+# Four-level grouping
+exec validator -groupby=filetype,directory,pass-fail,error-type files
+stdout 'Passed'
+
 # Groupby with JSON reporter
 exec validator -groupby=filetype --reporter=json:- files
 stdout 'totalPassed'
+
+# Four-level grouping with JSON reporter
+exec validator -groupby=filetype,directory,pass-fail,error-type --reporter=json:- files
+stdout 'totalPassed'
+stdout '"Passed"'
 
 # Invalid groupby
 ! exec validator -groupby=badvalue files
