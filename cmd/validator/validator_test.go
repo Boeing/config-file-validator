@@ -29,10 +29,14 @@ func Test_getFlags(t *testing.T) {
 		{"type-map", []string{"--type-map=**/inventory:ini", "."}, false},
 		{"multiple type-maps", []string{"--type-map=**/inventory:ini", "--type-map=**/configs/*:properties", "."}, false},
 		{"require-schema", []string{"--require-schema", "."}, false},
+		{"sarif merge file", []string{"--reporter=sarif", "--merge-sarif=external.sarif", "."}, false},
+		{"sarif merge dir", []string{"--reporter=sarif", "--merge-sarif-dir=reports", "."}, false},
 
 		// Invalid flag combinations
 		{"negative depth", []string{"-depth=-1", "."}, true},
 		{"wrong reporter", []string{"--reporter=wrong", "."}, true},
+		{"merge sarif requires sarif reporter", []string{"--reporter=json", "--merge-sarif=external.sarif", "."}, true},
+		{"empty merge sarif dir", []string{"--reporter=sarif", "--merge-sarif-dir=", "."}, true},
 		{"reporter output path with colon", []string{"--reporter", "json:/a:/b", "."}, false},
 		{"invalid groupby", []string{"-groupby=badgroup", "."}, true},
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, true},

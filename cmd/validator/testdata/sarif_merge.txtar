@@ -1,0 +1,88 @@
+# Merge explicit SARIF file
+exec validator --reporter=sarif:- --merge-sarif=external.sarif good.json
+stdout '"name": "config-file-validator"'
+stdout '"name": "external-tool"'
+stdout '"version": "1.2.3"'
+stdout '"id": "external-rule"'
+stdout '"ruleId": "external-rule"'
+
+# Merge SARIF files from a directory
+exec validator --reporter=sarif:- --merge-sarif-dir=reports good.json
+stdout '"name": "dir-one"'
+stdout '"name": "dir-two"'
+
+# Merge options only apply to SARIF output
+! exec validator --reporter=json:- --merge-sarif=external.sarif good.json
+
+# Invalid SARIF input fails the run
+! exec validator --reporter=sarif:- --merge-sarif=bad.sarif good.json
+
+-- good.json --
+{"key": "value"}
+
+-- bad.sarif --
+{"not": "sarif"}
+
+-- external.sarif --
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "external-tool",
+          "version": "1.2.3",
+          "rules": [
+            {
+              "id": "external-rule",
+              "shortDescription": {
+                "text": "Preserved external rule"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "external-rule",
+          "message": {
+            "text": "external result"
+          }
+        }
+      ]
+    }
+  ]
+}
+
+-- reports/one.sarif --
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "dir-one"
+        }
+      },
+      "results": []
+    }
+  ]
+}
+
+-- reports/two.sarif --
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "dir-two"
+        }
+      },
+      "results": []
+    }
+  ]
+}

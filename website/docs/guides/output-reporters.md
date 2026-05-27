@@ -114,6 +114,18 @@ The SARIF reporter produces a [SARIF 2.1.0](https://sarifweb.azurewebsites.net/)
 - **VS Code** — view with the SARIF Viewer extension
 - **Azure DevOps** — native SARIF support in pipeline results
 
+You can merge SARIF output from other tools into the same report. The validator's results remain the first run, and each external SARIF run is appended without rewriting the tool metadata, rules, or results.
+
+```shell
+validator --reporter=sarif:results.sarif --merge-sarif=gitleaks.sarif --merge-sarif=trivy.sarif .
+```
+
+To merge every SARIF file in a directory:
+
+```shell
+validator --reporter=sarif:results.sarif --merge-sarif-dir=reports .
+```
+
 Example GitHub Actions step:
 
 ```yaml

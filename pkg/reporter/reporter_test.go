@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -171,6 +172,54 @@ func Test_sarifReportToFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := NewSARIFReporter(tmpDir).Print([]Report{validReport})
 	require.NoError(t, err)
+}
+
+func Test_sarifReportMergesExternalRuns(t *testing.T) {
+	tmpDir := t.TempDir()
+	externalPath := filepath.Join(tmpDir, "external.sarif")
+	require.NoError(t, os.WriteFile(externalPath, []byte(`{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "external-tool",
+          "version": "1.2.3",
+          "rules": [
+            {
+              "id": "external-rule",
+              "shortDescription": {
+                "text": "Preserved external rule"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "external-rule",
+          "message": {
+            "text": "external result"
+          }
+        }
+      ]
+    }
+  ]
+}`), 0o600))
+
+	log, err := createSARIFReport([]Report{validReport}, SARIFMergeConfig{Files: []string{externalPath}})
+	require.NoError(t, err)
+	require.Len(t, log.Runs, 2)
+
+	sarifBytes, err := json.Marshal(log)
+	require.NoError(t, err)
+	output := string(sarifBytes)
+	assert.Contains(t, output, `"name":"config-file-validator"`)
+	assert.Contains(t, output, `"name":"external-tool"`)
+	assert.Contains(t, output, `"version":"1.2.3"`)
+	assert.Contains(t, output, `"id":"external-rule"`)
+	assert.Contains(t, output, `"ruleId":"external-rule"`)
 }
 
 // --- Grouped stdout tests ---

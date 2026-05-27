@@ -27,6 +27,10 @@ optional flags:
 		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
 		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
 		Supported formats: standard, json, junit, sarif, and github (default: "standard")
+  -merge-sarif string
+		External SARIF file to merge into SARIF output. Repeatable and requires --reporter=sarif.
+  -merge-sarif-dir string
+		Directory containing SARIF files to merge into SARIF output. Requires --reporter=sarif.
   -version
     	Version prints the release version of validator
 */
@@ -79,6 +83,8 @@ type validatorConfig struct {
 	configPath       *string
 	noConfig         *bool
 	gitignore        *bool
+	mergeSarif       sarifMergeFlags
+	mergeSarifDir    *string
 }
 
 type reporterFlags []string
@@ -116,6 +122,17 @@ func (sf *schemaMapFlags) String() string {
 
 func (sf *schemaMapFlags) Set(value string) error {
 	*sf = append(*sf, value)
+	return nil
+}
+
+type sarifMergeFlags []string
+
+func (smf *sarifMergeFlags) String() string {
+	return fmt.Sprint(*smf)
+}
+
+func (smf *sarifMergeFlags) Set(value string) error {
+	*smf = append(*smf, value)
 	return nil
 }
 
@@ -212,6 +229,8 @@ func getFlags(args []string) (validatorConfig, error) {
 			"Disable automatic discovery of .cfv.toml configuration files.")
 		gitignorePtr = flagSet.Bool("gitignore", false,
 			"Skip files and directories matched by .gitignore patterns.")
+		mergeSarifDirPtr = flagSet.String("merge-sarif-dir", "",
+			"Directory containing SARIF files to merge into SARIF output. Requires --reporter=sarif.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -240,6 +259,13 @@ func getFlags(args []string) (validatorConfig, error) {
 			"  --schema-map=\"**/config.xml:schemas/config.xsd\"",
 	)
 
+	mergeSarifConfigFlags := sarifMergeFlags{}
+	flagSet.Var(
+		&mergeSarifConfigFlags,
+		"merge-sarif",
+		"External SARIF file to merge into SARIF output. Repeatable and requires --reporter=sarif.",
+	)
+
 	if err := flagSet.Parse(args); err != nil {
 		return validatorConfig{}, err
 	}
@@ -262,7 +288,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		return validatorConfig{}, err
 	}
 
-	if err := validateFlagValues(excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
+	if err := validateFlagValues(excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr, mergeSarifConfigFlags, mergeSarifDirPtr); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -286,12 +312,14 @@ func getFlags(args []string) (validatorConfig, error) {
 		configPathPtr,
 		noConfigPtr,
 		gitignorePtr,
+		mergeSarifConfigFlags,
+		mergeSarifDirPtr,
 	}
 
 	return config, nil
 }
 
-func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf []reporterConfig, groupOutputPtr *string) error {
+func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf []reporterConfig, groupOutputPtr *string, mergeSarif []string, mergeSarifDir *string) error {
 	if err := validateReporterConf(reporterConf, groupOutputPtr); err != nil {
 		return err
 	}
@@ -304,7 +332,11 @@ func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int
 		return err
 	}
 
-	return validateGroupByConf(groupOutputPtr)
+	if err := validateGroupByConf(groupOutputPtr); err != nil {
+		return err
+	}
+
+	return validateSARIFMergeConf(reporterConf, mergeSarif, mergeSarifDir)
 }
 
 func validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr *string) error {
@@ -339,6 +371,36 @@ func validateReporterConf(conf []reporterConfig, groupBy *string) error {
 		if !groupOutputReportTypes[reporterConf.reportType] && groupBy != nil && *groupBy != "" {
 			return errors.New("wrong parameter value for reporter, groupby is only supported for standard and JSON reports")
 		}
+	}
+
+	return nil
+}
+
+func validateSARIFMergeConf(conf []reporterConfig, mergeSarif []string, mergeSarifDir *string) error {
+	hasMergeFile := len(mergeSarif) > 0
+	hasMergeDir := mergeSarifDir != nil && isFlagSet("merge-sarif-dir")
+	if !hasMergeFile && !hasMergeDir {
+		return nil
+	}
+
+	hasSARIFReporter := false
+	for _, reporterConf := range conf {
+		if reporterConf.reportType == "sarif" {
+			hasSARIFReporter = true
+			break
+		}
+	}
+	if !hasSARIFReporter {
+		return errors.New("--merge-sarif and --merge-sarif-dir require --reporter=sarif")
+	}
+
+	for _, path := range mergeSarif {
+		if strings.TrimSpace(path) == "" {
+			return errors.New("--merge-sarif requires a file path")
+		}
+	}
+	if hasMergeDir && strings.TrimSpace(*mergeSarifDir) == "" {
+		return errors.New("--merge-sarif-dir requires a directory path")
 	}
 
 	return nil
@@ -577,7 +639,11 @@ func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
 		return nil, errors.New("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
 	}
 
-	reporters, err := buildReporters(cfg.reportType)
+	sarifMergeConfig := reporter.SARIFMergeConfig{
+		Files:     []string(cfg.mergeSarif),
+		Directory: *cfg.mergeSarifDir,
+	}
+	reporters, err := buildReporters(cfg.reportType, sarifMergeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -647,9 +713,13 @@ func buildCLI(rc *resolvedConfig) *cli.CLI {
 	return cli.Init(opts...)
 }
 
-func buildReporters(reporterConfigs []reporterConfig) ([]reporter.Reporter, error) {
+func buildReporters(reporterConfigs []reporterConfig, sarifMergeConfig reporter.SARIFMergeConfig) ([]reporter.Reporter, error) {
 	reporters := make([]reporter.Reporter, 0, len(reporterConfigs))
 	for _, rc := range reporterConfigs {
+		if rc.reportType == "sarif" {
+			reporters = append(reporters, reporter.NewSARIFReporterWithMerge(rc.outputDest, sarifMergeConfig))
+			continue
+		}
 		reporters = append(reporters, getReporter(rc.reportType, rc.outputDest))
 	}
 	return reporters, nil

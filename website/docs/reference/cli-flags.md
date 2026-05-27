@@ -20,6 +20,8 @@ If no search path is provided, the validator searches the current directory. Use
 | `-gitignore`          | bool   | `false`    | Skip files matched by `.gitignore` patterns. Only active inside a Git repository.                                  |
 | `-globbing`           | bool   | `false`    | Treat positional arguments as glob patterns.                                                                       |
 | `-groupby`            | string | —          | Group output by: `filetype`, `directory`, `pass-fail`, `error-type`. Comma-separated.                              |
+| `-merge-sarif`        | string | —          | External SARIF file to append to SARIF output. Repeatable. Requires `-reporter=sarif`.                             |
+| `-merge-sarif-dir`    | string | —          | Directory of `.sarif` or `.sarif.json` files to append to SARIF output. Requires `-reporter=sarif`.                |
 | `-quiet`              | bool   | `false`    | Suppress all stdout output. Errors still print to stderr.                                                          |
 | `-reporter`           | string | `standard` | Output format and optional path. Format: `<type>:<path>`. Types: `standard`, `json`, `junit`, `sarif`. Repeatable. |
 | `-require-schema`     | bool   | `false`    | Fail files that support schema validation but don't declare a schema.                                              |
