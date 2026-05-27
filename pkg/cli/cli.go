@@ -373,12 +373,8 @@ func toSchemaURL(schemaPath string) (string, error) {
 }
 
 func (c *CLI) printReports(reports []reporter.Report) error {
-	if len(c.groupOutput) == 1 && c.groupOutput[0] != "" {
-		return c.printGroupSingle(reports)
-	} else if len(c.groupOutput) == 2 {
-		return c.printGroupDouble(reports)
-	} else if len(c.groupOutput) == 3 {
-		return c.printGroupTriple(reports)
+	if len(c.groupOutput) > 0 && c.groupOutput[0] != "" {
+		return c.printGroup(reports)
 	}
 
 	for _, reporterObj := range c.reporters {
@@ -392,47 +388,17 @@ func (c *CLI) printReports(reports []reporter.Report) error {
 	return nil
 }
 
-func (c *CLI) printGroupSingle(reports []reporter.Report) error {
-	reportGroup, err := GroupBySingle(reports, c.groupOutput[0])
+func (c *CLI) printGroup(reports []reporter.Report) error {
+	reportGroup, err := GroupBy(reports, c.groupOutput)
 	if err != nil {
-		return fmt.Errorf("unable to group by single value: %w", err)
+		return fmt.Errorf("unable to group by value: %w", err)
 	}
 
 	for _, reporterObj := range c.reporters {
 		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
-			return reporter.PrintSingleGroupJSON(reportGroup)
+			return reporter.PrintGroupJSON(reportGroup)
 		}
 	}
 
-	return reporter.PrintSingleGroupStdout(reportGroup)
-}
-
-func (c *CLI) printGroupDouble(reports []reporter.Report) error {
-	reportGroup, err := GroupByDouble(reports, c.groupOutput)
-	if err != nil {
-		return fmt.Errorf("unable to group by double value: %w", err)
-	}
-
-	for _, reporterObj := range c.reporters {
-		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
-			return reporter.PrintDoubleGroupJSON(reportGroup)
-		}
-	}
-
-	return reporter.PrintDoubleGroupStdout(reportGroup)
-}
-
-func (c *CLI) printGroupTriple(reports []reporter.Report) error {
-	reportGroup, err := GroupByTriple(reports, c.groupOutput)
-	if err != nil {
-		return fmt.Errorf("unable to group by triple value: %w", err)
-	}
-
-	for _, reporterObj := range c.reporters {
-		if _, ok := reporterObj.(*reporter.JSONReporter); ok {
-			return reporter.PrintTripleGroupJSON(reportGroup)
-		}
-	}
-
-	return reporter.PrintTripleGroupStdout(reportGroup)
+	return reporter.PrintGroupStdout(reportGroup)
 }

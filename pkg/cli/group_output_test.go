@@ -28,6 +28,7 @@ func Test_ValidGroupOutput(t *testing.T) {
 		{"triple directory,pass-fail,filetype", []string{"directory", "pass-fail", "filetype"}},
 		{"triple filetype,directory,pass-fail", []string{"filetype", "directory", "pass-fail"}},
 		{"triple pass-fail,filetype,directory", []string{"pass-fail", "filetype", "directory"}},
+		{"quad filetype,directory,pass-fail,error-type", []string{"filetype", "directory", "pass-fail", "error-type"}},
 	}
 
 	for _, tc := range cases {
@@ -131,6 +132,46 @@ func Test_GroupByFileType(t *testing.T) {
 	require.Len(t, result, 2)
 	require.Len(t, result["yaml"], 2, "yml and yaml should be grouped together")
 	require.Len(t, result["json"], 1)
+}
+
+func Test_GroupBySupportsFourLevels(t *testing.T) {
+	t.Parallel()
+
+	reports := []reporter.Report{
+		{
+			FileName: "good.json",
+			FilePath: "/configs/app/good.json",
+			IsValid:  true,
+		},
+		{
+			FileName:  "bad.json",
+			FilePath:  "/configs/app/bad.json",
+			IsValid:   false,
+			ErrorType: "syntax",
+		},
+	}
+
+	root, err := GroupBy(reports, []string{"filetype", "directory", "pass-fail", "error-type"})
+	require.NoError(t, err)
+
+	jsonNode := requireChild(t, root, "json")
+	dirNode := requireChild(t, jsonNode, "/configs/app")
+	passedNode := requireChild(t, dirNode, "Passed")
+	require.Len(t, requireChild(t, passedNode, "Passed").Reports, 1)
+	failedNode := requireChild(t, dirNode, "Failed")
+	require.Len(t, requireChild(t, failedNode, "syntax").Reports, 1)
+}
+
+func requireChild(t *testing.T, node *GroupNode, key string) *GroupNode {
+	t.Helper()
+
+	for _, child := range node.Children {
+		if child.Key == key {
+			return child
+		}
+	}
+	require.Failf(t, "missing group", "missing child %q under %q", key, node.Key)
+	return nil
 }
 
 func Test_GroupByErrorType(t *testing.T) {
