@@ -79,6 +79,32 @@ func Test_getFlagsWatchValue(t *testing.T) {
 	require.Equal(t, []string{"."}, cfg.searchPaths)
 }
 
+func Test_getFlagsRejectsDuplicateReporterOutputDest(t *testing.T) {
+	cases := []struct {
+		name       string
+		args       []string
+		outputDest string
+	}{
+		{
+			name:       "same output path",
+			args:       []string{"--reporter=json:same.json", "--reporter=junit:same.json", "."},
+			outputDest: "same.json",
+		},
+		{
+			name:       "cleaned output path",
+			args:       []string{"--reporter=json:./same.json", "--reporter=junit:same.json", "."},
+			outputDest: "same.json",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := getFlags(tc.args)
+			require.ErrorContains(t, err, "multiple reporters target the same output file: "+tc.outputDest)
+		})
+	}
+}
+
 func Test_getExcludeFileTypes(t *testing.T) {
 	cases := []struct {
 		name     string

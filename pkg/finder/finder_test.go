@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -80,6 +81,49 @@ func Test_fsFinderExcludeFileTypesKnownFilesByExtensionAlias(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	require.Equal(t, "good.json", files[0].Name)
+}
+
+func Test_fsFinderExcludeFileTypesNotMutated(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "ignored.unknown", "ignored\n")
+	testhelper.WriteFile(t, dir, "good.toml", testhelper.ValidContent["toml"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithExcludeFileTypes([]string{"json"}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "good.toml", files[0].Name)
+	require.Contains(t, fsFinder.ExcludeFileTypes, "json")
+	require.NotContains(t, fsFinder.ExcludeFileTypes, "unknown")
+}
+
+func Test_fsFinderExtensionCacheResetsEachFind(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "config.custom", "key=value\n")
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes([]filetype.FileType{}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.Empty(t, files)
+
+	fsFinder.FileTypes = []filetype.FileType{
+		{
+			Name:       "custom",
+			Extensions: tools.ArrToMap("custom"),
+			Validator:  validator.PropValidator{},
+		},
+	}
+	files, err = fsFinder.Find()
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "config.custom", files[0].Name)
+	require.Equal(t, "custom", files[0].FileType.Name)
 }
 
 func Test_fsFinderWithDepth(t *testing.T) {
@@ -222,6 +266,10 @@ func Test_fsFinderWhitespacePaths(t *testing.T) {
 }
 
 func Test_fsFinderWalkDirError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 0000 does not reliably make directories unreadable on Windows")
+	}
+
 	tmpDir := t.TempDir()
 	subDir := testhelper.CreateSubdir(t, tmpDir, "noperm")
 	testhelper.WriteFile(t, subDir, "test.json", `{}`)
