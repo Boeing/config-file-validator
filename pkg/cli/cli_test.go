@@ -227,17 +227,17 @@ func Test_CLIWithBrokenSymlink(t *testing.T) {
 	err := os.Symlink("/nonexistent_target_xyz", target)
 	require.NoError(t, err)
 
-	cap := &captureReporter{}
+	rep := &captureReporter{}
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(dir),
 	)
-	cli := Init(WithFinder(fsFinder), WithReporters(cap))
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 1, exitStatus)
 
 	var failed int
-	for _, r := range cap.reports {
+	for _, r := range rep.reports {
 		if !r.IsValid {
 			failed++
 		}

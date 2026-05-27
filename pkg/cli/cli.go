@@ -124,7 +124,7 @@ func (c *CLI) Run() (int, error) {
 					FileName:         f.Name,
 					FilePath:         f.Path,
 					IsValid:          false,
-					ValidationError:  fmt.Errorf("broken symlink"),
+					ValidationError:  errors.New("broken symlink"),
 					ValidationErrors: []string{"broken symlink"},
 				}
 				c.errorFound = true
