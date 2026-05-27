@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -118,6 +119,18 @@ func (c *CLI) Run() (int, error) {
 	for _, f := range foundFiles {
 		content, err := os.ReadFile(f.Path)
 		if err != nil {
+			if isBrokenSymlink(f.Path) {
+				report := reporter.Report{
+					FileName:         f.Name,
+					FilePath:         f.Path,
+					IsValid:          false,
+					ValidationError:  fmt.Errorf("broken symlink"),
+					ValidationErrors: []string{"broken symlink"},
+				}
+				c.errorFound = true
+				reports = append(reports, report)
+				continue
+			}
 			return 2, fmt.Errorf("unable to read file: %w", err)
 		}
 
@@ -435,4 +448,17 @@ func (c *CLI) printGroupTriple(reports []reporter.Report) error {
 	}
 
 	return reporter.PrintTripleGroupStdout(reportGroup)
+}
+
+// isBrokenSymlink reports whether path is a symlink whose target does not exist.
+func isBrokenSymlink(path string) bool {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	if fi.Mode()&fs.ModeSymlink == 0 {
+		return false
+	}
+	_, err = os.Stat(path)
+	return os.IsNotExist(err)
 }
