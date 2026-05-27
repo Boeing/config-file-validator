@@ -31,3 +31,4 @@ If no search path is provided, the validator searches the current directory. Use
 | `-no-config`          | bool   | `false`    | Disable automatic `.cfv.toml` discovery.                                                                           |
 | `-type-map`           | string | —          | Map a glob pattern to a file type. Format: `<pattern>:<type>`. Repeatable.                                         |
 | `-version`            | bool   | —          | Print the version and exit.                                                                                        |
+| `-watch`              | bool   | `false`    | Watch search paths for file changes. Runs a full pass first, then revalidates changed files.                       |

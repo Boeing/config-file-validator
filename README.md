@@ -90,6 +90,7 @@ See the [CLI reference](https://boeing.github.io/config-file-validator/docs/refe
 - Schema validation via JSON Schema, XSD, and automatic [SchemaStore](https://www.schemastore.org/) lookup
 - Auto-detects file types by extension and [known filename](https://boeing.github.io/config-file-validator/docs/reference/known-files)
 - JSON, JUnit, and SARIF output for CI pipelines
+- Watch mode for continuous local validation while editing config files
 - [GitHub Action](https://github.com/Boeing/validate-configs-action) with PR annotations
 - [Pre-commit hook](https://boeing.github.io/config-file-validator/docs/integrations/pre-commit)
 - Project-level [`.cfv.toml`](https://boeing.github.io/config-file-validator/docs/guides/configuration-file) configuration

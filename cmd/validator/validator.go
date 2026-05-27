@@ -29,22 +29,31 @@ optional flags:
 		Supported formats: standard, json, junit, sarif, and github (default: "standard")
   -version
     	Version prints the release version of validator
+  -watch
+        Watch search paths for file changes and re-run validation
 */
 
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"maps"
 	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/fsnotify/fsnotify"
 
 	configfilevalidator "github.com/Boeing/config-file-validator/v2"
 	"github.com/Boeing/config-file-validator/v2/pkg/cli"
@@ -79,6 +88,7 @@ type validatorConfig struct {
 	configPath       *string
 	noConfig         *bool
 	gitignore        *bool
+	watch            *bool
 }
 
 type reporterFlags []string
@@ -212,6 +222,8 @@ func getFlags(args []string) (validatorConfig, error) {
 			"Disable automatic discovery of .cfv.toml configuration files.")
 		gitignorePtr = flagSet.Bool("gitignore", false,
 			"Skip files and directories matched by .gitignore patterns.")
+		watchPtr = flagSet.Bool("watch", false,
+			"Watch search paths for file changes and re-run validation.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -286,6 +298,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		configPathPtr,
 		noConfigPtr,
 		gitignorePtr,
+		watchPtr,
 	}
 
 	return config, nil
@@ -455,6 +468,7 @@ func applyDefaultFlagsFromEnv() error {
 		"schemastore":        "CFV_SCHEMASTORE",
 		"schemastore-path":   "CFV_SCHEMASTORE_PATH",
 		"gitignore":          "CFV_GITIGNORE",
+		"watch":              "CFV_WATCH",
 	}
 
 	for flagName, envVar := range flagsEnvMap {
@@ -522,6 +536,8 @@ type resolvedConfig struct {
 	schemaMap     map[string]string
 	store         *schemastore.Store
 	finderOpts    []finder.FSFinderOptions
+	searchPaths   []string
+	watch         bool
 	stdinData     []byte
 	stdinFileType filetype.FileType
 	isStdin       bool
@@ -553,8 +569,15 @@ func mainInit() int {
 		return 2
 	}
 
-	c := buildCLI(resolved)
+	if resolved.watch {
+		exitStatus, err := runWatch(resolved)
+		if err != nil {
+			log.Printf("An error occurred during watch execution: %v", err)
+		}
+		return exitStatus
+	}
 
+	c := buildCLI(resolved)
 	exitStatus, err := c.Run()
 	if err != nil {
 		log.Printf("An error occurred during CLI execution: %v", err)
@@ -602,10 +625,15 @@ func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
 		noSchema:      noSchema,
 		schemaMap:     schemaMap,
 		store:         store,
+		searchPaths:   cfg.searchPaths,
+		watch:         *cfg.watch,
 	}
 
 	// Handle stdin mode
 	if len(cfg.searchPaths) == 1 && cfg.searchPaths[0] == "-" {
+		if *cfg.watch {
+			return nil, errors.New("--watch cannot be used with stdin")
+		}
 		ft, data, err := readStdin(*cfg.fileTypes)
 		if err != nil {
 			return nil, err
@@ -628,6 +656,10 @@ func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
 }
 
 func buildCLI(rc *resolvedConfig) *cli.CLI {
+	return buildCLIWithFinder(rc, nil)
+}
+
+func buildCLIWithFinder(rc *resolvedConfig, fileFinder finder.FileFinder) *cli.CLI {
 	opts := []cli.Option{
 		cli.WithReporters(rc.reporters...),
 		cli.WithGroupOutput(rc.groupOutput),
@@ -640,6 +672,8 @@ func buildCLI(rc *resolvedConfig) *cli.CLI {
 
 	if rc.isStdin {
 		opts = append(opts, cli.WithStdinData(rc.stdinData, rc.stdinFileType))
+	} else if fileFinder != nil {
+		opts = append(opts, cli.WithFinder(fileFinder))
 	} else {
 		opts = append(opts, cli.WithFinder(finder.FileSystemFinderInit(rc.finderOpts...)))
 	}
@@ -983,6 +1017,236 @@ func parseDelimiter(s string) rune {
 		return r[0]
 	}
 	return 0
+}
+
+type fileWatcher interface {
+	Add(name string) error
+	Close() error
+	Events() <-chan fsnotify.Event
+	Errors() <-chan error
+}
+
+type fsnotifyWatcher struct {
+	*fsnotify.Watcher
+}
+
+func newFSNotifyWatcher() (fileWatcher, error) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
+	}
+	return fsnotifyWatcher{Watcher: watcher}, nil
+}
+
+func (w fsnotifyWatcher) Events() <-chan fsnotify.Event {
+	return w.Watcher.Events
+}
+
+func (w fsnotifyWatcher) Errors() <-chan error {
+	return w.Watcher.Errors
+}
+
+type watchRunner struct {
+	newWatcher func() (fileWatcher, error)
+	out        io.Writer
+}
+
+func runWatch(rc *resolvedConfig) (int, error) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	runner := watchRunner{
+		newWatcher: newFSNotifyWatcher,
+		out:        os.Stdout,
+	}
+	return runner.run(ctx, rc)
+}
+
+func (r watchRunner) run(ctx context.Context, rc *resolvedConfig) (int, error) {
+	if rc.isStdin {
+		return 2, errors.New("--watch cannot be used with stdin")
+	}
+
+	newWatcher := r.newWatcher
+	if newWatcher == nil {
+		newWatcher = newFSNotifyWatcher
+	}
+
+	watcher, err := newWatcher()
+	if err != nil {
+		return 2, err
+	}
+	defer watcher.Close()
+
+	watched := make(map[string]struct{})
+	if err := addWatchPaths(watcher, rc.searchPaths, watched); err != nil {
+		return 2, err
+	}
+
+	initialStatus, err := buildCLI(rc).Run()
+	if err != nil || initialStatus == 2 {
+		return initialStatus, err
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return 0, nil
+		case event, ok := <-watcher.Events():
+			if !ok {
+				return 0, nil
+			}
+			if !isValidationEvent(event) {
+				continue
+			}
+			if err := addCreatedDirectoryWatchers(watcher, event.Name, watched); err != nil {
+				return 2, err
+			}
+			status, err := r.runChangedFile(rc, event.Name)
+			if err != nil || status == 2 {
+				return status, err
+			}
+		case err, ok := <-watcher.Errors():
+			if !ok {
+				return 0, nil
+			}
+			if err != nil {
+				return 2, err
+			}
+		}
+	}
+}
+
+func isValidationEvent(event fsnotify.Event) bool {
+	return event.Op&(fsnotify.Create|fsnotify.Write|fsnotify.Rename) != 0
+}
+
+func (r watchRunner) runChangedFile(rc *resolvedConfig, path string) (int, error) {
+	files, err := findChangedFile(rc, path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return 0, nil
+		}
+		return 2, err
+	}
+	if len(files) == 0 {
+		return 0, nil
+	}
+
+	if !rc.quiet {
+		fmt.Fprintf(r.output(), "\n--- change detected: %s ---\n", path)
+	}
+
+	return buildCLIWithFinder(rc, staticFileFinder{files: files}).Run()
+}
+
+func (r watchRunner) output() io.Writer {
+	if r.out == nil {
+		return io.Discard
+	}
+	return r.out
+}
+
+type staticFileFinder struct {
+	files []finder.FileMetadata
+}
+
+func (f staticFileFinder) Find() ([]finder.FileMetadata, error) {
+	return f.files, nil
+}
+
+func findChangedFile(rc *resolvedConfig, path string) ([]finder.FileMetadata, error) {
+	changedAbs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+
+	foundFiles, err := finder.FileSystemFinderInit(rc.finderOpts...).Find()
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]finder.FileMetadata, 0, 1)
+	for _, file := range foundFiles {
+		fileAbs, err := filepath.Abs(file.Path)
+		if err != nil {
+			return nil, err
+		}
+		if samePath(fileAbs, changedAbs) {
+			files = append(files, file)
+		}
+	}
+	return files, nil
+}
+
+func samePath(a, b string) bool {
+	a = filepath.Clean(a)
+	b = filepath.Clean(b)
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(a, b)
+	}
+	return a == b
+}
+
+func addWatchPaths(watcher fileWatcher, paths []string, watched map[string]struct{}) error {
+	for _, path := range paths {
+		watchRoot := strings.TrimSpace(path)
+		if watchRoot == "" {
+			continue
+		}
+
+		//nolint:gosec // Watch mode intentionally inspects user-provided search paths.
+		info, err := os.Stat(watchRoot)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			watchRoot = filepath.Dir(watchRoot)
+		}
+
+		//nolint:gosec // Watch mode intentionally walks user-provided search paths.
+		if err := filepath.WalkDir(watchRoot, func(path string, dirEntry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !dirEntry.IsDir() {
+				return nil
+			}
+			return addWatchDir(watcher, path, watched)
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func addCreatedDirectoryWatchers(watcher fileWatcher, path string, watched map[string]struct{}) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if !info.IsDir() {
+		return nil
+	}
+	return addWatchPaths(watcher, []string{path}, watched)
+}
+
+func addWatchDir(watcher fileWatcher, path string, watched map[string]struct{}) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	if _, ok := watched[absPath]; ok {
+		return nil
+	}
+	if err := watcher.Add(absPath); err != nil {
+		return err
+	}
+	watched[absPath] = struct{}{}
+	return nil
 }
 
 func main() {

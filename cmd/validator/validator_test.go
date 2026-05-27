@@ -29,6 +29,7 @@ func Test_getFlags(t *testing.T) {
 		{"type-map", []string{"--type-map=**/inventory:ini", "."}, false},
 		{"multiple type-maps", []string{"--type-map=**/inventory:ini", "--type-map=**/configs/*:properties", "."}, false},
 		{"require-schema", []string{"--require-schema", "."}, false},
+		{"watch flag", []string{"--watch", "."}, false},
 
 		// Invalid flag combinations
 		{"negative depth", []string{"-depth=-1", "."}, true},
@@ -67,6 +68,14 @@ func Test_getFlagsValues(t *testing.T) {
 	require.Equal(t, 3, *cfg.depth)
 	require.Equal(t, "vendor,node_modules", *cfg.excludeDirs)
 	require.True(t, *cfg.requireSchema)
+	require.Equal(t, []string{"."}, cfg.searchPaths)
+}
+
+func Test_getFlagsWatchValue(t *testing.T) {
+	cfg, err := getFlags([]string{"--watch", "."})
+	require.NoError(t, err)
+
+	require.True(t, *cfg.watch)
 	require.Equal(t, []string{"."}, cfg.searchPaths)
 }
 
@@ -124,7 +133,7 @@ func Test_parseTypeMapFlags(t *testing.T) {
 func Test_emptyBoolEnvVarNoParseError(t *testing.T) {
 	// Setting a CFV_* bool env var to "" should not cause a parse error.
 	// Go's flag.Set("gitignore", "") fails, so we skip empty values.
-	for _, envVar := range []string{"CFV_GITIGNORE", "CFV_QUIET", "CFV_GLOBBING", "CFV_REQUIRE_SCHEMA", "CFV_NO_SCHEMA", "CFV_SCHEMASTORE"} {
+	for _, envVar := range []string{"CFV_GITIGNORE", "CFV_QUIET", "CFV_GLOBBING", "CFV_REQUIRE_SCHEMA", "CFV_NO_SCHEMA", "CFV_SCHEMASTORE", "CFV_WATCH"} {
 		t.Run(envVar, func(t *testing.T) {
 			t.Setenv(envVar, "")
 			_, err := getFlags([]string{"."})
