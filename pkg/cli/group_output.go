@@ -2,12 +2,17 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
 )
 
-// Group Reports by File Type
+// GroupNode aliases the reporter grouping tree used by grouped output.
+type GroupNode = reporter.GroupNode
+
+// GroupByFileType groups reports by file extension.
 func GroupByFileType(reports []reporter.Report) map[string][]reporter.Report {
 	reportByFile := make(map[string][]reporter.Report)
 
@@ -28,7 +33,7 @@ func GroupByFileType(reports []reporter.Report) map[string][]reporter.Report {
 	return reportByFile
 }
 
-// Group Reports by Pass-Fail
+// GroupByPassFail groups reports by pass or fail status.
 func GroupByPassFail(reports []reporter.Report) map[string][]reporter.Report {
 	reportByPassOrFail := make(map[string][]reporter.Report)
 
@@ -43,7 +48,7 @@ func GroupByPassFail(reports []reporter.Report) map[string][]reporter.Report {
 	return reportByPassOrFail
 }
 
-// Group Reports by Error Type (syntax, schema, or passed)
+// GroupByErrorType groups reports by error type.
 func GroupByErrorType(reports []reporter.Report) map[string][]reporter.Report {
 	reportByErrorType := make(map[string][]reporter.Report)
 
@@ -58,21 +63,16 @@ func GroupByErrorType(reports []reporter.Report) map[string][]reporter.Report {
 	return reportByErrorType
 }
 
-// Group Reports by Directory
+// GroupByDirectory groups reports by containing directory.
 func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 	reportByDirectory := make(map[string][]reporter.Report)
 	for _, report := range reports {
-		directory := ""
-		// Check if the filepath is in Windows format
-		if strings.Contains(report.FilePath, "\\") {
-			directoryPath := strings.Split(report.FilePath, "\\")
-			directory = strings.Join(directoryPath[:len(directoryPath)-1], "\\")
-			directory = directory + "\\"
-		} else {
-			directoryPath := strings.Split(report.FilePath, "/")
-			directory = strings.Join(directoryPath[:len(directoryPath)-1], "/")
-			directory = directory + "/"
+		normalizedPath := strings.ReplaceAll(report.FilePath, "\\", string(filepath.Separator))
+		directory := filepath.Dir(normalizedPath)
+		if directory == "." {
+			directory = ""
 		}
+		directory = filepath.ToSlash(directory)
 
 		reportByDirectory[directory] = append(reportByDirectory[directory], report)
 	}
@@ -80,63 +80,51 @@ func GroupByDirectory(reports []reporter.Report) map[string][]reporter.Report {
 	return reportByDirectory
 }
 
-// Group Reports by single grouping
-func GroupBySingle(reports []reporter.Report, groupBy string) (map[string][]reporter.Report, error) {
-	var groupReport map[string][]reporter.Report
-
-	// Group by the groupings in reverse order
-	// This allows for the first grouping to be the outermost grouping
-	for i := len(groupBy) - 1; i >= 0; i-- {
-		switch groupBy {
-		case "pass-fail":
-			groupReport = GroupByPassFail(reports)
-		case "filetype":
-			groupReport = GroupByFileType(reports)
-		case "directory":
-			groupReport = GroupByDirectory(reports)
-		case "error-type":
-			groupReport = GroupByErrorType(reports)
-		default:
-			return nil, fmt.Errorf("unable to group by %s", groupBy)
-		}
-	}
-	return groupReport, nil
+// GroupBy groups reports into a recursive tree for any number of grouping levels.
+func GroupBy(reports []reporter.Report, groupBy []string) (*GroupNode, error) {
+	return groupByLevel("", reports, groupBy)
 }
 
-// Group Reports for two groupings
-func GroupByDouble(reports []reporter.Report, groupBy []string) (map[string]map[string][]reporter.Report, error) {
-	groupReport := make(map[string]map[string][]reporter.Report)
+func groupByLevel(key string, reports []reporter.Report, groupBy []string) (*GroupNode, error) {
+	node := &GroupNode{Key: key}
+	if len(groupBy) == 0 {
+		node.Reports = reports
+		return node, nil
+	}
 
-	firstGroup, err := GroupBySingle(reports, groupBy[0])
+	groupedReports, err := groupReports(reports, groupBy[0])
 	if err != nil {
 		return nil, err
 	}
-	for key := range firstGroup {
-		groupReport[key] = make(map[string][]reporter.Report)
-		groupReport[key], err = GroupBySingle(firstGroup[key], groupBy[1])
+
+	keys := make([]string, 0, len(groupedReports))
+	for key := range groupedReports {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		child, err := groupByLevel(key, groupedReports[key], groupBy[1:])
 		if err != nil {
 			return nil, err
 		}
+		node.Children = append(node.Children, child)
 	}
 
-	return groupReport, nil
+	return node, nil
 }
 
-// Group Reports for three groupings
-func GroupByTriple(reports []reporter.Report, groupBy []string) (map[string]map[string]map[string][]reporter.Report, error) {
-	groupReport := make(map[string]map[string]map[string][]reporter.Report)
-
-	firstGroup, err := GroupBySingle(reports, groupBy[0])
-	if err != nil {
-		return nil, err
+func groupReports(reports []reporter.Report, groupBy string) (map[string][]reporter.Report, error) {
+	switch groupBy {
+	case "pass-fail":
+		return GroupByPassFail(reports), nil
+	case "filetype":
+		return GroupByFileType(reports), nil
+	case "directory":
+		return GroupByDirectory(reports), nil
+	case "error-type":
+		return GroupByErrorType(reports), nil
+	default:
+		return nil, fmt.Errorf("unable to group by %s", groupBy)
 	}
-	for key := range firstGroup {
-		groupReport[key] = make(map[string]map[string][]reporter.Report)
-		groupReport[key], err = GroupByDouble(firstGroup[key], groupBy[1:])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return groupReport, nil
 }
