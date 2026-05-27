@@ -132,6 +132,7 @@ var testData = []struct {
 	{"invalidXml", []byte("<xml\n"), false, XMLValidator{}},
 	{"invalidToml", []byte("name = 123__456"), false, TomlValidator{}},
 	{"validToml", []byte("name = 123"), true, TomlValidator{}},
+	{"tomlDuplicateKey", []byte("key = 1\nkey = 2\n"), false, TomlValidator{}},
 	{"validIni", []byte(`{[Version]\nCatalog=hidden\n}`), true, IniValidator{}},
 	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
 	{"validProperties", []byte("key=value\nkey2=${key}"), true, PropValidator{}},
