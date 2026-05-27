@@ -45,6 +45,7 @@ import (
 	"log"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -486,7 +487,26 @@ func parseReporterFlags(flags reporterFlags) ([]reporterConfig, error) {
 		conf = append(conf, reporterConfig{reportType: "standard"})
 	}
 
+	if err := validateUniqueReporterOutputDestinations(conf); err != nil {
+		return nil, err
+	}
+
 	return conf, nil
+}
+
+func validateUniqueReporterOutputDestinations(conf []reporterConfig) error {
+	seen := make(map[string]struct{}, len(conf))
+	for _, reporterConf := range conf {
+		if reporterConf.outputDest == "" {
+			continue
+		}
+		outputDest := filepath.Clean(reporterConf.outputDest)
+		if _, ok := seen[outputDest]; ok {
+			return fmt.Errorf("multiple reporters target the same output file: %s", outputDest)
+		}
+		seen[outputDest] = struct{}{}
+	}
+	return nil
 }
 
 // isFlagSet verifies if a given flag has been set or not
