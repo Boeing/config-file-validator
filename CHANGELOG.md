@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- XML validator no longer hangs on recursive DTD entity expansion (closes #503).
 - TOML files with duplicate keys are now rejected as invalid (closes #504).
 - Repeating the same `--reporter` type with different output paths now writes each requested output.
 - `--schema-map` now warns instead of silently skipping files whose validators do not support external schema validation.
