@@ -26,3 +26,10 @@ type Report struct {
 type Reporter interface {
 	Print(reports []Report) error
 }
+
+// GroupNode stores a recursive report grouping tree.
+type GroupNode struct {
+	Key      string
+	Children []*GroupNode
+	Reports  []Report
+}

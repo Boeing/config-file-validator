@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fatih/color"
@@ -38,75 +39,60 @@ func (sr StdoutReporter) Print(reports []Report) error {
 	return nil
 }
 
-// There is repeated code in the following two functions. Trying to consolidate
-// the code into one function is difficult because of the output format
+// PrintGroupStdout prints a recursive grouped report to stdout.
+func PrintGroupStdout(groupReport *GroupNode) error {
+	totalSummary := printGroupNodeStdout(groupReport, nil, 0)
+	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSummary.Passed, totalSummary.Failed)
+	return nil
+}
+
+func printGroupNodeStdout(node *GroupNode, groupPath []string, depth int) summary {
+	totalSummary := summary{}
+
+	for _, child := range node.Children {
+		fmt.Printf("%s%s\n", strings.Repeat("    ", depth), child.Key)
+		childSummary := printGroupNodeStdout(child, append(slices.Clone(groupPath), child.Key), depth+1)
+		totalSummary.Passed += childSummary.Passed
+		totalSummary.Failed += childSummary.Failed
+	}
+
+	if len(node.Children) > 0 {
+		return totalSummary
+	}
+
+	stdoutReport := createStdoutReport(node.Reports, depth)
+	totalSummary.Passed += stdoutReport.Summary.Passed
+	totalSummary.Failed += stdoutReport.Summary.Failed
+	fmt.Println(stdoutReport.Text)
+	if len(groupPath) > 0 && checkGroupsForPassFail(groupPath...) {
+		summaryDepth := depth - 1
+		if summaryDepth < 0 {
+			summaryDepth = 0
+		}
+		fmt.Printf(
+			"%sSummary: %d succeeded, %d failed\n\n",
+			strings.Repeat("    ", summaryDepth),
+			stdoutReport.Summary.Passed,
+			stdoutReport.Summary.Failed,
+		)
+	}
+
+	return totalSummary
+}
+
+// PrintSingleGroupStdout prints a grouped report with one grouping level.
 func PrintSingleGroupStdout(groupReport map[string][]Report) error {
-	totalSuccessCount := 0
-	totalFailureCount := 0
-
-	for group, reports := range groupReport {
-		fmt.Printf("%s\n", group)
-		stdoutReport := createStdoutReport(reports, 1)
-		totalSuccessCount += stdoutReport.Summary.Passed
-		totalFailureCount += stdoutReport.Summary.Failed
-		fmt.Println(stdoutReport.Text)
-		if checkGroupsForPassFail(group) {
-			fmt.Printf("Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
-		}
-	}
-
-	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
-	return nil
+	return PrintGroupStdout(groupNodeFromSingle(groupReport))
 }
 
-// Prints the report for when two groups are passed in the groupby flag
+// PrintDoubleGroupStdout prints a grouped report with two grouping levels.
 func PrintDoubleGroupStdout(groupReport map[string]map[string][]Report) error {
-	totalSuccessCount := 0
-	totalFailureCount := 0
-
-	for group, reports := range groupReport {
-		fmt.Printf("%s\n", group)
-		for group2, reports2 := range reports {
-			fmt.Printf("    %s\n", group2)
-			stdoutReport := createStdoutReport(reports2, 2)
-			totalSuccessCount += stdoutReport.Summary.Passed
-			totalFailureCount += stdoutReport.Summary.Failed
-			fmt.Println(stdoutReport.Text)
-			if checkGroupsForPassFail(group, group2) {
-				fmt.Printf("    Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
-			}
-		}
-	}
-
-	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
-
-	return nil
+	return PrintGroupStdout(groupNodeFromDouble(groupReport))
 }
 
-// Prints the report for when three groups are passed in the groupby flag
+// PrintTripleGroupStdout prints a grouped report with three grouping levels.
 func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Report) error {
-	totalSuccessCount := 0
-	totalFailureCount := 0
-
-	for groupOne, header := range groupReport {
-		fmt.Printf("%s\n", groupOne)
-		for groupTwo, subheader := range header {
-			fmt.Printf("    %s\n", groupTwo)
-			for groupThree, reports := range subheader {
-				fmt.Printf("        %s\n", groupThree)
-				stdoutReport := createStdoutReport(reports, 3)
-				totalSuccessCount += stdoutReport.Summary.Passed
-				totalFailureCount += stdoutReport.Summary.Failed
-				fmt.Println(stdoutReport.Text)
-				if checkGroupsForPassFail(groupOne, groupTwo, groupThree) {
-					fmt.Printf("        Summary: %d succeeded, %d failed\n\n", stdoutReport.Summary.Passed, stdoutReport.Summary.Failed)
-				}
-			}
-		}
-	}
-
-	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSuccessCount, totalFailureCount)
-	return nil
+	return PrintGroupStdout(groupNodeFromTriple(groupReport))
 }
 
 // Checks if any of the provided groups are "Passed" or "Failed".

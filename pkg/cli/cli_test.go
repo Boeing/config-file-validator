@@ -293,6 +293,22 @@ func Test_CLITripleGroupJSON(t *testing.T) {
 	require.Equal(t, 0, exitStatus)
 }
 
+func Test_CLIQuadGroupJSON(t *testing.T) {
+	file := testhelper.CreateFixtureFile(t, "json")
+
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(file),
+	)
+	cli := Init(
+		WithFinder(fsFinder),
+		WithReporters(reporter.NewJSONReporter("")),
+		WithGroupOutput([]string{"filetype", "directory", "pass-fail", "error-type"}),
+	)
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
 func Test_CLISchemaMapValid(t *testing.T) {
 	dir := t.TempDir()
 	testhelper.WriteFile(t, dir, "config.json", `{"host": "db", "port": 5432}`)
