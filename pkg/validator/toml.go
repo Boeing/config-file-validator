@@ -24,6 +24,9 @@ func (TomlValidator) ValidateSyntax(b []byte) (bool, error) {
 			Column: col,
 		}
 	}
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
