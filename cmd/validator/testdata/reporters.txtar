@@ -31,11 +31,9 @@ exec validator --reporter=json:first.json --reporter=json:second.json good.json
 exists first.json
 exists second.json
 
-# Duplicate reporter type to the same file leaves one valid report
-exec validator --reporter=json:same.json --reporter=json:same.json good.json
-exists same.json
-exec validator same.json
-stdout '✓'
+# Duplicate reporter output file fails before validation
+! exec validator --reporter=json:same.json --reporter=json:same.json good.json
+stdout 'multiple reporters target the same output file: same.json'
 
 # Invalid reporter
 ! exec validator --reporter=bad good.json
