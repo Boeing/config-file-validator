@@ -14,6 +14,11 @@
       "items": { "type": "string" },
       "description": "File types to ignore"
     },
+    "ignore-files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Gitignore-style pattern files to apply during file discovery"
+    },
     "file-types": {
       "type": "array",
       "items": { "type": "string" },

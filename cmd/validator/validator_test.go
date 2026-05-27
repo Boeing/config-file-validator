@@ -29,6 +29,8 @@ func Test_getFlags(t *testing.T) {
 		{"type-map", []string{"--type-map=**/inventory:ini", "."}, false},
 		{"multiple type-maps", []string{"--type-map=**/inventory:ini", "--type-map=**/configs/*:properties", "."}, false},
 		{"require-schema", []string{"--require-schema", "."}, false},
+		{"ignore-file", []string{"--ignore-file=.dockerignore", "."}, false},
+		{"multiple ignore-files", []string{"--ignore-file=.dockerignore", "--ignore-file=.prettierignore", "."}, false},
 
 		// Invalid flag combinations
 		{"negative depth", []string{"-depth=-1", "."}, true},
@@ -94,6 +96,14 @@ func Test_getFlagsRejectsDuplicateReporterOutputDest(t *testing.T) {
 			require.ErrorContains(t, err, "multiple reporters target the same output file: "+tc.outputDest)
 		})
 	}
+}
+
+func Test_ignoreFilesEnvVar(t *testing.T) {
+	t.Setenv("CFV_IGNORE_FILES", ".dockerignore, .prettierignore")
+
+	cfg, err := getFlags([]string{"."})
+	require.NoError(t, err)
+	require.Equal(t, ignoreFileFlags{".dockerignore", ".prettierignore"}, cfg.ignoreFiles)
 }
 
 func Test_getExcludeFileTypes(t *testing.T) {

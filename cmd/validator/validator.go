@@ -80,6 +80,7 @@ type validatorConfig struct {
 	configPath       *string
 	noConfig         *bool
 	gitignore        *bool
+	ignoreFiles      ignoreFileFlags
 }
 
 type reporterFlags []string
@@ -117,6 +118,17 @@ func (sf *schemaMapFlags) String() string {
 
 func (sf *schemaMapFlags) Set(value string) error {
 	*sf = append(*sf, value)
+	return nil
+}
+
+type ignoreFileFlags []string
+
+func (iff *ignoreFileFlags) String() string {
+	return fmt.Sprint(*iff)
+}
+
+func (iff *ignoreFileFlags) Set(value string) error {
+	*iff = append(*iff, value)
 	return nil
 }
 
@@ -241,6 +253,14 @@ func getFlags(args []string) (validatorConfig, error) {
 			"  --schema-map=\"**/config.xml:schemas/config.xsd\"",
 	)
 
+	ignoreFileConfigFlags := ignoreFileFlags{}
+	flagSet.Var(
+		&ignoreFileConfigFlags,
+		"ignore-file",
+		"Path to a gitignore-style file with patterns to skip during file discovery. "+
+			"Paths are relative to each search path. Can be specified multiple times.",
+	)
+
 	if err := flagSet.Parse(args); err != nil {
 		return validatorConfig{}, err
 	}
@@ -287,6 +307,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		configPathPtr,
 		noConfigPtr,
 		gitignorePtr,
+		ignoreFileConfigFlags,
 	}
 
 	return config, nil
@@ -483,7 +504,7 @@ func applyDefaultFlagsFromEnv() error {
 		}
 	}
 
-	return nil
+	return setIgnoreFilesFromEnvIfNotSet()
 }
 
 func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
@@ -493,6 +514,29 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 
 	if envVarValue, ok := os.LookupEnv(envVar); ok && envVarValue != "" {
 		if err := flagSet.Set(flagName, envVarValue); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func setIgnoreFilesFromEnvIfNotSet() error {
+	if isFlagSet("ignore-file") {
+		return nil
+	}
+
+	envVarValue, ok := os.LookupEnv("CFV_IGNORE_FILES")
+	if !ok || envVarValue == "" {
+		return nil
+	}
+
+	for _, ignoreFile := range strings.Split(envVarValue, ",") {
+		ignoreFile = strings.TrimSpace(ignoreFile)
+		if ignoreFile == "" {
+			continue
+		}
+		if err := flagSet.Set("ignore-file", ignoreFile); err != nil {
 			return err
 		}
 	}
@@ -761,6 +805,9 @@ func buildFinderOpts(cfg validatorConfig, excludeFileTypes []string, fileTypes [
 	if *cfg.gitignore {
 		fsOpts = append(fsOpts, finder.WithGitignore(true))
 	}
+	if len(cfg.ignoreFiles) > 0 {
+		fsOpts = append(fsOpts, finder.WithIgnoreFiles([]string(cfg.ignoreFiles)))
+	}
 
 	return fsOpts, nil
 }
@@ -917,6 +964,9 @@ func applyConfigFile(cfg *validatorConfig) (*configfile.ValidatorOptions, error)
 	}
 	if !isFlagSet("gitignore") && fileCfg.Gitignore != nil {
 		cfg.gitignore = fileCfg.Gitignore
+	}
+	if !isFlagSet("ignore-file") && len(fileCfg.IgnoreFiles) > 0 {
+		cfg.ignoreFiles = append(cfg.ignoreFiles, fileCfg.IgnoreFiles...)
 	}
 	if len(cfg.schemaMap) == 0 && len(fileCfg.SchemaMap) > 0 {
 		for pattern, schema := range fileCfg.SchemaMap {

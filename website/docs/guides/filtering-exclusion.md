@@ -98,12 +98,34 @@ In `.cfv.toml`:
 gitignore = true
 ```
 
+## Ignore files
+
+Use `--ignore-file` to apply gitignore-style patterns from files such as `.dockerignore`, `.prettierignore`, or `.eslintignore`:
+
+```shell
+validator --ignore-file=.dockerignore --ignore-file=.prettierignore .
+```
+
+Each path is resolved relative to the search path root. Missing ignore files are skipped, and repeated flags are additive.
+
+In `.cfv.toml`:
+
+```toml
+ignore-files = [".dockerignore", ".prettierignore"]
+```
+
+With an environment variable:
+
+```shell
+CFV_IGNORE_FILES=.dockerignore,.prettierignore validator .
+```
+
 ## Evaluation order
 
 A file is validated only if it passes every active filter. During traversal, the validator checks:
 
 1. Is the directory excluded by `--exclude-dirs`? → skip the entire directory
-2. Is the file or directory matched by `.gitignore` (when `--gitignore` is active)? → skip
+2. Is the file or directory matched by `.gitignore` or an explicit ignore file? → skip
 3. Is the file deeper than `--depth`? → skip
 4. Is the file's type excluded by `--exclude-file-types`? → skip
 5. Is `--file-types` set and the file's type not in the list? → skip
@@ -117,6 +139,7 @@ If none of these apply, the file is validated.
 ```toml
 exclude-dirs = ["node_modules", ".git", "vendor", "dist"]
 gitignore = true
+ignore-files = [".dockerignore"]
 ```
 
 ### CI pipeline (strict)
@@ -124,6 +147,7 @@ gitignore = true
 ```toml
 exclude-dirs = ["node_modules", "vendor"]
 gitignore = true
+ignore-files = [".prettierignore"]
 file-types = ["json", "yaml", "toml", "xml"]
 ```
 
