@@ -47,10 +47,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fsnotify/fsnotify"
@@ -592,6 +592,9 @@ func mainInit() int {
 		exitStatus, err := runWatch(resolved)
 		if err != nil {
 			log.Printf("An error occurred during watch execution: %v", err)
+			if exitStatus == 0 {
+				exitStatus = 2
+			}
 		}
 		return exitStatus
 	}
@@ -1066,9 +1069,12 @@ func (w fsnotifyWatcher) Errors() <-chan error {
 }
 
 type watchRunner struct {
-	newWatcher func() (fileWatcher, error)
-	out        io.Writer
+	newWatcher    func() (fileWatcher, error)
+	out           io.Writer
+	debounceDelay time.Duration
 }
+
+const defaultWatchDebounceDelay = 75 * time.Millisecond
 
 func runWatch(rc *resolvedConfig) (int, error) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -1107,33 +1113,89 @@ func (r watchRunner) run(ctx context.Context, rc *resolvedConfig) (int, error) {
 		return initialStatus, err
 	}
 
+	delay := r.effectiveDebounceDelay()
+	pendingChanges := make(map[string]struct{})
+	var debounceTimer *time.Timer
+	var debounceC <-chan time.Time
+
 	for {
 		select {
 		case <-ctx.Done():
+			stopWatchTimer(debounceTimer)
 			return 0, nil
 		case event, ok := <-watcher.Events():
 			if !ok {
+				stopWatchTimer(debounceTimer)
 				return 0, nil
 			}
 			if !isValidationEvent(event) {
 				continue
 			}
 			if err := addCreatedDirectoryWatchers(watcher, event.Name, watched); err != nil {
-				return 2, err
+				log.Printf("watch: %v", err)
 			}
-			status, err := r.runChangedFile(rc, event.Name)
-			if err != nil || status == 2 {
-				return status, err
-			}
+			pendingChanges[filepath.Clean(event.Name)] = struct{}{}
+			debounceTimer, debounceC = resetWatchTimer(debounceTimer, debounceC, delay)
 		case err, ok := <-watcher.Errors():
 			if !ok {
+				stopWatchTimer(debounceTimer)
 				return 0, nil
 			}
 			if err != nil {
-				return 2, err
+				log.Printf("watch: %v", err)
+			}
+		case <-debounceC:
+			debounceTimer = nil
+			debounceC = nil
+			for _, path := range drainPendingChanges(pendingChanges) {
+				status, err := r.runChangedFile(rc, path)
+				if err != nil || status == 2 {
+					return status, err
+				}
 			}
 		}
 	}
+}
+
+func (r watchRunner) effectiveDebounceDelay() time.Duration {
+	if r.debounceDelay > 0 {
+		return r.debounceDelay
+	}
+	return defaultWatchDebounceDelay
+}
+
+func resetWatchTimer(timer *time.Timer, timerC <-chan time.Time, delay time.Duration) (*time.Timer, <-chan time.Time) {
+	if timer == nil {
+		timer = time.NewTimer(delay)
+		return timer, timer.C
+	}
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	timer.Reset(delay)
+	return timer, timerC
+}
+
+func stopWatchTimer(timer *time.Timer) {
+	if timer == nil {
+		return
+	}
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+}
+
+func drainPendingChanges(pending map[string]struct{}) []string {
+	paths := slices.Collect(maps.Keys(pending))
+	slices.Sort(paths)
+	clear(pending)
+	return paths
 }
 
 func isValidationEvent(event fsnotify.Event) bool {
@@ -1175,36 +1237,7 @@ func (f staticFileFinder) Find() ([]finder.FileMetadata, error) {
 }
 
 func findChangedFile(rc *resolvedConfig, path string) ([]finder.FileMetadata, error) {
-	changedAbs, err := filepath.Abs(path)
-	if err != nil {
-		return nil, err
-	}
-
-	foundFiles, err := finder.FileSystemFinderInit(rc.finderOpts...).Find()
-	if err != nil {
-		return nil, err
-	}
-
-	files := make([]finder.FileMetadata, 0, 1)
-	for _, file := range foundFiles {
-		fileAbs, err := filepath.Abs(file.Path)
-		if err != nil {
-			return nil, err
-		}
-		if samePath(fileAbs, changedAbs) {
-			files = append(files, file)
-		}
-	}
-	return files, nil
-}
-
-func samePath(a, b string) bool {
-	a = filepath.Clean(a)
-	b = filepath.Clean(b)
-	if runtime.GOOS == "windows" {
-		return strings.EqualFold(a, b)
-	}
-	return a == b
+	return finder.FileSystemFinderInit(rc.finderOpts...).MatchFile(path)
 }
 
 func addWatchPaths(watcher fileWatcher, paths []string, watched map[string]struct{}) error {

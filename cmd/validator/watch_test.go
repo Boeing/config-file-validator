@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -170,4 +172,123 @@ func TestRunWatchSkipsFilesFilteredByFinder(t *testing.T) {
 
 	cancel()
 	require.NoError(t, <-done)
+}
+
+func TestRunWatchCoalescesRapidEvents(t *testing.T) {
+	dir := t.TempDir()
+	jsonFile := testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+	recorder := &recordingReporter{}
+	watcher := newFakeWatcher()
+
+	rc := &resolvedConfig{
+		reporters:   []reporter.Reporter{recorder},
+		groupOutput: []string{""},
+		finderOpts: []finder.FSFinderOptions{
+			finder.WithPathRoots(dir),
+			finder.WithExcludeDirs(nil),
+			finder.WithExcludeFileTypes(nil),
+			finder.WithFileTypes(filetype.FileTypes),
+		},
+		searchPaths: []string{dir},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		runner := watchRunner{
+			newWatcher: func() (fileWatcher, error) {
+				return watcher, nil
+			},
+			debounceDelay: 10 * time.Millisecond,
+		}
+		_, err := runner.run(ctx, rc)
+		done <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		return recorder.callCount() == 1
+	}, time.Second, 10*time.Millisecond)
+
+	watcher.events <- fsnotify.Event{Name: jsonFile, Op: fsnotify.Write}
+	watcher.events <- fsnotify.Event{Name: jsonFile, Op: fsnotify.Write}
+
+	require.Eventually(t, func() bool {
+		return recorder.callCount() == 2
+	}, time.Second, 10*time.Millisecond)
+	require.Never(t, func() bool {
+		return recorder.callCount() > 2
+	}, 50*time.Millisecond, 10*time.Millisecond)
+
+	cancel()
+	require.NoError(t, <-done)
+}
+
+func TestRunWatchContinuesAfterWatcherError(t *testing.T) {
+	dir := t.TempDir()
+	jsonFile := testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+	recorder := &recordingReporter{}
+	watcher := newFakeWatcher()
+
+	rc := &resolvedConfig{
+		reporters:   []reporter.Reporter{recorder},
+		groupOutput: []string{""},
+		finderOpts: []finder.FSFinderOptions{
+			finder.WithPathRoots(dir),
+			finder.WithExcludeDirs(nil),
+			finder.WithExcludeFileTypes(nil),
+			finder.WithFileTypes(filetype.FileTypes),
+		},
+		searchPaths: []string{dir},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		runner := watchRunner{
+			newWatcher: func() (fileWatcher, error) {
+				return watcher, nil
+			},
+			debounceDelay: 10 * time.Millisecond,
+		}
+		_, err := runner.run(ctx, rc)
+		done <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		return recorder.callCount() == 1
+	}, time.Second, 10*time.Millisecond)
+
+	watcher.errors <- errors.New("temporary watcher error")
+	watcher.events <- fsnotify.Event{Name: jsonFile, Op: fsnotify.Write}
+
+	require.Eventually(t, func() bool {
+		return recorder.callCount() == 2
+	}, time.Second, 10*time.Millisecond)
+
+	cancel()
+	require.NoError(t, <-done)
+}
+
+func TestFindChangedFileHonorsDirectoryFilters(t *testing.T) {
+	dir := t.TempDir()
+	excludedDir := filepath.Join(dir, "vendor")
+	require.NoError(t, os.Mkdir(excludedDir, 0o755))
+	jsonFile := testhelper.WriteFile(t, excludedDir, "good.json", testhelper.ValidContent["json"])
+
+	rc := &resolvedConfig{
+		finderOpts: []finder.FSFinderOptions{
+			finder.WithPathRoots(dir),
+			finder.WithExcludeDirs([]string{"vendor"}),
+			finder.WithExcludeFileTypes(nil),
+			finder.WithFileTypes(filetype.FileTypes),
+		},
+	}
+
+	files, err := findChangedFile(rc, jsonFile)
+	require.NoError(t, err)
+	require.Empty(t, files)
 }
