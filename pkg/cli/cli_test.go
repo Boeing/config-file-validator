@@ -237,12 +237,15 @@ func Test_CLIWithBrokenSymlink(t *testing.T) {
 	require.Equal(t, 1, exitStatus)
 
 	var failed int
+	var errorType string
 	for _, r := range rep.reports {
 		if !r.IsValid {
 			failed++
+			errorType = r.ErrorType
 		}
 	}
 	require.Equal(t, 1, failed)
+	require.Equal(t, "other", errorType)
 }
 
 func Test_CLISingleGroupJSON(t *testing.T) {

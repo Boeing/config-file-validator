@@ -126,6 +126,7 @@ func (c *CLI) Run() (int, error) {
 					IsValid:          false,
 					ValidationError:  errors.New("broken symlink"),
 					ValidationErrors: []string{"broken symlink"},
+					ErrorType:        "other",
 				}
 				c.errorFound = true
 				reports = append(reports, report)
