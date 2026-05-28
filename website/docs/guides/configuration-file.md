@@ -67,7 +67,7 @@ forbid-duplicate-keys = true
 | `exclude-file-types` | array of strings | `[]`           | File types to ignore                                                |
 | `file-types`         | array of strings | all            | Only validate these file types                                      |
 | `depth`              | integer (≥ 0)    | unlimited      | Maximum recursion depth                                             |
-| `reporter`           | array of strings | `["standard"]` | Output formats: `standard`, `json`, `junit`, `sarif`                |
+| `reporter`           | array of strings | `["standard"]` | Output formats: `standard`, `json`, `junit`, `sarif`, `github`      |
 | `groupby`            | array of strings | `[]`           | Group output by: `filetype`, `directory`, `pass-fail`, `error-type` |
 | `quiet`              | boolean          | `false`        | Suppress stdout output                                              |
 | `require-schema`     | boolean          | `false`        | Fail files that support schemas but don't declare one               |
