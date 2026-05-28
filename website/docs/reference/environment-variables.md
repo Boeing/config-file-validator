@@ -11,7 +11,7 @@ Most CLI flags can be set via environment variables prefixed with `CFV_`. CLI fl
 | `CFV_EXCLUDE_DIRS`       | `-exclude-dirs`       |
 | `CFV_EXCLUDE_FILE_TYPES` | `-exclude-file-types` |
 | `CFV_FILE_TYPES`         | `-file-types`         |
-| `CFV_IGNORE_FILES`       | `-ignore-file`        |
+| `CFV_IGNORE_FILES`       | `--ignore-file`       |
 | `CFV_REPORTER`           | `-reporter`           |
 | `CFV_GROUPBY`            | `-groupby`            |
 | `CFV_QUIET`              | `-quiet`              |

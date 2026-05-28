@@ -253,8 +253,17 @@ func (gim *gitignoreMatcher) loadIgnoreFiles(ignoreFiles []string) {
 		if ignoreFile == "" {
 			continue
 		}
-		gim.loadFile(filepath.Join(gim.absPathRoot, ignoreFile), nil)
+		ignoreFilePath := filepath.Join(gim.absPathRoot, ignoreFile)
+		gim.loadFile(ignoreFilePath, gim.domainForIgnoreFile(ignoreFilePath))
 	}
+}
+
+func (gim *gitignoreMatcher) domainForIgnoreFile(path string) []string {
+	relDir, err := filepath.Rel(gim.absPathRoot, filepath.Dir(path))
+	if err != nil || relDir == "." {
+		return nil
+	}
+	return strings.Split(relDir, string(os.PathSeparator))
 }
 
 func (gim *gitignoreMatcher) refreshMatcher() {
