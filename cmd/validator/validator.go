@@ -268,6 +268,7 @@ func getFlags(args []string) (validatorConfig, error) {
 	if err := applyDefaultFlagsFromEnv(); err != nil {
 		return validatorConfig{}, err
 	}
+	setIgnoreFilesFromEnvIfNotSet(&ignoreFileConfigFlags)
 
 	reporterConf, err := parseReporterFlags(reporterConfigFlags)
 	if err != nil {
@@ -504,7 +505,7 @@ func applyDefaultFlagsFromEnv() error {
 		}
 	}
 
-	return setIgnoreFilesFromEnvIfNotSet()
+	return nil
 }
 
 func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
@@ -521,14 +522,14 @@ func setFlagFromEnvIfNotSet(flagName string, envVar string) error {
 	return nil
 }
 
-func setIgnoreFilesFromEnvIfNotSet() error {
+func setIgnoreFilesFromEnvIfNotSet(flags *ignoreFileFlags) {
 	if isFlagSet("ignore-file") {
-		return nil
+		return
 	}
 
 	envVarValue, ok := os.LookupEnv("CFV_IGNORE_FILES")
 	if !ok || envVarValue == "" {
-		return nil
+		return
 	}
 
 	for _, ignoreFile := range strings.Split(envVarValue, ",") {
@@ -536,12 +537,8 @@ func setIgnoreFilesFromEnvIfNotSet() error {
 		if ignoreFile == "" {
 			continue
 		}
-		if err := flagSet.Set("ignore-file", ignoreFile); err != nil {
-			return err
-		}
+		*flags = append(*flags, ignoreFile)
 	}
-
-	return nil
 }
 
 // Return the reporter associated with the
@@ -966,7 +963,7 @@ func applyConfigFile(cfg *validatorConfig) (*configfile.ValidatorOptions, error)
 		cfg.gitignore = fileCfg.Gitignore
 	}
 	if !isFlagSet("ignore-file") && len(fileCfg.IgnoreFiles) > 0 {
-		cfg.ignoreFiles = append(cfg.ignoreFiles, fileCfg.IgnoreFiles...)
+		cfg.ignoreFiles = ignoreFileFlags(fileCfg.IgnoreFiles)
 	}
 	if len(cfg.schemaMap) == 0 && len(fileCfg.SchemaMap) > 0 {
 		for pattern, schema := range fileCfg.SchemaMap {

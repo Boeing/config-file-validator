@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -104,6 +106,34 @@ func Test_ignoreFilesEnvVar(t *testing.T) {
 	cfg, err := getFlags([]string{"."})
 	require.NoError(t, err)
 	require.Equal(t, ignoreFileFlags{".dockerignore", ".prettierignore"}, cfg.ignoreFiles)
+}
+
+func Test_ignoreFilesConfigOverridesEnvVar(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".cfv.toml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`ignore-files = ["config.ignore"]`), 0600))
+	t.Setenv("CFV_IGNORE_FILES", "env.ignore")
+
+	cfg, err := getFlags([]string{"--config=" + configPath, "."})
+	require.NoError(t, err)
+
+	_, err = applyConfigFile(&cfg)
+	require.NoError(t, err)
+	require.Equal(t, ignoreFileFlags{"config.ignore"}, cfg.ignoreFiles)
+}
+
+func Test_ignoreFilesFlagOverridesConfigAndEnv(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".cfv.toml")
+	require.NoError(t, os.WriteFile(configPath, []byte(`ignore-files = ["config.ignore"]`), 0600))
+	t.Setenv("CFV_IGNORE_FILES", "env.ignore")
+
+	cfg, err := getFlags([]string{"--config=" + configPath, "--ignore-file=cli.ignore", "."})
+	require.NoError(t, err)
+
+	_, err = applyConfigFile(&cfg)
+	require.NoError(t, err)
+	require.Equal(t, ignoreFileFlags{"cli.ignore"}, cfg.ignoreFiles)
 }
 
 func Test_getExcludeFileTypes(t *testing.T) {
