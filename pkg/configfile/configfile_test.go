@@ -14,6 +14,7 @@ func TestLoadValid(t *testing.T) {
 	writeConfig(t, dir, `
 exclude-dirs = ["node_modules", ".git"]
 exclude-file-types = ["csv"]
+ignore-files = [".dockerignore", ".prettierignore"]
 depth = 2
 quiet = true
 schemastore = true
@@ -29,6 +30,7 @@ schemastore = true
 	require.NoError(t, err)
 	require.Equal(t, []string{"node_modules", ".git"}, cfg.ExcludeDirs)
 	require.Equal(t, []string{"csv"}, cfg.ExcludeFileTypes)
+	require.Equal(t, []string{".dockerignore", ".prettierignore"}, cfg.IgnoreFiles)
 	require.Equal(t, 2, *cfg.Depth)
 	require.True(t, *cfg.Quiet)
 	require.True(t, *cfg.SchemaStore)
