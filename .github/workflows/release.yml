@@ -5,13 +5,14 @@ on:
   release:
     types: [created]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   build:
     name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         goos: [linux, darwin, windows]
