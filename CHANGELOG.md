@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - TOML files with duplicate keys are now rejected as invalid (closes #504).
+- Broken symlinks are reported as validation failures instead of aborting the run (closes #505)
 - Repeating the same `--reporter` type with different output paths now writes each requested output.
 - `--schema-map` now warns instead of silently skipping files whose validators do not support external schema validation.
 - `--require-schema --schema-map` now fails when a mapped file's validator does not support external schema validation.
