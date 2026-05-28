@@ -1180,3 +1180,16 @@ func Test_JustfileValidateValid(t *testing.T) {
 	require.True(t, valid)
 	require.NoError(t, err)
 }
+
+func Test_XMLRecursiveEntityDoesNotHang(t *testing.T) {
+	t.Parallel()
+	recursive := []byte(`<?xml version="1.0"?>
+<!DOCTYPE foo [
+<!ENTITY a "&b;">
+<!ENTITY b "&a;">
+]>
+<foo>&a;</foo>`)
+	valid, err := XMLValidator{}.ValidateSyntax(recursive)
+	require.False(t, valid)
+	require.Error(t, err)
+}
