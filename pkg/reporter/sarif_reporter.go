@@ -3,8 +3,10 @@ package reporter
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -77,6 +79,7 @@ type region struct {
 }
 
 type externalSARIFLog struct {
+	Schema  string            `json:"$schema"`
 	Version string            `json:"version"`
 	Runs    []json.RawMessage `json:"runs"`
 }
@@ -203,35 +206,42 @@ func loadMergedSARIFRuns(config SARIFMergeConfig) ([]runs, error) {
 		paths = append(paths, dirPaths...)
 	}
 
-	runs := make([]runs, 0, len(paths))
+	mergedRuns := make([]runs, 0, len(paths))
 	for _, path := range paths {
 		fileRuns, err := loadSARIFRuns(path)
 		if err != nil {
 			return nil, err
 		}
-		runs = append(runs, fileRuns...)
+		mergedRuns = append(mergedRuns, fileRuns...)
 	}
-	return runs, nil
+	return mergedRuns, nil
 }
 
 func sarifFilesInDirectory(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
+	paths := []string{}
+	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if isSARIFFile(path) {
+			paths = append(paths, path)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("reading SARIF merge directory %q: %w", dir, err)
 	}
 
-	paths := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := strings.ToLower(entry.Name())
-		if strings.HasSuffix(name, ".sarif") || strings.HasSuffix(name, ".sarif.json") {
-			paths = append(paths, filepath.Join(dir, entry.Name()))
-		}
-	}
+	slices.Sort(paths)
 	return paths, nil
+}
+
+func isSARIFFile(path string) bool {
+	name := strings.ToLower(filepath.Base(path))
+	return strings.HasSuffix(name, ".sarif") || strings.HasSuffix(name, ".sarif.json")
 }
 
 func loadSARIFRuns(path string) ([]runs, error) {
@@ -244,7 +254,7 @@ func loadSARIFRuns(path string) ([]runs, error) {
 	if err := json.Unmarshal(data, &log); err != nil {
 		return nil, fmt.Errorf("parsing SARIF merge file %q: %w", path, err)
 	}
-	if log.Version != SARIFVersion {
+	if !isSupportedSARIFVersion(log.Version, log.Schema) {
 		return nil, fmt.Errorf("parsing SARIF merge file %q: unsupported SARIF version %q", path, log.Version)
 	}
 	if len(log.Runs) == 0 {
@@ -256,6 +266,16 @@ func loadSARIFRuns(path string) ([]runs, error) {
 		mergedRuns = append(mergedRuns, runs{raw: run})
 	}
 	return mergedRuns, nil
+}
+
+func isSupportedSARIFVersion(version, schema string) bool {
+	version = strings.TrimSpace(version)
+	if version != "" {
+		return version == "2.1" || strings.HasPrefix(version, "2.1.")
+	}
+
+	schema = strings.ToLower(strings.TrimSpace(schema))
+	return strings.Contains(schema, "/sarif/") && strings.Contains(schema, "2.1")
 }
 
 func (sr SARIFReporter) Print(reports []Report) error {

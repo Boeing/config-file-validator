@@ -13,6 +13,7 @@ The validator writes results to stdout by default. Use `--reporter` to control t
 | `json`     | Structured JSON                | CI pipelines, scripting, programmatic consumption       |
 | `junit`    | JUnit XML                      | Jenkins, GitLab CI, any system that reads JUnit reports |
 | `sarif`    | SARIF 2.1.0                    | GitHub Code Scanning, VS Code SARIF Viewer              |
+| `github`   | GitHub workflow annotations    | GitHub Actions logs                                     |
 
 ## Basic usage
 
@@ -120,7 +121,7 @@ You can merge SARIF output from other tools into the same report. The validator'
 validator --reporter=sarif:results.sarif --merge-sarif=gitleaks.sarif --merge-sarif=trivy.sarif .
 ```
 
-To merge every SARIF file in a directory:
+To merge every SARIF file in a directory tree:
 
 ```shell
 validator --reporter=sarif:results.sarif --merge-sarif-dir=reports .

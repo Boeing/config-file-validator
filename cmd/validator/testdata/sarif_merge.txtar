@@ -11,14 +11,25 @@ exec validator --reporter=sarif:- --merge-sarif-dir=reports good.json
 stdout '"name": "dir-one"'
 stdout '"name": "dir-two"'
 
+# Merge SARIF file when the SARIF reporter comes from config
+exec validator --config=cfv/sarif.toml --merge-sarif=external.sarif good.json
+stdout '"name": "config-file-validator"'
+stdout '"name": "external-tool"'
+
 # Merge options only apply to SARIF output
 ! exec validator --reporter=json:- --merge-sarif=external.sarif good.json
+
+# Merge options still require SARIF output after config is applied
+! exec validator --merge-sarif=external.sarif good.json
 
 # Invalid SARIF input fails the run
 ! exec validator --reporter=sarif:- --merge-sarif=bad.sarif good.json
 
 -- good.json --
 {"key": "value"}
+
+-- cfv/sarif.toml --
+reporter = ["sarif:-"]
 
 -- bad.sarif --
 {"not": "sarif"}

@@ -30,7 +30,7 @@ optional flags:
   -merge-sarif string
 		External SARIF file to merge into SARIF output. Repeatable and requires --reporter=sarif.
   -merge-sarif-dir string
-		Directory containing SARIF files to merge into SARIF output. Requires --reporter=sarif.
+		Directory tree containing SARIF files to merge into SARIF output. Requires --reporter=sarif.
   -version
     	Version prints the release version of validator
 */
@@ -231,7 +231,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		gitignorePtr = flagSet.Bool("gitignore", false,
 			"Skip files and directories matched by .gitignore patterns.")
 		mergeSarifDirPtr = flagSet.String("merge-sarif-dir", "",
-			"Directory containing SARIF files to merge into SARIF output. Requires --reporter=sarif.")
+			"Directory tree containing SARIF files to merge into SARIF output. Requires --reporter=sarif.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -378,33 +378,60 @@ func validateReporterConf(conf []reporterConfig, groupBy *string) error {
 }
 
 func validateSARIFMergeConf(conf []reporterConfig, mergeSarif []string, mergeSarifDir *string) error {
-	hasMergeFile := len(mergeSarif) > 0
-	hasMergeDir := mergeSarifDir != nil && isFlagSet("merge-sarif-dir")
-	if !hasMergeFile && !hasMergeDir {
-		return nil
-	}
-
-	hasSARIFReporter := false
-	for _, reporterConf := range conf {
-		if reporterConf.reportType == "sarif" {
-			hasSARIFReporter = true
-			break
-		}
-	}
-	if !hasSARIFReporter {
-		return errors.New("--merge-sarif and --merge-sarif-dir require --reporter=sarif")
-	}
-
 	for _, path := range mergeSarif {
 		if strings.TrimSpace(path) == "" {
 			return errors.New("--merge-sarif requires a file path")
 		}
 	}
-	if hasMergeDir && strings.TrimSpace(*mergeSarifDir) == "" {
+	if mergeSarifDir != nil && isFlagSet("merge-sarif-dir") && strings.TrimSpace(*mergeSarifDir) == "" {
 		return errors.New("--merge-sarif-dir requires a directory path")
 	}
 
+	if isFlagSet("reporter") {
+		return validateSARIFMergeReporters(conf, mergeSarif, mergeSarifDir)
+	}
 	return nil
+}
+
+func validateSARIFMergeReporters(conf []reporterConfig, mergeSarif []string, mergeSarifDir *string) error {
+	if !sarifMergeRequested(mergeSarif, mergeSarifDir) {
+		return nil
+	}
+
+	for _, reporterConf := range conf {
+		if reporterConf.reportType == "sarif" {
+			return nil
+		}
+	}
+	return errors.New("--merge-sarif and --merge-sarif-dir require --reporter=sarif")
+}
+
+func sarifMergeRequested(mergeSarif []string, mergeSarifDir *string) bool {
+	return len(mergeSarif) > 0 || (mergeSarifDir != nil && isFlagSet("merge-sarif-dir"))
+}
+
+func mergeSarifDirectoryValue(mergeSarifDir *string) string {
+	if mergeSarifDir == nil {
+		return ""
+	}
+	return *mergeSarifDir
+}
+
+// isFlagSet verifies if a given flag has been set or not
+func isFlagSet(flagName string) bool {
+	if flagSet == nil {
+		return false
+	}
+
+	var isSet bool
+
+	flagSet.Visit(func(f *flag.Flag) {
+		if f.Name == flagName {
+			isSet = true
+		}
+	})
+
+	return isSet
 }
 
 func validateGroupByConf(groupBy *string) error {
@@ -507,19 +534,6 @@ func validateUniqueReporterOutputDestinations(conf []reporterConfig) error {
 		seen[outputDest] = struct{}{}
 	}
 	return nil
-}
-
-// isFlagSet verifies if a given flag has been set or not
-func isFlagSet(flagName string) bool {
-	var isSet bool
-
-	flagSet.Visit(func(f *flag.Flag) {
-		if f.Name == flagName {
-			isSet = true
-		}
-	})
-
-	return isSet
 }
 
 func applyDefaultFlagsFromEnv() error {
@@ -659,9 +673,13 @@ func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
 		return nil, errors.New("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
 	}
 
+	if err := validateSARIFMergeReporters(cfg.reportType, cfg.mergeSarif, cfg.mergeSarifDir); err != nil {
+		return nil, err
+	}
+
 	sarifMergeConfig := reporter.SARIFMergeConfig{
 		Files:     []string(cfg.mergeSarif),
-		Directory: *cfg.mergeSarifDir,
+		Directory: mergeSarifDirectoryValue(cfg.mergeSarifDir),
 	}
 	reporters, err := buildReporters(cfg.reportType, sarifMergeConfig)
 	if err != nil {
