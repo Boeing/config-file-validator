@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lestrrat-go/helium"
 	"github.com/lestrrat-go/helium/xsd"
@@ -30,7 +31,8 @@ func (XMLValidator) ValidateXSD(b []byte, schemaPath string) (bool, error) {
 }
 
 func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	_, err := helium.NewParser().ValidateDTD(true).Parse(ctx, b)
 	if err != nil {
 		errMsg := err.Error()
