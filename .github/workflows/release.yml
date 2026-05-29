@@ -61,8 +61,7 @@ jobs:
         run: |
           TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"
-          MAJOR_MINOR="${VERSION%.*}"
-          NAME="validator-v${MAJOR_MINOR}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          NAME="validator-v${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
 
           if [ "${{ matrix.goos }}" = "windows" ]; then
             zip "${NAME}.zip" validator.exe LICENSE README.md
