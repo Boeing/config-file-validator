@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -29,10 +30,17 @@ func Test_getFlags(t *testing.T) {
 		{"type-map", []string{"--type-map=**/inventory:ini", "."}, false},
 		{"multiple type-maps", []string{"--type-map=**/inventory:ini", "--type-map=**/configs/*:properties", "."}, false},
 		{"require-schema", []string{"--require-schema", "."}, false},
+		{"sarif merge file", []string{"--reporter=sarif", "--merge-sarif=external.sarif", "."}, false},
+		{"sarif merge dir", []string{"--reporter=sarif", "--merge-sarif-dir=reports", "."}, false},
 
 		// Invalid flag combinations
 		{"negative depth", []string{"-depth=-1", "."}, true},
 		{"wrong reporter", []string{"--reporter=wrong", "."}, true},
+		{"merge sarif requires sarif reporter", []string{"--reporter=json", "--merge-sarif=external.sarif", "."}, true},
+		{"empty merge sarif file", []string{"--reporter=sarif", "--merge-sarif=", "."}, true},
+		{"empty merge sarif file without sarif reporter", []string{"--reporter=json", "--merge-sarif=", "."}, true},
+		{"empty merge sarif dir", []string{"--reporter=sarif", "--merge-sarif-dir=", "."}, true},
+		{"empty merge sarif dir without sarif reporter", []string{"--reporter=json", "--merge-sarif-dir=", "."}, true},
 		{"reporter output path with colon", []string{"--reporter", "json:/a:/b", "."}, false},
 		{"invalid groupby", []string{"-groupby=badgroup", "."}, true},
 		{"groupby duplicate", []string{"--groupby=directory,directory", "."}, true},
@@ -58,6 +66,40 @@ func Test_getFlags(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_resolveConfigAllowsNilMergeSarifDir(t *testing.T) {
+	flagSet = flag.NewFlagSet("validator", flag.ContinueOnError)
+
+	empty := ""
+	depth := 0
+	falseValue := false
+	trueValue := true
+	cfg := &validatorConfig{
+		searchPaths:      []string{"."},
+		excludeDirs:      &empty,
+		excludeFileTypes: &empty,
+		fileTypes:        &empty,
+		reportType:       []reporterConfig{{reportType: "sarif"}},
+		depth:            &depth,
+		versionQuery:     &falseValue,
+		groupOutput:      &empty,
+		quiet:            &falseValue,
+		globbing:         &falseValue,
+		requireSchema:    &falseValue,
+		noSchema:         &falseValue,
+		schemaStore:      &falseValue,
+		schemaStorePath:  &empty,
+		configPath:       &empty,
+		noConfig:         &trueValue,
+		gitignore:        &falseValue,
+		mergeSarifDir:    nil,
+	}
+
+	require.NotPanics(t, func() {
+		_, err := resolveConfig(cfg)
+		require.NoError(t, err)
+	})
 }
 
 func Test_getFlagsValues(t *testing.T) {
