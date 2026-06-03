@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release binaries now include the full semver patch version in their filename (e.g., `validator-v2.2.2-linux-amd64.tar.gz` instead of `validator-v2.2-linux-amd64.tar.gz`), fixing package managers like aqua that expect full semver in artifact URLs (closes #514).
 - TOML files with duplicate keys are now rejected as invalid (closes #504).
 - Broken symlinks are reported as validation failures instead of aborting the run (closes #505)
 - Repeating the same `--reporter` type with different output paths now writes each requested output.
