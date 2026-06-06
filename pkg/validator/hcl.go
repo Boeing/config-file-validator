@@ -1,0 +1,49 @@
+package validator
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/hashicorp/hcl/v2/hclparse"
+)
+
+// HclValidator is used to validate a byte slice that is intended to represent a
+// HashiCorp Configuration Language (HCL) file.
+type HclValidator struct{}
+
+var _ Validator = HclValidator{}
+
+// Validate checks if the provided byte slice represents a valid .hcl file.
+//
+// The hcl parser uses FIFO to determine which error to display to the user. For
+// more information, see the documentation at:
+//
+// https://pkg.go.dev/github.com/hashicorp/hcl/v2#Diagnostics.Error
+//
+// If the hcl.Diagnostics slice contains more than one error, the wrapped
+// error returned by this function will include them as "and {count} other
+// diagnostic(s)" in the error message.
+func (HclValidator) ValidateSyntax(b []byte) (bool, error) {
+	_, diags := hclparse.NewParser().ParseHCL(b, "")
+	if diags == nil {
+		return true, nil
+	}
+
+	subject := diags[0].Subject
+	row := subject.Start.Line
+	col := subject.Start.Column
+
+	msg := diags[0].Summary
+	if diags[0].Detail != "" {
+		msg += ": " + diags[0].Detail
+	}
+	if len(diags) > 1 {
+		msg += fmt.Sprintf(" (and %d other diagnostic(s))", len(diags)-1)
+	}
+
+	return false, &ValidationError{
+		Err:    fmt.Errorf("%s", strings.TrimSpace(msg)),
+		Line:   row,
+		Column: col,
+	}
+}

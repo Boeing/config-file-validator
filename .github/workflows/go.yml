@@ -1,0 +1,126 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+---
+name: Go Pipeline
+
+# Enable this workflow to run for pull requests and
+# pushes to the main branch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+
+      - name: Download dependencies
+        run: go mod download
+
+  lint:
+    needs: download
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+
+      - name: Static Analysis
+        run: |
+          go vet ./...
+          cd pkg/validator/justfile && go vet ./...
+
+      - name: Check Formatting
+        run: |
+          test -z "$(gofmt -s -l -e .)"
+          cd pkg/validator/justfile && test -z "$(gofmt -s -l -e .)"
+
+      - name: Check generated files are up to date
+        run: |
+          go generate ./pkg/filetype/...
+          git diff --exit-code pkg/filetype/known_files_gen.go
+
+  build:
+    needs: download
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+
+      - name: Generate known files from Linguist
+        run: go generate ./pkg/filetype/...
+
+      - name: Build
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -ldflags='-w -s -extldflags "-static"' -tags netgo -o validator cmd/validator/validator.go
+
+  test:
+    needs: download
+    runs-on: ubuntu-latest
+    name: Test and check coverage
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+
+      - name: Unit test
+        run: |
+          go test -v -cover -coverprofile coverage.out ./...
+          cd pkg/validator/justfile && go test -v -count=1 ./...
+
+      - name: Check coverage
+        env:
+          COVERAGE_THRESHOLD: 90
+        run: |
+          echo "Checking if test coverage is above threshold ..."
+          echo "Coverage threshold: ${COVERAGE_THRESHOLD} %"
+          totalCoverage=$(go tool cover -func coverage.out | grep 'total' | grep -Eo '[0-9]+\.[0-9]+')
+          echo "Current test coverage : ${totalCoverage} %"
+          if (( $(echo "${COVERAGE_THRESHOLD} <= ${totalCoverage}" | bc -l) )); then
+            echo "Coverage OK"
+          else
+            echo "Current test coverage is below threshold"
+            exit 1
+          fi

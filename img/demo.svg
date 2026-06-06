@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="380" viewBox="0 0 780 380">
+  <style>
+    @keyframes showResults {
+      0%, 28% { opacity: 0; }
+      30%, 100% { opacity: 1; }
+    }
+    @keyframes showCommand {
+      0%, 6% { opacity: 0; }
+      8%, 100% { opacity: 1; }
+    }
+    .cmd { opacity: 0; animation: showCommand 7s infinite; }
+    .results { opacity: 0; animation: showResults 7s infinite; }
+  </style>
+  <rect width="780" height="380" rx="8" fill="#002b36"/>
+  <circle cx="20" cy="18" r="6" fill="#ff5f58"/>
+  <circle cx="38" cy="18" r="6" fill="#ffbd2e"/>
+  <circle cx="56" cy="18" r="6" fill="#18c132"/>
+  <g font-family="Monaco, Menlo, Consolas, monospace" font-size="17">
+    <text x="20" y="60" fill="#657b83">$</text>
+    <text x="38" y="60" fill="#93a1a1" class="cmd">validator .</text>
+    <g class="results">
+      <text x="56" y="98" fill="#859900">✓ .env</text>
+      <text x="56" y="124" fill="#859900">✓ .github/workflows/ci.yml</text>
+      <text x="56" y="150" fill="#859900">✓ config.yaml</text>
+      <text x="56" y="176" fill="#859900">✓ deploy/pom.xml</text>
+      <text x="56" y="202" fill="#859900">✓ package.json</text>
+      <text x="56" y="228" fill="#dc322f">× tsconfig.json</text>
+      <text x="90" y="256" fill="#dc322f" font-size="15">error: syntax: hujson: line 5, column 5:</text>
+      <text x="90" y="278" fill="#dc322f" font-size="15">invalid character '"' after object value (expecting ',' or '}')</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,78 @@
+# ============================================================
+# Functional tests for JSONC support
+# ============================================================
+
+# .jsonc extension auto-detected
+exec validator valid.jsonc
+stdout '✓'
+
+# Line comments
+exec validator line_comments.jsonc
+stdout '✓'
+
+# Block comments
+exec validator block_comments.jsonc
+stdout '✓'
+
+# Trailing commas
+exec validator trailing.jsonc
+stdout '✓'
+
+# Invalid JSONC
+! exec validator bad.jsonc
+stdout '×'
+
+# Strict JSON still strict
+! exec validator json_with_comments.json
+stdout '×'
+stdout 'note:.*valid JSONC'
+
+# type-map overrides to jsonc
+exec validator --type-map=json_with_comments.json:jsonc json_with_comments.json
+stdout '✓'
+
+# Plain JSON without comments has no note
+! exec validator bad.json
+stdout '×'
+! stdout 'note:'
+
+# .tf files detected as HCL
+exec validator main.tf
+stdout '✓'
+
+# .tfvars files detected as HCL
+exec validator vars.tfvars
+stdout '✓'
+
+-- valid.jsonc --
+// comment
+{"key": "value"}
+
+-- line_comments.jsonc --
+{
+  "host": "localhost", // server
+  "port": 8080
+}
+
+-- block_comments.jsonc --
+/* config */
+{"key": "value"}
+
+-- trailing.jsonc --
+{"a": 1, "b": 2,}
+
+-- bad.jsonc --
+{"key": ,}
+
+-- json_with_comments.json --
+// this is JSONC
+{"key": "value"}
+
+-- bad.json --
+{"key": }
+
+-- main.tf --
+resource "null_resource" "test" {}
+
+-- vars.tfvars --
+region = "us-east-1"

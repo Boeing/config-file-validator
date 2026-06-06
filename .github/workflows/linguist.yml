@@ -1,0 +1,80 @@
+# GitHub Actions Workflow: Linguist
+# This workflow file defines automation tasks for the Linguist tool
+---
+name: Linguist update
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # every monday at midnight
+  workflow_dispatch: # yamllint disable-line rule:truthy - false positive
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  update-sha:
+    name: Update Linguist SHA
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Go Setup
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.26"
+
+      - name: Fetch latest Linguist SHA
+        id: fetch-sha
+        run: |
+          SHA=$(git ls-remote https://github.com/github-linguist/linguist.git HEAD | awk '{print $1}')
+          [[ -z "$SHA" ]] && { echo "Empty output"; exit 1; }
+          [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]] && { echo "Invalid SHA format"; exit 1; }
+
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Update pinned SHA and regenerate
+        id: update-sha
+        env:
+          SHA: ${{ steps.fetch-sha.outputs.sha }}
+          FILEPATH: "internal/generate/knownfiles/main.go"
+          SHA_REGEX: "[0-9a-f]{40}"
+          FIELD_REGEX: 'linguistSHA\s*=\s*"'
+        run: |
+          if ! grep -qE "${FIELD_REGEX}${SHA_REGEX}" "$FILEPATH"; then
+            echo "Missing linguistSHA line"
+            exit 1
+          fi
+
+          EXISTING_SHA=$(grep -oE "${FIELD_REGEX}${SHA_REGEX}" "$FILEPATH" | grep -oE "$SHA_REGEX")
+
+          if [[ "$EXISTING_SHA" == "${SHA}" ]]; then
+            echo "SHA already up to date, skipping"
+            exit 0
+          fi
+
+          sed -E -i "s/(${FIELD_REGEX})${SHA_REGEX}(\")/\1${SHA}\2/" "$FILEPATH"
+          go generate  ./pkg/filetype/file_type.go
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: "auto/linguist-update"
+          commit-message: "chore: update github-linguist SHA"
+          title: "chore: update github-linguist SHA"
+          body: |
+            Automated weekly update of the pinned github-linguist SHA in
+            `internal/generate/knownfiles/main.go` and regenerated `known_files_gen.go`.
+            > This PR was automatically created by workflow run [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          delete-branch: true

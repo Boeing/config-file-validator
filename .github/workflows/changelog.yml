@@ -1,0 +1,24 @@
+---
+name: Check Changelog
+on:
+  pull_request:
+    types: [assigned, opened, synchronize, reopened, labeled, unlabeled]
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  Check-Changelog:
+    name: Check Changelog Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: tarides/changelog-check-action@0189fc7eedec3ef3e9648c713908f6f2a6e99057 # v3
+        with:
+          changelog: CHANGELOG.md

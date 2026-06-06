@@ -1,0 +1,173 @@
+# ============================================================
+# Functional tests for Linguist known files
+# Verifies that extensionless files are auto-detected by type
+# ============================================================
+
+# YAML known files
+exec validator .clang-format
+stdout '✓'
+
+exec validator .clang-tidy
+stdout '✓'
+
+exec validator .clangd
+stdout '✓'
+
+exec validator .gemrc
+stdout '✓'
+
+# INI known files
+exec validator .gitconfig
+stdout '✓'
+
+exec validator .npmrc
+stdout '✓'
+
+exec validator .shellcheckrc
+stdout '✓'
+
+# JSON known files
+exec validator .arcconfig
+stdout '✓'
+
+exec validator composer.lock
+stdout '✓'
+
+# JSONC known files
+exec validator .babelrc
+stdout '✓'
+
+exec validator tsconfig.json
+stdout '✓'
+
+# TOML known files
+exec validator Pipfile
+stdout '✓'
+
+# XML known files
+exec validator pom.xml
+stdout '✓'
+
+# Invalid known files should fail
+! exec validator invalid/.clang-format
+stdout '×'
+
+! exec validator invalid/.babelrc
+stdout '×'
+
+# Unknown extensionless files should be ignored (exit 0, no output)
+exec validator unknown
+! stdout '.'
+
+# ============================================================
+# SchemaStore with extensionless known files
+# ============================================================
+
+# .babelrc valid against schema
+exec validator --schemastore-path schemastore .babelrc
+stdout '✓'
+
+# .babelrc invalid against schema (additionalProperties: false)
+! exec validator --schemastore-path schemastore invalid-schema/.babelrc
+stdout '×'
+stdout 'error:'
+
+# .clangd valid against schema
+exec validator --schemastore-path schemastore .clangd
+stdout '✓'
+
+# ============================================================
+# Valid known files
+# ============================================================
+
+-- .clang-format --
+BasedOnStyle: LLVM
+IndentWidth: 4
+-- .clang-tidy --
+Checks: '-*,readability-*'
+-- .clangd --
+CompileFlags:
+  Add: [-Wall]
+-- .gemrc --
+gem: --no-document
+-- .gitconfig --
+[user]
+name=test
+email=test@example.com
+-- .npmrc --
+registry=https://registry.npmjs.org/
+-- .shellcheckrc --
+disable=SC2034
+-- .arcconfig --
+{"project_id": "myproject"}
+-- composer.lock --
+{"packages": [], "_readme": ["This file locks the dependencies"]}
+-- .babelrc --
+{"presets": ["env"]}
+-- tsconfig.json --
+// TypeScript config
+{"compilerOptions": {"strict": true}}
+-- Pipfile --
+[packages]
+requests = "*"
+-- pom.xml --
+<project><modelVersion>4.0.0</modelVersion></project>
+-- unknown --
+this is not a config file
+
+# ============================================================
+# Invalid known files
+# ============================================================
+
+-- invalid/.clang-format --
+BasedOnStyle: LLVM
+  bad indentation:
+    - this: is broken
+  ::::::
+-- invalid/.babelrc --
+{"bad": }
+
+# ============================================================
+# SchemaStore invalid files
+# ============================================================
+
+-- invalid-schema/.babelrc --
+{"presets": ["env"], "unknown_field": true}
+
+# ============================================================
+# Mini SchemaStore bundle with extensionless entries
+# ============================================================
+
+-- schemastore/src/api/json/catalog.json --
+{
+  "schemas": [
+    {
+      "name": "Babel",
+      "fileMatch": [".babelrc"],
+      "url": "https://www.schemastore.org/babelrc.json"
+    },
+    {
+      "name": "clangd",
+      "fileMatch": [".clangd"],
+      "url": "https://www.schemastore.org/clangd.json"
+    }
+  ]
+}
+-- schemastore/src/schemas/json/babelrc.json --
+{
+  "type": "object",
+  "properties": {
+    "presets": { "type": "array", "items": { "type": "string" } },
+    "plugins": { "type": "array" }
+  },
+  "additionalProperties": false
+}
+-- schemastore/src/schemas/json/clangd.json --
+{
+  "type": "object",
+  "properties": {
+    "CompileFlags": { "type": "object" },
+    "Diagnostics": { "type": "object" },
+    "InlayHints": { "type": "object" }
+  }
+}

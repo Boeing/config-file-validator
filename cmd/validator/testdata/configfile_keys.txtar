@@ -1,0 +1,69 @@
+# ============================================================
+# Functional tests for config file applying all keys
+# ============================================================
+
+# Config file applies exclude-file-types
+exec validator --config=cfv/exclude_types.toml project
+! stdout 'yaml'
+stdout '✓.*good.json'
+
+# Config file applies file-types
+exec validator --config=cfv/file_types.toml project
+! stdout 'json'
+stdout '✓.*config.yaml'
+
+# Config file applies reporter
+exec validator --config=cfv/reporter.toml project/good.json
+stdout 'passed'
+
+# Config file applies groupby
+exec validator --config=cfv/groupby.toml project/good.json project/config.yaml
+stdout 'json'
+stdout 'yaml'
+
+# Config file applies require-schema (unmatched JSON fails)
+! exec validator --config=cfv/require_schema.toml project/good.json
+stdout 'no schema declared'
+
+# Config file applies no-schema (schema skipped)
+exec validator --config=cfv/no_schema.toml project/good.json
+stdout '✓'
+
+# Config file applies schemastore
+exec validator --config=cfv/schemastore.toml project/good.json
+stdout '✓'
+
+# Config file applies schema-map
+exec validator --config=cfv/schema_map.toml project/good.json
+stdout '✓'
+
+-- cfv/exclude_types.toml --
+exclude-file-types = ["yaml"]
+
+-- cfv/file_types.toml --
+file-types = ["yaml"]
+
+-- cfv/reporter.toml --
+reporter = ["json:-"]
+
+-- cfv/groupby.toml --
+groupby = ["filetype"]
+
+-- cfv/require_schema.toml --
+require-schema = true
+
+-- cfv/no_schema.toml --
+no-schema = true
+
+-- cfv/schemastore.toml --
+schemastore = true
+
+-- cfv/schema_map.toml --
+[schema-map]
+"nonexistent_pattern.json" = "schema.json"
+
+-- project/good.json --
+{"key": "value"}
+
+-- project/config.yaml --
+key: value

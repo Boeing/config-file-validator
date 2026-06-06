@@ -1,0 +1,21 @@
+# Glob pattern matches json files
+exec validator --globbing 'files/*.json'
+stdout '✓.*good.json'
+! stdout 'good.yaml'
+
+# Glob with no matches succeeds with no output
+exec validator --globbing 'files/*.nomatch'
+
+# Globbing cannot be used with exclude-dirs
+! exec validator --globbing --exclude-dirs=sub 'files/*.json'
+
+# Globbing cannot be used with exclude-file-types
+! exec validator --globbing --exclude-file-types=yaml 'files/*.json'
+
+# Globbing cannot be used with file-types
+! exec validator --globbing --file-types=json 'files/*.json'
+
+-- files/good.json --
+{"key": "value"}
+-- files/good.yaml --
+key: value

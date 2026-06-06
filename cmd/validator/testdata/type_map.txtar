@@ -1,0 +1,46 @@
+# Map extensionless file to ini
+exec validator --type-map='**/inventory:ini' inventory
+stdout '✓'
+
+# Map extensionless file to wrong type fails
+! exec validator --type-map='**/inventory:json' inventory
+stdout '×'
+
+# Map directory glob
+exec validator --type-map='**/configs/*:properties' configs
+stdout '✓.*app'
+stdout '✓.*db'
+
+# Override built-in type (json file as xml)
+! exec validator --type-map='**/*.json:xml' data.json
+stdout '×'
+
+# Multiple type-maps
+exec validator --type-map='**/inventory:ini' --type-map='**/configs/*:properties' inventory configs
+stdout '✓.*inventory'
+stdout '✓.*app'
+
+# No match finds nothing (exit 0, no output)
+exec validator --type-map='**/nomatch:ini' inventory
+
+# Error: missing colon
+! exec validator --type-map='nocolon' .
+
+# Error: empty pattern
+! exec validator --type-map=':ini' .
+
+# Error: empty type
+! exec validator --type-map='pattern:' .
+
+# Error: unknown type
+! exec validator --type-map='**/file:notreal' .
+
+-- inventory --
+[servers]
+host=10.0.0.1
+-- configs/app --
+key=value
+-- configs/db --
+host=localhost
+-- data.json --
+{"key": "value"}

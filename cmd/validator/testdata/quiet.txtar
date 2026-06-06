@@ -1,0 +1,17 @@
+# Quiet suppresses stdout on success
+exec validator --quiet good.json
+! stdout .
+
+# Quiet still exits 1 on failure
+! exec validator --quiet bad.json
+! stdout .
+
+# Quiet with reporter to file still writes file
+exec validator --quiet --reporter=json:out.json good.json
+! stdout .
+exists out.json
+
+-- good.json --
+{"key": "value"}
+-- bad.json --
+{"bad":}

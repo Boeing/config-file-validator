@@ -1,0 +1,26 @@
+# depth=0 finds only root files
+exec validator -depth=0 root
+stdout '✓.*root.good.json'
+! stdout 'sub'
+
+# depth=1 finds root + one level
+exec validator -depth=1 root
+stdout '✓.*root.good.json'
+stdout '✓.*sub.good.yaml'
+! stdout 'deep'
+
+# depth=2 finds everything
+exec validator -depth=2 root
+stdout '✓.*root.good.json'
+stdout '✓.*sub.good.yaml'
+stdout '✓.*deep.good.toml'
+
+# negative depth should fail
+! exec validator -depth=-1 .
+
+-- root/good.json --
+{"key": "value"}
+-- root/sub/good.yaml --
+key: value
+-- root/sub/deep/good.toml --
+key = "value"
