@@ -29,6 +29,7 @@ type FileSystemFinder struct {
 	Depth            *int
 	TypeOverrides    []TypeOverride
 	Gitignore        bool
+	IgnoreFiles      []string
 }
 
 type FSFinderOptions func(*FileSystemFinder)
@@ -83,6 +84,13 @@ func WithTypeOverrides(overrides []TypeOverride) FSFinderOptions {
 func WithGitignore(enabled bool) FSFinderOptions {
 	return func(fsf *FileSystemFinder) {
 		fsf.Gitignore = enabled
+	}
+}
+
+// WithIgnoreFiles skips files/directories matched by gitignore-style pattern files.
+func WithIgnoreFiles(paths []string) FSFinderOptions {
+	return func(fsf *FileSystemFinder) {
+		fsf.IgnoreFiles = paths
 	}
 }
 
@@ -144,9 +152,15 @@ func (fsf *FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{
 	}
 
 	var gim *gitignoreMatcher
-	if fsf.Gitignore {
+	if fsf.Gitignore || len(fsf.IgnoreFiles) > 0 {
 		gim = newGitignoreMatcher(pathRoot)
 		if gim != nil {
+			if fsf.Gitignore {
+				gim.loadRepoGitignore()
+			}
+			gim.loadIgnoreFiles(fsf.IgnoreFiles)
+			gim.refreshMatcher()
+
 			// Use absolute pathRoot so WalkDir paths match gim.absPathRoot.
 			pathRoot = gim.absPathRoot
 		}
@@ -185,9 +199,10 @@ func (fsf *FileSystemFinder) findOne(pathRoot string, seenMap map[string]struct{
 
 // gitignoreMatcher lazily loads .gitignore files during WalkDir.
 type gitignoreMatcher struct {
-	patterns    []gitignore.Pattern
-	matcher     gitignore.Matcher
-	absPathRoot string
+	patterns      []gitignore.Pattern
+	matcher       gitignore.Matcher
+	absPathRoot   string
+	loadGitignore bool
 }
 
 func newGitignoreMatcher(pathRoot string) *gitignoreMatcher {
@@ -195,12 +210,16 @@ func newGitignoreMatcher(pathRoot string) *gitignoreMatcher {
 	if err != nil {
 		return nil
 	}
-	repoRoot := findRepoRoot(absPathRoot)
-	if repoRoot == "" {
-		return nil
-	}
 
-	gim := &gitignoreMatcher{absPathRoot: absPathRoot}
+	return &gitignoreMatcher{absPathRoot: absPathRoot}
+}
+
+func (gim *gitignoreMatcher) loadRepoGitignore() {
+	repoRoot := findRepoRoot(gim.absPathRoot)
+	if repoRoot == "" {
+		return
+	}
+	gim.loadGitignore = true
 
 	// Load system and global patterns (reads 1-2 config files).
 	// Errors are ignored — a missing or broken gitconfig should not
@@ -217,8 +236,8 @@ func newGitignoreMatcher(pathRoot string) *gitignoreMatcher {
 	// Load .gitignore files from repo root up to (not including) the search path.
 	// The search path's own .gitignore is loaded by pushDir during WalkDir.
 	// Patterns from ancestor directories use nil domain so they apply globally.
-	if repoRoot != absPathRoot {
-		rel, _ := filepath.Rel(repoRoot, absPathRoot)
+	if repoRoot != gim.absPathRoot {
+		rel, _ := filepath.Rel(repoRoot, gim.absPathRoot)
 		segments := strings.Split(rel, string(os.PathSeparator))
 		cur := repoRoot
 		for _, seg := range segments {
@@ -226,13 +245,36 @@ func newGitignoreMatcher(pathRoot string) *gitignoreMatcher {
 			cur = filepath.Join(cur, seg)
 		}
 	}
+}
 
+func (gim *gitignoreMatcher) loadIgnoreFiles(ignoreFiles []string) {
+	for _, ignoreFile := range ignoreFiles {
+		ignoreFile = strings.TrimSpace(ignoreFile)
+		if ignoreFile == "" {
+			continue
+		}
+		ignoreFilePath := filepath.Join(gim.absPathRoot, ignoreFile)
+		gim.loadFile(ignoreFilePath, gim.domainForIgnoreFile(ignoreFilePath))
+	}
+}
+
+func (gim *gitignoreMatcher) domainForIgnoreFile(path string) []string {
+	relDir, err := filepath.Rel(gim.absPathRoot, filepath.Dir(path))
+	if err != nil || relDir == "." {
+		return nil
+	}
+	return strings.Split(relDir, string(os.PathSeparator))
+}
+
+func (gim *gitignoreMatcher) refreshMatcher() {
 	gim.matcher = gitignore.NewMatcher(gim.patterns)
-	return gim
 }
 
 // pushDir loads a .gitignore from the given directory if one exists.
 func (gim *gitignoreMatcher) pushDir(dir string) {
+	if !gim.loadGitignore {
+		return
+	}
 	before := len(gim.patterns)
 	rel, _ := filepath.Rel(gim.absPathRoot, dir)
 	var domain []string
