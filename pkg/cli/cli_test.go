@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -217,6 +218,34 @@ func Test_CLIWithUnreadableFile(t *testing.T) {
 	exitStatus, err := cli.Run()
 	require.Error(t, err)
 	require.Equal(t, 2, exitStatus)
+}
+
+func Test_CLIWithBrokenSymlink(t *testing.T) {
+	dir := testhelper.CreateFixtureDir(t, "json")
+
+	target := filepath.Join(dir, "broken.json")
+	err := os.Symlink("/nonexistent_target_xyz", target)
+	require.NoError(t, err)
+
+	rep := &captureReporter{}
+	fsFinder := finder.FileSystemFinderInit(
+		finder.WithPathRoots(dir),
+	)
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+
+	var failed int
+	var errorType string
+	for _, r := range rep.reports {
+		if !r.IsValid {
+			failed++
+			errorType = r.ErrorType
+		}
+	}
+	require.Equal(t, 1, failed)
+	require.Equal(t, "other", errorType)
 }
 
 func Test_CLISingleGroupJSON(t *testing.T) {
