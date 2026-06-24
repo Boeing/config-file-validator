@@ -1,4 +1,5 @@
-# Dev-only dependencies (webpack-dev-server) — no fix published yet.
-# Re-evaluate when webpack-dev-server >5.2.3 and ws >8.20.0 are released.
-CVE-2026-6402
-CVE-2026-45736
+# gray-matter (Docusaurus dep) requires js-yaml 3.x which has no patch for this CVE.
+# js-yaml 4.2.0 fixes it but breaks gray-matter's API (removed safeLoad).
+# Only used to parse trusted markdown front matter from this repo — not exploitable.
+# Re-evaluate when Docusaurus updates gray-matter or switches to js-yaml 4.x.
+CVE-2026-53550
