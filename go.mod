@@ -11,7 +11,7 @@ require (
 	github.com/gurkankaymak/hocon v1.2.23
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.23.0
-	github.com/lestrrat-go/helium v0.0.1
+	github.com/lestrrat-go/helium v0.3.0
 	github.com/magiconair/properties v1.8.10
 	github.com/owenrumney/go-sarif/v3 v3.3.0
 	github.com/pelletier/go-toml/v2 v2.4.1
@@ -26,6 +26,8 @@ require (
 )
 
 require github.com/sblinch/kdl-go v0.0.0-20260121213736-8b7053306ca6
+
+require github.com/dlclark/regexp2 v1.12.0 // indirect
 
 require (
 	github.com/Boeing/go-just v0.0.0
