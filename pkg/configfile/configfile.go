@@ -20,6 +20,7 @@ const FileName = ".cfv.toml"
 type Config struct {
 	ExcludeDirs      []string          `toml:"exclude-dirs"`
 	ExcludeFileTypes []string          `toml:"exclude-file-types"`
+	IgnoreFiles      []string          `toml:"ignore-files"`
 	FileTypes        []string          `toml:"file-types"`
 	Depth            *int              `toml:"depth"`
 	Reporter         []string          `toml:"reporter"`

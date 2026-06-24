@@ -35,6 +35,7 @@ Most CLI flags can also be set through [environment variables](../reference/envi
 ```toml
 exclude-dirs = ["node_modules", ".git", "vendor", "dist"]
 exclude-file-types = ["csv"]
+ignore-files = [".dockerignore", ".prettierignore"]
 depth = 3
 quiet = false
 gitignore = true
@@ -65,6 +66,7 @@ forbid-duplicate-keys = true
 |----------------------|------------------|----------------|---------------------------------------------------------------------|
 | `exclude-dirs`       | array of strings | `[]`           | Subdirectories to skip during traversal                             |
 | `exclude-file-types` | array of strings | `[]`           | File types to ignore                                                |
+| `ignore-files`       | array of strings | `[]`           | Gitignore-style pattern files to apply during file discovery        |
 | `file-types`         | array of strings | all            | Only validate these file types                                      |
 | `depth`              | integer (≥ 0)    | unlimited      | Maximum recursion depth                                             |
 | `reporter`           | array of strings | `["standard"]` | Output formats: `standard`, `json`, `junit`, `sarif`                |
