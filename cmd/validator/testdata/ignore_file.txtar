@@ -1,0 +1,58 @@
+# --ignore-file skips files matched by explicit ignore files without a git repo
+exec validator --ignore-file=.dockerignore project
+stdout '✓.*keep.json'
+! stdout 'ignored.json'
+! stdout 'build'
+
+# Multiple ignore files are additive
+exec validator --ignore-file=.dockerignore --ignore-file=.prettierignore multi
+stdout '✓.*keep.json'
+! stdout 'drop.json'
+! stdout 'skip.yaml'
+
+# Missing ignore files are skipped
+exec validator --ignore-file=missing.ignore project
+stdout 'keep.json'
+stdout 'ignored.json'
+
+# .cfv.toml ignore-files key works
+exec validator --config=cfv/.cfv.toml cfv
+stdout '✓.*app.json'
+! stdout 'out.json'
+
+# CFV_IGNORE_FILES env var works
+env CFV_IGNORE_FILES=.dockerignore,.prettierignore
+exec validator multi
+stdout '✓.*keep.json'
+! stdout 'drop.json'
+! stdout 'skip.yaml'
+
+-- project/.dockerignore --
+ignored.json
+build/
+-- project/keep.json --
+{"key": "value"}
+-- project/ignored.json --
+{"ignored": true}
+-- project/build/output.json --
+{"build": true}
+
+-- multi/.dockerignore --
+drop.json
+-- multi/.prettierignore --
+skip.yaml
+-- multi/keep.json --
+{"key": "value"}
+-- multi/drop.json --
+{"drop": true}
+-- multi/skip.yaml --
+skip: true
+
+-- cfv/.cfv.toml --
+ignore-files = [".dockerignore"]
+-- cfv/.dockerignore --
+gen/
+-- cfv/app.json --
+{"app": true}
+-- cfv/gen/out.json --
+{"gen": true}

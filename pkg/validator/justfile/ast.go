@@ -1,4 +1,4 @@
-package gojust
+package justfile
 
 // Justfile is the root AST node representing a parsed justfile.
 type Justfile struct {

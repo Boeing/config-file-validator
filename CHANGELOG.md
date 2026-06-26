@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation website at https://boeing.github.io/config-file-validator
 - `--reporter=github` option that emits validation errors as GitHub Actions workflow commands so they appear as inline PR annotations, without requiring the separate `validate-configs-action` wrapper (closes #459)
 - `--merge-sarif` and `--merge-sarif-dir` options for appending external SARIF runs to the validator's SARIF report (closes #460)
-- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded [go-just](https://github.com/Boeing/go-just) parser
+- `--ignore-file` option for applying gitignore-style patterns from files like `.dockerignore` or `.prettierignore` during file discovery (closes #457)
+- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded justfile parser (`pkg/validator/justfile`)
 - Automatic file type detection from GitHub Linguist's `languages.yml` via `go generate`
 - ~90 known filenames auto-detected (`.babelrc`, `tsconfig.json`, `Pipfile`, `pom.xml`, `.gitconfig`, etc.)
 - SchemaStore now resolves schemas for extensionless known files (`.babelrc`, `.clangd`, etc.)
@@ -24,8 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Update Go and npm dependencies to resolve 22 known vulnerabilities (CVE-2026-25680, CVE-2026-48779, and others).
 - TOML files with duplicate keys are now rejected as invalid (closes #504).
 - Broken symlinks are reported as validation failures instead of aborting the run (closes #505)
+- External consumers of this module (e.g. `validate-configs-action`) can now resolve all dependencies without workarounds. The justfile parser was previously a separate nested module (`github.com/Boeing/go-just`) with a `replace` directive that didn't propagate to downstream `go.mod` files.
 - Repeating the same `--reporter` type with different output paths now writes each requested output.
 - `--schema-map` now warns instead of silently skipping files whose validators do not support external schema validation.
 - `--require-schema --schema-map` now fails when a mapped file's validator does not support external schema validation.
@@ -44,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded [go-just](https://github.com/Boeing/go-just) parser
+- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded justfile parser (`pkg/validator/justfile`)
 - `--gitignore` flag to skip files and directories matched by `.gitignore` patterns, including nested `.gitignore` files, `.git/info/exclude`, and global git ignore config. Supported via CLI flag, `CFV_GITIGNORE` env var, and `gitignore = true` in `.cfv.toml`.
 - Automatic file type detection from GitHub Linguist's `languages.yml` via `go generate`
 - ~90 known filenames auto-detected (`.babelrc`, `tsconfig.json`, `Pipfile`, `pom.xml`, `.gitconfig`, etc.)

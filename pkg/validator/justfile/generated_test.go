@@ -1,4 +1,4 @@
-package gojust
+package justfile
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type gen struct {
 }
 
 func newGen(seed int64) *gen {
-	return &gen{rng: rand.New(rand.NewPCG(uint64(seed), uint64(seed)))}
+	return &gen{rng: rand.New(rand.NewPCG(uint64(seed), uint64(seed)))} //nolint:gosec // G404: deterministic RNG is intentional for reproducible test generation
 }
 
 func (g *gen) pick(choices ...string) string {
