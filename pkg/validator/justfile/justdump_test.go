@@ -1,6 +1,6 @@
 //go:build justdump
 
-package gojust
+package justfile
 
 import (
 	"encoding/json"

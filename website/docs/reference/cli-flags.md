@@ -18,6 +18,7 @@ If no search path is provided, the validator searches the current directory. Use
 | `-exclude-file-types` | string | —          | Comma-separated list of file types to ignore. Cannot be used with `-file-types`.                                   |
 | `-file-types`         | string | all        | Comma-separated list of file types to validate. Cannot be used with `-exclude-file-types`.                         |
 | `-gitignore`          | bool   | `false`    | Skip files matched by `.gitignore` patterns. Only active inside a Git repository.                                  |
+| `--ignore-file`       | string | —          | Apply gitignore-style patterns from a file relative to each search path. Repeatable.                               |
 | `-globbing`           | bool   | `false`    | Treat positional arguments as glob patterns.                                                                       |
 | `-groupby`            | string | —          | Group output by: `filetype`, `directory`, `pass-fail`, `error-type`. Comma-separated.                              |
 | `-quiet`              | bool   | `false`    | Suppress all stdout output. Errors still print to stderr.                                                          |

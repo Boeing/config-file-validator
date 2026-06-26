@@ -723,6 +723,57 @@ func Test_fsFinderGitignoreDisabled(t *testing.T) {
 	require.Len(t, files, 2, "without WithGitignore, .gitignore should have no effect")
 }
 
+func Test_fsFinderIgnoreFiles(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "keep.json", testhelper.ValidContent["json"])
+	testhelper.WriteFile(t, dir, "drop.json", testhelper.ValidContent["json"])
+	build := testhelper.CreateSubdir(t, dir, "build")
+	testhelper.WriteFile(t, build, "skip.yaml", testhelper.ValidContent["yaml"])
+	testhelper.WriteFile(t, dir, ".dockerignore", "drop.json\nbuild/\n")
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithIgnoreFiles([]string{"missing.ignore", ".dockerignore"}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"keep.json"}, fileNames(files))
+}
+
+func Test_fsFinderMultipleIgnoreFiles(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "keep.json", testhelper.ValidContent["json"])
+	testhelper.WriteFile(t, dir, "drop.json", testhelper.ValidContent["json"])
+	testhelper.WriteFile(t, dir, "skip.yaml", testhelper.ValidContent["yaml"])
+	testhelper.WriteFile(t, dir, ".dockerignore", "drop.json\n")
+	testhelper.WriteFile(t, dir, ".prettierignore", "skip.yaml\n")
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithIgnoreFiles([]string{".dockerignore", ".prettierignore"}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"keep.json"}, fileNames(files))
+}
+
+func Test_fsFinderSubdirectoryIgnoreFile(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "foo.json", testhelper.ValidContent["json"])
+	sub := testhelper.CreateSubdir(t, dir, "subdir")
+	testhelper.WriteFile(t, sub, "foo.json", testhelper.ValidContent["json"])
+	testhelper.WriteFile(t, sub, ".dockerignore", "foo.json\n")
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithIgnoreFiles([]string{filepath.Join("subdir", ".dockerignore")}),
+	)
+	files, err := fsFinder.Find()
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"foo.json"}, fileNames(files))
+	require.Equal(t, filepath.Join(dir, "foo.json"), files[0].Path)
+}
+
 // Test_fsFinderExtensionCacheNoPoison verifies that an unrecognized
 // extensionless file (e.g. LICENSE) does not poison the extension
 // cache and prevent subsequent extensionless known files from being found.

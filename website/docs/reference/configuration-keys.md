@@ -11,6 +11,7 @@ All keys supported in `.cfv.toml`. See the [Configuration File](../guides/config
 |----------------------|------------------|----------------|------------------------|
 | `exclude-dirs`       | array of strings | `[]`           | `--exclude-dirs`       |
 | `exclude-file-types` | array of strings | `[]`           | `--exclude-file-types` |
+| `ignore-files`       | array of strings | `[]`           | `--ignore-file`        |
 | `file-types`         | array of strings | all            | `--file-types`         |
 | `depth`              | integer (≥ 0)    | unlimited      | `--depth`              |
 | `reporter`           | array of strings | `["standard"]` | `--reporter`           |

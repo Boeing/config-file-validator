@@ -1,4 +1,4 @@
-package gojust
+package justfile
 
 import (
 	"testing"
@@ -569,7 +569,7 @@ func TestLexRecipeLineComparisonOpsInInterpolation(t *testing.T) {
 		{"or", "build:\n    echo {{ if \"a\" == \"a\" || \"b\" == \"b\" { \"y\" } else { \"n\" } }}\n"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(_ *testing.T) {
 			_, err := Parse([]byte(tt.input))
 			// We're exercising the lexer paths, parse may or may not succeed
 			// depending on grammar support
