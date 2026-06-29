@@ -1,0 +1,7 @@
+# CFV_QUIET suppresses output
+env CFV_QUIET=true
+exec cfv check good.json
+! stdout .
+
+-- good.json --
+{"key": "value"}

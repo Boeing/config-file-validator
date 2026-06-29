@@ -1,0 +1,78 @@
+# ============================================================
+# Functional tests for JSONC support
+# ============================================================
+
+# .jsonc extension auto-detected
+exec cfv check valid.jsonc
+stdout '✓'
+
+# Line comments
+exec cfv check line_comments.jsonc
+stdout '✓'
+
+# Block comments
+exec cfv check block_comments.jsonc
+stdout '✓'
+
+# Trailing commas
+exec cfv check trailing.jsonc
+stdout '✓'
+
+# Invalid JSONC
+! exec cfv check bad.jsonc
+stdout '×'
+
+# Strict JSON still strict
+! exec cfv check json_with_comments.json
+stdout '×'
+stdout 'note:.*valid JSONC'
+
+# type-map overrides to jsonc
+exec cfv check --type-map=json_with_comments.json:jsonc json_with_comments.json
+stdout '✓'
+
+# Plain JSON without comments has no note
+! exec cfv check bad.json
+stdout '×'
+! stdout 'note:'
+
+# .tf files detected as HCL
+exec cfv check main.tf
+stdout '✓'
+
+# .tfvars files detected as HCL
+exec cfv check vars.tfvars
+stdout '✓'
+
+-- valid.jsonc --
+// comment
+{"key": "value"}
+
+-- line_comments.jsonc --
+{
+  "host": "localhost", // server
+  "port": 8080
+}
+
+-- block_comments.jsonc --
+/* config */
+{"key": "value"}
+
+-- trailing.jsonc --
+{"a": 1, "b": 2,}
+
+-- bad.jsonc --
+{"key": ,}
+
+-- json_with_comments.json --
+// this is JSONC
+{"key": "value"}
+
+-- bad.json --
+{"key": }
+
+-- main.tf --
+resource "null_resource" "test" {}
+
+-- vars.tfvars --
+region = "us-east-1"

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **cfv 3.0 Phase 1**: Renamed binary from `validator` to `cfv`. This is a breaking change — no compatibility shim ships. Update scripts: `validator .` → `cfv check .`
+- `cfv check` subcommand — identical behavior to the v2 `validator` binary
+- `cfv format` subcommand stub — placeholder for Phase 2 formatting engine
+- `cfv version` subcommand
+- `cfv help [subcommand]` subcommand
+- `--fix` and `--unsafe` flags reserved (no-op) on `check` and bare invocations, to be wired in Phase 4
+- Running `cfv .` without a subcommand dispatches to `check` (backward-compatible invocation style)
 - CUE syntax validation (`.cue`) via [cuelang.org/go](https://cuelang.org/go) parser (closes #462)
 - KDL Document Language syntax validation (`.kdl`) via [sblinch/kdl-go](https://github.com/sblinch/kdl-go) (closes #463)
 - Documentation website at https://boeing.github.io/config-file-validator

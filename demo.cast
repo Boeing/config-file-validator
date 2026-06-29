@@ -1,0 +1,5 @@
+{"version": 2, "width": 90, "height": 14, "timestamp": 1716300000, "env": {"SHELL": "/bin/bash", "TERM": "xterm-256color"}}
+[0.5, "o", "$ validator ."]
+[0.6, "o", "\r\n"]
+[2.0, "o", "    \u001b[32m✓\u001b[0m /tmp/my-service/.env\n    \u001b[32m✓\u001b[0m /tmp/my-service/.github/workflows/ci.yml\n    \u001b[32m✓\u001b[0m /tmp/my-service/config.yaml\n    \u001b[32m✓\u001b[0m /tmp/my-service/deploy/pom.xml\n    \u001b[32m✓\u001b[0m /tmp/my-service/package.json\n    \u001b[31m×\u001b[0m /tmp/my-service/tsconfig.json\n        error: syntax: hujson: line 5, column 5: invalid character '\"' after object value\n"]
+[7.0, "o", "$ "]

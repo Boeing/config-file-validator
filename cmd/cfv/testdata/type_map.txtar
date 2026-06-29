@@ -1,0 +1,46 @@
+# Map extensionless file to ini
+exec cfv check --type-map='**/inventory:ini' inventory
+stdout '✓'
+
+# Map extensionless file to wrong type fails
+! exec cfv check --type-map='**/inventory:json' inventory
+stdout '×'
+
+# Map directory glob
+exec cfv check --type-map='**/configs/*:properties' configs
+stdout '✓.*app'
+stdout '✓.*db'
+
+# Override built-in type (json file as xml)
+! exec cfv check --type-map='**/*.json:xml' data.json
+stdout '×'
+
+# Multiple type-maps
+exec cfv check --type-map='**/inventory:ini' --type-map='**/configs/*:properties' inventory configs
+stdout '✓.*inventory'
+stdout '✓.*app'
+
+# No match finds nothing (exit 0, no output)
+exec cfv check --type-map='**/nomatch:ini' inventory
+
+# Error: missing colon
+! exec cfv check --type-map='nocolon' .
+
+# Error: empty pattern
+! exec cfv check --type-map=':ini' .
+
+# Error: empty type
+! exec cfv check --type-map='pattern:' .
+
+# Error: unknown type
+! exec cfv check --type-map='**/file:notreal' .
+
+-- inventory --
+[servers]
+host=10.0.0.1
+-- configs/app --
+key=value
+-- configs/db --
+host=localhost
+-- data.json --
+{"key": "value"}

@@ -13,5 +13,5 @@ func Test_GetVersion(t *testing.T) {
 
 func Test_VersionString(t *testing.T) {
 	v := Version{Version: "1.0.0"}
-	require.Equal(t, "validator version 1.0.0", v.String())
+	require.Equal(t, "cfv version 1.0.0", v.String())
 }

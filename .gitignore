@@ -5,7 +5,9 @@
 *.so
 *.dylib
 cmd/validator/validator
+cmd/cfv/cfv
 /validator
+/cfv
 bin/
 
 # Test binary, built with `go test -c`

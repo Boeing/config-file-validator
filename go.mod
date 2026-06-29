@@ -1,4 +1,4 @@
-module github.com/Boeing/config-file-validator/v2
+module github.com/Boeing/config-file-validator/v3
 
 go 1.26.3
 

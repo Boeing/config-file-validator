@@ -15,7 +15,7 @@ package filetype
 import (
 	"strings"
 
-	"github.com/Boeing/config-file-validator/v2/pkg/validator"
+	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
 // The FileType object stores information

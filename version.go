@@ -15,7 +15,7 @@ type Version struct {
 
 // String outputs the version as a string
 func (v Version) String() string {
-	return fmt.Sprintf("validator version %v", v.Version)
+	return fmt.Sprintf("cfv version %v", v.Version)
 }
 
 // GetVersion returns the version information

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
+	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 )
 
 // GroupNode aliases the reporter grouping tree used by grouped output.

@@ -1,0 +1,32 @@
+# SARIF with built-in schema validates automatically
+exec cfv check good.sarif
+stdout '✓'
+
+# JSON without $schema passes (syntax only)
+exec cfv check plain.json
+stdout '✓'
+
+# JSON without $schema + --require-schema fails
+! exec cfv check --require-schema plain.json
+stdout '×'
+stdout 'no schema declared'
+
+# --require-schema does not affect types without SchemaValidator
+exec cfv check --require-schema good.ini
+stdout '✓'
+
+# SARIF passes with --require-schema (has built-in schema)
+exec cfv check --require-schema good.sarif
+stdout '✓'
+
+-- good.sarif --
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [{"tool": {"driver": {"name": "test", "language": "en"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
+}
+-- plain.json --
+{"key": "value"}
+-- good.ini --
+[section]
+key=value

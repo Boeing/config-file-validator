@@ -10,10 +10,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Boeing/config-file-validator/v2/internal/testhelper"
-	"github.com/Boeing/config-file-validator/v2/pkg/filetype"
-	"github.com/Boeing/config-file-validator/v2/pkg/tools"
-	"github.com/Boeing/config-file-validator/v2/pkg/validator"
+	"github.com/Boeing/config-file-validator/v3/internal/testhelper"
+	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
+	"github.com/Boeing/config-file-validator/v3/pkg/tools"
+	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
 func Test_fsFinder(t *testing.T) {

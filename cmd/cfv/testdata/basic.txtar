@@ -1,0 +1,29 @@
+# Test --help and --version
+exec cfv check --help
+stdout 'Usage: cfv check'
+
+exec cfv version
+stdout 'cfv version'
+
+# Valid JSON file
+exec cfv check good.json
+stdout '✓'
+
+# Invalid JSON file should fail
+! exec cfv check bad.json
+stdout '×'
+
+# Nonexistent path should fail
+! exec cfv check /nonexistent/path
+stderr 'error'
+
+# No args defaults to cwd
+mkdir empty
+cd empty
+exec cfv check
+cd ..
+
+-- good.json --
+{"key": "value"}
+-- bad.json --
+{"bad":}
