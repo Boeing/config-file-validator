@@ -5,7 +5,7 @@ slug: /introduction
 
 # Introduction
 
-Config File Validator validates config files across 16 formats.
+Config File Validator validates config files across 18 formats.
 
 It recursively searches directories for config files, detects their format by extension or filename, and reports errors.
 
@@ -13,7 +13,7 @@ It recursively searches directories for config files, detects their format by ex
 
 **Syntax + Schema:** `JSON` `JSONC` `YAML` `TOML` `XML` `TOON` `SARIF`
 
-**Syntax:** `HCL` `INI` `HOCON` `ENV` `CSV` `Properties` `EDITORCONFIG` `Justfile` `PList`
+**Syntax:** `HCL` `INI` `HOCON` `ENV` `CSV` `Properties` `EDITORCONFIG` `Justfile` `KDL` `CUE` `PList`
 
 ## When to use it
 
