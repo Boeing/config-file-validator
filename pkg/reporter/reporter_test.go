@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -224,6 +225,124 @@ func Test_sarifReportToFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := NewSARIFReporter(tmpDir).Print([]Report{validReport})
 	require.NoError(t, err)
+}
+
+func Test_sarifReportMergesExternalRuns(t *testing.T) {
+	tmpDir := t.TempDir()
+	externalPath := filepath.Join(tmpDir, "external.sarif")
+	require.NoError(t, os.WriteFile(externalPath, []byte(`{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "external-tool",
+          "version": "1.2.3",
+          "rules": [
+            {
+              "id": "external-rule",
+              "shortDescription": {
+                "text": "Preserved external rule"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "external-rule",
+          "message": {
+            "text": "external result"
+          }
+        }
+      ]
+    }
+  ]
+}`), 0o600))
+
+	log, err := createSARIFReport([]Report{validReport}, SARIFMergeConfig{Files: []string{externalPath}})
+	require.NoError(t, err)
+	require.Len(t, log.Runs, 2)
+
+	sarifBytes, err := json.Marshal(log)
+	require.NoError(t, err)
+	output := string(sarifBytes)
+	assert.Contains(t, output, `"name":"config-file-validator"`)
+	assert.Contains(t, output, `"name":"external-tool"`)
+	assert.Contains(t, output, `"version":"1.2.3"`)
+	assert.Contains(t, output, `"id":"external-rule"`)
+	assert.Contains(t, output, `"ruleId":"external-rule"`)
+}
+
+func Test_sarifReportMergesCompatibleSARIFVersions(t *testing.T) {
+	cases := []struct {
+		name    string
+		version string
+		schema  string
+	}{
+		{
+			name:    "patch version",
+			version: "2.1.1",
+			schema:  SARIFSchema,
+		},
+		{
+			name:    "omitted version with SARIF schema",
+			version: "",
+			schema:  SARIFSchema,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			externalPath := filepath.Join(tmpDir, "external.sarif")
+			input := map[string]any{
+				"$schema": tc.schema,
+				"runs": []map[string]any{
+					{
+						"tool": map[string]any{
+							"driver": map[string]any{
+								"name": "compatible-tool",
+							},
+						},
+						"results": []any{},
+					},
+				},
+			}
+			if tc.version != "" {
+				input["version"] = tc.version
+			}
+			data, err := json.Marshal(input)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(externalPath, data, 0o600))
+
+			log, err := createSARIFReport([]Report{validReport}, SARIFMergeConfig{Files: []string{externalPath}})
+			require.NoError(t, err)
+			require.Len(t, log.Runs, 2)
+
+			sarifBytes, err := json.Marshal(log)
+			require.NoError(t, err)
+			assert.Contains(t, string(sarifBytes), `"name":"compatible-tool"`)
+		})
+	}
+}
+
+func Test_sarifFilesInDirectoryRecursesAndSorts(t *testing.T) {
+	tmpDir := t.TempDir()
+	nestedDir := filepath.Join(tmpDir, "nested")
+	require.NoError(t, os.MkdirAll(nestedDir, 0o700))
+
+	nestedSARIF := filepath.Join(nestedDir, "a.sarif.json")
+	rootSARIF := filepath.Join(tmpDir, "z.sarif")
+	ignoredFile := filepath.Join(nestedDir, "ignored.json")
+	require.NoError(t, os.WriteFile(nestedSARIF, []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(rootSARIF, []byte("{}"), 0o600))
+	require.NoError(t, os.WriteFile(ignoredFile, []byte("{}"), 0o600))
+
+	paths, err := sarifFilesInDirectory(tmpDir)
+	require.NoError(t, err)
+	require.Equal(t, []string{nestedSARIF, rootSARIF}, paths)
 }
 
 // --- Grouped stdout tests ---

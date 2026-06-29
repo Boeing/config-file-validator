@@ -3,6 +3,10 @@ package reporter
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -13,7 +17,14 @@ const DriverInfoURI = "https://github.com/Boeing/config-file-validator"
 const DriverVersion = "1.8.0"
 
 type SARIFReporter struct {
-	outputDest string
+	outputDest  string
+	mergeConfig SARIFMergeConfig
+}
+
+// SARIFMergeConfig lists external SARIF inputs to append to the validator's SARIF report.
+type SARIFMergeConfig struct {
+	Files     []string
+	Directory string
 }
 
 type SARIFLog struct {
@@ -25,6 +36,7 @@ type SARIFLog struct {
 type runs struct {
 	Tool    tool     `json:"tool"`
 	Results []result `json:"results"`
+	raw     json.RawMessage
 }
 
 type tool struct {
@@ -66,24 +78,67 @@ type region struct {
 	StartColumn int `json:"startColumn,omitempty"`
 }
 
+type externalSARIFLog struct {
+	Schema  string            `json:"$schema"`
+	Version string            `json:"version"`
+	Runs    []json.RawMessage `json:"runs"`
+}
+
+func (r runs) MarshalJSON() ([]byte, error) {
+	if len(r.raw) > 0 {
+		return r.raw, nil
+	}
+
+	type runJSON struct {
+		Tool    tool     `json:"tool"`
+		Results []result `json:"results"`
+	}
+	return json.Marshal(runJSON{Tool: r.Tool, Results: r.Results})
+}
+
 func NewSARIFReporter(outputDest string) *SARIFReporter {
 	return &SARIFReporter{
 		outputDest: outputDest,
 	}
 }
 
-func createSARIFReport(reports []Report) (*SARIFLog, error) {
+// NewSARIFReporterWithMerge creates a SARIF reporter that appends external SARIF runs.
+func NewSARIFReporterWithMerge(outputDest string, mergeConfig SARIFMergeConfig) *SARIFReporter {
+	return &SARIFReporter{
+		outputDest:  outputDest,
+		mergeConfig: mergeConfig,
+	}
+}
+
+func createSARIFReport(reports []Report, mergeConfigs ...SARIFMergeConfig) (*SARIFLog, error) {
+	mergeConfig := SARIFMergeConfig{}
+	if len(mergeConfigs) > 0 {
+		mergeConfig = mergeConfigs[0]
+	}
+
 	var log SARIFLog
 
 	log.Version = SARIFVersion
 	log.Schema = SARIFSchema
 
-	log.Runs = make([]runs, 1)
-	runs := &log.Runs[0]
+	validatorRun := createValidatorSARIFRun(reports)
+	log.Runs = append(log.Runs, validatorRun)
 
-	runs.Tool.Driver.Name = DriverName
-	runs.Tool.Driver.InfoURI = DriverInfoURI
-	runs.Tool.Driver.Version = DriverVersion
+	mergedRuns, err := loadMergedSARIFRuns(mergeConfig)
+	if err != nil {
+		return nil, err
+	}
+	log.Runs = append(log.Runs, mergedRuns...)
+
+	return &log, nil
+}
+
+func createValidatorSARIFRun(reports []Report) runs {
+	var validatorRun runs
+
+	validatorRun.Tool.Driver.Name = DriverName
+	validatorRun.Tool.Driver.InfoURI = DriverInfoURI
+	validatorRun.Tool.Driver.Version = DriverVersion
 
 	for _, report := range reports {
 		if strings.Contains(report.FilePath, "\\") {
@@ -93,7 +148,7 @@ func createSARIFReport(reports []Report) (*SARIFLog, error) {
 		uri := "file:///" + report.FilePath
 
 		if report.IsValid {
-			runs.Results = append(runs.Results, result{
+			validatorRun.Results = append(validatorRun.Results, result{
 				Kind:    "pass",
 				Level:   "none",
 				Message: message{Text: "No errors detected"},
@@ -130,19 +185,101 @@ func createSARIFReport(reports []Report) (*SARIFLog, error) {
 					StartColumn: errCol,
 				}
 			}
-			runs.Results = append(runs.Results, r)
+			validatorRun.Results = append(validatorRun.Results, r)
 		}
 	}
 
-	if runs.Results == nil {
-		runs.Results = []result{}
+	if validatorRun.Results == nil {
+		validatorRun.Results = []result{}
 	}
 
-	return &log, nil
+	return validatorRun
+}
+
+func loadMergedSARIFRuns(config SARIFMergeConfig) ([]runs, error) {
+	paths := append([]string{}, config.Files...)
+	if config.Directory != "" {
+		dirPaths, err := sarifFilesInDirectory(config.Directory)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, dirPaths...)
+	}
+
+	mergedRuns := make([]runs, 0, len(paths))
+	for _, path := range paths {
+		fileRuns, err := loadSARIFRuns(path)
+		if err != nil {
+			return nil, err
+		}
+		mergedRuns = append(mergedRuns, fileRuns...)
+	}
+	return mergedRuns, nil
+}
+
+func sarifFilesInDirectory(dir string) ([]string, error) {
+	paths := []string{}
+	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if isSARIFFile(path) {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("reading SARIF merge directory %q: %w", dir, err)
+	}
+
+	slices.Sort(paths)
+	return paths, nil
+}
+
+func isSARIFFile(path string) bool {
+	name := strings.ToLower(filepath.Base(path))
+	return strings.HasSuffix(name, ".sarif") || strings.HasSuffix(name, ".sarif.json")
+}
+
+func loadSARIFRuns(path string) ([]runs, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading SARIF merge file %q: %w", path, err)
+	}
+
+	var log externalSARIFLog
+	if err := json.Unmarshal(data, &log); err != nil {
+		return nil, fmt.Errorf("parsing SARIF merge file %q: %w", path, err)
+	}
+	if !isSupportedSARIFVersion(log.Version, log.Schema) {
+		return nil, fmt.Errorf("parsing SARIF merge file %q: unsupported SARIF version %q", path, log.Version)
+	}
+	if len(log.Runs) == 0 {
+		return nil, fmt.Errorf("parsing SARIF merge file %q: no runs found", path)
+	}
+
+	mergedRuns := make([]runs, 0, len(log.Runs))
+	for _, run := range log.Runs {
+		mergedRuns = append(mergedRuns, runs{raw: run})
+	}
+	return mergedRuns, nil
+}
+
+func isSupportedSARIFVersion(version, schema string) bool {
+	version = strings.TrimSpace(version)
+	if version != "" {
+		return version == "2.1" || strings.HasPrefix(version, "2.1.")
+	}
+
+	schema = strings.ToLower(strings.TrimSpace(schema))
+	return strings.Contains(schema, "/sarif/") && strings.Contains(schema, "2.1")
 }
 
 func (sr SARIFReporter) Print(reports []Report) error {
-	report, err := createSARIFReport(reports)
+	report, err := createSARIFReport(reports, sr.mergeConfig)
 	if err != nil {
 		return err
 	}

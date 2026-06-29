@@ -21,8 +21,10 @@ If no search path is provided, the validator searches the current directory. Use
 | `--ignore-file`       | string | —          | Apply gitignore-style patterns from a file relative to each search path. Repeatable.                               |
 | `-globbing`           | bool   | `false`    | Treat positional arguments as glob patterns.                                                                       |
 | `-groupby`            | string | —          | Group output by: `filetype`, `directory`, `pass-fail`, `error-type`. Comma-separated.                              |
+| `-merge-sarif`        | string | —          | External SARIF file to append to SARIF output. Repeatable. Requires `-reporter=sarif`.                             |
+| `-merge-sarif-dir`    | string | —          | Directory tree of `.sarif` or `.sarif.json` files to append to SARIF output. Requires `-reporter=sarif`.           |
 | `-quiet`              | bool   | `false`    | Suppress all stdout output. Errors still print to stderr.                                                          |
-| `-reporter`           | string | `standard` | Output format and optional path. Format: `<type>:<path>`. Types: `standard`, `json`, `junit`, `sarif`. Repeatable. |
+| `-reporter`           | string | `standard` | Output format and optional path. Format: `<type>:<path>`. Types: `standard`, `json`, `junit`, `sarif`, `github`. Repeatable. |
 | `-require-schema`     | bool   | `false`    | Fail files that support schema validation but don't declare a schema.                                              |
 | `-no-schema`          | bool   | `false`    | Disable all schema validation. Cannot be combined with `-require-schema`, `-schema-map`, or `-schemastore`.        |
 | `-schema-map`         | string | —          | Map a glob pattern to a schema file. Format: `<pattern>:<schema_path>`. Repeatable.                                |
