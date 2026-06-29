@@ -20,6 +20,8 @@
 | Properties      | `.properties`           |   ✅    |   —    |
 | EDITORCONFIG    | `.editorconfig`         |   ✅    |   —    |
 | Justfile        | `justfile`, `.justfile` |   ✅    |   —    |
+| KDL             | `.kdl`                  |   ✅    |   —    |
+| CUE             | `.cue`                  |   ✅    |   —    |
 | Apple PList XML | `.plist`                |   ✅    |   —    |
 
 ## Schema types

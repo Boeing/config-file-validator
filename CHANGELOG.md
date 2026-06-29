@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CUE syntax validation (`.cue`) via [cuelang.org/go](https://cuelang.org/go) parser (closes #462)
 - KDL Document Language syntax validation (`.kdl`) via [sblinch/kdl-go](https://github.com/sblinch/kdl-go) (closes #463)
 - Documentation website at https://boeing.github.io/config-file-validator
 - `--reporter=github` option that emits validation errors as GitHub Actions workflow commands so they appear as inline PR annotations, without requiring the separate `validate-configs-action` wrapper (closes #459)

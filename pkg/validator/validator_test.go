@@ -167,6 +167,13 @@ var testData = []struct {
 	{"validKdlChildren", []byte("package {\n    name \"foo\"\n    version \"1.0\"\n}\n"), true, KdlValidator{}},
 	{"invalidKdlUnterminatedString", []byte("name \"Bob\n"), false, KdlValidator{}},
 	{"invalidKdlUnclosedChildren", []byte("package {\n    name \"foo\"\n"), false, KdlValidator{}},
+	{"validCueSimple", []byte("a: 1\nb: \"hello\"\n"), true, CueValidator{}},
+	{"validCueStruct", []byte("package config\n\nname: string\nport: int\nname: \"myapp\"\nport: 8080\n"), true, CueValidator{}},
+	{"validCueList", []byte("items: [1, 2, 3]\n"), true, CueValidator{}},
+	{"validCueEmpty", []byte(""), true, CueValidator{}},
+	{"invalidCueSyntax", []byte("a: 1 b:"), false, CueValidator{}},
+	{"invalidCueUnclosedBrace", []byte("a: {\n  b: 1\n"), false, CueValidator{}},
+	{"invalidCueUnterminatedString", []byte("a: \"hello\n"), false, CueValidator{}},
 }
 
 func Test_ValidationInput(t *testing.T) {
@@ -273,6 +280,11 @@ func FuzzToonValidator(f *testing.F) {
 func FuzzSarifValidator(f *testing.F) {
 	addFuzzCases(f)
 	f.Fuzz(fuzzFunction(SarifValidator{}))
+}
+
+func FuzzCueValidator(f *testing.F) {
+	addFuzzCases(f)
+	f.Fuzz(fuzzFunction(CueValidator{}))
 }
 
 func Test_ValidationError(t *testing.T) {

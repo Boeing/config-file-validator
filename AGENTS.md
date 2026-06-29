@@ -4,7 +4,7 @@ This file provides context for AI coding agents (Claude Code, Codex, Kiro, etc.)
 
 ## Project overview
 
-Config File Validator is a Go CLI tool that recursively scans directories for configuration files, detects their format by extension or known filename, and validates syntax and schema. It supports 16 file formats and outputs results in multiple report formats.
+Config File Validator is a Go CLI tool that recursively scans directories for configuration files, detects their format by extension or known filename, and validates syntax and schema. It supports 18 file formats and outputs results in multiple report formats.
 
 - Module path: `github.com/Boeing/config-file-validator/v2`
 - Go version: 1.26
