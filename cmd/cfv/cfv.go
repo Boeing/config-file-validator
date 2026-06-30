@@ -49,6 +49,7 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/configfile"
 	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v3/pkg/finder"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/v3/pkg/tools"
@@ -106,6 +107,7 @@ type resolvedConfig struct {
 	stdinData     []byte
 	stdinFileType filetype.FileType
 	isStdin       bool
+	fix           bool
 }
 
 // --- Repeatable flag types ---
@@ -279,7 +281,8 @@ func printFormatUsage() {
 	fmt.Println()
 	fmt.Println("Report formatting issues. Use --fix to rewrite files.")
 	fmt.Println()
-	fmt.Println("NOTE: cfv format is not yet implemented (Phase 2).")
+	fmt.Println("Formats with registered formatters: json")
+	fmt.Println("Run 'cfv format --help' for the full flag reference.")
 }
 
 // =============================================================================
@@ -431,29 +434,138 @@ func parseCheckFlags(args []string) (cfvConfig, error) {
 }
 
 // =============================================================================
-// format subcommand (Phase 2 stub)
+// format subcommand
 // =============================================================================
 
-// runFormat is the Phase 2 stub. Prints a clear not-yet-implemented message
-// rather than silently doing nothing or panicking.
+// runFormat implements "cfv format [flags] [paths]".
+// Reports formatting issues. With --fix, rewrites files to canonical style.
 func runFormat(args []string) int {
-	// Register the flagset so --help works and the flag parser doesn't error
-	// on valid flags that will be wired up in Phase 2.
-	fs := flag.NewFlagSet("cfv format", flag.ContinueOnError)
-	fs.Usage = printFormatUsage
-	_ = fs.Bool("fix", false, "Rewrite files to canonical style [not yet implemented]")
-	_ = fs.Bool("unsafe", false, "Apply unsafe formatting fixes (requires --fix) [not yet implemented]")
-
-	if err := fs.Parse(args); err != nil {
+	cfg, err := parseFormatFlags(args)
+	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
+		fmt.Fprintln(os.Stderr, err.Error())
+		printFormatUsage()
 		return 2
 	}
 
-	fmt.Fprintln(os.Stderr, "cfv format: not yet implemented (coming in Phase 2)")
-	fmt.Fprintln(os.Stderr, "Use 'cfv check' for syntax and schema validation.")
-	return 2
+	resolved, err := resolveConfig(&cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
+		return 2
+	}
+
+	c := buildCLI(resolved)
+
+	// Default format options — will be replaced by .cfv.toml [format] section in Task 7.
+	opts := formatter.DefaultFormatOptions()
+
+	exitStatus, err := c.Format(opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
+	}
+	return exitStatus
+}
+
+// parseFormatFlags registers and parses flags for the format subcommand.
+// Format reuses most of the same flags as check (same finder infrastructure)
+// but drops schema-specific flags.
+func parseFormatFlags(args []string) (cfvConfig, error) {
+	fs := flag.NewFlagSet("cfv format", flag.ContinueOnError)
+	fs.Usage = printFormatUsage
+
+	reporterConfigFlags := reporterFlags{}
+	typeMapConfigFlags := typeMapFlags{}
+	ignoreFileConfigFlags := ignoreFileFlags{}
+
+	var (
+		depthPtr        = fs.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
+		excludeDirsPtr  = fs.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
+		excludeTypesPtr = fs.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+		fileTypesPtr    = fs.String("file-types", "", "A comma separated list of file types to format")
+		groupOutputPtr  = fs.String("groupby", "", "Group output by filetype, directory, pass-fail. Supported for Standard and JSON reports")
+		quietPtr        = fs.Bool("quiet", false, "If quiet flag is set, no output is printed to stdout")
+		globbingPtr     = fs.Bool("globbing", false, "Enable glob pattern matching for search paths")
+		configPathPtr   = fs.String("config", "",
+			"Path to a .cfv.toml configuration file.")
+		noConfigPtr  = fs.Bool("no-config", false, "Disable automatic .cfv.toml discovery.")
+		gitignorePtr = fs.Bool("gitignore", false, "Skip files matched by .gitignore patterns.")
+		fixPtr       = fs.Bool("fix", false, "Rewrite files to canonical style")
+		unsafePtr    = fs.Bool("unsafe", false, "Apply unsafe formatting fixes (requires --fix) [not yet implemented]")
+	)
+
+	fs.Var(&reporterConfigFlags, "reporter",
+		"Report format and optional output path.\n"+
+			"Format: <type>:<path>  Supported: standard, json, junit, sarif, github")
+	fs.Var(&typeMapConfigFlags, "type-map",
+		"Map a glob pattern to a file type. Format: <pattern>:<type>")
+	fs.Var(&ignoreFileConfigFlags, "ignore-file",
+		"Path to a gitignore-style ignore file. Can be specified multiple times.")
+
+	if err := fs.Parse(args); err != nil {
+		return cfvConfig{}, err
+	}
+
+	if err := applyDefaultFlagsFromEnv(fs); err != nil {
+		return cfvConfig{}, err
+	}
+	setIgnoreFilesFromEnvIfNotSet(fs, &ignoreFileConfigFlags)
+
+	reporterConf, err := parseReporterFlags(reporterConfigFlags)
+	if err != nil {
+		return cfvConfig{}, err
+	}
+
+	if err := validateGlobbing(fs, globbingPtr); err != nil {
+		return cfvConfig{}, err
+	}
+
+	searchPaths, err := parseSearchPaths(fs, globbingPtr)
+	if err != nil {
+		return cfvConfig{}, err
+	}
+
+	// Validate flag values (no schema flags for format).
+	if err := validateReporterConf(reporterConf, groupOutputPtr); err != nil {
+		return cfvConfig{}, err
+	}
+	if depthPtr != nil && isFlagSet(fs, "depth") && *depthPtr < 0 {
+		return cfvConfig{}, errors.New("wrong parameter value for depth, value cannot be negative")
+	}
+	if err := validateFileTypeFlags(excludeTypesPtr, fileTypesPtr); err != nil {
+		return cfvConfig{}, err
+	}
+	if err := validateGroupByConf(fs, groupOutputPtr); err != nil {
+		return cfvConfig{}, err
+	}
+
+	// Provide zero-value schema fields so resolveConfig doesn't panic.
+	emptyStr := ""
+	falseVal := false
+
+	return cfvConfig{
+		fs:               fs,
+		searchPaths:      searchPaths,
+		excludeDirs:      excludeDirsPtr,
+		excludeFileTypes: excludeTypesPtr,
+		fileTypes:        fileTypesPtr,
+		reportType:       reporterConf,
+		depth:            depthPtr,
+		groupOutput:      groupOutputPtr,
+		quiet:            quietPtr,
+		globbing:         globbingPtr,
+		requireSchema:    &falseVal,
+		noSchema:         &falseVal,
+		schemaStore:      &falseVal,
+		schemaStorePath:  &emptyStr,
+		configPath:       configPathPtr,
+		noConfig:         noConfigPtr,
+		gitignore:        gitignorePtr,
+		ignoreFiles:      ignoreFileConfigFlags,
+		fix:              fixPtr,
+		unsafe:           unsafePtr,
+	}, nil
 }
 
 // =============================================================================
@@ -769,6 +881,7 @@ func resolveConfig(cfg *cfvConfig) (*resolvedConfig, error) {
 		noSchema:      noSchema,
 		schemaMap:     schemaMap,
 		store:         store,
+		fix:           cfg.fix != nil && *cfg.fix,
 	}
 
 	// Handle stdin mode: single path of "-"
@@ -816,6 +929,7 @@ func buildCLI(rc *resolvedConfig) *cli.CLI {
 		cli.WithNoSchema(rc.noSchema),
 		cli.WithSchemaMap(rc.schemaMap),
 		cli.WithSchemaStore(rc.store),
+		cli.WithFix(rc.fix),
 	}
 	if rc.isStdin {
 		opts = append(opts, cli.WithStdinData(rc.stdinData, rc.stdinFileType))

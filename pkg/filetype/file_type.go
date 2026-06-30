@@ -15,6 +15,7 @@ package filetype
 import (
 	"strings"
 
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
@@ -27,6 +28,10 @@ type FileType struct {
 	Extensions map[string]struct{}
 	KnownFiles map[string]struct{}
 	Validator  validator.Validator
+	// Formatter is the formatter for this file type.
+	// nil means no formatter is registered yet for this type.
+	// cfv format silently skips files whose FileType has no Formatter.
+	Formatter formatter.Formatter
 }
 
 // Instance of the FileType object to

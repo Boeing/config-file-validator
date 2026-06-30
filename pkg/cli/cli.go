@@ -18,8 +18,8 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
-// CLI is the main entry point for running config file validation.
-// Use Init with Option functions to configure, then call Run.
+// CLI is the main entry point for running config file validation and formatting.
+// Use Init with Option functions to configure, then call Run (check) or Format.
 type CLI struct {
 	finder        finder.FileFinder
 	reporters     []reporter.Reporter
@@ -32,6 +32,9 @@ type CLI struct {
 	stdinData     []byte
 	stdinFileType filetype.FileType
 	errorFound    bool
+	// fix enables writing formatted output back to disk.
+	// When false, Format reports issues but does not write.
+	fix bool
 }
 
 // Option configures a CLI instance.
@@ -89,6 +92,14 @@ func WithStdinData(data []byte, ft filetype.FileType) Option {
 	return func(c *CLI) {
 		c.stdinData = data
 		c.stdinFileType = ft
+	}
+}
+
+// WithFix enables writing formatted output back to disk when calling Format.
+// When false (the default), Format reports issues but does not modify files.
+func WithFix(fix bool) Option {
+	return func(c *CLI) {
+		c.fix = fix
 	}
 }
 

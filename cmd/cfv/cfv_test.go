@@ -270,7 +270,7 @@ func Test_subcommandRouter(t *testing.T) {
 		{"help subcommand", []string{"help"}, 0},
 		{"help check subcommand", []string{"help", "check"}, 0},
 		{"help format subcommand", []string{"help", "format"}, 0},
-		{"format stub returns 2", []string{"format", "."}, 2},
+		{"format on empty dir returns 0", []string{"format", "."}, 0},
 		{"format help returns 0", []string{"format", "--help"}, 0},
 	}
 

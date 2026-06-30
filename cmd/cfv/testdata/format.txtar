@@ -1,0 +1,17 @@
+# cfv format reports unformatted JSON without writing (exits 1 when issues found)
+! exec cfv format --no-config .
+stdout '~.*messy.json'
+stdout '✓.*good.json'
+
+# Verify messy.json was NOT rewritten (format without --fix is read-only)
+cmp messy.json messy.json.orig
+
+-- good.json --
+{
+  "a": 1,
+  "b": 2
+}
+-- messy.json --
+{"b":2,"a":1}
+-- messy.json.orig --
+{"b":2,"a":1}

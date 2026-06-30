@@ -93,3 +93,16 @@ type Result struct {
 	// process this file.
 	Err error
 }
+
+// DefaultFormatOptions returns the global default formatting options.
+// These are overridden by .cfv.toml [format] settings and per-format
+// overrides in .cfv.toml [format.<type>].
+//
+// Zero values mean "use the format-specific default," so this only sets
+// options that have a universal reasonable default.
+func DefaultFormatOptions() Options {
+	return Options{
+		FinalNewline: true,
+		LineEnding:   LineEndingLF,
+	}
+}
