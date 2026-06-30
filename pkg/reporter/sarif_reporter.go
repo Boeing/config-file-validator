@@ -141,13 +141,14 @@ func createValidatorSARIFRun(reports []Report) runs {
 	validatorRun.Tool.Driver.Version = DriverVersion
 
 	for _, report := range reports {
-		if strings.Contains(report.FilePath, "\\") {
-			report.FilePath = strings.ReplaceAll(report.FilePath, "\\", "/")
+		filePath := report.FilePath
+		if strings.Contains(filePath, "\\") {
+			filePath = strings.ReplaceAll(filePath, "\\", "/")
 		}
 
-		uri := "file:///" + report.FilePath
+		uri := "file:///" + filePath
 
-		if report.IsValid {
+		if report.Status == StatusPass {
 			validatorRun.Results = append(validatorRun.Results, result{
 				Kind:    "pass",
 				Level:   "none",
@@ -161,28 +162,26 @@ func createValidatorSARIFRun(reports []Report) runs {
 			continue
 		}
 
-		for i, errMsg := range report.ValidationErrors {
+		level := "error"
+		if report.Status == StatusUnformatted {
+			level = "warning"
+		}
+
+		for _, issue := range report.Issues {
 			r := result{
 				Kind:    "fail",
-				Level:   "error",
-				Message: message{Text: errMsg},
+				Level:   level,
+				Message: message{Text: issue.Message},
 				Locations: []location{{
 					PhysicalLocation: physicalLocation{
 						ArtifactLocation: artifactLocation{URI: uri},
 					},
 				}},
 			}
-			errLine, errCol := report.StartLine, report.StartColumn
-			if i < len(report.ErrorLines) && report.ErrorLines[i] > 0 {
-				errLine = report.ErrorLines[i]
-				if i < len(report.ErrorColumns) {
-					errCol = report.ErrorColumns[i]
-				}
-			}
-			if errLine > 0 {
+			if issue.Line > 0 {
 				r.Locations[0].PhysicalLocation.Region = &region{
-					StartLine:   errLine,
-					StartColumn: errCol,
+					StartLine:   issue.Line,
+					StartColumn: issue.Column,
 				}
 			}
 			validatorRun.Results = append(validatorRun.Results, r)

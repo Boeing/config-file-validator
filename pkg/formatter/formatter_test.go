@@ -3,8 +3,9 @@ package formatter_test
 import (
 	"testing"
 
-	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 )
 
 // TestOptionsZeroValueIsDefault verifies that zero-value Options means

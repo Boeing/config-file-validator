@@ -8,6 +8,7 @@ import (
 	"github.com/fatih/color"
 )
 
+// StdoutReporter outputs results to stdout (or a file) in human-readable format.
 type StdoutReporter struct {
 	outputDest string
 }
@@ -17,14 +18,15 @@ type reportStdout struct {
 	Summary summary
 }
 
+// NewStdoutReporter creates a StdoutReporter. If outputDest is non-empty,
+// output is written to that file instead of stdout.
 func NewStdoutReporter(outputDest string) *StdoutReporter {
 	return &StdoutReporter{
 		outputDest: outputDest,
 	}
 }
 
-// Print implements the Reporter interface by outputting
-// the report content to stdout
+// Print implements the Reporter interface.
 func (sr StdoutReporter) Print(reports []Report) error {
 	stdoutReport := createStdoutReport(reports, 1)
 
@@ -95,7 +97,7 @@ func PrintTripleGroupStdout(groupReport map[string]map[string]map[string][]Repor
 	return PrintGroupStdout(groupNodeFromTriple(groupReport))
 }
 
-// Checks if any of the provided groups are "Passed" or "Failed".
+// checkGroupsForPassFail returns true if none of the provided groups are "Passed" or "Failed".
 func checkGroupsForPassFail(groups ...string) bool {
 	for _, group := range groups {
 		if group == "Passed" || group == "Failed" {
@@ -105,18 +107,25 @@ func checkGroupsForPassFail(groups ...string) bool {
 	return true
 }
 
-// Creates the standard text report
+// createStdoutReport renders reports to text with consistent symbols:
+//
+//	✓ path         — pass (green)
+//	× path         — fail: syntax or schema error (red)
+//	~ path         — unformatted (yellow)
 func createStdoutReport(reports []Report, indentSize int) reportStdout {
 	result := reportStdout{}
 	baseIndent := "    "
-	indent, errIndent := strings.Repeat(baseIndent, indentSize), strings.Repeat(baseIndent, indentSize+1)
+	indent := strings.Repeat(baseIndent, indentSize)
+	errIndent := strings.Repeat(baseIndent, indentSize+1)
 
 	for _, report := range reports {
-		if !report.IsValid {
+		switch report.Status {
+		case StatusFail:
 			fmtRed := color.New(color.FgRed)
 			result.Text += fmtRed.Sprintf("%s× %s\n", indent, report.FilePath)
-			for _, e := range report.ValidationErrors {
-				paddedString := padErrorString(e)
+			for _, issue := range report.Issues {
+				msg := formatIssueMessage(issue)
+				paddedString := padErrorString(msg)
 				result.Text += fmtRed.Sprintf("%serror: %v\n", errIndent, paddedString)
 			}
 			for _, n := range report.Notes {
@@ -124,28 +133,62 @@ func createStdoutReport(reports []Report, indentSize int) reportStdout {
 				result.Text += color.New(color.FgYellow).Sprintf("%snote: %v\n", errIndent, paddedString)
 			}
 			result.Summary.Failed++
-		} else {
+
+		case StatusUnformatted:
+			fmtYellow := color.New(color.FgYellow)
+			result.Text += fmtYellow.Sprintf("%s~ %s\n", indent, report.FilePath)
+			for _, issue := range report.Issues {
+				paddedString := padErrorString(issue.Message)
+				result.Text += fmtYellow.Sprintf("%snot formatted: %v\n", errIndent, paddedString)
+			}
+			result.Summary.Failed++
+
+		default: // StatusPass
 			result.Text += color.New(color.FgGreen).Sprintf("%s✓ %s\n", indent, report.FilePath)
+			// Notes on passing files (e.g., schema warnings).
+			for _, n := range report.Notes {
+				paddedString := padErrorString(n)
+				result.Text += color.New(color.FgYellow).Sprintf("%snote: %v\n", errIndent, paddedString)
+			}
 			result.Summary.Passed++
-		}
-		for _, w := range report.Warnings {
-			paddedString := padErrorString(w)
-			result.Text += color.New(color.FgYellow).Sprintf("%swarning: %v\n", errIndent, paddedString)
 		}
 	}
 
 	return result
 }
 
+// formatIssueMessage formats an issue with optional line/column prefix.
+func formatIssueMessage(issue Issue) string {
+	switch {
+	case issue.Line > 0 && issue.Column > 0:
+		return fmt.Sprintf("%s: line %d, column %d: %s", issueTypeLabel(issue.Type), issue.Line, issue.Column, issue.Message)
+	case issue.Line > 0:
+		return fmt.Sprintf("%s: line %d: %s", issueTypeLabel(issue.Type), issue.Line, issue.Message)
+	default:
+		return fmt.Sprintf("%s: %s", issueTypeLabel(issue.Type), issue.Message)
+	}
+}
+
+func issueTypeLabel(t IssueType) string {
+	switch t {
+	case IssueTypeSyntax:
+		return "syntax"
+	case IssueTypeSchema:
+		return "schema"
+	case IssueTypeFormat:
+		return "format"
+	default:
+		return "error"
+	}
+}
+
 // padErrorString adds padding to every newline in the error
-// string, except the first line and removes any trailing newlines
-// or spaces
+// string, except the first line and removes any trailing newlines or spaces.
 func padErrorString(errS string) string {
 	errS = strings.TrimSpace(errS)
 	lines := strings.Split(errS, "\n")
 	for idx := 1; idx < len(lines); idx++ {
 		lines[idx] = "               " + lines[idx]
 	}
-	paddedErr := strings.Join(lines, "\n")
-	return paddedErr
+	return strings.Join(lines, "\n")
 }

@@ -3,7 +3,6 @@ package reporter
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,35 +18,39 @@ var (
 	validReport = Report{
 		FileName: "good.xml",
 		FilePath: "/fake/path/good.xml",
-		IsValid:  true,
+		Status:   StatusPass,
 	}
 
 	backslashReport = Report{
 		FileName: "good.xml",
 		FilePath: "\\fake\\path\\good.xml",
-		IsValid:  true,
+		Status:   StatusPass,
 	}
 
 	invalidReport = Report{
-		FileName:         "bad.xml",
-		FilePath:         "/fake/path/bad.xml",
-		IsValid:          false,
-		ValidationError:  errors.New("unable to parse bad.xml file"),
-		ValidationErrors: []string{"unable to parse bad.xml file"},
+		FileName: "bad.xml",
+		FilePath: "/fake/path/bad.xml",
+		Status:   StatusFail,
+		Issues: []Issue{{
+			Type:    IssueTypeSyntax,
+			Message: "unable to parse bad.xml file",
+		}},
 	}
 
 	multiLineErrorReport = Report{
-		FileName:         "bad.xml",
-		FilePath:         "/fake/path/bad.xml",
-		IsValid:          false,
-		ValidationError:  errors.New("unable to parse keys:\nkey1\nkey2"),
-		ValidationErrors: []string{"unable to parse keys:\nkey1\nkey2"},
+		FileName: "bad.xml",
+		FilePath: "/fake/path/bad.xml",
+		Status:   StatusFail,
+		Issues: []Issue{{
+			Type:    IssueTypeSyntax,
+			Message: "unable to parse keys:\nkey1\nkey2",
+		}},
 	}
 
 	quietReport = Report{
 		FileName: "good.xml",
 		FilePath: "/fake/path/good.xml",
-		IsValid:  true,
+		Status:   StatusPass,
 		IsQuiet:  true,
 	}
 
@@ -142,11 +145,13 @@ func Test_jsonReportToFile(t *testing.T) {
 
 func Test_junitReport(t *testing.T) {
 	reports := []Report{validReport, backslashReport, {
-		FileName:         "bad.xml",
-		FilePath:         "/fake/path/bad.json",
-		IsValid:          false,
-		ValidationError:  errors.New("Incorrect characters '<' and '</>` found in file"),
-		ValidationErrors: []string{"Incorrect characters '<' and '</>` found in file"},
+		FileName: "bad.xml",
+		FilePath: "/fake/path/bad.json",
+		Status:   StatusFail,
+		Issues: []Issue{{
+			Type:    IssueTypeSyntax,
+			Message: "Incorrect characters '<' and '</>` found in file",
+		}},
 	}}
 	err := (JunitReporter{}).Print(reports)
 	require.NoError(t, err)
@@ -186,21 +191,25 @@ func Test_sarifReport(t *testing.T) {
 
 func Test_sarifReportWithRegion(t *testing.T) {
 	reportWithPos := Report{
-		FileName:         "bad.json",
-		FilePath:         "/fake/path/bad.json",
-		IsValid:          false,
-		ValidationError:  errors.New("error at line 3 column 10"),
-		ValidationErrors: []string{"error at line 3 column 10"},
-		StartLine:        3,
-		StartColumn:      10,
+		FileName: "bad.json",
+		FilePath: "/fake/path/bad.json",
+		Status:   StatusFail,
+		Issues: []Issue{{
+			Type:    IssueTypeSyntax,
+			Message: "error at line 3 column 10",
+			Line:    3,
+			Column:  10,
+		}},
 	}
 	reportLineOnly := Report{
-		FileName:         "bad.yaml",
-		FilePath:         "/fake/path/bad.yaml",
-		IsValid:          false,
-		ValidationError:  errors.New("yaml: line 5: mapping error"),
-		ValidationErrors: []string{"yaml: line 5: mapping error"},
-		StartLine:        5,
+		FileName: "bad.yaml",
+		FilePath: "/fake/path/bad.yaml",
+		Status:   StatusFail,
+		Issues: []Issue{{
+			Type:    IssueTypeSyntax,
+			Message: "yaml: line 5: mapping error",
+			Line:    5,
+		}},
 	}
 
 	var buf bytes.Buffer
@@ -542,7 +551,7 @@ func Test_reporterFileOutput(t *testing.T) {
 	report := Report{
 		FileName: "good.json",
 		FilePath: "/fake/path/good.json",
-		IsValid:  true,
+		Status:   StatusPass,
 	}
 
 	for _, tc := range []struct {

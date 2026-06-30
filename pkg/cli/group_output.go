@@ -38,7 +38,7 @@ func GroupByPassFail(reports []reporter.Report) map[string][]reporter.Report {
 	reportByPassOrFail := make(map[string][]reporter.Report)
 
 	for _, report := range reports {
-		if report.IsValid {
+		if report.Status == reporter.StatusPass {
 			reportByPassOrFail["Passed"] = append(reportByPassOrFail["Passed"], report)
 		} else {
 			reportByPassOrFail["Failed"] = append(reportByPassOrFail["Failed"], report)
@@ -53,9 +53,23 @@ func GroupByErrorType(reports []reporter.Report) map[string][]reporter.Report {
 	reportByErrorType := make(map[string][]reporter.Report)
 
 	for _, report := range reports {
-		key := report.ErrorType
-		if key == "" {
-			key = "Passed"
+		if report.Status == reporter.StatusPass {
+			reportByErrorType["Passed"] = append(reportByErrorType["Passed"], report)
+			continue
+		}
+		// Use the first issue's type as the group key.
+		key := "other"
+		if len(report.Issues) > 0 {
+			switch report.Issues[0].Type {
+			case reporter.IssueTypeSyntax:
+				key = "syntax"
+			case reporter.IssueTypeSchema:
+				key = "schema"
+			case reporter.IssueTypeFormat:
+				key = "format"
+			default:
+				// keep "other"
+			}
 		}
 		reportByErrorType[key] = append(reportByErrorType[key], report)
 	}

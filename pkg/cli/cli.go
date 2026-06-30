@@ -121,12 +121,13 @@ func (c *CLI) Run() (int, error) {
 		if err != nil {
 			if isBrokenSymlink(f.Path) {
 				report := reporter.Report{
-					FileName:         f.Name,
-					FilePath:         f.Path,
-					IsValid:          false,
-					ValidationError:  errors.New("broken symlink"),
-					ValidationErrors: []string{"broken symlink"},
-					ErrorType:        "other",
+					FileName: f.Name,
+					FilePath: f.Path,
+					Status:   reporter.StatusFail,
+					Issues: []reporter.Issue{{
+						Type:    reporter.IssueTypeSyntax,
+						Message: "broken symlink",
+					}},
 				}
 				c.errorFound = true
 				reports = append(reports, report)
@@ -136,7 +137,7 @@ func (c *CLI) Run() (int, error) {
 		}
 
 		report := c.validate(content, f.FileType, f.Name, f.Path)
-		if !report.IsValid {
+		if report.HasErrors() {
 			c.errorFound = true
 		}
 		reports = append(reports, report)
@@ -157,46 +158,71 @@ func (c *CLI) validate(content []byte, ft filetype.FileType, name, path string) 
 	isValid, syntaxErr := ft.Validator.ValidateSyntax(content)
 
 	var schemaErr error
-	var warnings []string
+	var schemaWarnings []string
 	if isValid {
-		isValid, warnings, schemaErr = c.validateSchema(ft.Validator, content, path)
+		isValid, schemaWarnings, schemaErr = c.validateSchema(ft.Validator, content, path)
 	}
 
-	err := syntaxErr
-	errorType := ""
+	notes := checkJSONCFallback(syntaxErr, ft, content, name)
+	// Schema warnings become notes (they don't fail the file).
+	notes = append(notes, schemaWarnings...)
+
+	report := reporter.Report{
+		FileName: name,
+		FilePath: path,
+		IsQuiet:  c.quiet,
+		Notes:    notes,
+	}
+
+	if isValid {
+		report.Status = reporter.StatusPass
+	} else {
+		report.Status = reporter.StatusFail
+	}
+
+	// Convert syntax error to issues.
 	if syntaxErr != nil {
-		errorType = "syntax"
-	}
-	if schemaErr != nil {
-		err = schemaErr
-		errorType = "schema"
+		report.Issues = append(report.Issues, buildIssues(syntaxErr, reporter.IssueTypeSyntax)...)
 	}
 
-	var line, col int
+	// Convert schema error to issues.
+	if schemaErr != nil {
+		report.Issues = append(report.Issues, buildIssues(schemaErr, reporter.IssueTypeSchema)...)
+	}
+
+	return report
+}
+
+// buildIssues converts a validation error into one or more Issue structs.
+func buildIssues(err error, issueType reporter.IssueType) []reporter.Issue {
+	var se *validator.SchemaErrors
+	if errors.As(err, &se) {
+		issues := make([]reporter.Issue, 0, len(se.Errors()))
+		for i, msg := range se.Errors() {
+			issue := reporter.Issue{
+				Type:    issueType,
+				Message: msg,
+			}
+			if i < len(se.Positions) {
+				issue.Line = se.Positions[i].Line
+				issue.Column = se.Positions[i].Column
+			}
+			issues = append(issues, issue)
+		}
+		return issues
+	}
+
+	issue := reporter.Issue{
+		Type:    issueType,
+		Message: err.Error(),
+	}
 	var ve *validator.ValidationError
 	if errors.As(err, &ve) {
-		line = ve.Line
-		col = ve.Column
+		issue.Message = ve.Err.Error()
+		issue.Line = ve.Line
+		issue.Column = ve.Column
 	}
-
-	validationErrors, errLines, errCols := formatErrors(err, line, col)
-	notes := checkJSONCFallback(syntaxErr, ft, content, name)
-
-	return reporter.Report{
-		FileName:         name,
-		FilePath:         path,
-		IsValid:          isValid,
-		ValidationError:  err,
-		ValidationErrors: validationErrors,
-		Notes:            notes,
-		Warnings:         warnings,
-		ErrorType:        errorType,
-		IsQuiet:          c.quiet,
-		StartLine:        line,
-		StartColumn:      col,
-		ErrorLines:       errLines,
-		ErrorColumns:     errCols,
-	}
+	return []reporter.Issue{issue}
 }
 
 // runSingle validates a single piece of content (used for stdin mode).
@@ -207,58 +233,10 @@ func (c *CLI) runSingle(content []byte, ft filetype.FileType, name string) (int,
 		return 2, err
 	}
 
-	if !report.IsValid {
+	if report.HasErrors() {
 		return 1, nil
 	}
 	return 0, nil
-}
-
-func formatErrors(err error, line, col int) (errs []string, lines []int, cols []int) {
-	if err == nil {
-		return nil, nil, nil
-	}
-	var se *validator.SchemaErrors
-	if errors.As(err, &se) {
-		var errs []string
-		var lines, cols []int
-		for i, e := range se.Errors() {
-			var pos validator.SchemaErrorPosition
-			if i < len(se.Positions) {
-				pos = se.Positions[i]
-			}
-			var prefix string
-			switch {
-			case pos.Line > 0 && pos.Column > 0:
-				prefix = fmt.Sprintf("schema: line %d, column %d: ", pos.Line, pos.Column)
-			case pos.Line > 0:
-				prefix = fmt.Sprintf("schema: line %d: ", pos.Line)
-			default:
-				prefix = "schema: "
-			}
-			errs = append(errs, prefix+e)
-			lines = append(lines, pos.Line)
-			cols = append(cols, pos.Column)
-		}
-		return errs, lines, cols
-	}
-
-	msg := err.Error()
-	var ve *validator.ValidationError
-	if errors.As(err, &ve) {
-		msg = ve.Err.Error()
-	}
-
-	var prefix string
-	switch {
-	case line > 0 && col > 0:
-		prefix = fmt.Sprintf("syntax: line %d, column %d: ", line, col)
-	case line > 0:
-		prefix = fmt.Sprintf("syntax: line %d: ", line)
-	default:
-		prefix = "syntax: "
-	}
-
-	return []string{prefix + msg}, []int{line}, []int{col}
 }
 
 // checkJSONCFallback checks if a failed JSON file is valid JSONC and returns a note if so.

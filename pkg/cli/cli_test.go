@@ -237,15 +237,17 @@ func Test_CLIWithBrokenSymlink(t *testing.T) {
 	require.Equal(t, 1, exitStatus)
 
 	var failed int
-	var errorType string
+	var issueType reporter.IssueType
 	for _, r := range rep.reports {
-		if !r.IsValid {
+		if r.HasErrors() {
 			failed++
-			errorType = r.ErrorType
+			if len(r.Issues) > 0 {
+				issueType = r.Issues[0].Type
+			}
 		}
 	}
 	require.Equal(t, 1, failed)
-	require.Equal(t, "other", errorType)
+	require.Equal(t, reporter.IssueTypeSyntax, issueType)
 }
 
 func Test_CLISingleGroupJSON(t *testing.T) {
@@ -465,10 +467,10 @@ func Test_CLISchemaMapUnsupportedValidatorWarnsAndPasses(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, exitStatus)
 	require.Len(t, capturingReporter.reports, 1)
-	require.True(t, capturingReporter.reports[0].IsValid)
-	require.Len(t, capturingReporter.reports[0].Warnings, 1)
-	require.Contains(t, capturingReporter.reports[0].Warnings[0], "--schema-map matched this file")
-	require.Contains(t, capturingReporter.reports[0].Warnings[0], "does not support schema validation")
+	require.Equal(t, reporter.StatusPass, capturingReporter.reports[0].Status)
+	require.Len(t, capturingReporter.reports[0].Notes, 1)
+	require.Contains(t, capturingReporter.reports[0].Notes[0], "--schema-map matched this file")
+	require.Contains(t, capturingReporter.reports[0].Notes[0], "does not support schema validation")
 }
 
 func Test_CLISchemaMapUnsupportedValidatorFailsWithRequireSchema(t *testing.T) {
@@ -490,11 +492,11 @@ func Test_CLISchemaMapUnsupportedValidatorFailsWithRequireSchema(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, exitStatus)
 	require.Len(t, capturingReporter.reports, 1)
-	require.False(t, capturingReporter.reports[0].IsValid)
-	require.Empty(t, capturingReporter.reports[0].Warnings)
-	require.Equal(t, "schema", capturingReporter.reports[0].ErrorType)
-	require.Contains(t, capturingReporter.reports[0].ValidationErrors[0], "--schema-map matched this file")
-	require.Contains(t, capturingReporter.reports[0].ValidationErrors[0], "does not support schema validation")
+	require.Equal(t, reporter.StatusFail, capturingReporter.reports[0].Status)
+	require.Empty(t, capturingReporter.reports[0].Notes)
+	require.Equal(t, reporter.IssueTypeSchema, capturingReporter.reports[0].Issues[0].Type)
+	require.Contains(t, capturingReporter.reports[0].Issues[0].Message, "--schema-map matched this file")
+	require.Contains(t, capturingReporter.reports[0].Issues[0].Message, "does not support schema validation")
 }
 
 func Test_CLISchemaStoreValid(t *testing.T) {
@@ -817,50 +819,6 @@ func Test_SchemaErrorsMethod(t *testing.T) {
 	}
 	require.Equal(t, []string{"error1", "error2"}, se.Errors())
 	require.Equal(t, "test: error1; error2", se.Error())
-}
-
-func Test_formatErrorsSchemaWithPositions(t *testing.T) {
-	t.Parallel()
-	se := &validator.SchemaErrors{
-		Prefix: "schema validation failed: ",
-		Items:  []string{"port: Invalid type", "name is required"},
-		Positions: []validator.SchemaErrorPosition{
-			{Line: 3, Column: 5},
-			{Line: 0, Column: 0},
-		},
-	}
-	errs, lines, cols := formatErrors(se, 0, 0)
-	require.Len(t, errs, 2)
-	require.Contains(t, errs[0], "line 3, column 5")
-	require.Contains(t, errs[1], "schema: ")
-	require.NotContains(t, errs[1], "line")
-	require.Equal(t, 3, lines[0])
-	require.Equal(t, 0, lines[1])
-	require.Equal(t, 5, cols[0])
-}
-
-func Test_formatErrorsSchemaLineOnly(t *testing.T) {
-	t.Parallel()
-	se := &validator.SchemaErrors{
-		Prefix: "schema validation failed: ",
-		Items:  []string{"port: Invalid type"},
-		Positions: []validator.SchemaErrorPosition{
-			{Line: 7, Column: 0},
-		},
-	}
-	errs, lines, _ := formatErrors(se, 0, 0)
-	require.Len(t, errs, 1)
-	require.Contains(t, errs[0], "line 7:")
-	require.NotContains(t, errs[0], "column")
-	require.Equal(t, 7, lines[0])
-}
-
-func Test_formatErrorsNil(t *testing.T) {
-	t.Parallel()
-	errs, lines, cols := formatErrors(nil, 0, 0)
-	require.Nil(t, errs)
-	require.Nil(t, lines)
-	require.Nil(t, cols)
 }
 
 func Test_CLINoJSONCNoteOnYAML(t *testing.T) {

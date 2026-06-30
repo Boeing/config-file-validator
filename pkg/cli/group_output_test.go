@@ -123,9 +123,9 @@ func Test_GroupByFileType(t *testing.T) {
 	t.Parallel()
 
 	reports := []reporter.Report{
-		{FileName: "config.yml", FilePath: "/path/config.yml", IsValid: true},
-		{FileName: "config.yaml", FilePath: "/path/config.yaml", IsValid: true},
-		{FileName: "data.json", FilePath: "/path/data.json", IsValid: true},
+		{FileName: "config.yml", FilePath: "/path/config.yml", Status: reporter.StatusPass},
+		{FileName: "config.yaml", FilePath: "/path/config.yaml", Status: reporter.StatusPass},
+		{FileName: "data.json", FilePath: "/path/data.json", Status: reporter.StatusPass},
 	}
 
 	result := GroupByFileType(reports)
@@ -141,13 +141,13 @@ func Test_GroupBySupportsFourLevels(t *testing.T) {
 		{
 			FileName: "good.json",
 			FilePath: "/configs/app/good.json",
-			IsValid:  true,
+			Status:   reporter.StatusPass,
 		},
 		{
-			FileName:  "bad.json",
-			FilePath:  "/configs/app/bad.json",
-			IsValid:   false,
-			ErrorType: "syntax",
+			FileName: "bad.json",
+			FilePath: "/configs/app/bad.json",
+			Status:   reporter.StatusFail,
+			Issues:   []reporter.Issue{{Type: reporter.IssueTypeSyntax, Message: "error"}},
 		},
 	}
 
@@ -178,10 +178,10 @@ func Test_GroupByErrorType(t *testing.T) {
 	t.Parallel()
 
 	reports := []reporter.Report{
-		{FileName: "good.json", FilePath: "/path/good.json", IsValid: true},
-		{FileName: "bad_syntax.json", FilePath: "/path/bad_syntax.json", IsValid: false, ErrorType: "syntax"},
-		{FileName: "bad_schema.json", FilePath: "/path/bad_schema.json", IsValid: false, ErrorType: "schema"},
-		{FileName: "bad_schema2.yaml", FilePath: "/path/bad_schema2.yaml", IsValid: false, ErrorType: "schema"},
+		{FileName: "good.json", FilePath: "/path/good.json", Status: reporter.StatusPass},
+		{FileName: "bad_syntax.json", FilePath: "/path/bad_syntax.json", Status: reporter.StatusFail, Issues: []reporter.Issue{{Type: reporter.IssueTypeSyntax, Message: "error"}}},
+		{FileName: "bad_schema.json", FilePath: "/path/bad_schema.json", Status: reporter.StatusFail, Issues: []reporter.Issue{{Type: reporter.IssueTypeSchema, Message: "error"}}},
+		{FileName: "bad_schema2.yaml", FilePath: "/path/bad_schema2.yaml", Status: reporter.StatusFail, Issues: []reporter.Issue{{Type: reporter.IssueTypeSchema, Message: "error"}}},
 	}
 
 	result := GroupByErrorType(reports)
@@ -194,10 +194,10 @@ func Test_GroupByPassFail(t *testing.T) {
 	t.Parallel()
 
 	reports := []reporter.Report{
-		{FileName: "good.json", FilePath: "/path/good.json", IsValid: true},
-		{FileName: "good2.json", FilePath: "/path/good2.json", IsValid: true},
-		{FileName: "bad.json", FilePath: "/path/bad.json", IsValid: false},
-		{FileName: "bad2.json", FilePath: "/path/bad2.json", IsValid: false},
+		{FileName: "good.json", FilePath: "/path/good.json", Status: reporter.StatusPass},
+		{FileName: "good2.json", FilePath: "/path/good2.json", Status: reporter.StatusPass},
+		{FileName: "bad.json", FilePath: "/path/bad.json", Status: reporter.StatusFail},
+		{FileName: "bad2.json", FilePath: "/path/bad2.json", Status: reporter.StatusFail},
 	}
 
 	result := GroupByPassFail(reports)

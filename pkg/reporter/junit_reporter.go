@@ -185,15 +185,16 @@ func (jr JunitReporter) Print(reports []Report) error {
 	testErrors := 0
 
 	for _, r := range reports {
-		if strings.Contains(r.FilePath, "\\") {
-			r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
+		filePath := r.FilePath
+		if strings.Contains(filePath, "\\") {
+			filePath = strings.ReplaceAll(filePath, "\\", "/")
 		}
-		tc := Testcase{Name: fmt.Sprintf("%s validation", r.FilePath), File: r.FilePath, ClassName: "config-file-validator"}
-		if !r.IsValid {
+		tc := Testcase{Name: fmt.Sprintf("%s validation", filePath), File: filePath, ClassName: "config-file-validator"}
+		if r.Status == StatusFail {
 			testErrors++
 			var escapedErrors []string
-			for _, e := range r.ValidationErrors {
-				escapedErrors = append(escapedErrors, escapeString(e))
+			for _, issue := range r.Issues {
+				escapedErrors = append(escapedErrors, escapeString(formatIssueMessage(issue)))
 			}
 			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: strings.Join(escapedErrors, "\n")}}
 		}

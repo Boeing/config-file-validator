@@ -18,13 +18,13 @@ stdout '✓'
 # --schema-map warns and still passes when matched file type has no schema support
 exec cfv check --schema-map=.env:schema.json .env
 stdout '✓'
-stdout 'warning: --schema-map matched this file'
+stdout 'note: --schema-map matched this file'
 
 # --schema-map fails unsupported schema validators when schema is required
 ! exec cfv check --require-schema --schema-map=.env:schema.json .env
 stdout '×'
 stdout 'error: schema: --schema-map matched this file'
-! stdout 'warning: --schema-map matched this file'
+! stdout 'note: --schema-map matched this file'
 
 # Document $schema takes priority over --schema-map
 exec cfv check --schema-map=with_schema.json:strict_schema.json with_schema.json

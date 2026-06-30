@@ -5,20 +5,18 @@ import (
 	"strings"
 )
 
+// GitHubReporter outputs results as GitHub Actions workflow commands.
+// Errors emit ::error, format warnings emit ::warning.
 type GitHubReporter struct {
 	outputDest string
 }
 
-type githubAnnotation struct {
-	message string
-	line    int
-	column  int
-}
-
+// NewGitHubReporter creates a GitHubReporter.
 func NewGitHubReporter(outputDest string) *GitHubReporter {
 	return &GitHubReporter{outputDest: outputDest}
 }
 
+// Print implements the Reporter interface.
 func (gr GitHubReporter) Print(reports []Report) error {
 	out := buildGitHubReport(reports)
 
@@ -26,8 +24,6 @@ func (gr GitHubReporter) Print(reports []Report) error {
 		return outputBytesToFile(gr.outputDest, "result", "txt", []byte(out))
 	}
 
-	// Mirror the stdout reporter's quiet-mode contract: when the first
-	// report has IsQuiet set, suppress stdout (file output is unaffected).
 	if out != "" && (len(reports) == 0 || !reports[0].IsQuiet) {
 		fmt.Print(out)
 	}
@@ -37,70 +33,38 @@ func (gr GitHubReporter) Print(reports []Report) error {
 func buildGitHubReport(reports []Report) string {
 	var b strings.Builder
 	for _, r := range reports {
-		if r.IsValid {
+		if r.Status == StatusPass {
 			continue
 		}
-		for _, annotation := range githubAnnotations(r) {
-			b.WriteString(formatGitHubAnnotation(r, annotation))
+		level := "error"
+		if r.Status == StatusUnformatted {
+			level = "warning"
+		}
+		for _, issue := range r.Issues {
+			b.WriteString(formatGitHubCommand(level, r.FilePath, issue))
 			_ = b.WriteByte('\n')
 		}
 	}
 	return b.String()
 }
 
-func githubAnnotations(r Report) []githubAnnotation {
-	if len(r.ValidationErrors) > 1 {
-		annotations := make([]githubAnnotation, 0, len(r.ValidationErrors))
-		for i, errMsg := range r.ValidationErrors {
-			line, column := r.StartLine, r.StartColumn
-			if i < len(r.ErrorLines) && r.ErrorLines[i] > 0 {
-				line = r.ErrorLines[i]
-			}
-			if i < len(r.ErrorColumns) && r.ErrorColumns[i] > 0 {
-				column = r.ErrorColumns[i]
-			}
-			annotations = append(annotations, githubAnnotation{
-				message: errMsg,
-				line:    line,
-				column:  column,
-			})
-		}
-		return annotations
-	}
-
-	return []githubAnnotation{{
-		message: errorMessage(r),
-		line:    r.StartLine,
-		column:  r.StartColumn,
-	}}
-}
-
-func formatGitHubAnnotation(r Report, annotation githubAnnotation) string {
+func formatGitHubCommand(level, filePath string, issue Issue) string {
 	props := make([]string, 0, 3)
-	if r.FilePath != "" {
-		props = append(props, "file="+escapeGitHubProperty(r.FilePath))
+	if filePath != "" {
+		props = append(props, "file="+escapeGitHubProperty(filePath))
 	}
-	if annotation.line > 0 {
-		props = append(props, fmt.Sprintf("line=%d", annotation.line))
+	if issue.Line > 0 {
+		props = append(props, fmt.Sprintf("line=%d", issue.Line))
 	}
-	if annotation.column > 0 {
-		props = append(props, fmt.Sprintf("col=%d", annotation.column))
+	if issue.Column > 0 {
+		props = append(props, fmt.Sprintf("col=%d", issue.Column))
 	}
 
+	msg := escapeGitHubMessage(issue.Message)
 	if len(props) == 0 {
-		return "::error::" + escapeGitHubMessage(annotation.message)
+		return "::" + level + "::" + msg
 	}
-	return "::error " + strings.Join(props, ",") + "::" + escapeGitHubMessage(annotation.message)
-}
-
-func errorMessage(r Report) string {
-	if r.ValidationError != nil {
-		return r.ValidationError.Error()
-	}
-	if len(r.ValidationErrors) > 0 {
-		return r.ValidationErrors[0]
-	}
-	return "validation failed"
+	return "::" + level + " " + strings.Join(props, ",") + "::" + msg
 }
 
 func escapeGitHubMessage(s string) string {

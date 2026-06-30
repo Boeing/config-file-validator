@@ -6,10 +6,13 @@ import (
 	"strings"
 )
 
+// JSONReporter outputs results as structured JSON.
 type JSONReporter struct {
 	outputDest string
 }
 
+// NewJSONReporter creates a JSONReporter. If outputDest is non-empty,
+// output is written to that file.
 func NewJSONReporter(outputDest string) *JSONReporter {
 	return &JSONReporter{
 		outputDest: outputDest,
@@ -17,11 +20,10 @@ func NewJSONReporter(outputDest string) *JSONReporter {
 }
 
 type fileStatus struct {
-	Path     string   `json:"path"`
-	Status   string   `json:"status"`
-	Errors   []string `json:"errors,omitempty"`
-	Notes    []string `json:"notes,omitempty"`
-	Warnings []string `json:"warnings,omitempty"`
+	Path   string   `json:"path"`
+	Status string   `json:"status"`
+	Errors []string `json:"errors,omitempty"`
+	Notes  []string `json:"notes,omitempty"`
 }
 
 type summary struct {
@@ -41,9 +43,7 @@ type groupReportJSON struct {
 	TotalFailed int `json:"totalFailed"`
 }
 
-// Print implements the Reporter interface by outputting
-// the report content to stdout as JSON
-// if outputDest flag is provided, output results to a file.
+// Print implements the Reporter interface.
 func (jr JSONReporter) Print(reports []Report) error {
 	report, err := createJSONReport(reports)
 	if err != nil {
@@ -151,44 +151,47 @@ func PrintTripleGroupJSON(groupReports map[string]map[string]map[string][]Report
 	return PrintGroupJSON(groupNodeFromTriple(groupReports))
 }
 
-// Creates the json report
 func createJSONReport(reports []Report) (reportJSON, error) {
 	var jsonReport reportJSON
 
 	for _, report := range reports {
-		status := "passed"
+		status := statusToString(report.Status)
 		var errs []string
-		if !report.IsValid {
-			status = "failed"
-			errs = report.ValidationErrors
+		for _, issue := range report.Issues {
+			errs = append(errs, formatIssueMessage(issue))
 		}
 
-		// Convert Windows-style file paths.
-		if strings.Contains(report.FilePath, "\\") {
-			report.FilePath = strings.ReplaceAll(report.FilePath, "\\", "/")
+		filePath := report.FilePath
+		if strings.Contains(filePath, "\\") {
+			filePath = strings.ReplaceAll(filePath, "\\", "/")
 		}
 
 		jsonReport.Files = append(jsonReport.Files, fileStatus{
-			Path:     report.FilePath,
-			Status:   status,
-			Errors:   errs,
-			Notes:    report.Notes,
-			Warnings: report.Warnings,
+			Path:   filePath,
+			Status: status,
+			Errors: errs,
+			Notes:  report.Notes,
 		})
+	}
 
-		currentPassed := 0
-		currentFailed := 0
-		for _, f := range jsonReport.Files {
-			if f.Status == "passed" {
-				currentPassed++
-			} else {
-				currentFailed++
-			}
+	for _, f := range jsonReport.Files {
+		if f.Status == "passed" {
+			jsonReport.Summary.Passed++
+		} else {
+			jsonReport.Summary.Failed++
 		}
-
-		jsonReport.Summary.Passed = currentPassed
-		jsonReport.Summary.Failed = currentFailed
 	}
 
 	return jsonReport, nil
+}
+
+func statusToString(s Status) string {
+	switch s {
+	case StatusFail:
+		return "failed"
+	case StatusUnformatted:
+		return "unformatted"
+	default:
+		return "passed"
+	}
 }

@@ -1,15 +1,14 @@
 package reporter
 
 import (
-	"errors"
 	"strings"
 	"testing"
 )
 
 func TestGitHubReporter_ValidFilesEmitNothing(t *testing.T) {
 	reports := []Report{
-		{FileName: "a.json", FilePath: "a.json", IsValid: true},
-		{FileName: "b.yaml", FilePath: "b.yaml", IsValid: true},
+		{FilePath: "a.json", Status: StatusPass},
+		{FilePath: "b.yaml", Status: StatusPass},
 	}
 	got := buildGitHubReport(reports)
 	if got != "" {
@@ -20,13 +19,12 @@ func TestGitHubReporter_ValidFilesEmitNothing(t *testing.T) {
 func TestGitHubReporter_FormatsErrorWithLineAndCol(t *testing.T) {
 	reports := []Report{
 		{
-			FileName: "config.json", FilePath: "config/bad.json", IsValid: false,
-			ValidationError: errors.New("syntax: unexpected token"),
-			StartLine:       3, StartColumn: 12,
+			FilePath: "config/bad.json", Status: StatusFail,
+			Issues: []Issue{{Type: IssueTypeSyntax, Message: "unexpected token", Line: 3, Column: 12}},
 		},
 	}
 	got := buildGitHubReport(reports)
-	want := "::error file=config/bad.json,line=3,col=12::syntax: unexpected token\n"
+	want := "::error file=config/bad.json,line=3,col=12::unexpected token\n"
 	if got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
@@ -34,7 +32,7 @@ func TestGitHubReporter_FormatsErrorWithLineAndCol(t *testing.T) {
 
 func TestGitHubReporter_OmitsZeroLineAndCol(t *testing.T) {
 	reports := []Report{
-		{FileName: "x.toml", FilePath: "x.toml", IsValid: false, ValidationError: errors.New("bad")},
+		{FilePath: "x.toml", Status: StatusFail, Issues: []Issue{{Type: IssueTypeSyntax, Message: "bad"}}},
 	}
 	got := buildGitHubReport(reports)
 	want := "::error file=x.toml::bad\n"
@@ -43,32 +41,15 @@ func TestGitHubReporter_OmitsZeroLineAndCol(t *testing.T) {
 	}
 }
 
-func TestGitHubReporter_FallsBackToValidationErrorsSlice(t *testing.T) {
+func TestGitHubReporter_MultipleIssuesEmitMultipleAnnotations(t *testing.T) {
 	reports := []Report{
 		{
-			FilePath: "p.yaml", IsValid: false,
-			ValidationErrors: []string{"missing field: name"},
-		},
-	}
-	got := buildGitHubReport(reports)
-	if !strings.Contains(got, "missing field: name") {
-		t.Fatalf("expected first ValidationErrors entry, got %q", got)
-	}
-}
-
-func TestGitHubReporter_MultipleValidationErrorsEmitMultipleAnnotations(t *testing.T) {
-	reports := []Report{
-		{
-			FilePath: "schema/config.json", IsValid: false,
-			ValidationErrors: []string{
-				"field one must be string",
-				"field two must be integer",
-				"field three is required",
+			FilePath: "schema/config.json", Status: StatusFail,
+			Issues: []Issue{
+				{Type: IssueTypeSchema, Message: "field one must be string", Line: 4, Column: 2},
+				{Type: IssueTypeSchema, Message: "field two must be integer", Line: 8, Column: 6},
+				{Type: IssueTypeSchema, Message: "field three is required", Line: 12, Column: 10},
 			},
-			ErrorLines:   []int{4, 8, 12},
-			ErrorColumns: []int{2, 6, 10},
-			StartLine:    1,
-			StartColumn:  1,
 		},
 	}
 
@@ -84,58 +65,25 @@ func TestGitHubReporter_MultipleValidationErrorsEmitMultipleAnnotations(t *testi
 	}
 }
 
-func TestGitHubReporter_SingleValidationErrorUsesStartLocation(t *testing.T) {
+func TestGitHubReporter_UnformattedEmitsWarning(t *testing.T) {
 	reports := []Report{
 		{
-			FilePath:         "schema/config.json",
-			IsValid:          false,
-			ValidationErrors: []string{"field one must be string"},
-			StartLine:        7,
-			StartColumn:      3,
+			FilePath: "main.toml", Status: StatusUnformatted,
+			Issues: []Issue{{Type: IssueTypeFormat, Message: "inconsistent indentation"}},
 		},
 	}
-
 	got := buildGitHubReport(reports)
-	want := "::error file=schema/config.json,line=7,col=3::field one must be string\n"
+	want := "::warning file=main.toml::inconsistent indentation\n"
 	if got != want {
 		t.Fatalf("got %q, want %q", got, want)
-	}
-}
-
-func TestGitHubReporter_ValidationErrorWithoutValidationErrorsEmitsOneAnnotation(t *testing.T) {
-	reports := []Report{
-		{
-			FilePath:        "schema/config.json",
-			IsValid:         false,
-			ValidationError: errors.New("syntax: unexpected token"),
-			StartLine:       9,
-			StartColumn:     5,
-		},
-	}
-
-	got := buildGitHubReport(reports)
-	want := "::error file=schema/config.json,line=9,col=5::syntax: unexpected token\n"
-	if got != want {
-		t.Fatalf("got %q, want %q", got, want)
-	}
-}
-
-func TestGitHubReporter_FallsBackToGenericMessage(t *testing.T) {
-	reports := []Report{
-		{FilePath: "p.yaml", IsValid: false},
-	}
-	got := buildGitHubReport(reports)
-	if !strings.Contains(got, "validation failed") {
-		t.Fatalf("expected fallback message, got %q", got)
 	}
 }
 
 func TestGitHubReporter_EscapesMessageSpecialChars(t *testing.T) {
 	reports := []Report{
 		{
-			FilePath: "x.yml", IsValid: false,
-			ValidationError: errors.New("got 100% bad\nthen worse"),
-			StartLine:       1,
+			FilePath: "x.yml", Status: StatusFail,
+			Issues: []Issue{{Type: IssueTypeSyntax, Message: "got 100% bad\nthen worse", Line: 1}},
 		},
 	}
 	got := buildGitHubReport(reports)
@@ -150,9 +98,8 @@ func TestGitHubReporter_EscapesMessageSpecialChars(t *testing.T) {
 func TestGitHubReporter_EscapesPropertySpecialChars(t *testing.T) {
 	reports := []Report{
 		{
-			FilePath: "weird,path:with/special.yaml", IsValid: false,
-			ValidationError: errors.New("bad"),
-			StartLine:       2,
+			FilePath: "weird,path:with/special.yaml", Status: StatusFail,
+			Issues: []Issue{{Type: IssueTypeSyntax, Message: "bad", Line: 2}},
 		},
 	}
 	got := buildGitHubReport(reports)
@@ -161,11 +108,11 @@ func TestGitHubReporter_EscapesPropertySpecialChars(t *testing.T) {
 	}
 }
 
-func TestGitHubReporter_MultipleReportsOneLineEach(t *testing.T) {
+func TestGitHubReporter_MultipleReportsSkipsValid(t *testing.T) {
 	reports := []Report{
-		{FilePath: "a.json", IsValid: false, ValidationError: errors.New("e1"), StartLine: 1},
-		{FilePath: "b.yaml", IsValid: true},
-		{FilePath: "c.toml", IsValid: false, ValidationError: errors.New("e2"), StartLine: 5, StartColumn: 3},
+		{FilePath: "a.json", Status: StatusFail, Issues: []Issue{{Type: IssueTypeSyntax, Message: "e1", Line: 1}}},
+		{FilePath: "b.yaml", Status: StatusPass},
+		{FilePath: "c.toml", Status: StatusFail, Issues: []Issue{{Type: IssueTypeSyntax, Message: "e2", Line: 5, Column: 3}}},
 	}
 	got := buildGitHubReport(reports)
 	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
@@ -178,23 +125,14 @@ func TestGitHubReporter_MultipleReportsOneLineEach(t *testing.T) {
 }
 
 func TestGitHubReporter_QuietModeSuppressesStdout(t *testing.T) {
-	// Build the report manually and confirm the quiet branch in Print
-	// drops it. We can't easily capture stdout in a unit test without
-	// extra plumbing, but we can confirm the behavior by exercising the
-	// branch logic directly.
 	reports := []Report{
-		{FilePath: "a.json", IsValid: false, ValidationError: errors.New("e1"), IsQuiet: true},
+		{FilePath: "a.json", Status: StatusFail, Issues: []Issue{{Type: IssueTypeSyntax, Message: "e1"}}, IsQuiet: true},
 	}
 	gr := NewGitHubReporter("")
 	if err := gr.Print(reports); err != nil {
 		t.Fatalf("Print returned error in quiet mode: %v", err)
 	}
-	// Negative assertion: ensure the build still produces content but
-	// Print doesn't surface it via stdout when IsQuiet is set on the
-	// first report. The build vs print split is the contract -- file
-	// output (outputDest) and helpers like buildGitHubReport are
-	// unaffected.
 	if buildGitHubReport(reports) == "" {
-		t.Fatal("buildGitHubReport should still emit content in quiet mode (only Print suppresses stdout)")
+		t.Fatal("buildGitHubReport should still emit content in quiet mode")
 	}
 }
