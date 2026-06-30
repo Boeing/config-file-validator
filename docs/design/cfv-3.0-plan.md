@@ -1,5 +1,73 @@
 # cfv 3.0 — Implementation Plan
 
+## Current State — Resume Here
+
+**Branch**: `feat/3.0`
+**Last updated**: 2026-06-29
+**Next task**: Phase 2, Task 5 — YAML formatter
+
+### What's done
+
+**Phase 1 ✅ Complete**
+- Binary renamed `validator` → `cfv`. Module path v2→v3.
+- Subcommand router: `cfv check`, `cfv format`, `cfv version`, `cfv help`
+- `cfv check .` = identical to old `validator .`
+- `cmd/validator/` deleted. No shim.
+- All 18 website docs updated.
+- Opus review done, 4 architectural issues fixed.
+
+**Phase 2 — In progress**
+- ✅ `Formatter` interface, `Options` struct, `IsFormatted` helper (`pkg/formatter/`)
+- ✅ `Report` struct refactored to v3: `Status` enum (Pass/Fail/Unformatted), `Issues []Issue`. All 5 reporters updated.
+- ✅ JSON formatter (`pkg/formatter/jsonfmt/`) — 11 fixture tests, idempotency, fuzz, all options
+- ✅ `cfv format .` wired — reports unformatted files with `~` symbol, exit 1
+- ✅ `cfv format --fix .` wired — atomic writes (temp + rename), exit 0
+- ✅ `Formatter` field added to `FileType`. Registered in `pkg/filetype/formatters.go`.
+- ✅ Parallel worker pool (`runtime.NumCPU()`) in `pkg/cli/format.go`
+
+### What's next
+
+**Task 5**: YAML formatter (`pkg/formatter/yamlfmt/`)
+- Library: `gopkg.in/yaml.v3` Node API (already a dep, zero new deps)
+- Key: decode into `*yaml.Node`, walk tree normalizing indent/style, encode back
+- Comment preservation: native via `HeadComment`/`LineComment`/`FootComment` fields
+- Fixtures: ≥10 (indent width, block style, quote style, comment preservation, multi-doc)
+- After YAML: register in `formatters.go` switch, add `yaml` and `yml` cases
+
+**Task 6** (after YAML): TOML, HCL, ENV, INI, XML, Properties formatters
+- TOML: `pelletier/go-toml/v2` `unstable.Parser{KeepComments: true}`
+- HCL: `hclwrite.Format(src)` — literally one call
+- ENV: custom line-oriented formatter
+- INI: `gopkg.in/ini.v1`
+- XML: `go-xmlfmt/xmlfmt` (new dep, MIT, zero transitive)
+- Properties: `magiconair/properties` (already a dep)
+
+**Task 7**: `[format]` config section in `.cfv.toml`
+
+**Task 8**: Stress test + Opus review
+
+### How to start the next session
+
+```
+cd /Users/se456c/src/github.com/boeing/config-file-validator
+git checkout feat/3.0
+go test ./... # verify all green
+```
+
+Then say "let's keep going" — next task is the YAML formatter.
+
+### Pipeline state
+
+```
+go vet ./...           ✅
+gofmt -s -l -e .       ✅
+golangci-lint run      ✅ 0 issues
+go test ./...          ✅ all pass
+coverage               ✅ 93.9%
+```
+
+---
+
 ## Vision
 
 cfv is the universal config file toolkit. One binary that validates, formats, and fixes every config file in your repo.
@@ -523,24 +591,24 @@ Every phase follows Process Discipline: update plan before/during/after, write s
 
 **Hard constraint**: Output formatting must be visually identical across all formatters. Every formatter reports issues using the same line format, symbols, and structure as `cfv check`. It must look like one tool, not a patchwork of libraries glued together. Define the output contract once, enforce it in every formatter's reporter integration. If a formatter can't produce a consistent message shape, fix the formatter — don't let it output garbage.
 
-1. Define `Formatter` interface
-2. Define the output contract for formatting issues (symbol, path:line format, message style — identical to check output)
+1. ✅ Define `Formatter` interface
+2. ✅ Define the output contract for formatting issues (~ symbol, same reporter pipeline as check)
 3. Implement formatters in priority order:
-   a. JSON (`tidwall/pretty`) — easiest, highest visibility
-   b. YAML (`gopkg.in/yaml.v3` Node API) — highest demand
-   c. TOML (`pelletier/go-toml/v2` unstable.Parser with KeepComments) — most complex
-   d. HCL (`hclwrite.Format`) — one function call
-   e. ENV (custom, line-oriented) — simple
-   f. INI (`gopkg.in/ini.v1`) — simple
-   g. XML (`go-xmlfmt/xmlfmt`) — simple
-   h. Properties (`magiconair/properties`) — already a dep
-4. Register formatters on FileType
-5. `cfv format .` reports diffs (does not write)
-6. `cfv format --fix .` rewrites files
+   a. ✅ JSON (`tidwall/pretty`) — done
+   b. 🔲 YAML (`gopkg.in/yaml.v3` Node API) — **NEXT**
+   c. 🔲 TOML (`pelletier/go-toml/v2` unstable.Parser with KeepComments)
+   d. 🔲 HCL (`hclwrite.Format`) — one function call
+   e. 🔲 ENV (custom, line-oriented)
+   f. 🔲 INI (`gopkg.in/ini.v1`)
+   g. 🔲 XML (`go-xmlfmt/xmlfmt`)
+   h. 🔲 Properties (`magiconair/properties`)
+4. ✅ Register formatters on FileType (`pkg/filetype/formatters.go`)
+5. ✅ `cfv format .` reports unformatted files with ~ symbol (does not write)
+6. ✅ `cfv format --fix .` rewrites files atomically (temp + rename)
 7. `cfv .` (bare command) stays as check-only until all formatters are stable
 8. Add `[format]` section to `.cfv.toml` parser
-9. Update reporters to include formatting issues in output
-10. Add `--check` exit-code behavior for CI
+9. ✅ Reporters updated via Report v3 refactor (StatusUnformatted, IssueTypeFormat)
+10. ✅ Exit codes correct (1 on unformatted, 0 all pass)
 
 ### Phase 3: Formatters Continued (2-3 weeks)
 
