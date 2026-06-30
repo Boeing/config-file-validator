@@ -45,8 +45,10 @@ func (r *recordingReporter) call(index int) []reporter.Report {
 }
 
 type fakeWatcher struct {
+	mu     sync.Mutex
 	events chan fsnotify.Event
 	errors chan error
+	added  []string
 }
 
 func newFakeWatcher() *fakeWatcher {
@@ -56,7 +58,11 @@ func newFakeWatcher() *fakeWatcher {
 	}
 }
 
-func (*fakeWatcher) Add(string) error {
+func (w *fakeWatcher) Add(path string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.added = append(w.added, path)
 	return nil
 }
 
@@ -70,6 +76,12 @@ func (w *fakeWatcher) Events() <-chan fsnotify.Event {
 
 func (w *fakeWatcher) Errors() <-chan error {
 	return w.errors
+}
+
+func (w *fakeWatcher) addedPaths() []string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return append([]string(nil), w.added...)
 }
 
 func TestRunWatchValidatesInitialPassThenChangedFile(t *testing.T) {
@@ -125,6 +137,51 @@ func TestRunWatchValidatesInitialPassThenChangedFile(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 	require.FileExists(t, yamlFile)
+}
+
+func TestRunWatchAddsRealSearchPathDirectories(t *testing.T) {
+	dir := t.TempDir()
+	subdir := testhelper.CreateSubdir(t, dir, "nested")
+	testhelper.WriteFile(t, subdir, "good.json", testhelper.ValidContent["json"])
+	recorder := &recordingReporter{}
+	watcher := newFakeWatcher()
+
+	rc := &resolvedConfig{
+		reporters:   []reporter.Reporter{recorder},
+		groupOutput: []string{""},
+		finderOpts: []finder.FSFinderOptions{
+			finder.WithPathRoots(dir),
+			finder.WithExcludeDirs(nil),
+			finder.WithExcludeFileTypes(nil),
+			finder.WithFileTypes(filetype.FileTypes),
+		},
+		searchPaths: []string{dir},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		runner := watchRunner{
+			newWatcher: func() (fileWatcher, error) {
+				return watcher, nil
+			},
+		}
+		_, err := runner.run(ctx, rc)
+		done <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		return recorder.callCount() == 1
+	}, time.Second, 10*time.Millisecond)
+
+	added := watcher.addedPaths()
+	require.Contains(t, added, mustAbs(t, dir))
+	require.Contains(t, added, mustAbs(t, subdir))
+
+	cancel()
+	require.NoError(t, <-done)
 }
 
 func TestRunWatchSkipsFilesFilteredByFinder(t *testing.T) {
@@ -291,4 +348,23 @@ func TestFindChangedFileHonorsDirectoryFilters(t *testing.T) {
 	files, err := findChangedFile(rc, jsonFile)
 	require.NoError(t, err)
 	require.Empty(t, files)
+}
+
+func TestAddWatchPathsUsesFileParentAndSkipsDuplicates(t *testing.T) {
+	dir := t.TempDir()
+	jsonFile := testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+	watcher := newFakeWatcher()
+
+	watched := make(map[string]struct{})
+	require.NoError(t, addWatchPaths(watcher, []string{jsonFile, jsonFile}, watched))
+
+	require.Equal(t, []string{mustAbs(t, dir)}, watcher.addedPaths())
+}
+
+func mustAbs(t *testing.T, path string) string {
+	t.Helper()
+
+	absPath, err := filepath.Abs(path)
+	require.NoError(t, err)
+	return absPath
 }

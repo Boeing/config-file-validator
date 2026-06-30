@@ -1,0 +1,29 @@
+# Valid CUE file
+exec validator good.cue
+stdout '✓'
+
+# Invalid CUE file should fail
+! exec validator bad.cue
+stdout '×'
+
+# CUE file with package clause
+exec validator pkg.cue
+stdout '✓'
+
+-- good.cue --
+name: "config-file-validator"
+port: 8080
+debug: false
+tags: ["go", "validation"]
+
+-- bad.cue --
+name: "unterminated
+port: {
+  missing close
+
+-- pkg.cue --
+package myapp
+
+version: "1.0.0"
+replicas: int
+replicas: 3

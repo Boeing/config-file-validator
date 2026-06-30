@@ -167,6 +167,14 @@ var KdlFileType = FileType{
 	Validator:  validator.KdlValidator{},
 }
 
+// Instance of the FileType object to represent a CUE file.
+// See https://cuelang.org/ for the language spec.
+var CueFileType = FileType{
+	Name:       "cue",
+	Extensions: arrToMap("cue"),
+	Validator:  validator.CueValidator{},
+}
+
 // extraKnownFiles contains manual entries not covered by Linguist.
 var extraKnownFiles = map[string][]string{
 	"ini": {
@@ -197,6 +205,7 @@ var fileTypeRegistry = map[string]*FileType{
 	"sarif":      &SarifFileType,
 	"justfile":   &JustfileFileType,
 	"kdl":        &KdlFileType,
+	"cue":        &CueFileType,
 }
 
 // excludeKnownFiles lists Linguist entries to skip because we have
@@ -269,6 +278,7 @@ func init() {
 		JSONCFileType,
 		JustfileFileType,
 		KdlFileType,
+		CueFileType,
 	}
 }
 

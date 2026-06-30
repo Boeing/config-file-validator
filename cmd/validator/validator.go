@@ -27,6 +27,10 @@ optional flags:
 		Multiple reporters can be specified: --reporter json:file_path.json --reporter junit:another_file_path.xml
 		Omit the file path to output to stdout: --reporter json or explicitly specify stdout using "-": --reporter json:-
 		Supported formats: standard, json, junit, sarif, and github (default: "standard")
+  -merge-sarif string
+		External SARIF file to merge into SARIF output. Repeatable and requires --reporter=sarif.
+  -merge-sarif-dir string
+		Directory tree containing SARIF files to merge into SARIF output. Requires --reporter=sarif.
   -version
     	Version prints the release version of validator
   -watch
@@ -89,6 +93,8 @@ type validatorConfig struct {
 	noConfig         *bool
 	gitignore        *bool
 	watch            *bool
+	mergeSarif       sarifMergeFlags
+	mergeSarifDir    *string
 	ignoreFiles      ignoreFileFlags
 }
 
@@ -127,6 +133,17 @@ func (sf *schemaMapFlags) String() string {
 
 func (sf *schemaMapFlags) Set(value string) error {
 	*sf = append(*sf, value)
+	return nil
+}
+
+type sarifMergeFlags []string
+
+func (smf *sarifMergeFlags) String() string {
+	return fmt.Sprint(*smf)
+}
+
+func (smf *sarifMergeFlags) Set(value string) error {
+	*smf = append(*smf, value)
 	return nil
 }
 
@@ -236,6 +253,8 @@ func getFlags(args []string) (validatorConfig, error) {
 			"Skip files and directories matched by .gitignore patterns.")
 		watchPtr = flagSet.Bool("watch", false,
 			"Watch search paths for file changes and re-run validation.")
+		mergeSarifDirPtr = flagSet.String("merge-sarif-dir", "",
+			"Directory tree containing SARIF files to merge into SARIF output. Requires --reporter=sarif.")
 	)
 	flagSet.Var(
 		&reporterConfigFlags,
@@ -262,6 +281,13 @@ func getFlags(args []string) (validatorConfig, error) {
 			"Examples:\n"+
 			"  --schema-map=\"**/package.json:schemas/package.schema.json\"\n"+
 			"  --schema-map=\"**/config.xml:schemas/config.xsd\"",
+	)
+
+	mergeSarifConfigFlags := sarifMergeFlags{}
+	flagSet.Var(
+		&mergeSarifConfigFlags,
+		"merge-sarif",
+		"External SARIF file to merge into SARIF output. Repeatable and requires --reporter=sarif.",
 	)
 
 	ignoreFileConfigFlags := ignoreFileFlags{}
@@ -295,7 +321,7 @@ func getFlags(args []string) (validatorConfig, error) {
 		return validatorConfig{}, err
 	}
 
-	if err := validateFlagValues(excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr); err != nil {
+	if err := validateFlagValues(excludeFileTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr, mergeSarifConfigFlags, mergeSarifDirPtr); err != nil {
 		return validatorConfig{}, err
 	}
 
@@ -320,13 +346,15 @@ func getFlags(args []string) (validatorConfig, error) {
 		noConfigPtr,
 		gitignorePtr,
 		watchPtr,
+		mergeSarifConfigFlags,
+		mergeSarifDirPtr,
 		ignoreFileConfigFlags,
 	}
 
 	return config, nil
 }
 
-func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf []reporterConfig, groupOutputPtr *string) error {
+func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf []reporterConfig, groupOutputPtr *string, mergeSarif []string, mergeSarifDir *string) error {
 	if err := validateReporterConf(reporterConf, groupOutputPtr); err != nil {
 		return err
 	}
@@ -339,7 +367,11 @@ func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int
 		return err
 	}
 
-	return validateGroupByConf(groupOutputPtr)
+	if err := validateGroupByConf(groupOutputPtr); err != nil {
+		return err
+	}
+
+	return validateSARIFMergeConf(reporterConf, mergeSarif, mergeSarifDir)
 }
 
 func validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr *string) error {
@@ -377,6 +409,63 @@ func validateReporterConf(conf []reporterConfig, groupBy *string) error {
 	}
 
 	return nil
+}
+
+func validateSARIFMergeConf(conf []reporterConfig, mergeSarif []string, mergeSarifDir *string) error {
+	for _, path := range mergeSarif {
+		if strings.TrimSpace(path) == "" {
+			return errors.New("--merge-sarif requires a file path")
+		}
+	}
+	if mergeSarifDir != nil && isFlagSet("merge-sarif-dir") && strings.TrimSpace(*mergeSarifDir) == "" {
+		return errors.New("--merge-sarif-dir requires a directory path")
+	}
+
+	if isFlagSet("reporter") {
+		return validateSARIFMergeReporters(conf, mergeSarif, mergeSarifDir)
+	}
+	return nil
+}
+
+func validateSARIFMergeReporters(conf []reporterConfig, mergeSarif []string, mergeSarifDir *string) error {
+	if !sarifMergeRequested(mergeSarif, mergeSarifDir) {
+		return nil
+	}
+
+	for _, reporterConf := range conf {
+		if reporterConf.reportType == "sarif" {
+			return nil
+		}
+	}
+	return errors.New("--merge-sarif and --merge-sarif-dir require --reporter=sarif")
+}
+
+func sarifMergeRequested(mergeSarif []string, mergeSarifDir *string) bool {
+	return len(mergeSarif) > 0 || (mergeSarifDir != nil && isFlagSet("merge-sarif-dir"))
+}
+
+func mergeSarifDirectoryValue(mergeSarifDir *string) string {
+	if mergeSarifDir == nil {
+		return ""
+	}
+	return *mergeSarifDir
+}
+
+// isFlagSet verifies if a given flag has been set or not
+func isFlagSet(flagName string) bool {
+	if flagSet == nil {
+		return false
+	}
+
+	var isSet bool
+
+	flagSet.Visit(func(f *flag.Flag) {
+		if f.Name == flagName {
+			isSet = true
+		}
+	})
+
+	return isSet
 }
 
 func validateGroupByConf(groupBy *string) error {
@@ -479,19 +568,6 @@ func validateUniqueReporterOutputDestinations(conf []reporterConfig) error {
 		seen[outputDest] = struct{}{}
 	}
 	return nil
-}
-
-// isFlagSet verifies if a given flag has been set or not
-func isFlagSet(flagName string) bool {
-	var isSet bool
-
-	flagSet.Visit(func(f *flag.Flag) {
-		if f.Name == flagName {
-			isSet = true
-		}
-	})
-
-	return isSet
 }
 
 func applyDefaultFlagsFromEnv() error {
@@ -663,7 +739,15 @@ func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
 		return nil, errors.New("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
 	}
 
-	reporters, err := buildReporters(cfg.reportType)
+	if err := validateSARIFMergeReporters(cfg.reportType, cfg.mergeSarif, cfg.mergeSarifDir); err != nil {
+		return nil, err
+	}
+
+	sarifMergeConfig := reporter.SARIFMergeConfig{
+		Files:     []string(cfg.mergeSarif),
+		Directory: mergeSarifDirectoryValue(cfg.mergeSarifDir),
+	}
+	reporters, err := buildReporters(cfg.reportType, sarifMergeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -679,6 +763,7 @@ func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
 	}
 
 	groupOutput := strings.Split(*cfg.groupOutput, ",")
+	watch := cfg.watch != nil && *cfg.watch
 
 	resolved := &resolvedConfig{
 		reporters:     reporters,
@@ -689,12 +774,12 @@ func resolveConfig(cfg *validatorConfig) (*resolvedConfig, error) {
 		schemaMap:     schemaMap,
 		store:         store,
 		searchPaths:   cfg.searchPaths,
-		watch:         *cfg.watch,
+		watch:         watch,
 	}
 
 	// Handle stdin mode
 	if len(cfg.searchPaths) == 1 && cfg.searchPaths[0] == "-" {
-		if *cfg.watch {
+		if watch {
 			return nil, errors.New("--watch cannot be used with stdin")
 		}
 		ft, data, err := readStdin(*cfg.fileTypes)
@@ -744,9 +829,13 @@ func buildCLIWithFinder(rc *resolvedConfig, fileFinder finder.FileFinder) *cli.C
 	return cli.Init(opts...)
 }
 
-func buildReporters(reporterConfigs []reporterConfig) ([]reporter.Reporter, error) {
+func buildReporters(reporterConfigs []reporterConfig, sarifMergeConfig reporter.SARIFMergeConfig) ([]reporter.Reporter, error) {
 	reporters := make([]reporter.Reporter, 0, len(reporterConfigs))
 	for _, rc := range reporterConfigs {
+		if rc.reportType == "sarif" {
+			reporters = append(reporters, reporter.NewSARIFReporterWithMerge(rc.outputDest, sarifMergeConfig))
+			continue
+		}
 		reporters = append(reporters, getReporter(rc.reportType, rc.outputDest))
 	}
 	return reporters, nil

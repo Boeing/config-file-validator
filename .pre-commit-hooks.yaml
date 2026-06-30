@@ -3,8 +3,8 @@
   description: Validate configuration file syntax and schemas. Only changed files are validated.
   entry: validator
   language: golang
-  types_or: [json, yaml, toml, xml, ini, csv, hcl, terraform]
-  files: '\.(json|jsonc|yaml|yml|toml|xml|ini|csv|hcl|tf|tfvars|env|hocon|properties|plist|editorconfig|toon|sarif)$'
+  types_or: [json, yaml, toml, xml, ini, csv, hcl, terraform, cue]
+  files: '\.(json|jsonc|yaml|yml|toml|xml|ini|csv|hcl|tf|tfvars|env|hocon|properties|plist|editorconfig|toon|sarif|cue)$'
 
 - id: config-file-validator-full
   name: config-file-validator-full
