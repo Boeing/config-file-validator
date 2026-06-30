@@ -521,23 +521,26 @@ Every phase follows Process Discipline: update plan before/during/after, write s
 
 **Goal**: Ship `cfv format .` and `cfv format --fix .`
 
+**Hard constraint**: Output formatting must be visually identical across all formatters. Every formatter reports issues using the same line format, symbols, and structure as `cfv check`. It must look like one tool, not a patchwork of libraries glued together. Define the output contract once, enforce it in every formatter's reporter integration. If a formatter can't produce a consistent message shape, fix the formatter — don't let it output garbage.
+
 1. Define `Formatter` interface
-2. Implement formatters in priority order:
+2. Define the output contract for formatting issues (symbol, path:line format, message style — identical to check output)
+3. Implement formatters in priority order:
    a. JSON (`tidwall/pretty`) — easiest, highest visibility
-   b. YAML (`goccy/go-yaml`) — highest demand
-   c. TOML (`pelletier/go-toml/v2`) — already a dep
+   b. YAML (`gopkg.in/yaml.v3` Node API) — highest demand
+   c. TOML (`pelletier/go-toml/v2` unstable.Parser with KeepComments) — most complex
    d. HCL (`hclwrite.Format`) — one function call
    e. ENV (custom, line-oriented) — simple
    f. INI (`gopkg.in/ini.v1`) — simple
    g. XML (`go-xmlfmt/xmlfmt`) — simple
    h. Properties (`magiconair/properties`) — already a dep
-3. Register formatters on FileType
-4. `cfv format .` reports diffs (does not write)
-5. `cfv format --fix .` rewrites files
-6. `cfv .` (bare command) now includes formatting in report
-7. Add `[format]` section to `.cfv.toml` parser
-8. Update reporters to include formatting issues in output
-9. Add `--check` exit-code behavior for CI
+4. Register formatters on FileType
+5. `cfv format .` reports diffs (does not write)
+6. `cfv format --fix .` rewrites files
+7. `cfv .` (bare command) stays as check-only until all formatters are stable
+8. Add `[format]` section to `.cfv.toml` parser
+9. Update reporters to include formatting issues in output
+10. Add `--check` exit-code behavior for CI
 
 ### Phase 3: Formatters Continued (2-3 weeks)
 
