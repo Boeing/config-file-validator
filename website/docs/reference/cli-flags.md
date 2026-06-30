@@ -4,15 +4,27 @@
 # CLI Flags
 
 ```
-validator [OPTIONS] [<search_path>...]
+cfv check [flags] [<search_path>...]
 ```
 
-If no search path is provided, the validator searches the current directory. Use `-` to read from stdin (requires `--file-types`).
+Bare `cfv [flags] [<search_path>...]` also works and is equivalent to `cfv check`.
+
+If no search path is provided, `cfv check` searches the current directory. Use `-` to read from stdin (requires `--file-types`).
+
+## Subcommands
+
+| Subcommand    | Description                                      |
+|---------------|--------------------------------------------------|
+| `check`       | Validate config files. Default when omitted.     |
+| `version`     | Print the version and exit.                      |
+| `help`        | Show help for a subcommand.                      |
 
 ## Flags
 
+All flags apply to the `check` subcommand.
+
 | Flag                  | Type   | Default    | Description                                                                                                        |
-|-----------------------|--------|------------|--------------------------------------------------------------------------------------------------------------------|
+|-----------------------|--------|------------|---------------------------------------------------------------------------------------------------------------------|
 | `-depth`              | int    | unlimited  | Maximum recursion depth. `0` disables recursion.                                                                   |
 | `-exclude-dirs`       | string | —          | Comma-separated list of directory names to skip.                                                                   |
 | `-exclude-file-types` | string | —          | Comma-separated list of file types to ignore. Cannot be used with `-file-types`.                                   |
@@ -33,4 +45,3 @@ If no search path is provided, the validator searches the current directory. Use
 | `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |
 | `-no-config`          | bool   | `false`    | Disable automatic `.cfv.toml` discovery.                                                                           |
 | `-type-map`           | string | —          | Map a glob pattern to a file type. Format: `<pattern>:<type>`. Repeatable.                                         |
-| `-version`            | bool   | —          | Print the version and exit.                                                                                        |

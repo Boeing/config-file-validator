@@ -44,7 +44,7 @@ Many common `.json` files actually use JSONC syntax. The validator detects these
 For other `.json` files that use JSONC syntax (e.g., VS Code settings), use `--type-map`:
 
 ```shell
-validator --type-map="**/.vscode/*.json:jsonc" .
+cfv check --type-map="**/.vscode/*.json:jsonc" .
 ```
 
 :::note
@@ -58,19 +58,19 @@ Use `--type-map` to force files matching a glob pattern to be validated as a spe
 Treat files named "inventory" as INI:
 
 ```shell
-validator --type-map="**/inventory:ini" .
+cfv check --type-map="**/inventory:ini" .
 ```
 
 Map all `.cfg` files to JSON:
 
 ```shell
-validator --type-map="**/*.cfg:json" .
+cfv check --type-map="**/*.cfg:json" .
 ```
 
 Specify multiple mappings:
 
 ```shell
-validator --type-map="**/inventory:ini" --type-map="**/*.cfg:json" .
+cfv check --type-map="**/inventory:ini" --type-map="**/*.cfg:json" .
 ```
 
 In `.cfv.toml`:

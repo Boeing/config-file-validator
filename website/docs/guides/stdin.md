@@ -3,16 +3,16 @@
 
 # Reading from Stdin
 
-The validator can read input from stdin instead of traversing the filesystem. Use `-` as the search path and specify the file type with `--file-types`.
+`cfv check` can read input from stdin instead of traversing the filesystem. Use `-` as the search path and specify the file type with `--file-types`.
 
 ## Basic usage
 
 ```shell
-echo '{"key": "value"}' | validator --file-types=json -
+echo '{"key": "value"}' | cfv check --file-types=json -
 ```
 
 ```shell
-cat config.yaml | validator --file-types=yaml -
+cat config.yaml | cfv check --file-types=yaml -
 ```
 
 ## Requirements
@@ -27,17 +27,17 @@ cat config.yaml | validator --file-types=yaml -
 Validate config fetched from a remote source:
 
 ```shell
-curl -s https://config-service.internal/app.json | validator --file-types=json -
+curl -s https://config-service.internal/app.json | cfv check --file-types=json -
 ```
 
 Validate the output of a template engine or merge tool — the processed result, not the source file:
 
 ```shell
-helm template my-chart | validator --file-types=yaml -
+helm template my-chart | cfv check --file-types=yaml -
 ```
 
 ```shell
-envsubst < config.template.yaml | validator --file-types=yaml -
+envsubst < config.template.yaml | cfv check --file-types=yaml -
 ```
 
 ## Behavior

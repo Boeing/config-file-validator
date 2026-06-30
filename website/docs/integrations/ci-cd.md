@@ -12,8 +12,8 @@ validate-config:
   stage: test
   image: golang:1.26
   script:
-    - go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
-    - validator --reporter=junit:results.xml --schemastore .
+    - go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
+    - cfv check --reporter=junit:results.xml --schemastore .
   artifacts:
     reports:
       junit: results.xml
@@ -24,7 +24,7 @@ validate-config:
 ```groovy
 stage('Validate Config') {
     steps {
-        sh 'validator --reporter=junit:results.xml --schemastore .'
+        sh 'cfv check --reporter=junit:results.xml --schemastore .'
     }
     post {
         always {
@@ -38,8 +38,8 @@ stage('Validate Config') {
 
 ```yaml
 - script: |
-    go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
-    validator --reporter=junit:results.xml --schemastore .
+    go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
+    cfv check --reporter=junit:results.xml --schemastore .
   displayName: 'Validate config files'
 
 - task: PublishTestResults@2
@@ -60,7 +60,7 @@ stage('Validate Config') {
 Multiple reporters can run in a single invocation:
 
 ```shell
-validator --reporter=junit:results.xml --reporter=sarif:results.sarif --schemastore .
+cfv check --reporter=junit:results.xml --reporter=sarif:results.sarif --schemastore .
 ```
 
 ## Exit codes

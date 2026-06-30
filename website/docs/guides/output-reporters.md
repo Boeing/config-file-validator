@@ -18,7 +18,7 @@ The validator writes results to stdout by default. Use `--reporter` to control t
 ## Basic usage
 
 ```shell
-validator --reporter=json .
+cfv check --reporter=json .
 ```
 
 ## Output to a file
@@ -26,19 +26,19 @@ validator --reporter=json .
 Append `:<path>` to the reporter name to write results to a file:
 
 ```shell
-validator --reporter=json:output.json .
+cfv check --reporter=json:output.json .
 ```
 
 Repeat the same reporter type with different paths to write the same format to more than one file:
 
 ```shell
-validator --reporter=json:summary.json --reporter=json:artifacts/summary.json .
+cfv check --reporter=json:summary.json --reporter=json:artifacts/summary.json .
 ```
 
 Use `:-` to explicitly direct output to stdout (useful when combining reporters):
 
 ```shell
-validator --reporter=json:- --reporter=junit:results.xml .
+cfv check --reporter=json:- --reporter=junit:results.xml .
 ```
 
 ## Multiple reporters
@@ -46,11 +46,11 @@ validator --reporter=json:- --reporter=junit:results.xml .
 Chain `--reporter` flags to produce multiple outputs in a single run:
 
 ```shell
-validator --reporter=standard --reporter=json:output.json .
+cfv check --reporter=standard --reporter=json:output.json .
 ```
 
 ```shell
-validator --reporter=junit:results.xml --reporter=sarif:results.sarif .
+cfv check --reporter=junit:results.xml --reporter=sarif:results.sarif .
 ```
 
 In `.cfv.toml`:
@@ -77,7 +77,7 @@ Use `--groupby` to organize the report. Supported groupings:
 Combine multiple groupings:
 
 ```shell
-validator --groupby=filetype,pass-fail .
+cfv check --groupby=filetype,pass-fail .
 ```
 
 In `.cfv.toml`:
@@ -118,13 +118,13 @@ The SARIF reporter produces a [SARIF 2.1.0](https://sarifweb.azurewebsites.net/)
 You can merge SARIF output from other tools into the same report. The validator's results remain the first run, and each external SARIF run is appended without rewriting the tool metadata, rules, or results.
 
 ```shell
-validator --reporter=sarif:results.sarif --merge-sarif=gitleaks.sarif --merge-sarif=trivy.sarif .
+cfv check --reporter=sarif:results.sarif --merge-sarif=gitleaks.sarif --merge-sarif=trivy.sarif .
 ```
 
 To merge every SARIF file in a directory tree:
 
 ```shell
-validator --reporter=sarif:results.sarif --merge-sarif-dir=reports .
+cfv check --reporter=sarif:results.sarif --merge-sarif-dir=reports .
 ```
 
 Example GitHub Actions step:

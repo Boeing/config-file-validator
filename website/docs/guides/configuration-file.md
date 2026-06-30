@@ -7,23 +7,23 @@ The validator supports a `.cfv.toml` configuration file for project-level defaul
 
 ## Discovery
 
-On startup, the validator looks for `.cfv.toml` in the current directory and walks up parent directories until it finds one or reaches the filesystem root.
+On startup, `cfv check` looks for `.cfv.toml` in the current directory and walks up parent directories until it finds one or reaches the filesystem root.
 
 To specify a file explicitly:
 
 ```shell
-validator --config=path/to/.cfv.toml .
+cfv check --config=path/to/.cfv.toml .
 ```
 
 To disable auto-discovery:
 
 ```shell
-validator --no-config .
+cfv check --no-config .
 ```
 
 ## Precedence
 
-Most CLI flags can also be set through [environment variables](../reference/environment-variables.md) prefixed with `CFV_`. When multiple sources set the same option, the validator resolves them in this order (highest priority first):
+Most CLI flags can also be set through [environment variables](../reference/environment-variables.md) prefixed with `CFV_`. When multiple sources set the same option, `cfv check` resolves them in this order (highest priority first):
 
 1. CLI flags
 2. `.cfv.toml` configuration file
@@ -148,6 +148,6 @@ YAML duplicate keys are always rejected by the YAML parser regardless of configu
 The `.cfv.toml` file is validated against a built-in schema on load. Typos in key names and invalid value types are reported immediately as errors (exit code 2).
 
 ```
-$ validator .
+$ cfv check .
 Error: .cfv.toml: unknown key "exlude-dirs" (did you mean "exclude-dirs"?)
 ```

@@ -99,7 +99,7 @@ Schema references can be:
 With `--schemastore`, the validator matches files by name against the SchemaStore catalog and validates them against the corresponding schema. No `$schema` declaration needed in your files.
 
 ```shell
-validator --schemastore .
+cfv check --schemastore .
 ```
 
 Schemas are fetched on first use and cached locally. Repeated runs don't require network access.
@@ -119,7 +119,7 @@ git clone --depth=1 https://github.com/SchemaStore/schemastore.git
 Then point the validator at the local clone:
 
 ```shell
-validator --schemastore-path=./schemastore .
+cfv check --schemastore-path=./schemastore .
 ```
 
 `--schemastore-path` implies `--schemastore` — you don't need both flags.
@@ -131,19 +131,19 @@ Use `--schema-map` to apply a schema to files matching a glob pattern. This is u
 Apply a JSON Schema to all `package.json` files:
 
 ```shell
-validator --schema-map="**/package.json:schemas/package.schema.json" .
+cfv check --schema-map="**/package.json:schemas/package.schema.json" .
 ```
 
 Apply an XSD to XML config files:
 
 ```shell
-validator --schema-map="**/config.xml:schemas/config.xsd" .
+cfv check --schema-map="**/config.xml:schemas/config.xsd" .
 ```
 
 Specify multiple mappings in one invocation:
 
 ```shell
-validator \
+cfv check \
   --schema-map="**/package.json:schemas/pkg.json" \
   --schema-map="**/*.xml:schemas/config.xsd" \
   .
@@ -152,9 +152,9 @@ validator \
 Schema paths can be URLs, absolute paths, or relative paths. Relative paths are resolved from the current working directory.
 
 ```shell
-validator --schema-map="package.json:https://json.schemastore.org/package.json" .
-validator --schema-map="deploy/*.xml:/opt/schemas/config.xsd" .
-validator --schema-map="src/config.yaml:schemas/app.schema.json" .
+cfv check --schema-map="package.json:https://json.schemastore.org/package.json" .
+cfv check --schema-map="deploy/*.xml:/opt/schemas/config.xsd" .
+cfv check --schema-map="src/config.yaml:schemas/app.schema.json" .
 ```
 
 The same mappings can be set in `.cfv.toml`:
@@ -180,7 +180,7 @@ Document-level declarations always take priority. SchemaStore acts as a fallback
 Use `--require-schema` to fail validation on files that support schema validation but don't declare a schema:
 
 ```shell
-validator --require-schema .
+cfv check --require-schema .
 ```
 
 This affects JSON, JSONC, YAML, TOML, TOON, and XML files. Other formats (INI, CSV, ENV, HCL, HOCON, Properties, PList, EditorConfig, Justfile) are not affected since they have no schema mechanism.
@@ -190,7 +190,7 @@ This affects JSON, JSONC, YAML, TOML, TOON, and XML files. Other formats (INI, C
 Use `--no-schema` to skip all schema validation. Only syntax is checked:
 
 ```shell
-validator --no-schema .
+cfv check --no-schema .
 ```
 
 `--no-schema` cannot be combined with `--require-schema`, `--schema-map`, or `--schemastore`.

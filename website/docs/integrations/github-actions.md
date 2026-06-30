@@ -45,9 +45,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install config-file-validator
-        run: go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
+        run: go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
       - name: Validate
-        run: validator --schemastore .
+        run: cfv check --schemastore .
 ```
 
 ## SARIF upload
@@ -56,7 +56,7 @@ Upload results to GitHub Code Scanning for persistent tracking:
 
 ```yaml
 - name: Validate
-  run: validator --reporter=sarif:results.sarif .
+  run: cfv check --reporter=sarif:results.sarif .
   continue-on-error: true
 
 - name: Upload SARIF

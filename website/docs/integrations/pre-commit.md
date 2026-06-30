@@ -3,7 +3,7 @@
 
 # Pre-commit Hook
 
-The validator has a ready-made [pre-commit](https://pre-commit.com/) hook that validates config files on every commit.
+The validator has a ready-made [pre-commit](https://pre-commit.com/) hook that runs `cfv check` on every commit.
 
 ## Setup
 

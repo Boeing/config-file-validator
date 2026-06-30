@@ -60,14 +60,14 @@ makepkg -si
 
 Pre-built binaries for macOS, Linux, and Windows are available on the [GitHub Releases](https://github.com/Boeing/config-file-validator/releases) page.
 
-Download the archive for your platform, extract it, and place the `validator` binary somewhere on your `PATH`.
+Download the archive for your platform, extract it, and place the `cfv` binary somewhere on your `PATH`.
 
 ## go install
 
 Requires a working Go toolchain (1.26+):
 
 ```shell
-go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
+go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
 ```
 
 The binary installs to `$GOBIN` (defaults to `$GOPATH/bin` or `$HOME/go/bin`).
@@ -79,7 +79,7 @@ If you need a custom build, see [Development Setup](./contributing/development-s
 ## Verify the installation
 
 ```shell
-validator --version
+cfv version
 ```
 
 This prints the installed version and exits. If the command is not found, ensure the binary's location is on your `PATH`.
