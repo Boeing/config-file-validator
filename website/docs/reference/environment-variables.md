@@ -21,6 +21,7 @@ Most CLI flags can be set via environment variables prefixed with `CFV_`. CLI fl
 | `CFV_SCHEMASTORE_PATH`   | `-schemastore-path`   |
 | `CFV_GLOBBING`           | `-globbing`           |
 | `CFV_GITIGNORE`          | `-gitignore`          |
+| `CFV_WATCH`              | `-watch`              |
 
 ## Precedence
 

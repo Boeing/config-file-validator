@@ -27,6 +27,7 @@ require (
 
 require (
 	cuelang.org/go v0.17.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/sblinch/kdl-go v0.0.0-20260121213736-8b7053306ca6
 )
 
