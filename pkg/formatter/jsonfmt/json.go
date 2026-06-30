@@ -58,7 +58,7 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 		result = result[:len(result)-1]
 	}
 
-	return normalizeLineEndings(result, resolved.LineEnding), nil
+	return formatter.NormalizeLineEndings(result, resolved.LineEnding), nil
 }
 
 // resolveOptions fills zero-value options with JSON defaults.
@@ -86,19 +86,4 @@ func indentString(opts formatter.Options) string {
 		indent[i] = ' '
 	}
 	return string(indent)
-}
-
-func normalizeLineEndings(data []byte, ending formatter.LineEnding) []byte {
-	if ending != formatter.LineEndingCRLF {
-		return data
-	}
-	// Replace bare \n with \r\n (skip already-CRLF sequences).
-	result := make([]byte, 0, len(data)+len(data)/10)
-	for i, b := range data {
-		if b == '\n' && (i == 0 || data[i-1] != '\r') {
-			result = append(result, '\r')
-		}
-		result = append(result, b)
-	}
-	return result
 }

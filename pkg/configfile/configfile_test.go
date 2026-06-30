@@ -201,3 +201,166 @@ unknown2 = "bad"
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "schema validation failed")
 }
+
+func TestLoadFormatGlobal(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format]
+indent = 4
+use-tabs = false
+sort-keys = true
+trailing-newline = true
+line-ending = "lf"
+max-line-width = 80
+quote-style = "double"
+`)
+
+	cfg, err := Load(filepath.Join(dir, FileName))
+	require.NoError(t, err)
+	require.Equal(t, 4, *cfg.Format.Indent)
+	require.False(t, *cfg.Format.UseTabs)
+	require.True(t, *cfg.Format.SortKeys)
+	require.True(t, *cfg.Format.TrailingNewline)
+	require.Equal(t, "lf", *cfg.Format.LineEnding)
+	require.Equal(t, 80, *cfg.Format.MaxLineWidth)
+	require.Equal(t, "double", *cfg.Format.QuoteStyle)
+}
+
+func TestLoadFormatPerType(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format]
+indent = 2
+
+[format.json]
+sort-keys = true
+indent = 4
+
+[format.yaml]
+quote-style = "single"
+indent = 3
+`)
+
+	cfg, err := Load(filepath.Join(dir, FileName))
+	require.NoError(t, err)
+
+	// Global
+	require.Equal(t, 2, *cfg.Format.Indent)
+
+	// JSON override
+	require.NotNil(t, cfg.Format.JSON)
+	require.Equal(t, 4, *cfg.Format.JSON.Indent)
+	require.True(t, *cfg.Format.JSON.SortKeys)
+
+	// YAML override
+	require.NotNil(t, cfg.Format.YAML)
+	require.Equal(t, 3, *cfg.Format.YAML.Indent)
+	require.Equal(t, "single", *cfg.Format.YAML.QuoteStyle)
+}
+
+func TestLoadFormatUnknownKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format]
+indnet = 4
+`)
+
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "schema validation failed")
+}
+
+func TestLoadFormatUnknownFormat(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format.unknown]
+indent = 4
+`)
+
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "schema validation failed")
+}
+
+func TestLoadFormatInvalidIndentRange(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format]
+indent = 20
+`)
+
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "schema validation failed")
+}
+
+func TestLoadFormatInvalidLineEnding(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format]
+line-ending = "auto"
+`)
+
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "schema validation failed")
+}
+
+func TestLoadFormatInvalidQuoteStyle(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format]
+quote-style = "backtick"
+`)
+
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "schema validation failed")
+}
+
+func TestLoadFormatPerTypeUnknownKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format.json]
+unknown-option = true
+`)
+
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "schema validation failed")
+}
+
+func TestLoadFormatMinimalOnlyPerType(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+[format.yaml]
+indent = 4
+`)
+
+	cfg, err := Load(filepath.Join(dir, FileName))
+	require.NoError(t, err)
+	// Global format options should be nil (not set)
+	require.Nil(t, cfg.Format.Indent)
+	// Per-type should be set
+	require.NotNil(t, cfg.Format.YAML)
+	require.Equal(t, 4, *cfg.Format.YAML.Indent)
+}
+
+func TestLoadEditorconfig(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `editorconfig = false`)
+
+	cfg, err := Load(filepath.Join(dir, FileName))
+	require.NoError(t, err)
+	require.False(t, *cfg.Editorconfig)
+}

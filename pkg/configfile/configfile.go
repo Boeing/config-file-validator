@@ -32,9 +32,38 @@ type Config struct {
 	SchemaStorePath  *string           `toml:"schemastore-path"`
 	Globbing         *bool             `toml:"globbing"`
 	Gitignore        *bool             `toml:"gitignore"`
+	Editorconfig     *bool             `toml:"editorconfig"`
 	SchemaMap        map[string]string `toml:"schema-map"`
 	TypeMap          map[string]string `toml:"type-map"`
 	Validators       ValidatorOptions  `toml:"validators"`
+	Format           FormatConfig      `toml:"format"`
+}
+
+// FormatConfig holds the [format] section and per-format overrides.
+type FormatConfig struct {
+	FormatOptions
+
+	// Per-format overrides. Keys are format names: "json", "yaml", "hcl", etc.
+	JSON *FormatOptions `toml:"json"`
+	YAML *FormatOptions `toml:"yaml"`
+	HCL  *FormatOptions `toml:"hcl"`
+	TOML *FormatOptions `toml:"toml"`
+	XML  *FormatOptions `toml:"xml"`
+	INI  *FormatOptions `toml:"ini"`
+	ENV  *FormatOptions `toml:"env"`
+}
+
+// FormatOptions holds formatting configuration keys.
+// All fields are pointers so we can distinguish "not set" from "set to zero/false".
+// This allows correct cascade resolution: CLI > per-format > global > defaults.
+type FormatOptions struct {
+	Indent          *int    `toml:"indent"`
+	UseTabs         *bool   `toml:"use-tabs"`
+	SortKeys        *bool   `toml:"sort-keys"`
+	TrailingNewline *bool   `toml:"trailing-newline"`
+	LineEnding      *string `toml:"line-ending"`
+	MaxLineWidth    *int    `toml:"max-line-width"`
+	QuoteStyle      *string `toml:"quote-style"`
 }
 
 // ValidatorOptions holds per-validator configuration.

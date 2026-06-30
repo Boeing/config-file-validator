@@ -34,12 +34,8 @@ func TestFixtures(t *testing.T) {
 			want, err := os.ReadFile(expected)
 			require.NoError(t, err)
 
-			opts := defaultOpts
-
-			// Tab indent fixture uses different options.
-			if name == "tab_indent" {
-				opts.IndentStyle = formatter.IndentTabs
-			}
+			optsFile := "testdata/" + name + ".opts.json"
+			opts := formatter.LoadFixtureOptions(optsFile, defaultOpts)
 
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
@@ -210,9 +206,14 @@ func FuzzJSONFormatter(f *testing.F) {
 }
 
 func isValidJSON(data []byte) bool {
-	if len(data) == 0 {
-		return false
-	}
-	var v any
-	return stdjson.Unmarshal(data, &v) == nil
+	return stdjson.Valid(data)
+}
+
+// TestZeroOptionsUsesJSONDefaults verifies that all-zero Options uses 2-space indent.
+func TestZeroOptionsUsesJSONDefaults(t *testing.T) {
+	t.Parallel()
+	src := []byte(`{"a":1}`)
+	got, err := f.Format(src, formatter.Options{})
+	require.NoError(t, err)
+	require.Contains(t, string(got), "  \"a\"") // 2-space default indent
 }

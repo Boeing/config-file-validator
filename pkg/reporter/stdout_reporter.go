@@ -44,7 +44,8 @@ func (sr StdoutReporter) Print(reports []Report) error {
 // PrintGroupStdout prints a recursive grouped report to stdout.
 func PrintGroupStdout(groupReport *GroupNode) error {
 	totalSummary := printGroupNodeStdout(groupReport, nil, 0)
-	fmt.Printf("Total Summary: %d succeeded, %d failed\n", totalSummary.Passed, totalSummary.Failed)
+	fmt.Printf("Total Summary: %d succeeded, %d failed%s\n",
+		totalSummary.Passed, totalSummary.Failed, unformattedSuffix(totalSummary.Unformatted))
 	return nil
 }
 
@@ -56,6 +57,7 @@ func printGroupNodeStdout(node *GroupNode, groupPath []string, depth int) summar
 		childSummary := printGroupNodeStdout(child, append(slices.Clone(groupPath), child.Key), depth+1)
 		totalSummary.Passed += childSummary.Passed
 		totalSummary.Failed += childSummary.Failed
+		totalSummary.Unformatted += childSummary.Unformatted
 	}
 
 	if len(node.Children) > 0 {
@@ -65,6 +67,7 @@ func printGroupNodeStdout(node *GroupNode, groupPath []string, depth int) summar
 	stdoutReport := createStdoutReport(node.Reports, depth)
 	totalSummary.Passed += stdoutReport.Summary.Passed
 	totalSummary.Failed += stdoutReport.Summary.Failed
+	totalSummary.Unformatted += stdoutReport.Summary.Unformatted
 	fmt.Println(stdoutReport.Text)
 	if len(groupPath) > 0 && checkGroupsForPassFail(groupPath...) {
 		summaryDepth := depth - 1
@@ -72,14 +75,23 @@ func printGroupNodeStdout(node *GroupNode, groupPath []string, depth int) summar
 			summaryDepth = 0
 		}
 		fmt.Printf(
-			"%sSummary: %d succeeded, %d failed\n\n",
+			"%sSummary: %d succeeded, %d failed%s\n\n",
 			strings.Repeat("    ", summaryDepth),
 			stdoutReport.Summary.Passed,
 			stdoutReport.Summary.Failed,
+			unformattedSuffix(stdoutReport.Summary.Unformatted),
 		)
 	}
 
 	return totalSummary
+}
+
+// unformattedSuffix returns ", N unformatted" when n > 0, or "" when n == 0.
+func unformattedSuffix(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf(", %d unformatted", n)
 }
 
 // PrintSingleGroupStdout prints a grouped report with one grouping level.
@@ -141,7 +153,7 @@ func createStdoutReport(reports []Report, indentSize int) reportStdout {
 				paddedString := padErrorString(issue.Message)
 				result.Text += fmtYellow.Sprintf("%snot formatted: %v\n", errIndent, paddedString)
 			}
-			result.Summary.Failed++
+			result.Summary.Unformatted++
 
 		default: // StatusPass
 			result.Text += color.New(color.FgGreen).Sprintf("%s✓ %s\n", indent, report.FilePath)

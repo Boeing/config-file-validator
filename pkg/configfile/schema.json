@@ -130,7 +130,94 @@
       },
       "additionalProperties": false,
       "description": "Per-validator configuration options."
+    },
+    "format": {
+      "type": "object",
+      "properties": {
+        "indent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "description": "Spaces per indent level. Default: format-specific (2 for JSON/YAML)."
+        },
+        "use-tabs": {
+          "type": "boolean",
+          "description": "Use tabs instead of spaces. YAML ignores this (spec forbids tabs). Default: false."
+        },
+        "sort-keys": {
+          "type": "boolean",
+          "description": "Sort object/mapping keys alphabetically. Default: format-specific (true for JSON, false for YAML)."
+        },
+        "trailing-newline": {
+          "type": "boolean",
+          "description": "Ensure file ends with exactly one newline. Default: true."
+        },
+        "line-ending": {
+          "type": "string",
+          "enum": ["lf", "crlf"],
+          "description": "Line terminator. Default: lf."
+        },
+        "max-line-width": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 320,
+          "description": "Target maximum line width. 0 = unlimited. Default: 0."
+        },
+        "quote-style": {
+          "type": "string",
+          "enum": ["double", "single", "preserve"],
+          "description": "Scalar quoting style. Only affects YAML. Default: preserve."
+        },
+        "json": { "$ref": "#/$defs/format-options" },
+        "yaml": { "$ref": "#/$defs/format-options" },
+        "hcl": { "$ref": "#/$defs/format-options" },
+        "toml": { "$ref": "#/$defs/format-options" },
+        "xml": { "$ref": "#/$defs/format-options" },
+        "ini": { "$ref": "#/$defs/format-options" },
+        "env": { "$ref": "#/$defs/format-options" }
+      },
+      "additionalProperties": false,
+      "description": "Formatting configuration. Global defaults and per-format overrides."
+    },
+    "editorconfig": {
+      "type": "boolean",
+      "description": "Enable .editorconfig integration as a resolution layer. Default: true."
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "format-options": {
+      "type": "object",
+      "properties": {
+        "indent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "use-tabs": {
+          "type": "boolean"
+        },
+        "sort-keys": {
+          "type": "boolean"
+        },
+        "trailing-newline": {
+          "type": "boolean"
+        },
+        "line-ending": {
+          "type": "string",
+          "enum": ["lf", "crlf"]
+        },
+        "max-line-width": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 320
+        },
+        "quote-style": {
+          "type": "string",
+          "enum": ["double", "single", "preserve"]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }

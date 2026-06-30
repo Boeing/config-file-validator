@@ -1,0 +1,8 @@
+zebra: last
+# comment on middle
+middle: second
+alpha: first
+nested:
+  zoo: 3
+  bar: 1
+  foo: 2

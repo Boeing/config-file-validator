@@ -4,41 +4,40 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	goyaml "github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/parser"
 )
 
 // YAMLValidator validates YAML files.
-// Note: yaml.v3 already rejects duplicate keys by default.
+// Uses goccy/go-yaml which rejects duplicate keys by default and validates
+// all documents in multi-doc files.
 type YAMLValidator struct{}
 
 var _ Validator = YAMLValidator{}
 
-var yamlLineRe = regexp.MustCompile(`yaml: line (\d+): (.*)`)
-
 func (YAMLValidator) ValidateSyntax(b []byte) (bool, error) {
-	var output any
-	err := yaml.Unmarshal(b, &output)
-	if err != nil {
-		if m := yamlLineRe.FindStringSubmatch(err.Error()); m != nil {
-			if line, convErr := strconv.Atoi(m[1]); convErr == nil {
-				return false, &ValidationError{Err: errors.New(m[2]), Line: line}
+	// Decode all documents. goccy's Decoder checks duplicates and references.
+	dec := goyaml.NewDecoder(bytes.NewReader(b))
+	for {
+		var output any
+		err := dec.Decode(&output)
+		if err != nil {
+			if err.Error() == "EOF" {
+				break
 			}
+			return false, parseValidationError(err)
 		}
-		return false, err
 	}
-
 	return true, nil
 }
 
 func (YAMLValidator) MarshalToJSON(b []byte) ([]byte, error) {
 	var doc any
-	if err := yaml.Unmarshal(b, &doc); err != nil {
+	if err := goyaml.Unmarshal(b, &doc); err != nil {
 		return nil, err
 	}
 	return json.Marshal(doc)
@@ -51,7 +50,7 @@ func (YAMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 	}
 
 	var doc any
-	if err := yaml.Unmarshal(b, &doc); err != nil {
+	if err := goyaml.Unmarshal(b, &doc); err != nil {
 		return false, err
 	}
 
@@ -90,38 +89,83 @@ func extractYAMLSchemaComment(b []byte) string {
 	return ""
 }
 
-// buildYAMLPositionMap parses YAML into a Node tree and builds a map from
+// buildYAMLPositionMap parses YAML into an AST and builds a map from
 // gojsonschema context paths (e.g. "(root).server.port") to source positions.
 func buildYAMLPositionMap(b []byte) map[string]SourcePosition {
-	var root yaml.Node
-	if err := yaml.Unmarshal(b, &root); err != nil {
+	file, err := parser.ParseBytes(b, parser.ParseComments)
+	if err != nil || len(file.Docs) == 0 {
 		return nil
 	}
 	positions := make(map[string]SourcePosition)
-	if root.Kind == yaml.DocumentNode && len(root.Content) > 0 {
-		walkYAMLNode(root.Content[0], "(root)", positions)
-	}
+	walkYAMLNode(file.Docs[0].Body, "(root)", positions)
 	return positions
 }
 
-func walkYAMLNode(node *yaml.Node, path string, positions map[string]SourcePosition) {
-	switch node.Kind {
-	case yaml.MappingNode:
-		positions[path] = SourcePosition{Line: node.Line, Column: node.Column}
-		for i := 0; i+1 < len(node.Content); i += 2 {
-			keyNode := node.Content[i]
-			valNode := node.Content[i+1]
-			childPath := path + "." + keyNode.Value
-			positions[childPath] = SourcePosition{Line: keyNode.Line, Column: keyNode.Column}
-			walkYAMLNode(valNode, childPath, positions)
-		}
-	case yaml.SequenceNode:
-		positions[path] = SourcePosition{Line: node.Line, Column: node.Column}
-		for i, child := range node.Content {
-			childPath := fmt.Sprintf("%s.%d", path, i)
-			positions[childPath] = SourcePosition{Line: child.Line, Column: child.Column}
-			walkYAMLNode(child, childPath, positions)
-		}
-	default:
+func walkYAMLNode(node ast.Node, path string, positions map[string]SourcePosition) {
+	if node == nil {
+		return
 	}
+	switch n := node.(type) {
+	case *ast.MappingNode:
+		tk := n.GetToken()
+		if tk != nil {
+			positions[path] = SourcePosition{Line: tk.Position.Line, Column: tk.Position.Column}
+		}
+		for _, mv := range n.Values {
+			keyTk := mv.Key.GetToken()
+			childPath := path + "." + keyTk.Value
+			positions[childPath] = SourcePosition{Line: keyTk.Position.Line, Column: keyTk.Position.Column}
+			walkYAMLNode(mv.Value, childPath, positions)
+		}
+	case *ast.SequenceNode:
+		tk := n.GetToken()
+		if tk != nil {
+			positions[path] = SourcePosition{Line: tk.Position.Line, Column: tk.Position.Column}
+		}
+		for i, item := range n.Values {
+			childPath := fmt.Sprintf("%s.%d", path, i)
+			itemTk := item.GetToken()
+			if itemTk != nil {
+				positions[childPath] = SourcePosition{Line: itemTk.Position.Line, Column: itemTk.Position.Column}
+			}
+			walkYAMLNode(item, childPath, positions)
+		}
+	case *ast.MappingValueNode:
+		// When a sequence contains mapping values directly
+		walkYAMLNode(n.Value, path, positions)
+	default:
+		// Scalar, anchor, alias, tag nodes — no children to walk for positions.
+	}
+}
+
+// parseValidationError extracts line/column from goccy's error format.
+// goccy errors look like: "[3:5] error message\n   1 | ...\n>  3 | ...\n"
+func parseValidationError(err error) error {
+	msg := err.Error()
+	// Try to extract [line:col] prefix
+	if len(msg) > 0 && msg[0] == '[' {
+		end := strings.Index(msg, "]")
+		if end > 0 {
+			coords := msg[1:end]
+			parts := strings.SplitN(coords, ":", 2)
+			if len(parts) == 2 {
+				var line, col int
+				if _, err := fmt.Sscanf(parts[0], "%d", &line); err == nil {
+					_, _ = fmt.Sscanf(parts[1], "%d", &col)
+					// Extract just the error message (after "] ")
+					errMsg := msg[end+2:]
+					// Trim trailing context lines
+					if nlIdx := strings.Index(errMsg, "\n"); nlIdx > 0 {
+						errMsg = errMsg[:nlIdx]
+					}
+					return &ValidationError{
+						Err:    fmt.Errorf("%s", errMsg),
+						Line:   line,
+						Column: col,
+					}
+				}
+			}
+		}
+	}
+	return err
 }

@@ -31,7 +31,7 @@ type Formatter interface {
 //
 // Options are resolved by the CLI before being passed to a formatter:
 //
-//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > hardcoded defaults
+//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > .editorconfig > hardcoded defaults
 type Options struct {
 	// IndentStyle selects spaces or tabs. Zero value = format default.
 	IndentStyle IndentStyle
@@ -52,6 +52,11 @@ type Options struct {
 	// MaxLineWidth is the target maximum line width. 0 = no limit.
 	// Formatters use this as a hint, not a hard constraint.
 	MaxLineWidth int
+
+	// QuoteStyle controls quoting of string scalars.
+	// Only applies to formats with multiple quoting conventions (YAML).
+	// JSON always uses double quotes per spec; this field is ignored for JSON.
+	QuoteStyle QuoteStyle
 }
 
 // IndentStyle selects between spaces and tabs.
@@ -76,6 +81,18 @@ const (
 	LineEndingLF
 	// LineEndingCRLF uses \r\n.
 	LineEndingCRLF
+)
+
+// QuoteStyle controls string scalar quoting.
+type QuoteStyle int
+
+const (
+	// QuotePreserve keeps the original quoting style from the source.
+	QuotePreserve QuoteStyle = iota
+	// QuoteDouble forces double-quoted strings.
+	QuoteDouble
+	// QuoteSingle forces single-quoted strings.
+	QuoteSingle
 )
 
 // Result holds the outcome of formatting a single file.

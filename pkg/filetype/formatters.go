@@ -1,7 +1,9 @@
 package filetype
 
 import (
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/hclfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsonfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/yamlfmt"
 )
 
 // registerFormatters sets the Formatter field on each FileType in the
@@ -15,6 +17,10 @@ func init() {
 		switch ft.Name {
 		case "json":
 			FileTypes[i].Formatter = jsonfmt.Formatter{}
+		case "yaml":
+			FileTypes[i].Formatter = yamlfmt.Formatter{}
+		case "hcl":
+			FileTypes[i].Formatter = hclfmt.Formatter{}
 		default:
 			// no formatter registered for this type yet
 		}

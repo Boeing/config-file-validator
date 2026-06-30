@@ -179,7 +179,7 @@ func Test_ignoreFilesConfigOverridesEnvVar(t *testing.T) {
 	cfg, err := parseCheckFlags([]string{"--config=" + configPath, "."})
 	require.NoError(t, err)
 
-	_, err = applyConfigFile(&cfg)
+	_, _, err = applyConfigFile(&cfg)
 	require.NoError(t, err)
 	require.Equal(t, ignoreFileFlags{"config.ignore"}, cfg.ignoreFiles)
 }
@@ -193,7 +193,7 @@ func Test_ignoreFilesFlagOverridesConfigAndEnv(t *testing.T) {
 	cfg, err := parseCheckFlags([]string{"--config=" + configPath, "--ignore-file=cli.ignore", "."})
 	require.NoError(t, err)
 
-	_, err = applyConfigFile(&cfg)
+	_, _, err = applyConfigFile(&cfg)
 	require.NoError(t, err)
 	require.Equal(t, ignoreFileFlags{"cli.ignore"}, cfg.ignoreFiles)
 }

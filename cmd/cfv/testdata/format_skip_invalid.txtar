@@ -1,0 +1,13 @@
+# cfv format skips unparseable files (syntax errors are cfv check's job)
+# An invalid JSON file should not appear as ✓ or ~ in format output.
+exec cfv format --no-config .
+! stdout 'bad.json'
+stdout '✓.*good.json'
+
+-- good.json --
+{
+  "a": 1,
+  "b": 2
+}
+-- bad.json --
+{"this is not valid JSON

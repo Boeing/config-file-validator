@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,6 +13,7 @@ import (
 	"github.com/Boeing/config-file-validator/v3/internal/testhelper"
 	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v3/pkg/finder"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/v3/pkg/validator"
@@ -842,4 +846,346 @@ func Test_CLIStdinWithQuiet(t *testing.T) {
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 0, exitStatus)
+}
+
+// =============================================================================
+// Format tests
+// =============================================================================
+
+func Test_FormatCleanFiles(t *testing.T) {
+	dir := t.TempDir()
+	// Already-formatted JSON (2-space, sorted keys)
+	testhelper.WriteFile(t, dir, "clean.json", "{\n  \"a\": 1,\n  \"b\": 2\n}\n")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+	require.Len(t, rep.reports, 1)
+	require.Equal(t, reporter.StatusPass, rep.reports[0].Status)
+}
+
+func Test_FormatUnformattedFile(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "messy.json", `{"b":2,"a":1}`)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+	require.Len(t, rep.reports, 1)
+	require.Equal(t, reporter.StatusUnformatted, rep.reports[0].Status)
+}
+
+func Test_FormatWithFix(t *testing.T) {
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "messy.json", `{"b":2,"a":1}`)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithFix(true))
+
+	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+
+	// Verify file was rewritten
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Contains(t, string(content), "\"a\": 1")
+	require.Contains(t, string(content), "\"b\": 2")
+}
+
+func Test_FormatWithDiff(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "messy.json", `{"b":2,"a":1}`)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithDiff(true))
+
+	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+	// In diff mode, reports are quiet (diff goes to stdout directly)
+	for _, r := range rep.reports {
+		require.True(t, r.IsQuiet)
+	}
+}
+
+func Test_FormatSkipsUnparseableFiles(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "bad.json", `{"not valid json`)
+	testhelper.WriteFile(t, dir, "good.json", "{\n  \"a\": 1\n}\n")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+	// Only the parseable file should be in reports
+	require.Len(t, rep.reports, 1)
+	require.Contains(t, rep.reports[0].FilePath, "good.json")
+}
+
+func Test_FormatBrokenSymlink(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "good.json", "{\n  \"a\": 1\n}\n")
+	err := os.Symlink("/nonexistent_target_xyz", filepath.Join(dir, "broken.json"))
+	require.NoError(t, err)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
+	})
+	require.NoError(t, err)
+	// Broken symlink should be reported as a failure
+	var failCount int
+	for _, r := range rep.reports {
+		if r.Status == reporter.StatusFail {
+			failCount++
+		}
+	}
+	require.Equal(t, 1, failCount)
+	require.Equal(t, 1, exitStatus)
+}
+
+func Test_FormatNoFormatterRegistered(t *testing.T) {
+	dir := t.TempDir()
+	// .toml has no formatter registered yet
+	testhelper.WriteFile(t, dir, "config.toml", "key = \"value\"\n")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+	// No reports — file was skipped (no formatter)
+	require.Empty(t, rep.reports)
+}
+
+func Test_FormatYAMLDefaults(t *testing.T) {
+	dir := t.TempDir()
+	// YAML with 4-space indent — should get normalized to 2 (YAML default)
+	testhelper.WriteFile(t, dir, "config.yaml", "name: app\nserver:\n    host: localhost\n")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(formatName string) formatter.Options {
+		opts := formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
+		if formatName == "json" {
+			opts.SortKeys = true
+		}
+		return opts
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus) // unformatted (4sp → 2sp)
+
+	// Verify the report mentions the YAML file
+	require.Len(t, rep.reports, 1)
+	require.Contains(t, rep.reports[0].FilePath, "config.yaml")
+	require.Equal(t, reporter.StatusUnformatted, rep.reports[0].Status)
+}
+
+func Test_FormatFixUnwritableDirectory(t *testing.T) {
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "messy.json", `{"b":2,"a":1}`)
+
+	// Make directory unwritable — can't create temp file
+	require.NoError(t, os.Chmod(dir, 0555))
+	defer func() { _ = os.Chmod(dir, 0755) }()
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(path))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithFix(true))
+
+	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true, SortKeys: true}
+	})
+	require.NoError(t, err)
+	// Should report as failed (can't write), not crash
+	require.Equal(t, 1, exitStatus)
+	require.Len(t, rep.reports, 1)
+	require.Equal(t, reporter.StatusFail, rep.reports[0].Status)
+	require.NotEmpty(t, rep.reports[0].Issues)
+	require.Contains(t, rep.reports[0].Issues[0].Message, "failed to write")
+}
+
+// =============================================================================
+// writeFileAtomic unit tests with mock filesystem
+// =============================================================================
+
+type mockFile struct {
+	name     string
+	writeErr error
+	closeErr error
+	written  []byte
+}
+
+func (f *mockFile) Name() string { return f.name }
+func (f *mockFile) Write(b []byte) (int, error) {
+	if f.writeErr != nil {
+		return 0, f.writeErr
+	}
+	f.written = append(f.written, b...)
+	return len(b), nil
+}
+func (f *mockFile) Close() error { return f.closeErr }
+
+type mockFS struct {
+	statInfo  fs.FileInfo
+	statErr   error
+	file      *mockFile
+	createErr error
+	chmodErr  error
+	renameErr error
+	removed   []string
+}
+
+func (m *mockFS) Stat(_ string) (fs.FileInfo, error) {
+	return m.statInfo, m.statErr
+}
+func (m *mockFS) CreateTemp(_, _ string) (File, error) {
+	if m.createErr != nil {
+		return nil, m.createErr
+	}
+	return m.file, nil
+}
+func (m *mockFS) Chmod(_ string, _ fs.FileMode) error { return m.chmodErr }
+func (m *mockFS) Rename(_, _ string) error            { return m.renameErr }
+func (m *mockFS) Remove(path string) error {
+	m.removed = append(m.removed, path)
+	return nil
+}
+
+func Test_writeFileAtomicSuccess(t *testing.T) {
+	mf := &mockFile{name: "/tmp/test/.cfv-fmt-123"}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist}
+
+	err := writeFileAtomicWith(mfs, "/tmp/test/config.json", []byte("data"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("data"), mf.written)
+	require.Empty(t, mfs.removed) // no cleanup needed on success
+}
+
+func Test_writeFileAtomicCreateTempFails(t *testing.T) {
+	mfs := &mockFS{createErr: errors.New("permission denied"), statErr: os.ErrNotExist}
+
+	err := writeFileAtomicWith(mfs, "/tmp/test/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "creating temp file")
+}
+
+func Test_writeFileAtomicWriteFails(t *testing.T) {
+	mf := &mockFile{name: "/tmp/.cfv-fmt-456", writeErr: errors.New("disk full")}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist}
+
+	err := writeFileAtomicWith(mfs, "/tmp/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "writing temp file")
+	// Temp file should be cleaned up
+	require.Contains(t, mfs.removed, "/tmp/.cfv-fmt-456")
+}
+
+func Test_writeFileAtomicCloseFails(t *testing.T) {
+	mf := &mockFile{name: "/tmp/.cfv-fmt-789", closeErr: errors.New("io error")}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist}
+
+	err := writeFileAtomicWith(mfs, "/tmp/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "closing temp file")
+	require.Contains(t, mfs.removed, "/tmp/.cfv-fmt-789")
+}
+
+func Test_writeFileAtomicChmodFails(t *testing.T) {
+	mf := &mockFile{name: "/tmp/.cfv-fmt-abc"}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist, chmodErr: errors.New("not supported")}
+
+	err := writeFileAtomicWith(mfs, "/tmp/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "setting permissions")
+	require.Contains(t, mfs.removed, "/tmp/.cfv-fmt-abc")
+}
+
+func Test_writeFileAtomicRenameFails(t *testing.T) {
+	mf := &mockFile{name: "/tmp/.cfv-fmt-def"}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist, renameErr: errors.New("cross-device link")}
+
+	err := writeFileAtomicWith(mfs, "/tmp/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "renaming temp file")
+	require.Contains(t, mfs.removed, "/tmp/.cfv-fmt-def")
+}
+
+func Test_toSchemaURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name, input, wantPrefix string
+	}{
+		{"https URL passthrough", "https://example.com/schema.json", "https://"},
+		{"http URL passthrough", "http://example.com/schema.json", "http://"},
+		{"relative path becomes file URL", "schemas/my.json", "file://"},
+		{"absolute path becomes file URL", "/tmp/schema.json", "file:///tmp/schema.json"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := toSchemaURL(tc.input)
+			require.NoError(t, err)
+			require.True(t, strings.HasPrefix(got, tc.wantPrefix),
+				"expected %q to start with %q", got, tc.wantPrefix)
+		})
+	}
 }

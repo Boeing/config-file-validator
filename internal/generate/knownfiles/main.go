@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	goyaml "github.com/goccy/go-yaml"
 )
 
 const (
@@ -76,7 +76,7 @@ func run() error {
 	}
 
 	var languages map[string]linguistLanguage
-	if err := yaml.Unmarshal(data, &languages); err != nil {
+	if err := goyaml.Unmarshal(data, &languages); err != nil {
 		return fmt.Errorf("parsing languages.yml: %w", err)
 	}
 

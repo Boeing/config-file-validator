@@ -1,0 +1,134 @@
+# ============================================================
+# Format config resolution cascade tests
+# Proves: CLI flags > [format.<type>] > [format] > defaults
+# ============================================================
+
+# --- INDENT ---
+
+# Default indent (no config, no flags): JSON gets 2 spaces
+exec cfv format --fix --no-config .
+exec cat indent_default.json
+stdout '  "key"'
+
+# Global [format] indent = 4 applies to JSON
+exec cfv format --fix --config=cfv/indent_global.toml .
+exec cat indent_default.json
+stdout '    "key"'
+
+# Per-format [format.json] indent = 3 overrides global
+exec cfv format --fix --config=cfv/indent_performat.toml .
+exec cat indent_default.json
+stdout '   "key"'
+
+# CLI --indent=8 overrides all config
+exec cfv format --fix --config=cfv/indent_performat.toml --indent=8 .
+exec cat indent_default.json
+stdout '        "key"'
+
+# --- SORT-KEYS ---
+
+# Default: JSON sorts keys (a before b before z)
+cp sortkeys_orig.json sortkeys_test.json
+exec cfv format --fix --no-config .
+cmp sortkeys_test.json sortkeys_sorted.json
+
+# Global sort-keys = false preserves original order (z first)
+cp sortkeys_orig.json sortkeys_test.json
+exec cfv format --fix --config=cfv/nosort_global.toml .
+cmp sortkeys_test.json sortkeys_unsorted.json
+
+# Per-format [format.json] sort-keys = true overrides global false
+cp sortkeys_orig.json sortkeys_test.json
+exec cfv format --fix --config=cfv/sort_performat.toml .
+cmp sortkeys_test.json sortkeys_sorted.json
+
+# CLI --no-sort-keys overrides config sort-keys = true
+cp sortkeys_orig.json sortkeys_test.json
+exec cfv format --fix --config=cfv/sort_performat.toml --no-sort-keys .
+cmp sortkeys_test.json sortkeys_unsorted.json
+
+# CLI --sort-keys overrides config sort-keys = false
+cp sortkeys_orig.json sortkeys_test.json
+exec cfv format --fix --config=cfv/nosort_global.toml --sort-keys .
+cmp sortkeys_test.json sortkeys_sorted.json
+
+# --- LINE-ENDING ---
+
+# Default: LF (file should not contain \r)
+cp lineending_orig.json lineending_test.json
+exec cfv format --fix --no-config .
+exec cat lineending_test.json
+! stdout '\r'
+
+# Global line-ending = "crlf"
+cp lineending_orig.json lineending_test.json
+exec cfv format --fix --config=cfv/crlf_global.toml .
+exec cat lineending_test.json
+stdout '\r'
+
+# CLI --line-ending=lf overrides crlf config
+cp lineending_orig.json lineending_test.json
+exec cfv format --fix --config=cfv/crlf_global.toml --line-ending=lf .
+exec cat lineending_test.json
+! stdout '\r'
+
+# --- USE-TABS ---
+
+# Global use-tabs = true for JSON
+exec cfv format --fix --config=cfv/tabs_global.toml .
+exec cat tabs_test.json
+stdout '\t"key"'
+
+# CLI --use-tabs
+exec cfv format --fix --no-config --use-tabs .
+exec cat tabs_test.json
+stdout '\t"key"'
+
+-- indent_default.json --
+{"key":"value"}
+-- sortkeys_test.json --
+{"z":3,"a":1,"b":2}
+-- sortkeys_orig.json --
+{"z":3,"a":1,"b":2}
+-- sortkeys_sorted.json --
+{
+  "a": 1,
+  "b": 2,
+  "z": 3
+}
+-- sortkeys_unsorted.json --
+{
+  "z": 3,
+  "a": 1,
+  "b": 2
+}
+-- lineending_test.json --
+{"key":"value"}
+-- lineending_orig.json --
+{"key":"value"}
+-- tabs_test.json --
+{"key":"value"}
+-- cfv/indent_global.toml --
+[format]
+indent = 4
+-- cfv/indent_performat.toml --
+[format]
+indent = 4
+
+[format.json]
+indent = 3
+-- cfv/nosort_global.toml --
+[format]
+sort-keys = false
+-- cfv/sort_performat.toml --
+[format]
+sort-keys = false
+
+[format.json]
+sort-keys = true
+-- cfv/crlf_global.toml --
+[format]
+line-ending = "crlf"
+-- cfv/tabs_global.toml --
+[format]
+use-tabs = true

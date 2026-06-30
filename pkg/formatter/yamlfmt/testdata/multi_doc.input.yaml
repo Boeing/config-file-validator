@@ -1,0 +1,12 @@
+---
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 3
+---
+kind: Service
+metadata:
+  name: app-svc
+spec:
+  port: 80

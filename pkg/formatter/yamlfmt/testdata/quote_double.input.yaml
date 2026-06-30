@@ -1,0 +1,5 @@
+name: 'my app'
+url: 'https://example.com'
+plain: no quotes here
+number: 42
+quoted_number: "42"

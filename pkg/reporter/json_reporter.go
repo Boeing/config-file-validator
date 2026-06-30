@@ -27,8 +27,9 @@ type fileStatus struct {
 }
 
 type summary struct {
-	Passed int `json:"passed"`
-	Failed int `json:"failed"`
+	Passed      int `json:"passed"`
+	Failed      int `json:"failed"`
+	Unformatted int `json:"unformatted,omitempty"`
 }
 
 type reportJSON struct {
@@ -37,10 +38,11 @@ type reportJSON struct {
 }
 
 type groupReportJSON struct {
-	Files       any `json:"files"`
-	Summary     any `json:"summary"`
-	TotalPassed int `json:"totalPassed"`
-	TotalFailed int `json:"totalFailed"`
+	Files            any `json:"files"`
+	Summary          any `json:"summary"`
+	TotalPassed      int `json:"totalPassed"`
+	TotalFailed      int `json:"totalFailed"`
+	TotalUnformatted int `json:"totalUnformatted,omitempty"`
 }
 
 // Print implements the Reporter interface.
@@ -76,10 +78,11 @@ func PrintGroupJSON(groupReports *GroupNode) error {
 	}
 
 	jsonReport := groupReportJSON{
-		Files:       files,
-		Summary:     summaries,
-		TotalPassed: totalSummary.Passed,
-		TotalFailed: totalSummary.Failed,
+		Files:            files,
+		Summary:          summaries,
+		TotalPassed:      totalSummary.Passed,
+		TotalFailed:      totalSummary.Failed,
+		TotalUnformatted: totalSummary.Unformatted,
 	}
 	jsonBytes, err := json.MarshalIndent(jsonReport, "", "  ")
 	if err != nil {
@@ -106,6 +109,7 @@ func createGroupJSON(node *GroupNode) (files any, summaries any, total summary, 
 		groupSummaries[child.Key] = childSummary
 		total.Passed += reportSummary.Passed
 		total.Failed += reportSummary.Failed
+		total.Unformatted += reportSummary.Unformatted
 	}
 
 	return groupFiles, groupSummaries, total, nil
@@ -131,6 +135,7 @@ func createGroupJSONNode(node *GroupNode) (files any, summaries any, total summa
 		childSummaries[child.Key] = summaries
 		total.Passed += reportSummary.Passed
 		total.Failed += reportSummary.Failed
+		total.Unformatted += reportSummary.Unformatted
 	}
 
 	return childFiles, childSummaries, total, nil
@@ -175,9 +180,12 @@ func createJSONReport(reports []Report) (reportJSON, error) {
 	}
 
 	for _, f := range jsonReport.Files {
-		if f.Status == "passed" {
+		switch f.Status {
+		case "passed":
 			jsonReport.Summary.Passed++
-		} else {
+		case "unformatted":
+			jsonReport.Summary.Unformatted++
+		default:
 			jsonReport.Summary.Failed++
 		}
 	}

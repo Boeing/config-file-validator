@@ -1,0 +1,8 @@
+a_key: "a_value"
+list:
+  - "item_z"
+  - "item_a"
+nested:
+  a_inner: "inner_a"
+  z_inner: "inner_z"
+z_key: "z_value"

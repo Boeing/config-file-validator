@@ -86,6 +86,15 @@ type cfvConfig struct {
 	// Phase 1: --fix and --unsafe are reserved (no-op) until Phase 4.
 	fix    *bool
 	unsafe *bool
+	// Format option flags (cfv format only).
+	fmtIndent       *int
+	fmtUseTabs      *bool
+	fmtSortKeys     *bool
+	fmtNoSortKeys   *bool
+	fmtLineEnding   *string
+	fmtMaxLineWidth *int
+	fmtQuoteStyle   *string
+	fmtDiff         *bool
 }
 
 // reporterConfig pairs a reporter format name with an optional output path.
@@ -108,6 +117,8 @@ type resolvedConfig struct {
 	stdinFileType filetype.FileType
 	isStdin       bool
 	fix           bool
+	diff          bool
+	formatCfg     *configfile.FormatConfig
 }
 
 // --- Repeatable flag types ---
@@ -458,10 +469,11 @@ func runFormat(args []string) int {
 
 	c := buildCLI(resolved)
 
-	// Default format options — will be replaced by .cfv.toml [format] section in Task 7.
-	opts := formatter.DefaultFormatOptions()
+	// Build the per-format options resolver. This implements the cascade:
+	// CLI flags > [format.<type>] > [format] > format-specific defaults.
+	optsResolver := buildFormatOptionsResolver(&cfg, resolved)
 
-	exitStatus, err := c.Format(opts)
+	exitStatus, err := c.Format(optsResolver)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
 	}
@@ -493,6 +505,15 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		gitignorePtr = fs.Bool("gitignore", false, "Skip files matched by .gitignore patterns.")
 		fixPtr       = fs.Bool("fix", false, "Rewrite files to canonical style")
 		unsafePtr    = fs.Bool("unsafe", false, "Apply unsafe formatting fixes (requires --fix) [not yet implemented]")
+		// Format option flags.
+		fmtIndentPtr       = fs.Int("indent", 0, "Override indent width (1-16). 0 = use config/default.")
+		fmtUseTabsPtr      = fs.Bool("use-tabs", false, "Use tabs for indentation")
+		fmtSortKeysPtr     = fs.Bool("sort-keys", false, "Sort object/mapping keys alphabetically")
+		fmtNoSortKeysPtr   = fs.Bool("no-sort-keys", false, "Disable key sorting (overrides config)")
+		fmtLineEndingPtr   = fs.String("line-ending", "", "Line ending: lf, crlf")
+		fmtMaxLineWidthPtr = fs.Int("max-line-width", 0, "Max line width hint (0 = unlimited)")
+		fmtQuoteStylePtr   = fs.String("quote-style", "", "Quote style: double, single, preserve")
+		fmtDiffPtr         = fs.Bool("diff", false, "Show unified diff instead of rewriting (implies no --fix)")
 	)
 
 	fs.Var(&reporterConfigFlags, "reporter",
@@ -539,10 +560,11 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 	if err := validateGroupByConf(fs, groupOutputPtr); err != nil {
 		return cfvConfig{}, err
 	}
+	if err := validateFormatFlags(fs, fmtIndentPtr, fmtLineEndingPtr, fmtQuoteStylePtr); err != nil {
+		return cfvConfig{}, err
+	}
 
-	// Provide zero-value schema fields so resolveConfig doesn't panic.
-	emptyStr := ""
-	falseVal := false
+	// Schema fields are nil for format — resolveConfig handles nil safely.
 
 	return cfvConfig{
 		fs:               fs,
@@ -555,17 +577,175 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		groupOutput:      groupOutputPtr,
 		quiet:            quietPtr,
 		globbing:         globbingPtr,
-		requireSchema:    &falseVal,
-		noSchema:         &falseVal,
-		schemaStore:      &falseVal,
-		schemaStorePath:  &emptyStr,
 		configPath:       configPathPtr,
 		noConfig:         noConfigPtr,
 		gitignore:        gitignorePtr,
 		ignoreFiles:      ignoreFileConfigFlags,
 		fix:              fixPtr,
 		unsafe:           unsafePtr,
+		fmtIndent:        fmtIndentPtr,
+		fmtUseTabs:       fmtUseTabsPtr,
+		fmtSortKeys:      fmtSortKeysPtr,
+		fmtNoSortKeys:    fmtNoSortKeysPtr,
+		fmtLineEnding:    fmtLineEndingPtr,
+		fmtMaxLineWidth:  fmtMaxLineWidthPtr,
+		fmtQuoteStyle:    fmtQuoteStylePtr,
+		fmtDiff:          fmtDiffPtr,
 	}, nil
+}
+
+// =============================================================================
+// Format options resolution
+// =============================================================================
+
+// buildFormatOptionsResolver builds a function that resolves format options
+// for any format name using the cascade:
+//
+//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > format-specific defaults
+func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOptionsFunc {
+	var globalCfg *configfile.FormatOptions
+	var perFormatCfg map[string]*configfile.FormatOptions
+
+	if rc.formatCfg != nil {
+		globalCfg = &rc.formatCfg.FormatOptions
+		perFormatCfg = map[string]*configfile.FormatOptions{
+			"json": rc.formatCfg.JSON,
+			"yaml": rc.formatCfg.YAML,
+			"hcl":  rc.formatCfg.HCL,
+			"toml": rc.formatCfg.TOML,
+			"xml":  rc.formatCfg.XML,
+			"ini":  rc.formatCfg.INI,
+			"env":  rc.formatCfg.ENV,
+		}
+	}
+
+	return func(formatName string) formatter.Options {
+		// Start with format-specific defaults.
+		opts := formatDefaults(formatName)
+
+		// Layer 2: .cfv.toml [format] (global)
+		if globalCfg != nil {
+			applyFormatOptions(&opts, globalCfg)
+		}
+
+		// Layer 3: .cfv.toml [format.<type>]
+		if perFormatCfg != nil {
+			if perFmt := perFormatCfg[formatName]; perFmt != nil {
+				applyFormatOptions(&opts, perFmt)
+			}
+		}
+
+		// Layer 4: CLI flags (highest priority)
+		applyCLIFormatFlags(&opts, cfg)
+
+		return opts
+	}
+}
+
+// formatDefaults returns the hardcoded default options for a specific format.
+func formatDefaults(formatName string) formatter.Options {
+	switch formatName {
+	case "json":
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			LineEnding:   formatter.LineEndingLF,
+			SortKeys:     true,
+			QuoteStyle:   formatter.QuotePreserve,
+		}
+	case "yaml":
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			LineEnding:   formatter.LineEndingLF,
+			SortKeys:     false,
+			QuoteStyle:   formatter.QuotePreserve,
+		}
+	default:
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			LineEnding:   formatter.LineEndingLF,
+			QuoteStyle:   formatter.QuotePreserve,
+		}
+	}
+}
+
+// applyFormatOptions overlays non-nil config values onto opts.
+func applyFormatOptions(opts *formatter.Options, cfg *configfile.FormatOptions) {
+	if cfg.Indent != nil {
+		opts.IndentWidth = *cfg.Indent
+	}
+	if cfg.UseTabs != nil && *cfg.UseTabs {
+		opts.IndentStyle = formatter.IndentTabs
+	}
+	if cfg.SortKeys != nil {
+		opts.SortKeys = *cfg.SortKeys
+	}
+	if cfg.TrailingNewline != nil {
+		opts.FinalNewline = *cfg.TrailingNewline
+	}
+	if cfg.LineEnding != nil {
+		switch *cfg.LineEnding {
+		case "crlf":
+			opts.LineEnding = formatter.LineEndingCRLF
+		default:
+			opts.LineEnding = formatter.LineEndingLF
+		}
+	}
+	if cfg.MaxLineWidth != nil {
+		opts.MaxLineWidth = *cfg.MaxLineWidth
+	}
+	if cfg.QuoteStyle != nil {
+		switch *cfg.QuoteStyle {
+		case "double":
+			opts.QuoteStyle = formatter.QuoteDouble
+		case "single":
+			opts.QuoteStyle = formatter.QuoteSingle
+		default:
+			opts.QuoteStyle = formatter.QuotePreserve
+		}
+	}
+}
+
+// applyCLIFormatFlags overlays explicitly-set CLI flags onto opts.
+func applyCLIFormatFlags(opts *formatter.Options, cfg *cfvConfig) {
+	if isFlagSet(cfg.fs, "indent") && *cfg.fmtIndent > 0 {
+		opts.IndentWidth = *cfg.fmtIndent
+	}
+	if isFlagSet(cfg.fs, "use-tabs") {
+		opts.IndentStyle = formatter.IndentTabs
+	}
+	if isFlagSet(cfg.fs, "sort-keys") {
+		opts.SortKeys = true
+	}
+	if isFlagSet(cfg.fs, "no-sort-keys") {
+		opts.SortKeys = false
+	}
+	if isFlagSet(cfg.fs, "line-ending") {
+		switch *cfg.fmtLineEnding {
+		case "crlf":
+			opts.LineEnding = formatter.LineEndingCRLF
+		default:
+			opts.LineEnding = formatter.LineEndingLF
+		}
+	}
+	if isFlagSet(cfg.fs, "max-line-width") {
+		opts.MaxLineWidth = *cfg.fmtMaxLineWidth
+	}
+	if isFlagSet(cfg.fs, "quote-style") {
+		switch *cfg.fmtQuoteStyle {
+		case "double":
+			opts.QuoteStyle = formatter.QuoteDouble
+		case "single":
+			opts.QuoteStyle = formatter.QuoteSingle
+		default:
+			opts.QuoteStyle = formatter.QuotePreserve
+		}
+	}
 }
 
 // =============================================================================
@@ -686,6 +866,37 @@ func validateGroupByConf(fs *flag.FlagSet, groupBy *string) error {
 			return errors.New("wrong parameter value for groupby, duplicate values are not allowed")
 		}
 		seenValues[val] = true
+	}
+	return nil
+}
+
+// validateFormatFlags checks format-specific CLI flags for mutual exclusion,
+// range violations, and invalid enum values.
+func validateFormatFlags(fs *flag.FlagSet, indent *int, lineEnding, quoteStyle *string) error {
+	if isFlagSet(fs, "sort-keys") && isFlagSet(fs, "no-sort-keys") {
+		return errors.New("--sort-keys and --no-sort-keys cannot be used together")
+	}
+	if isFlagSet(fs, "fix") && isFlagSet(fs, "diff") {
+		return errors.New("--fix and --diff cannot be used together")
+	}
+	if isFlagSet(fs, "indent") && (*indent < 1 || *indent > 16) {
+		return errors.New("--indent must be between 1 and 16")
+	}
+	if isFlagSet(fs, "line-ending") {
+		switch *lineEnding {
+		case "lf", "crlf":
+			// valid
+		default:
+			return fmt.Errorf("--line-ending must be \"lf\" or \"crlf\", got %q", *lineEnding)
+		}
+	}
+	if isFlagSet(fs, "quote-style") {
+		switch *quoteStyle {
+		case "double", "single", "preserve":
+			// valid
+		default:
+			return fmt.Errorf("--quote-style must be \"double\", \"single\", or \"preserve\", got %q", *quoteStyle)
+		}
 	}
 	return nil
 }
@@ -835,14 +1046,15 @@ func getReporter(reportType, outputDest string) reporter.Reporter {
 // =============================================================================
 
 func resolveConfig(cfg *cfvConfig) (*resolvedConfig, error) {
-	validatorOpts, err := applyConfigFile(cfg)
+	validatorOpts, formatCfg, err := applyConfigFile(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("loading config file: %w", err)
 	}
 
-	noSchema := *cfg.noSchema
-	requireSchema := *cfg.requireSchema
-	useSchemaStore := *cfg.schemaStore || *cfg.schemaStorePath != ""
+	noSchema := cfg.noSchema != nil && *cfg.noSchema
+	requireSchema := cfg.requireSchema != nil && *cfg.requireSchema
+	useSchemaStore := (cfg.schemaStore != nil && *cfg.schemaStore) ||
+		(cfg.schemaStorePath != nil && *cfg.schemaStorePath != "")
 
 	if noSchema && (requireSchema || len(cfg.schemaMap) > 0 || useSchemaStore) {
 		return nil, errors.New("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
@@ -882,6 +1094,8 @@ func resolveConfig(cfg *cfvConfig) (*resolvedConfig, error) {
 		schemaMap:     schemaMap,
 		store:         store,
 		fix:           cfg.fix != nil && *cfg.fix,
+		diff:          cfg.fmtDiff != nil && *cfg.fmtDiff,
+		formatCfg:     formatCfg,
 	}
 
 	// Handle stdin mode: single path of "-"
@@ -930,6 +1144,7 @@ func buildCLI(rc *resolvedConfig) *cli.CLI {
 		cli.WithSchemaMap(rc.schemaMap),
 		cli.WithSchemaStore(rc.store),
 		cli.WithFix(rc.fix),
+		cli.WithDiff(rc.diff),
 	}
 	if rc.isStdin {
 		opts = append(opts, cli.WithStdinData(rc.stdinData, rc.stdinFileType))
@@ -952,14 +1167,14 @@ func buildReporters(reporterConfigs []reporterConfig, sarifMergeCfg reporter.SAR
 }
 
 func openSchemaStore(cfg *cfvConfig) (*schemastore.Store, error) {
-	if *cfg.schemaStorePath != "" {
+	if cfg.schemaStorePath != nil && *cfg.schemaStorePath != "" {
 		store, err := schemastore.Open(*cfg.schemaStorePath)
 		if err != nil {
 			return nil, fmt.Errorf("opening schemastore: %w", err)
 		}
 		return store, nil
 	}
-	if *cfg.schemaStore {
+	if cfg.schemaStore != nil && *cfg.schemaStore {
 		store, err := schemastore.OpenEmbedded()
 		if err != nil {
 			return nil, fmt.Errorf("opening embedded schemastore: %w", err)
@@ -1173,9 +1388,9 @@ func setIgnoreFilesFromEnvIfNotSet(fs *flag.FlagSet, flags *ignoreFileFlags) {
 // Config file (.cfv.toml) handling
 // =============================================================================
 
-func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, error) {
+func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, *configfile.FormatConfig, error) {
 	if *cfg.noConfig {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	var cfgPath string
@@ -1185,12 +1400,12 @@ func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, error) {
 		cfgPath = configfile.Discover(".")
 	}
 	if cfgPath == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	fileCfg, err := configfile.Load(cfgPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// CLI flag > env var (already applied to flagSet) > config file.
@@ -1208,14 +1423,14 @@ func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, error) {
 	}
 	if !cfg.isFlagSet("depth") && fileCfg.Depth != nil {
 		if err := cfg.fs.Set("depth", fmt.Sprintf("%d", *fileCfg.Depth)); err != nil {
-			return nil, fmt.Errorf("config file depth: %w", err)
+			return nil, nil, fmt.Errorf("config file depth: %w", err)
 		}
 		cfg.depth = fileCfg.Depth
 	}
 	if !cfg.isFlagSet("reporter") && len(fileCfg.Reporter) > 0 {
 		conf, err := parseReporterFlags(reporterFlags(fileCfg.Reporter))
 		if err != nil {
-			return nil, fmt.Errorf("config file reporter: %w", err)
+			return nil, nil, fmt.Errorf("config file reporter: %w", err)
 		}
 		cfg.reportType = conf
 	}
@@ -1258,7 +1473,7 @@ func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, error) {
 		}
 	}
 
-	return &fileCfg.Validators, nil
+	return &fileCfg.Validators, &fileCfg.Format, nil
 }
 
 // =============================================================================

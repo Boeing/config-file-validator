@@ -1,0 +1,13 @@
+# Explicit --config wins over auto-discovered .cfv.toml
+exec cfv format --fix --config=explicit.toml .
+exec cat test.json
+stdout '   "a"'
+
+-- .cfv.toml --
+[format]
+indent = 8
+-- explicit.toml --
+[format]
+indent = 3
+-- test.json --
+{"a":1}

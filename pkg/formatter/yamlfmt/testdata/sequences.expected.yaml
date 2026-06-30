@@ -1,0 +1,9 @@
+items:
+  - alpha
+  - beta
+  - gamma
+nested:
+  - key: a
+    value: 1
+  - key: b
+    value: 2

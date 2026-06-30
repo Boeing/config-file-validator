@@ -35,6 +35,10 @@ type CLI struct {
 	// fix enables writing formatted output back to disk.
 	// When false, Format reports issues but does not write.
 	fix bool
+	// diff enables unified diff output mode.
+	// When true, Format prints diffs to stdout instead of the normal report.
+	// Mutually exclusive with fix.
+	diff bool
 }
 
 // Option configures a CLI instance.
@@ -100,6 +104,14 @@ func WithStdinData(data []byte, ft filetype.FileType) Option {
 func WithFix(fix bool) Option {
 	return func(c *CLI) {
 		c.fix = fix
+	}
+}
+
+// WithDiff enables unified diff output mode for Format.
+// When true, Format prints diffs instead of the normal pass/fail report.
+func WithDiff(diff bool) Option {
+	return func(c *CLI) {
+		c.diff = diff
 	}
 }
 

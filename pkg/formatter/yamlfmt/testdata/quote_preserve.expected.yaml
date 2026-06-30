@@ -1,0 +1,5 @@
+name: "my app"
+key: 'single quoted'
+plain: unquoted
+number: "42"
+url: "https://example.com"

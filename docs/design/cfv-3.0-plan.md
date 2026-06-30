@@ -3,8 +3,8 @@
 ## Current State — Resume Here
 
 **Branch**: `feat/3.0`
-**Last updated**: 2026-06-29
-**Next task**: Phase 2, Task 5 — YAML formatter
+**Last updated**: 2026-06-30
+**Next task**: Phase 2, Task 7 — TOML, ENV, INI, XML, Properties formatters
 
 ### What's done
 
@@ -17,15 +17,384 @@
 - Opus review done, 4 architectural issues fixed.
 
 **Phase 2 — In progress**
-- ✅ `Formatter` interface, `Options` struct, `IsFormatted` helper (`pkg/formatter/`)
+- ✅ `Formatter` interface, `Options` struct (with `QuoteStyle`), `IsFormatted` helper (`pkg/formatter/`)
 - ✅ `Report` struct refactored to v3: `Status` enum (Pass/Fail/Unformatted), `Issues []Issue`. All 5 reporters updated.
 - ✅ JSON formatter (`pkg/formatter/jsonfmt/`) — 11 fixture tests, idempotency, fuzz, all options
 - ✅ `cfv format .` wired — reports unformatted files with `~` symbol, exit 1
 - ✅ `cfv format --fix .` wired — atomic writes (temp + rename), exit 0
 - ✅ `Formatter` field added to `FileType`. Registered in `pkg/filetype/formatters.go`.
 - ✅ Parallel worker pool (`runtime.NumCPU()`) in `pkg/cli/format.go`
+- ✅ Code review fixes (Tasks 4.5.1–4.5.6, 4.5.9–4.5.11)
+- ✅ YAML formatter (`pkg/formatter/yamlfmt/`) — goccy/go-yaml, token-preserving AST
+- ✅ YAML sort-keys (depth-based `AddColumn` reindent, `SortStableFunc` on mapping values)
+- ✅ YAML quote-style (double/single/preserve on values only, keys untouched)
+- ✅ HCL formatter (`pkg/formatter/hclfmt/`) — hclwrite.Format wrapper
+- ✅ `.cfv.toml` `[format]` + `[format.<type>]` config parser with JSON Schema validation
+- ✅ CLI flags: `--indent`, `--use-tabs`, `--sort-keys`, `--no-sort-keys`, `--line-ending`, `--max-line-width`, `--quote-style`, `--diff`
+- ✅ Resolution cascade: CLI > per-format config > global config > format-specific defaults
+- ✅ `FormatOptionsFunc` — per-format options resolution in `cli.Format`
+- ✅ `--diff` flag — unified diff output via go-difflib
+- ✅ CLI flag validation (mutual exclusion, range checks, enum checks)
+- ✅ Library swap: `gopkg.in/yaml.v3` → `github.com/goccy/go-yaml` (formatter + validator + generator)
+- ✅ Output validation: fail-fast on unsupported YAML constructs
+- ✅ Stress tested: 17M fuzz executions, 1830-file smoke test, all edge cases handled
 
 ### What's next
+
+**Task 7**: TOML, ENV, INI, XML, Properties formatters
+
+Design needed before implementation (same lesson as YAML — prototype first):
+- TOML: evaluate `pelletier/go-toml/v2` unstable.Parser vs goccy-style token approach
+- ENV: custom line-oriented (simplest — key=value with comment preservation)
+- INI: `gopkg.in/ini.v1` or custom
+- XML: `go-xmlfmt/xmlfmt` (new dep, MIT, zero transitive)
+- Properties: `magiconair/properties` (already a dep)
+
+**Task 8**: Final stress test + Opus review
+
+### How to start the next session
+
+```
+cd /Users/se456c/src/github.com/boeing/config-file-validator
+git checkout feat/3.0
+go test ./cmd/cfv/ ./pkg/... # verify all green
+```
+
+Then say "let's keep going" — next task is Task 7 (remaining formatters).
+
+### Pipeline state
+
+```
+go vet ./...           ✅
+gofmt -s -l -e .       ✅
+golangci-lint run      ✅ 0 issues
+go test ./...          ✅ all pass
+fuzz (60s each)        ✅ 17M executions, 0 failures
+coverage               ~91%
+```
+
+### Release strategy
+
+v3 ships as release candidates while v2 continues receiving patches on main.
+
+```
+main         → v2.4.x patches (security, critical bugs like SARIF schema fix)
+feat/3.0     → v3.0.0-rc1, rc2, ... (community testing)
+```
+
+When v3.0.0 is ready:
+1. Tag `v3.0.0` on `feat/3.0`
+2. Merge `feat/3.0` → `main`
+3. Cut `v2` branch from last v2 tag for ongoing maintenance
+4. Homebrew/winget point to v3 as default
+
+Go modules make this seamless:
+- `go install .../v2/cmd/validator@latest` → still works, gets patches
+- `go install .../v3/cmd/cfv@v3.0.0-rc1` → opt-in RC testing
+- `@latest` never resolves to pre-release — safe for production
+
+No forced migration. Both versions alive simultaneously. RCs bake as long
+as needed — no pressure to rush.
+
+### Key decisions made this session
+
+1. **goccy/go-yaml over yaml.v3** — eliminates 4 yaml.v3 limitations (!!merge, folded joining, emoji quoting, comment instability). Token-preserving AST gives full control.
+2. **Depth-based reindent via AddColumn** — not column-ratio math. Correctly handles sequences nested in mappings.
+3. **Fail-fast on unsupported constructs** — pathological YAML (bare scalars, complex keys, null-as-key) gets a clear error, not silent corruption or silent passthrough.
+4. **Fuzz tests verify no-panic + valid-output** — not idempotency on arbitrary input. Idempotency is tested via fixtures on real config patterns.
+5. **Config cascade proven exhaustively** — 46-command txtar test covers every key × every layer.
+6. **Per-format defaults differ** — JSON defaults sort-keys=true, YAML defaults sort-keys=false. Cascade handles this correctly.
+7. **quote-style only affects values** — keys are never modified (prettier/yamlfmt convention).
+8. **--diff and --fix are mutually exclusive** — clear error if both provided.
+9. **editorconfig deferred to 3.1** — requires per-file resolution (not per-format), adds complexity to the cascade.
+10. **Summary line + pass suppression deferred to Phase 4** — needs a distinct reporter mode for `cfv .` vs `cfv check`.
+
+### Bugs found and fixed this session
+
+| Bug | Severity | Fix |
+|-----|----------|-----|
+| Parse errors reported as pass | High | formatFile returns nil for skip |
+| Hardcoded "run cfv format --fix" in library | Medium | Generic message |
+| Unnecessary mutex in worker pool | Low | Removed |
+| StatusUnformatted counted as Failed | Medium | Separate Unformatted counter |
+| JUnit drops unformatted files | Medium | Switch case added |
+| resolveConfig panics on nil schema fields | Medium | Nil-safe checks |
+| Config auto-discovery not wired to format resolver | High | Pass formatCfg through resolvedConfig |
+| --sort-keys/--no-sort-keys ordering | Medium | Mutually exclusive error |
+| --fix --diff silent ignore | Medium | Mutually exclusive error |
+| --indent out of range accepted | Medium | Range validation |
+| --line-ending=banana accepted | Medium | Enum validation |
+| --quote-style=banana accepted | Medium | Enum validation |
+| quote-style applied to keys | Medium | Key/value awareness in normalizeNode |
+| Multi-doc duplicate keys missed by validator | Medium | goccy parser catches all docs |
+| Document end marker dropped | Low | goccy preserves natively |
+| yaml.v3 !!merge tag injection | Medium | Eliminated by library swap |
+| yaml.v3 foot comment instability | High | Eliminated by library swap |
+| Flow-style mapping panic on AddColumn | High | Skip flow-style in reindent |
+| Stale known_files_gen.go in root dir | Low | Removed |
+
+### What's next
+
+**Task 4.5**: Code review fixes (prerequisite before YAML formatter)
+
+Addresses 11 issues from the 2026-06-30 deep review of Tasks 1–4. Ordered by
+dependency — later tasks assume earlier ones are done.
+
+---
+
+#### 4.5.1 — Fix parse-error-as-pass bug (format.go)
+
+**Problem**: When `formatter.Format()` returns an error (unparseable file) or
+`os.ReadFile()` fails (non-symlink), `formatFile` returns `StatusPass`. This
+inflates the pass count and hides broken files.
+
+**Fix**:
+- Introduce a sentinel: files the format pipeline cannot process should be
+  *excluded* from the report entirely (nil report or a `StatusSkipped` that the
+  caller filters out before sending to reporters).
+- Simplest approach: return a `reporter.Report` with a new field
+  `Skipped bool` — the `Format()` loop filters these out before building the
+  `reports` slice. This avoids adding a fourth Status value that all 5
+  reporters must handle.
+- For broken symlinks, keep the current `StatusFail` behavior (that's
+  actionable for the user).
+
+**Files**: `pkg/cli/format.go`
+
+**Tests**: Add a txtar test with an unparseable JSON file — `cfv format .`
+should not list it as ✓. Add a test with an unreadable file (chmod 000) —
+same expectation.
+
+---
+
+#### 4.5.2 — Extract normalizeLineEndings to shared package
+
+**Problem**: `normalizeLineEndings` is defined in `jsonfmt/json.go`. Every
+future formatter needs it.
+
+**Fix**:
+- Move to `pkg/formatter/lineendings.go` as an exported function:
+  `func NormalizeLineEndings(data []byte, ending LineEnding) []byte`
+- Update `jsonfmt` to call `formatter.NormalizeLineEndings(...)`.
+
+**Files**: `pkg/formatter/lineendings.go` (new), `pkg/formatter/jsonfmt/json.go`
+
+**Tests**: Unit test in `pkg/formatter/lineendings_test.go` covering LF
+pass-through, CRLF conversion, and already-CRLF input.
+
+---
+
+#### 4.5.3 — Remove hardcoded "run cfv format --fix" message from pkg/cli
+
+**Problem**: `pkg/cli/format.go` hardcodes
+`"needs formatting (run cfv format --fix to rewrite)"`. This couples the
+library to the CLI binary name. Library consumers get incorrect instructions.
+
+**Fix**:
+- Change the issue message to generic text: `"file is not formatted"`
+- Move the actionable hint to the *summary line* (Task 4.5.7) which is
+  emitted by the CLI entrypoint/reporter, not the engine.
+
+**Files**: `pkg/cli/format.go`
+
+**Tests**: Update any test that asserts on the old message string.
+
+---
+
+#### 4.5.4 — Remove unnecessary mutex in worker pool
+
+**Problem**: Each goroutine writes to `results[idx]` — a unique index. The
+mutex is pure overhead.
+
+**Fix**:
+- Remove `var mu sync.Mutex` and the `mu.Lock()`/`mu.Unlock()` calls.
+- Write directly: `results[idx] = r` (the slice is pre-allocated, never
+  resized; no two goroutines share an index).
+- Also remove the `idx` field from the `result` struct since we're already
+  indexing by position.
+
+**Files**: `pkg/cli/format.go`
+
+**Tests**: Existing tests + race detector (`go test -race ./pkg/cli/...`)
+confirm correctness.
+
+---
+
+#### 4.5.5 — Distinguish "unformatted" from "failed" in summary counts
+
+**Problem**: `createStdoutReport` counts `StatusUnformatted` under
+`Summary.Failed`. The plan says format issues are warnings, not errors. Users
+see "3 failed" when the real message should be "3 unformatted."
+
+**Fix**:
+- Add an `Unformatted int` field to the `summary` struct.
+- `StatusUnformatted` increments `Unformatted`, not `Failed`.
+- Update `PrintGroupStdout` summary line to include unformatted:
+  `"N succeeded, M failed, P unformatted"`
+- JSON reporter's summary object gets the same field.
+- When unformatted is 0, omit it from the line (backwards compat with check).
+
+**Files**: `pkg/reporter/stdout_reporter.go`, `pkg/reporter/json_reporter.go`,
+`pkg/reporter/reporter.go` (summary struct if it's shared)
+
+**Tests**: Update reporter tests and golden files to reflect the new summary
+shape.
+
+---
+
+#### 4.5.6 — Fix JUnit reporter for unformatted files
+
+**Problem**: JUnit only emits `TestcaseFailure` for `StatusFail`.
+`StatusUnformatted` files appear as passing test cases — contradicting the
+exit code.
+
+**Fix**:
+- When `Status == StatusUnformatted`, emit a `TestcaseFailure` with
+  `message="formatting"` (matching JUnit convention: test marked as failure).
+- Alternatively, emit as a JUnit "warning" attribute if the CI system
+  supports it — but most don't. Failure is the safe default.
+- Increment `testErrors` for unformatted files too.
+
+**Files**: `pkg/reporter/junit_reporter.go`
+
+**Tests**: Add a test case with `StatusUnformatted` reports and verify the
+JUnit XML contains a failure element.
+
+---
+
+#### 4.5.7 — Add summary line with fixable count
+
+**Problem**: No summary line like `Found N issues (M fixable with --fix)`.
+The plan and pitch both show this as a first-class feature.
+
+**Fix**:
+- After printing individual file reports in `createStdoutReport`, append a
+  summary line. Logic:
+  - Count total issues (errors + unformatted).
+  - All `IssueTypeFormat` issues are fixable with `--fix`.
+  - Emit: `"\nFound %d issues (%d fixable with --fix)\n"` when issues > 0.
+  - Emit: `"\n✓ %d files passed\n"` when zero issues.
+- Only emit when *not* in grouped mode and *not* quiet.
+- The summary line should be emitted by the stdout reporter only (JSON/SARIF
+  reporters have their own summary structure).
+
+**Files**: `pkg/reporter/stdout_reporter.go`
+
+**Tests**: Update stdout reporter tests and golden files.
+
+---
+
+#### 4.5.8 — Reduce noise: only show issues in format mode
+
+**Problem**: `cfv format .` sends every file (including passes) to the
+reporter. On a 500-file repo with 3 issues, 500 lines of output.
+
+**Fix**:
+- In `CLI.Format()`, before calling `printReports`, filter out `StatusPass`
+  reports. Only send `StatusUnformatted` and `StatusFail` reports to the
+  reporter pipeline.
+- The summary line (Task 4.5.7) handles the "X files passed" information.
+- The check subcommand (`CLI.Run()`) continues showing all files — that's
+  its existing behavior and users expect it.
+- Add a method or option to distinguish: `Format()` sets a flag indicating
+  "issues-only" mode that `printReports` respects, OR just filter inline
+  before the call.
+
+**Files**: `pkg/cli/format.go`
+
+**Tests**: txtar test: run `cfv format .` on a directory with 5 valid files
+and 1 unformatted file — output should show only the 1 unformatted file
+plus the summary line.
+
+---
+
+#### 4.5.9 — Decouple resolveConfig from schema fields for format subcommand
+
+**Problem**: `parseFormatFlags` creates dummy `emptyStr`/`falseVal` pointers
+for schema fields just so `resolveConfig` doesn't panic. This is a
+maintenance trap.
+
+**Fix**:
+- Extract the shared portion of `resolveConfig` into a helper:
+  `resolveBaseConfig(cfg *cfvConfig) (*resolvedConfig, error)` — handles
+  reporters, search paths, finder opts, config file, gitignore.
+- `resolveCheckConfig` adds schema-specific resolution on top.
+- `resolveFormatConfig` calls `resolveBaseConfig` directly — no schema
+  fields needed, no dummy pointers.
+- This removes the fake fields from `parseFormatFlags`.
+
+**Files**: `cmd/cfv/cfv.go`
+
+**Tests**: Existing tests should continue passing. Add a test that
+`parseFormatFlags` does not require schema-related flags at all.
+
+---
+
+#### 4.5.10 — Fix fuzz test validation mismatch (minor)
+
+**Problem**: The JSON formatter uses `json.Valid()` (accepts fragments like
+bare `true`, `42`, `"hello"`) but the fuzz test's `isValidJSON` uses
+`stdjson.Unmarshal` which has slightly different semantics.
+
+**Fix**:
+- Change `isValidJSON` to use `json.Valid()` for consistency with the
+  formatter. Or document why `Unmarshal` is intentionally stricter.
+
+**Files**: `pkg/formatter/jsonfmt/json_test.go`
+
+---
+
+#### 4.5.11 — Improve fixture option dispatch (minor, forward-looking)
+
+**Problem**: `TestFixtures` uses `if name == "tab_indent"` to select options.
+Won't scale to 10+ formatters.
+
+**Fix**:
+- Adopt a convention: if a file `testdata/<name>.opts.json` exists alongside
+  the `.input.*` file, parse it as `formatter.Options` override. Otherwise
+  use defaults.
+- Implement this in a shared test helper:
+  `func LoadFixtureOptions(name string) formatter.Options`
+- Update the JSON formatter test to use this helper. The `tab_indent` fixture
+  gets a `tab_indent.opts.json` sidecar:
+  ```json
+  {"IndentStyle": 2, "IndentWidth": 0}
+  ```
+  (where `2` = `IndentTabs` enum value)
+- Future formatters (YAML, TOML, etc.) inherit this pattern automatically.
+
+**Files**: `pkg/formatter/testutil_test.go` (new shared helper),
+`pkg/formatter/jsonfmt/json_test.go`,
+`pkg/formatter/jsonfmt/testdata/tab_indent.opts.json` (new)
+
+---
+
+### Execution order
+
+```
+4.5.1  ✅ (parse-error-as-pass)      — correctness bug, fixed
+4.5.2  ✅ (extract lineendings)      — shared helper for all formatters
+4.5.3  ✅ (hardcoded message)        — decoupled from binary name
+4.5.4  ✅ (remove mutex)             — trivial cleanup
+4.5.5  ✅ (summary counts)           — Unformatted tracked separately from Failed
+4.5.6  ✅ (JUnit unformatted)        — StatusUnformatted produces test failure
+4.5.7  DEFERRED → Phase 4           — summary line belongs with `cfv .` unified command
+4.5.8  DEFERRED → Phase 4           — noise reduction belongs with `cfv .` unified command
+4.5.9  🔲 (resolveConfig split)      — independent, lower priority
+4.5.10 🔲 (fuzz validation)          — trivial
+4.5.11 🔲 (fixture options)          — nice-to-have before YAML formatter
+```
+
+**Why 4.5.7 and 4.5.8 were deferred**: The summary line and pass-line
+suppression touch the shared `StdoutReporter` which is also used by
+`cfv check`. Changing `cfv check` output breaks v2 backward compatibility
+(17 txtar tests assert on individual ✓ lines). These features belong in
+Phase 4 when `cfv .` becomes the unified command with its own distinct
+output contract. Implementing them now required either (a) polluting the
+reporter with mode flags, or (b) breaking check's output. Neither is
+acceptable.
+
+---
 
 **Task 5**: YAML formatter (`pkg/formatter/yamlfmt/`)
 - Library: `gopkg.in/yaml.v3` Node API (already a dep, zero new deps)
@@ -34,15 +403,313 @@
 - Fixtures: ≥10 (indent width, block style, quote style, comment preservation, multi-doc)
 - After YAML: register in `formatters.go` switch, add `yaml` and `yml` cases
 
-**Task 6** (after YAML): TOML, HCL, ENV, INI, XML, Properties formatters
-- TOML: `pelletier/go-toml/v2` `unstable.Parser{KeepComments: true}`
-- HCL: `hclwrite.Format(src)` — literally one call
+**Task 5.5**: YAML formatter review fixes (8 items from 2026-06-30 deep review)
+
+---
+
+#### 5.5.1 — Fix multi-doc validation (silent data loss bug)
+
+**Problem**: `yaml.Unmarshal` only validates the first document. If the second
+document has a syntax error, the Decoder loop `break`s silently, and the
+formatter returns only the valid documents — dropping the broken one without
+any error.
+
+Example: `"---\na: 1\n---\n{broken"` returns `"---\na: 1\n"` — silent data loss.
+
+**Fix**:
+- After the decode loop, capture the error from `dec.Decode`:
+  ```go
+  var decErr error
+  for {
+      var n yaml.Node
+      if err := dec.Decode(&n); err != nil {
+          decErr = err
+          break
+      }
+      docs = append(docs, &n)
+  }
+  ```
+- After the loop, if `decErr != io.EOF` (i.e., it was a real error, not
+  end-of-stream), return it:
+  ```go
+  if decErr != nil && !errors.Is(decErr, io.EOF) {
+      return nil, errors.New("yaml: " + decErr.Error())
+  }
+  ```
+- The initial `yaml.Unmarshal` call stays — it catches duplicate keys that
+  the Node decoder ignores. Add a comment explaining this.
+
+**Files**: `pkg/formatter/yamlfmt/yaml.go`
+
+**Tests**:
+- Add case to `TestInvalidYAMLReturnsError`:
+  `{"second doc broken", "---\na: 1\n---\n{broken"}`
+- Add case: `{"third doc broken", "---\na: 1\n---\nb: 2\n---\n@ bad\n"}`
+- Verify both return errors, not partial output.
+
+---
+
+#### 5.5.2 — Fix normalizeNode doc comment (lies about behavior)
+
+**Problem**: Comment says "Removes TaggedStyle from scalars with standard
+types" but the function body is a no-op stub.
+
+**Fix**: Replace the doc comment with:
+```go
+// normalizeNode walks a yaml.Node tree. Currently a no-op — style
+// normalisations (QuoteStyle conversion, flow→block expansion) will be
+// added here as the corresponding Options fields are implemented.
+```
+
+**Files**: `pkg/formatter/yamlfmt/yaml.go`
+
+**Tests**: None needed — comment-only change.
+
+---
+
+#### 5.5.3 — Fix Format doc comment (references non-existent QuoteStyle)
+
+**Problem**: Line 49 says "Flow style: converted to block when
+opts.QuoteStyle triggers it" — `Options` has no `QuoteStyle` field.
+
+**Fix**: Replace that bullet with:
+```
+//   - Flow style: preserved (block conversion planned for a future option)
+```
+
+**Files**: `pkg/formatter/yamlfmt/yaml.go`
+
+**Tests**: None needed — comment-only change.
+
+---
+
+#### 5.5.4 — Clarify why Unmarshal is needed alongside Decoder
+
+**Problem**: The code validates with both `yaml.Unmarshal` and
+`yaml.NewDecoder`. It's unclear why both exist.
+
+**Fix**: Add a comment above the Unmarshal call:
+```go
+// Unmarshal into 'any' catches errors the Node decoder silently ignores,
+// specifically duplicate mapping keys (yaml.v3's Decoder into *Node keeps
+// both keys without error).
+```
+
+**Files**: `pkg/formatter/yamlfmt/yaml.go`
+
+**Tests**: Add a test proving this behavior:
+```go
+func TestDuplicateKeysRejected(t *testing.T) {
+    src := []byte("a: 1\na: 2\n")
+    _, err := f.Format(src, defaultOpts)
+    require.Error(t, err)
+    require.Contains(t, err.Error(), "already defined")
+}
+```
+
+---
+
+#### 5.5.5 — Document !!merge tag behavior
+
+**Problem**: The yaml.v3 encoder adds `!!merge` to `<<:` merge keys. This is
+a semantic no-op but changes the serialized form. Users who diff after
+formatting will see unexpected changes.
+
+**Fix**: Add a note to the package doc comment:
+```
+// Known behaviors of the yaml.v3 encoder:
+//   - Merge keys (<<: *anchor) gain an explicit !!merge tag in output.
+//     This is semantically equivalent and idempotent.
+```
+
+Also add a brief comment in the anchors fixture test:
+```go
+// Note: yaml.v3 adds !!merge to << keys — this is expected and idempotent.
+```
+
+**Files**: `pkg/formatter/yamlfmt/yaml.go` (package doc),
+`pkg/formatter/yamlfmt/yaml_test.go` (comment on anchors test, or in fixture)
+
+**Tests**: The anchors fixture already verifies this (expected file has
+`!!merge`). No additional test needed.
+
+---
+
+#### 5.5.6 — Document folded scalar joining behavior
+
+**Problem**: The encoder canonicalises multi-line folded blocks (`>`) into
+fewer lines. `"long\ndescription\nthat spans"` becomes a single long line.
+This is spec-correct but changes visual layout.
+
+**Fix**: Add to the package doc:
+```
+//   - Folded scalars (>) are canonicalised: the encoder joins lines per
+//     the YAML folding rules, which may reduce line count.
+```
+
+Also add a comment in the multiline fixture expected file or test explaining
+this is intentional.
+
+**Files**: `pkg/formatter/yamlfmt/yaml.go` (package doc)
+
+**Tests**: The multiline fixture already covers this. Add a brief comment in
+`TestFixtures` isn't needed — the fixture name and expected file are
+self-documenting.
+
+---
+
+#### 5.5.7 — Add FinalNewline=false test
+
+**Problem**: No test verifies that `FinalNewline: false` strips the trailing
+newline from YAML output.
+
+**Fix**: Add:
+```go
+func TestFinalNewlineFalse(t *testing.T) {
+    t.Parallel()
+    src := []byte("a: 1\nb: 2\n")
+    opts := defaultOpts
+    opts.FinalNewline = false
+
+    got, err := f.Format(src, opts)
+    require.NoError(t, err)
+    require.NotEqual(t, byte('\n'), got[len(got)-1],
+        "expected no trailing newline, got: %q", got)
+}
+```
+
+**Files**: `pkg/formatter/yamlfmt/yaml_test.go`
+
+---
+
+#### 5.5.8 — Fix idempotency test to use fixture-specific options
+
+**Problem**: `TestIdempotency` formats all `.expected.yaml` files with
+`defaultOpts` (2-space indent). For `indent_4.expected.yaml` (4-space),
+the first format pass changes it to 2-space. The test still "passes"
+(result is idempotent under defaults) but it doesn't verify the intended
+contract: "the expected file is a fixed point under its own options."
+
+**Fix**: Load the `.opts.json` sidecar for each fixture (if it exists) and
+use those options for the idempotency check:
+
+```go
+func TestIdempotency(t *testing.T) {
+    t.Parallel()
+    expected, err := filepath.Glob("testdata/*.expected.yaml")
+    require.NoError(t, err)
+    require.NotEmpty(t, expected)
+
+    for _, file := range expected {
+        name := filepath.Base(file)
+        t.Run(name, func(t *testing.T) {
+            t.Parallel()
+            src, err := os.ReadFile(file)
+            require.NoError(t, err)
+
+            // Use fixture-specific options when available.
+            baseName := strings.TrimSuffix(name, ".expected.yaml")
+            optsFile := "testdata/" + baseName + ".opts.json"
+            opts := formatter.LoadFixtureOptions(optsFile, defaultOpts)
+
+            first, err := f.Format(src, opts)
+            require.NoError(t, err)
+            second, err := f.Format(first, opts)
+            require.NoError(t, err)
+
+            require.Equal(t, string(first), string(second),
+                "Format is not idempotent for %s", name)
+        })
+    }
+}
+```
+
+This also validates that `indent_4.expected.yaml` is idempotent under
+`IndentWidth: 4` — a stronger property.
+
+**Files**: `pkg/formatter/yamlfmt/yaml_test.go`
+
+---
+
+### Execution order
+
+```
+5.5.1  (multi-doc validation)     — correctness bug, fix first
+5.5.4  (duplicate keys comment)   — pairs with 5.5.1 (same area of code)
+5.5.8  (idempotency test fix)     — test correctness, do before running tests
+5.5.7  (FinalNewline test)        — one-liner
+5.5.2  (normalizeNode comment)    — trivial
+5.5.3  (Format comment)           — trivial
+5.5.5  (!!merge docs)             — comment-only
+5.5.6  (folded docs)              — comment-only
+```
+
+Estimated effort: Single session, ~30 minutes. All changes are in two files.
+
+After all 8 fixes: run full pipeline, verify tests pass, proceed to Task 6.
+
+**Task 6** (REVISED): Full vertical slice — config + CLI flags for JSON/YAML/HCL
+
+Prove the entire stack works end-to-end on the 3 formatters we have before
+adding more. This catches architectural issues early — better to fix the
+Options struct, config resolution, or CLI ergonomics with 3 formatters than 8.
+
+Also includes competitive-parity features pulled forward from 3.1:
+- YAML sort-keys (walker in normalizeNode)
+- quote-style option (double/single/preserve for YAML)
+- --diff flag (unified diff output)
+- .editorconfig integration (new resolution layer)
+
+Hard constraint: the config file uses **cfv's vocabulary**, not library
+internals. Users write `indent = 4`, not `SetIndent = 4`. The config keys
+are the same for every format:
+
+```toml
+[format]
+indent = 2              # applies to all formats
+use-tabs = false
+trailing-newline = true
+sort-keys = false
+line-ending = "lf"      # "lf" | "crlf"
+quote-style = "preserve" # "double" | "single" | "preserve"
+
+[format.json]
+sort-keys = true        # override for JSON only
+
+[format.yaml]
+indent = 4              # override for YAML only
+quote-style = "double"
+
+[format.hcl]
+# no options — canonical style, section accepted but empty
+```
+
+Resolution order: CLI flags > `[format.<type>]` > `[format]` > .editorconfig > hardcoded defaults.
+
+Subtasks:
+1. `[format]` section in `.cfv.toml` parser (global defaults)
+2. `[format.json]`, `[format.yaml]` per-format overrides in parser
+3. CLI flags: `--indent`, `--sort-keys`, `--line-ending` on `cfv format`
+4. Resolution wiring: CLI flags > `[format.<type>]` > `[format]` > defaults
+5. Schema validation of the `[format]` config (reject unknown keys)
+6. Tests: txtar tests proving config file overrides, CLI flag overrides
+7. Manual smoke test: demo repo with JSON + YAML + HCL, `.cfv.toml` with
+   per-format overrides, verify output is correct
+
+After this task: we have a **shippable product** for JSON/YAML/HCL with full
+user configurability. Lessons learned here inform the remaining formatters.
+
+**Task 7** (was Task 6): TOML, ENV, INI, XML, Properties formatters
+
+Only start after Task 6 proves the config/CLI/Options architecture is solid.
+Each formatter plugs into the same Options struct and config resolution — no
+per-formatter config plumbing needed.
+
+- TOML: `pelletier/go-toml/v2` unstable.Parser with KeepComments
 - ENV: custom line-oriented formatter
 - INI: `gopkg.in/ini.v1`
-- XML: `go-xmlfmt/xmlfmt` (new dep, MIT, zero transitive)
+- XML: `go-xmlfmt/xmlfmt` (new dep)
 - Properties: `magiconair/properties` (already a dep)
-
-**Task 7**: `[format]` config section in `.cfv.toml`
 
 **Task 8**: Stress test + Opus review
 
@@ -54,7 +721,7 @@ git checkout feat/3.0
 go test ./... # verify all green
 ```
 
-Then say "let's keep going" — next task is the YAML formatter.
+Then say "let's keep going" — next task is Task 6 (full vertical slice: .cfv.toml [format] + CLI flags + resolution wiring for JSON/YAML/HCL).
 
 ### Pipeline state
 

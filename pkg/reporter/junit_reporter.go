@@ -190,13 +190,23 @@ func (jr JunitReporter) Print(reports []Report) error {
 			filePath = strings.ReplaceAll(filePath, "\\", "/")
 		}
 		tc := Testcase{Name: fmt.Sprintf("%s validation", filePath), File: filePath, ClassName: "config-file-validator"}
-		if r.Status == StatusFail {
+		switch r.Status {
+		case StatusFail:
 			testErrors++
 			var escapedErrors []string
 			for _, issue := range r.Issues {
 				escapedErrors = append(escapedErrors, escapeString(formatIssueMessage(issue)))
 			}
 			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: strings.Join(escapedErrors, "\n")}}
+		case StatusUnformatted:
+			testErrors++
+			var escapedIssues []string
+			for _, issue := range r.Issues {
+				escapedIssues = append(escapedIssues, escapeString(issue.Message))
+			}
+			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: strings.Join(escapedIssues, "\n")}}
+		default:
+			// StatusPass — no failure element
 		}
 		testcases = append(testcases, tc)
 	}

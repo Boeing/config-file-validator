@@ -1192,3 +1192,17 @@ func Test_JustfileValidateValid(t *testing.T) {
 	require.True(t, valid)
 	require.NoError(t, err)
 }
+
+func Test_XMLValidatorValidateXSDMethod(t *testing.T) {
+	t.Parallel()
+	xsdFile := writeTestXSD(t)
+	xml := `<?xml version="1.0"?>
+<config>
+  <host>db.example.com</host>
+  <port>5432</port>
+</config>`
+	v := XMLValidator{}
+	valid, err := v.ValidateXSD([]byte(xml), xsdFile)
+	require.True(t, valid)
+	require.NoError(t, err)
+}

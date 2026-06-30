@@ -1,0 +1,9 @@
+name: app
+version: "1.0.0"
+server:
+  host: localhost
+  port: 8080
+features:
+  - auth
+  - logging
+  - metrics

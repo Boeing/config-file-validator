@@ -1,0 +1,8 @@
+script: |
+    #!/bin/bash
+    echo "hello"
+    exit 0
+description: >
+    This is a long description
+    that spans multiple lines
+    and should be folded.

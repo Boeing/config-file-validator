@@ -437,3 +437,17 @@ func TestResolveExtensionlessDotfileNoMatch(t *testing.T) {
 	_, found := store.Resolve("/project/.eslintrc")
 	require.False(t, found)
 }
+
+func TestDefaultCacheDirXDG(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", "/custom/cache")
+	dir, err := defaultCacheDir()
+	require.NoError(t, err)
+	require.Equal(t, "/custom/cache/cfv/schemas", dir)
+}
+
+func TestDefaultCacheDirFallbackToHome(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", "")
+	dir, err := defaultCacheDir()
+	require.NoError(t, err)
+	require.Contains(t, dir, ".cache/cfv/schemas")
+}

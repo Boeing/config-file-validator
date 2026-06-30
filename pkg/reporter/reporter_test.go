@@ -157,6 +157,34 @@ func Test_junitReport(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_junitReportUnformatted(t *testing.T) {
+	unformattedReport := Report{
+		FileName: "messy.json",
+		FilePath: "/fake/path/messy.json",
+		Status:   StatusUnformatted,
+		Issues: []Issue{{
+			Type:    IssueTypeFormat,
+			Message: "file is not formatted",
+		}},
+	}
+
+	var buf strings.Builder
+	captured, err := captureStdout(t, func() error {
+		return (JunitReporter{}).Print([]Report{validReport, unformattedReport})
+	})
+	require.NoError(t, err)
+	buf.WriteString(captured)
+
+	output := buf.String()
+	// Both files should appear in the JUnit XML.
+	require.Contains(t, output, "/fake/path/good.xml")
+	require.Contains(t, output, "/fake/path/messy.json")
+	// The unformatted file must produce a failure element so CI sees it as a failure.
+	require.Contains(t, output, "file is not formatted")
+	// errors count should be 1 (only the unformatted file).
+	require.Contains(t, output, `errors="1"`)
+}
+
 func Test_junitGetReport(t *testing.T) {
 	// Property with TextValue should fail
 	prop1 := Property{Name: "property1", Value: "value", TextValue: "text value"}
@@ -634,4 +662,110 @@ func Test_checkGroupsForPassFail(t *testing.T) {
 	require.True(t, checkGroupsForPassFail("xml", "directory"))
 	require.False(t, checkGroupsForPassFail("Passed"))
 	require.False(t, checkGroupsForPassFail("xml", "Failed"))
+}
+
+// --- formatIssueMessage + issueTypeLabel unit tests ---
+
+func Test_formatIssueMessage(t *testing.T) {
+	cases := []struct {
+		name  string
+		issue Issue
+		want  string
+	}{
+		{"syntax line+col", Issue{Type: IssueTypeSyntax, Line: 5, Column: 10, Message: "bad token"}, "syntax: line 5, column 10: bad token"},
+		{"schema line only", Issue{Type: IssueTypeSchema, Line: 3, Message: "wrong type"}, "schema: line 3: wrong type"},
+		{"format no position", Issue{Type: IssueTypeFormat, Message: "needs indent"}, "format: needs indent"},
+		{"unknown type no position", Issue{Type: IssueType(99), Message: "oops"}, "error: oops"},
+		{"format with line", Issue{Type: IssueTypeFormat, Line: 7, Message: "bad spacing"}, "format: line 7: bad spacing"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatIssueMessage(tc.issue)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func Test_issueTypeLabel(t *testing.T) {
+	assert.Equal(t, "syntax", issueTypeLabel(IssueTypeSyntax))
+	assert.Equal(t, "schema", issueTypeLabel(IssueTypeSchema))
+	assert.Equal(t, "format", issueTypeLabel(IssueTypeFormat))
+	assert.Equal(t, "error", issueTypeLabel(IssueType(99)))
+}
+
+func Test_stdoutReportWithUnformatted(t *testing.T) {
+	reports := []Report{
+		{FilePath: "/path/good.yaml", Status: StatusPass},
+		{FilePath: "/path/messy.json", Status: StatusUnformatted,
+			Issues: []Issue{{Type: IssueTypeFormat, Message: "needs formatting"}}},
+	}
+	output, err := captureStdout(t, func() error {
+		return NewStdoutReporter("").Print(reports)
+	})
+	require.NoError(t, err)
+	assert.Contains(t, output, "✓")
+	assert.Contains(t, output, "~")
+	assert.Contains(t, output, "messy.json")
+	assert.Contains(t, output, "not formatted")
+}
+
+func Test_unformattedSuffix(t *testing.T) {
+	assert.Empty(t, unformattedSuffix(0))
+	assert.Equal(t, ", 3 unformatted", unformattedSuffix(3))
+}
+
+func Test_HasErrors(t *testing.T) {
+	assert.True(t, Report{Status: StatusFail}.HasErrors())
+	assert.False(t, Report{Status: StatusPass}.HasErrors())
+	assert.False(t, Report{Status: StatusUnformatted}.HasErrors())
+}
+
+func Test_jsonReportUnformatted(t *testing.T) {
+	reports := []Report{
+		{FilePath: "/path/messy.json", Status: StatusUnformatted,
+			Issues: []Issue{{Type: IssueTypeFormat, Message: "needs formatting"}}},
+		{FilePath: "/path/good.json", Status: StatusPass},
+	}
+	output, err := captureStdout(t, func() error {
+		return (&JSONReporter{}).Print(reports)
+	})
+	require.NoError(t, err)
+	assert.Contains(t, output, `"status": "unformatted"`)
+	assert.Contains(t, output, `"unformatted": 1`)
+	assert.Contains(t, output, `"passed": 1`)
+}
+
+func Test_githubReporterQuiet(t *testing.T) {
+	reports := []Report{{FilePath: "a.json", Status: StatusPass, IsQuiet: true}}
+	output, err := captureStdout(t, func() error {
+		return NewGitHubReporter("").Print(reports)
+	})
+	require.NoError(t, err)
+	assert.Empty(t, output)
+}
+
+func Test_githubReporterEmpty(t *testing.T) {
+	output, err := captureStdout(t, func() error {
+		return NewGitHubReporter("").Print([]Report{})
+	})
+	require.NoError(t, err)
+	assert.Empty(t, output)
+}
+
+func Test_loadMergedSARIFRunsBadDirectory(t *testing.T) {
+	_, err := loadMergedSARIFRuns(SARIFMergeConfig{Directory: "/nonexistent/path"})
+	require.Error(t, err)
+}
+
+func Test_loadMergedSARIFRunsBadFile(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.sarif"), []byte("not json"), 0o600))
+	_, err := loadMergedSARIFRuns(SARIFMergeConfig{Files: []string{filepath.Join(dir, "bad.sarif")}})
+	require.Error(t, err)
+}
+
+func Test_loadMergedSARIFRunsEmptyConfig(t *testing.T) {
+	runs, err := loadMergedSARIFRuns(SARIFMergeConfig{})
+	require.NoError(t, err)
+	require.Empty(t, runs)
 }
