@@ -963,35 +963,21 @@ benchstat main.bench.txt bench.txt
 
 ---
 
-## Detailed Specs
+## Decisions
 
-These specs define the exact behavior for each subsystem. Implementers should follow these — they resolve the ambiguities in the plan above.
-
-| Spec | Covers |
-|------|--------|
-| [CLI Architecture](specs/cli-architecture.md) | Subcommand routing, flag model, dispatch algorithm, exit codes, stdin, error messages |
-| [Formatter Engine](specs/formatter-engine.md) | Interface, options, diff format, file write strategy, concurrency, idempotency contract |
-| [Fixer Engine](specs/fixer-engine.md) | Edit model, fix application algorithm, schema info flow, rule registry, execution order |
-| [Reporter Integration](specs/reporter-integration.md) | New Report/Issue structs, output formats (stdout/JSON/SARIF/JUnit/GitHub), fix info in reports |
-| [Config Resolution](specs/config-resolution.md) | Merge order, per-format overrides, schema validation, env vars, rule ID registry |
-
----
-
-## Decisions (resolved in specs)
-
-1. **EditorConfig**: No. `.cfv.toml` is the single source of truth. (Config spec §1)
-2. **Parallel formatting**: Yes. Worker pool at `runtime.NumCPU()`. (Formatter spec §Concurrency)
-3. **Fix loop**: Single-pass (biome-style), not multi-pass (eslint-style). (Fixer spec §Design Principles)
-4. **Format issues severity**: Warning, not error. Files with only format issues are "valid." (Reporter spec §Data Model)
-5. **Arg parsing library**: Stay with `flag`. Thin subcommand router, no new deps. (CLI spec §Overview)
-6. **Default behavior of `cfv format .`**: Report-only (no write). Matches biome. (CLI spec §Subcommands)
-7. **Unknown config keys**: Error. (Config spec §2: Strict validation)
-8. **Formatter interface**: Single `Format()` method. `IsFormatted` = byte equality. No separate method. (Formatter spec §Interface)
-9. **Fixer position model**: Byte-range edits (like eslint/ruff), not AST reconstruction. (Fixer spec §Data Structures)
-10. **Schema fixes get byte positions**: SchemaErrors enhanced to carry byte offsets via FixContext. (Fixer spec §FixContext)
-11. **Comment preservation**: Non-negotiable. Every formatter MUST preserve comments. If a library's decode→encode drops comments, build a token-level or line-oriented formatter instead. For TOML: use `unstable.Parser{KeepComments: true}` from `pelletier/go-toml/v2` (already a dep). For YAML: use `gopkg.in/yaml.v3` Node API (already a dep). No format will ever drop user comments.
-12. **Binary name**: `cfv`. No conflicts on Homebrew (our primary channel). PyPI/npm have unrelated packages with the name but different ecosystems, no real collision.
-13. **YAML formatter library**: `gopkg.in/yaml.v3` Node API. Already a dependency. Decode into `*yaml.Node`, walk the tree to normalize style, encode back. Comments preserved natively via HeadComment/LineComment/FootComment fields. No new dependency needed — `goccy/go-yaml` rejected.
+1. **EditorConfig**: No. `.cfv.toml` is the single source of truth.
+2. **Parallel formatting**: Yes. Worker pool at `runtime.NumCPU()`.
+3. **Fix loop**: Single-pass (biome-style), not multi-pass (eslint-style).
+4. **Format issues severity**: Warning, not error. Files with only format issues are "valid."
+5. **Arg parsing library**: Stay with `flag`. Thin subcommand router, no new deps.
+6. **Default behavior of `cfv format .`**: Report-only (no write). Matches biome.
+7. **Unknown config keys**: Error. A config validator must not silently accept bad config.
+8. **Formatter interface**: Single `Format(src []byte, opts Options) ([]byte, error)` method. `IsFormatted` = byte equality comparison. No separate method.
+9. **Fixer position model**: Byte-range text edits (like eslint/ruff), not AST reconstruction.
+10. **Schema fixes get byte positions**: SchemaErrors enhanced to carry byte offsets so the fixer can locate values precisely.
+11. **Comment preservation**: Non-negotiable. Every formatter MUST preserve comments. For TOML: use `unstable.Parser{KeepComments: true}` from `pelletier/go-toml/v2` (already a dep). For YAML: use `gopkg.in/yaml.v3` Node API (already a dep, comments preserved via HeadComment/LineComment/FootComment fields). No format will ever drop user comments.
+12. **Binary name**: `cfv`. No conflicts on Homebrew.
+13. **YAML formatter library**: `gopkg.in/yaml.v3` Node API. Zero new deps.
 
 ---
 
