@@ -36,7 +36,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"maps"
 	"os"
 	"path/filepath"
@@ -56,13 +55,12 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
-// flagSet is the active FlagSet for the current subcommand. Kept as a package
-// var so isFlagSet() and cleanString() can reference it without threading it
-// through every call.
-var flagSet *flag.FlagSet
-
 // cfvConfig holds all resolved flag values for the check subcommand.
 type cfvConfig struct {
+	// fs is the FlagSet used to parse this config. Kept here so isFlagSet
+	// and cleanString can be methods on cfvConfig rather than using a
+	// package-level var (which would break when multiple subcommands run).
+	fs               *flag.FlagSet
 	searchPaths      []string
 	excludeDirs      *string
 	excludeFileTypes *string
@@ -171,39 +169,64 @@ var fileTypeFamilies = [][]string{
 func mainInit() int {
 	args := os.Args[1:]
 
-	// No arguments: run check on current directory.
+	// Phase 1: parse global flags. Only --version and --help live here.
+	// All other flags belong to the subcommand FlagSet.
+	globalFS := flag.NewFlagSet("cfv", flag.ContinueOnError)
+	globalFS.Usage = printUsage
+	versionFlag := globalFS.Bool("version", false, "Print the version and exit.")
+	// Suppress the default error output — we handle it below.
+	globalFS.SetOutput(io.Discard)
+
+	// Parse only until the first non-flag argument (the subcommand or a path).
+	// flag.ContinueOnError means unknown flags return an error rather than exiting,
+	// which lets us forward unrecognised flags to the subcommand FlagSet.
+	_ = globalFS.Parse(args)
+	remaining := globalFS.Args()
+
+	if *versionFlag {
+		fmt.Println(configfilevalidator.GetVersion())
+		return 0
+	}
+
+	// No arguments at all: run check on current directory.
 	if len(args) == 0 {
 		return runCheck(args)
 	}
 
-	// Peek at the first token to detect subcommands. Flags start with "-" and
-	// are parsed by the subcommand handler, not here.
-	switch args[0] {
-	case "check":
-		return runCheck(args[1:])
-	case "format":
-		return runFormat(args[1:])
-	case "version":
-		fmt.Println(configfilevalidator.GetVersion())
-		return 0
-	case "help":
-		if len(args) > 1 {
-			switch args[1] {
-			case "check":
-				printCheckUsage()
-				return 0
-			case "format":
-				printFormatUsage()
-				return 0
+	// Phase 2: detect subcommand from the first non-flag token.
+	// If global flag parsing consumed everything, remaining is empty —
+	// treat that as a bare check too.
+	subArgs := remaining
+	if len(remaining) > 0 {
+		switch remaining[0] {
+		case "check":
+			return runCheck(remaining[1:])
+		case "format":
+			return runFormat(remaining[1:])
+		case "version":
+			fmt.Println(configfilevalidator.GetVersion())
+			return 0
+		case "help":
+			if len(remaining) > 1 {
+				switch remaining[1] {
+				case "check":
+					printCheckUsage()
+					return 0
+				case "format":
+					printFormatUsage()
+					return 0
+				}
 			}
+			printUsage()
+			return 0
 		}
-		printUsage()
-		return 0
-	default:
-		// Not a known subcommand — treat everything as args to check (bare invocation).
-		// This is the migration-friendly path: "cfv ." works without a subcommand.
-		return runCheck(args)
+		// Not a known subcommand — treat the full original args as a bare
+		// check invocation so flags like --reporter still work.
+		subArgs = args
 	}
+
+	// Bare invocation: cfv [flags] [paths] with no subcommand keyword.
+	return runCheck(subArgs)
 }
 
 func main() {
@@ -246,9 +269,9 @@ func printCheckUsage() {
 	fmt.Println("  XML:   <!DOCTYPE> with inline DTD (validated during syntax check)")
 	fmt.Println()
 	fmt.Println("flags:")
-	if flagSet != nil {
-		flagSet.PrintDefaults()
-	}
+	// Flag defaults are printed by the subcommand's FlagSet after parsing.
+	// When called from --help during flag parsing, the FlagSet prints defaults
+	// to its own output automatically; this branch handles the cfv help check case.
 }
 
 func printFormatUsage() {
@@ -278,22 +301,22 @@ func runCheck(args []string) int {
 
 	resolved, err := resolveConfig(&cfg)
 	if err != nil {
-		log.Printf("An error occurred: %v", err)
+		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
 		return 2
 	}
 
 	c := buildCLI(resolved)
 	exitStatus, err := c.Run()
 	if err != nil {
-		log.Printf("An error occurred during CLI execution: %v", err)
+		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
 	}
 	return exitStatus
 }
 
 // parseCheckFlags registers and parses all flags for the check subcommand.
 func parseCheckFlags(args []string) (cfvConfig, error) {
-	flagSet = flag.NewFlagSet("cfv check", flag.ContinueOnError)
-	flagSet.Usage = printCheckUsage
+	fs := flag.NewFlagSet("cfv check", flag.ContinueOnError)
+	fs.Usage = printCheckUsage
 
 	reporterConfigFlags := reporterFlags{}
 	typeMapConfigFlags := typeMapFlags{}
@@ -302,84 +325,85 @@ func parseCheckFlags(args []string) (cfvConfig, error) {
 	ignoreFileConfigFlags := ignoreFileFlags{}
 
 	var (
-		depthPtr         = flagSet.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
-		excludeDirsPtr   = flagSet.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
-		excludeTypesPtr  = flagSet.String("exclude-file-types", "", "A comma separated list of file types to ignore")
-		fileTypesPtr     = flagSet.String("file-types", "", "A comma separated list of file types to validate")
-		groupOutputPtr   = flagSet.String("groupby", "", "Group output by filetype, directory, pass-fail, error-type. Supported for Standard and JSON reports")
-		quietPtr         = flagSet.Bool("quiet", false, "If quiet flag is set, no output is printed to stdout")
-		globbingPtr      = flagSet.Bool("globbing", false, "Enable glob pattern matching for search paths")
-		requireSchemaPtr = flagSet.Bool("require-schema", false,
+		depthPtr         = fs.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
+		excludeDirsPtr   = fs.String("exclude-dirs", "", "Subdirectories to exclude when searching for configuration files")
+		excludeTypesPtr  = fs.String("exclude-file-types", "", "A comma separated list of file types to ignore")
+		fileTypesPtr     = fs.String("file-types", "", "A comma separated list of file types to validate")
+		groupOutputPtr   = fs.String("groupby", "", "Group output by filetype, directory, pass-fail, error-type. Supported for Standard and JSON reports")
+		quietPtr         = fs.Bool("quiet", false, "If quiet flag is set, no output is printed to stdout")
+		globbingPtr      = fs.Bool("globbing", false, "Enable glob pattern matching for search paths")
+		requireSchemaPtr = fs.Bool("require-schema", false,
 			"Fail validation if a file supports schema validation but does not declare a schema.\n"+
 				"Supported types: JSON ($schema property), YAML (yaml-language-server comment),\n"+
 				"TOML ($schema key), TOON (\"$schema\" key), XML (xsi:noNamespaceSchemaLocation).\n"+
 				"Cannot be used with --no-schema.")
-		noSchemaPtr = flagSet.Bool("no-schema", false,
+		noSchemaPtr = fs.Bool("no-schema", false,
 			"Disable all schema validation. Only syntax is checked.\n"+
 				"Cannot be used with --require-schema, --schema-map, or --schemastore.")
-		schemaStorePtr = flagSet.Bool("schemastore", false,
+		schemaStorePtr = fs.Bool("schemastore", false,
 			"Enable automatic schema lookup by filename using the SchemaStore catalog.")
-		schemaStorePathPtr = flagSet.String("schemastore-path", "",
+		schemaStorePathPtr = fs.String("schemastore-path", "",
 			"Path to a local SchemaStore clone. Implies --schemastore.")
-		configPathPtr = flagSet.String("config", "",
+		configPathPtr = fs.String("config", "",
 			"Path to a .cfv.toml configuration file.\n"+
 				"If not specified, searches for .cfv.toml in the current and parent directories.")
-		noConfigPtr = flagSet.Bool("no-config", false,
+		noConfigPtr = fs.Bool("no-config", false,
 			"Disable automatic discovery of .cfv.toml configuration files.")
-		gitignorePtr = flagSet.Bool("gitignore", false,
+		gitignorePtr = fs.Bool("gitignore", false,
 			"Skip files and directories matched by .gitignore patterns.")
-		mergeSarifDirPtr = flagSet.String("merge-sarif-dir", "",
+		mergeSarifDirPtr = fs.String("merge-sarif-dir", "",
 			"Directory tree containing SARIF files to merge into SARIF output. Requires --reporter=sarif.")
 		// Phase 1: --fix and --unsafe are reserved. No-op until Phase 4.
-		fixPtr    = flagSet.Bool("fix", false, "Apply safe fixes automatically [not yet implemented]")
-		unsafePtr = flagSet.Bool("unsafe", false, "Apply unsafe fixes (requires --fix) [not yet implemented]")
+		fixPtr    = fs.Bool("fix", false, "Apply safe fixes automatically [not yet implemented]")
+		unsafePtr = fs.Bool("unsafe", false, "Apply unsafe fixes (requires --fix) [not yet implemented]")
 	)
 
-	flagSet.Var(&reporterConfigFlags, "reporter",
+	fs.Var(&reporterConfigFlags, "reporter",
 		"Report format and optional output path.\n"+
 			"Format: <type>:<path>  Example: --reporter json:results.json\n"+
 			"Supported: standard, json, junit, sarif, github (default: standard)\n"+
 			"Multiple reporters can be specified.")
-	flagSet.Var(&typeMapConfigFlags, "type-map",
+	fs.Var(&typeMapConfigFlags, "type-map",
 		"Map a glob pattern to a file type.\n"+
 			"Format: <pattern>:<type>  Example: --type-map=\"**/inventory:ini\"")
-	flagSet.Var(&schemaMapConfigFlags, "schema-map",
+	fs.Var(&schemaMapConfigFlags, "schema-map",
 		"Map a glob pattern to a schema file.\n"+
 			"Format: <pattern>:<schema_path>\n"+
 			"Use JSON Schema (.json) for JSON/YAML/TOML/TOON. Use XSD (.xsd) for XML.")
-	flagSet.Var(&mergeSarifConfigFlags, "merge-sarif",
+	fs.Var(&mergeSarifConfigFlags, "merge-sarif",
 		"External SARIF file to merge into SARIF output. Requires --reporter=sarif.")
-	flagSet.Var(&ignoreFileConfigFlags, "ignore-file",
+	fs.Var(&ignoreFileConfigFlags, "ignore-file",
 		"Path to a gitignore-style ignore file. Can be specified multiple times.")
 
-	if err := flagSet.Parse(args); err != nil {
+	if err := fs.Parse(args); err != nil {
 		return cfvConfig{}, err
 	}
 
-	if err := applyDefaultFlagsFromEnv(); err != nil {
+	if err := applyDefaultFlagsFromEnv(fs); err != nil {
 		return cfvConfig{}, err
 	}
-	setIgnoreFilesFromEnvIfNotSet(&ignoreFileConfigFlags)
+	setIgnoreFilesFromEnvIfNotSet(fs, &ignoreFileConfigFlags)
 
 	reporterConf, err := parseReporterFlags(reporterConfigFlags)
 	if err != nil {
 		return cfvConfig{}, err
 	}
 
-	if err := validateGlobbing(globbingPtr); err != nil {
+	if err := validateGlobbing(fs, globbingPtr); err != nil {
 		return cfvConfig{}, err
 	}
 
-	searchPaths, err := parseSearchPaths(globbingPtr)
+	searchPaths, err := parseSearchPaths(fs, globbingPtr)
 	if err != nil {
 		return cfvConfig{}, err
 	}
 
-	if err := validateFlagValues(excludeTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr, mergeSarifConfigFlags, mergeSarifDirPtr); err != nil {
+	if err := validateFlagValues(fs, excludeTypesPtr, fileTypesPtr, depthPtr, reporterConf, groupOutputPtr, mergeSarifConfigFlags, mergeSarifDirPtr); err != nil {
 		return cfvConfig{}, err
 	}
 
 	return cfvConfig{
+		fs:               fs,
 		searchPaths:      searchPaths,
 		excludeDirs:      excludeDirsPtr,
 		excludeFileTypes: excludeTypesPtr,
@@ -415,12 +439,12 @@ func parseCheckFlags(args []string) (cfvConfig, error) {
 func runFormat(args []string) int {
 	// Register the flagset so --help works and the flag parser doesn't error
 	// on valid flags that will be wired up in Phase 2.
-	flagSet = flag.NewFlagSet("cfv format", flag.ContinueOnError)
-	flagSet.Usage = printFormatUsage
-	_ = flagSet.Bool("fix", false, "Rewrite files to canonical style [not yet implemented]")
-	_ = flagSet.Bool("unsafe", false, "Apply unsafe formatting fixes (requires --fix) [not yet implemented]")
+	fs := flag.NewFlagSet("cfv format", flag.ContinueOnError)
+	fs.Usage = printFormatUsage
+	_ = fs.Bool("fix", false, "Rewrite files to canonical style [not yet implemented]")
+	_ = fs.Bool("unsafe", false, "Apply unsafe formatting fixes (requires --fix) [not yet implemented]")
 
-	if err := flagSet.Parse(args); err != nil {
+	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
@@ -436,20 +460,20 @@ func runFormat(args []string) int {
 // Flag validation helpers
 // =============================================================================
 
-func validateFlagValues(excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf []reporterConfig, groupOutputPtr *string, mergeSarif []string, mergeSarifDir *string) error {
+func validateFlagValues(fs *flag.FlagSet, excludeFileTypesPtr, fileTypesPtr *string, depthPtr *int, reporterConf []reporterConfig, groupOutputPtr *string, mergeSarif []string, mergeSarifDir *string) error {
 	if err := validateReporterConf(reporterConf, groupOutputPtr); err != nil {
 		return err
 	}
-	if depthPtr != nil && isFlagSet("depth") && *depthPtr < 0 {
+	if depthPtr != nil && isFlagSet(fs, "depth") && *depthPtr < 0 {
 		return errors.New("wrong parameter value for depth, value cannot be negative")
 	}
 	if err := validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr); err != nil {
 		return err
 	}
-	if err := validateGroupByConf(groupOutputPtr); err != nil {
+	if err := validateGroupByConf(fs, groupOutputPtr); err != nil {
 		return err
 	}
-	return validateSARIFMergeConf(reporterConf, mergeSarif, mergeSarifDir)
+	return validateSARIFMergeConf(fs, reporterConf, mergeSarif, mergeSarifDir)
 }
 
 func validateFileTypeFlags(excludeFileTypesPtr, fileTypesPtr *string) error {
@@ -486,16 +510,16 @@ func validateReporterConf(conf []reporterConfig, groupBy *string) error {
 	return nil
 }
 
-func validateSARIFMergeConf(conf []reporterConfig, mergeSarif []string, mergeSarifDir *string) error {
+func validateSARIFMergeConf(fs *flag.FlagSet, conf []reporterConfig, mergeSarif []string, mergeSarifDir *string) error {
 	for _, path := range mergeSarif {
 		if strings.TrimSpace(path) == "" {
 			return errors.New("--merge-sarif requires a file path")
 		}
 	}
-	if mergeSarifDir != nil && isFlagSet("merge-sarif-dir") && strings.TrimSpace(*mergeSarifDir) == "" {
+	if mergeSarifDir != nil && isFlagSet(fs, "merge-sarif-dir") && strings.TrimSpace(*mergeSarifDir) == "" {
 		return errors.New("--merge-sarif-dir requires a directory path")
 	}
-	if isFlagSet("reporter") {
+	if isFlagSet(fs, "reporter") {
 		return validateSARIFMergeReporters(conf, mergeSarif, mergeSarifDir)
 	}
 	return nil
@@ -514,7 +538,10 @@ func validateSARIFMergeReporters(conf []reporterConfig, mergeSarif []string, mer
 }
 
 func sarifMergeRequested(mergeSarif []string, mergeSarifDir *string) bool {
-	return len(mergeSarif) > 0 || (mergeSarifDir != nil && isFlagSet("merge-sarif-dir"))
+	// mergeSarifDir is always non-nil (registered as a flag with default "").
+	// It counts as requested only if it was explicitly set to a non-empty value.
+	dirRequested := mergeSarifDir != nil && *mergeSarifDir != ""
+	return len(mergeSarif) > 0 || dirRequested
 }
 
 func mergeSarifDirectoryValue(mergeSarifDir *string) string {
@@ -524,18 +551,18 @@ func mergeSarifDirectoryValue(mergeSarifDir *string) string {
 	return *mergeSarifDir
 }
 
-func validateGlobbing(globbingPtr *bool) error {
-	if *globbingPtr && (isFlagSet("exclude-dirs") || isFlagSet("exclude-file-types") || isFlagSet("file-types")) {
+func validateGlobbing(fs *flag.FlagSet, globbingPtr *bool) error {
+	if *globbingPtr && (isFlagSet(fs, "exclude-dirs") || isFlagSet(fs, "exclude-file-types") || isFlagSet(fs, "file-types")) {
 		return errors.New("the -globbing flag cannot be used with --exclude-dirs, --exclude-file-types, or --file-types")
 	}
 	return nil
 }
 
-func validateGroupByConf(groupBy *string) error {
-	if groupBy == nil || !isFlagSet("groupby") {
+func validateGroupByConf(fs *flag.FlagSet, groupBy *string) error {
+	if groupBy == nil || !isFlagSet(fs, "groupby") {
 		return nil
 	}
-	groupByCleanString := cleanString("groupby")
+	groupByCleanString := cleanString(fs, "groupby")
 	groupByAllowedValues := []string{"filetype", "directory", "pass-fail", "error-type"}
 	seenValues := make(map[string]bool)
 
@@ -577,13 +604,13 @@ func validateFileTypeList(input []string) bool {
 	return true
 }
 
-// isFlagSet reports whether flagName was explicitly set by the user.
-func isFlagSet(flagName string) bool {
-	if flagSet == nil {
+// isFlagSet reports whether flagName was explicitly set by the user on fs.
+func isFlagSet(fs *flag.FlagSet, flagName string) bool {
+	if fs == nil {
 		return false
 	}
 	var isSet bool
-	flagSet.Visit(func(f *flag.Flag) {
+	fs.Visit(func(f *flag.Flag) {
 		if f.Name == flagName {
 			isSet = true
 		}
@@ -591,10 +618,15 @@ func isFlagSet(flagName string) bool {
 	return isSet
 }
 
-// cleanString returns the lowercased, trimmed value of the named flag.
-func cleanString(name string) string {
-	s := flagSet.Lookup(name).Value.String()
+// cleanString returns the lowercased, trimmed value of the named flag on fs.
+func cleanString(fs *flag.FlagSet, name string) string {
+	s := fs.Lookup(name).Value.String()
 	return strings.TrimSpace(strings.ToLower(s))
+}
+
+// isFlagSet reports whether flagName was explicitly set by the user.
+func (c *cfvConfig) isFlagSet(flagName string) bool {
+	return isFlagSet(c.fs, flagName)
 }
 
 // isGlobPattern reports whether s contains glob metacharacters.
@@ -606,19 +638,19 @@ func isGlobPattern(s string) bool {
 // Search path and reporter parsing
 // =============================================================================
 
-func parseSearchPaths(globbingPtr *bool) ([]string, error) {
-	if flagSet.NArg() == 0 {
+func parseSearchPaths(fs *flag.FlagSet, globbingPtr *bool) ([]string, error) {
+	if fs.NArg() == 0 {
 		return []string{"."}, nil
 	}
 	if *globbingPtr {
-		return handleGlobbing()
+		return handleGlobbing(fs)
 	}
-	return flagSet.Args(), nil
+	return fs.Args(), nil
 }
 
-func handleGlobbing() ([]string, error) {
+func handleGlobbing(fs *flag.FlagSet) ([]string, error) {
 	var searchPaths []string
-	for _, arg := range flagSet.Args() {
+	for _, arg := range fs.Args() {
 		if isGlobPattern(arg) {
 			matches, err := doublestar.Glob(os.DirFS("."), arg)
 			if err != nil {
@@ -739,7 +771,20 @@ func resolveConfig(cfg *cfvConfig) (*resolvedConfig, error) {
 		store:         store,
 	}
 
-	// Stdin mode: single path of "-"
+	// Handle stdin mode: single path of "-"
+	stdinCount := 0
+	for _, p := range cfg.searchPaths {
+		if p == "-" {
+			stdinCount++
+		}
+	}
+	if stdinCount > 1 {
+		return nil, errors.New("stdin (-) can only be specified once")
+	}
+	if stdinCount == 1 && len(cfg.searchPaths) > 1 {
+		return nil, errors.New("stdin (-) cannot be combined with other search paths")
+	}
+
 	if len(cfg.searchPaths) == 1 && cfg.searchPaths[0] == "-" {
 		ft, data, err := readStdin(*cfg.fileTypes)
 		if err != nil {
@@ -867,7 +912,7 @@ func buildFinderOpts(cfg cfvConfig, excludeFileTypes []string, fileTypes []filet
 		fsOpts = append(fsOpts, finder.WithFileTypes(fileTypeFilter))
 	}
 
-	if cfg.depth != nil && isFlagSet("depth") {
+	if cfg.depth != nil && cfg.isFlagSet("depth") {
 		fsOpts = append(fsOpts, finder.WithDepth(*cfg.depth))
 	}
 
@@ -958,7 +1003,7 @@ func parseSchemaMapFlags(flags schemaMapFlags) (map[string]string, error) {
 // Environment variable defaults
 // =============================================================================
 
-func applyDefaultFlagsFromEnv() error {
+func applyDefaultFlagsFromEnv(fs *flag.FlagSet) error {
 	flagsEnvMap := map[string]string{
 		"depth":              "CFV_DEPTH",
 		"exclude-dirs":       "CFV_EXCLUDE_DIRS",
@@ -975,27 +1020,27 @@ func applyDefaultFlagsFromEnv() error {
 		"gitignore":          "CFV_GITIGNORE",
 	}
 	for flagName, envVar := range flagsEnvMap {
-		if err := setFlagFromEnvIfNotSet(flagName, envVar); err != nil {
+		if err := setFlagFromEnvIfNotSet(fs, flagName, envVar); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setFlagFromEnvIfNotSet(flagName, envVar string) error {
-	if isFlagSet(flagName) {
+func setFlagFromEnvIfNotSet(fs *flag.FlagSet, flagName, envVar string) error {
+	if isFlagSet(fs, flagName) {
 		return nil
 	}
 	if v, ok := os.LookupEnv(envVar); ok && v != "" {
-		if err := flagSet.Set(flagName, v); err != nil {
+		if err := fs.Set(flagName, v); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setIgnoreFilesFromEnvIfNotSet(flags *ignoreFileFlags) {
-	if isFlagSet("ignore-file") {
+func setIgnoreFilesFromEnvIfNotSet(fs *flag.FlagSet, flags *ignoreFileFlags) {
+	if isFlagSet(fs, "ignore-file") {
 		return
 	}
 	v, ok := os.LookupEnv("CFV_IGNORE_FILES")
@@ -1035,57 +1080,57 @@ func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, error) {
 	}
 
 	// CLI flag > env var (already applied to flagSet) > config file.
-	if !isFlagSet("exclude-dirs") && len(fileCfg.ExcludeDirs) > 0 {
+	if !cfg.isFlagSet("exclude-dirs") && len(fileCfg.ExcludeDirs) > 0 {
 		v := strings.Join(fileCfg.ExcludeDirs, ",")
 		cfg.excludeDirs = &v
 	}
-	if !isFlagSet("exclude-file-types") && len(fileCfg.ExcludeFileTypes) > 0 {
+	if !cfg.isFlagSet("exclude-file-types") && len(fileCfg.ExcludeFileTypes) > 0 {
 		v := strings.Join(fileCfg.ExcludeFileTypes, ",")
 		cfg.excludeFileTypes = &v
 	}
-	if !isFlagSet("file-types") && len(fileCfg.FileTypes) > 0 {
+	if !cfg.isFlagSet("file-types") && len(fileCfg.FileTypes) > 0 {
 		v := strings.Join(fileCfg.FileTypes, ",")
 		cfg.fileTypes = &v
 	}
-	if !isFlagSet("depth") && fileCfg.Depth != nil {
-		if err := flagSet.Set("depth", fmt.Sprintf("%d", *fileCfg.Depth)); err != nil {
+	if !cfg.isFlagSet("depth") && fileCfg.Depth != nil {
+		if err := cfg.fs.Set("depth", fmt.Sprintf("%d", *fileCfg.Depth)); err != nil {
 			return nil, fmt.Errorf("config file depth: %w", err)
 		}
 		cfg.depth = fileCfg.Depth
 	}
-	if !isFlagSet("reporter") && len(fileCfg.Reporter) > 0 {
+	if !cfg.isFlagSet("reporter") && len(fileCfg.Reporter) > 0 {
 		conf, err := parseReporterFlags(reporterFlags(fileCfg.Reporter))
 		if err != nil {
 			return nil, fmt.Errorf("config file reporter: %w", err)
 		}
 		cfg.reportType = conf
 	}
-	if !isFlagSet("groupby") && len(fileCfg.GroupBy) > 0 {
+	if !cfg.isFlagSet("groupby") && len(fileCfg.GroupBy) > 0 {
 		v := strings.Join(fileCfg.GroupBy, ",")
 		cfg.groupOutput = &v
 	}
-	if !isFlagSet("quiet") && fileCfg.Quiet != nil {
+	if !cfg.isFlagSet("quiet") && fileCfg.Quiet != nil {
 		cfg.quiet = fileCfg.Quiet
 	}
-	if !isFlagSet("require-schema") && fileCfg.RequireSchema != nil {
+	if !cfg.isFlagSet("require-schema") && fileCfg.RequireSchema != nil {
 		cfg.requireSchema = fileCfg.RequireSchema
 	}
-	if !isFlagSet("no-schema") && fileCfg.NoSchema != nil {
+	if !cfg.isFlagSet("no-schema") && fileCfg.NoSchema != nil {
 		cfg.noSchema = fileCfg.NoSchema
 	}
-	if !isFlagSet("schemastore") && fileCfg.SchemaStore != nil {
+	if !cfg.isFlagSet("schemastore") && fileCfg.SchemaStore != nil {
 		cfg.schemaStore = fileCfg.SchemaStore
 	}
-	if !isFlagSet("schemastore-path") && fileCfg.SchemaStorePath != nil {
+	if !cfg.isFlagSet("schemastore-path") && fileCfg.SchemaStorePath != nil {
 		cfg.schemaStorePath = fileCfg.SchemaStorePath
 	}
-	if !isFlagSet("globbing") && fileCfg.Globbing != nil {
+	if !cfg.isFlagSet("globbing") && fileCfg.Globbing != nil {
 		cfg.globbing = fileCfg.Globbing
 	}
-	if !isFlagSet("gitignore") && fileCfg.Gitignore != nil {
+	if !cfg.isFlagSet("gitignore") && fileCfg.Gitignore != nil {
 		cfg.gitignore = fileCfg.Gitignore
 	}
-	if !isFlagSet("ignore-file") && len(fileCfg.IgnoreFiles) > 0 {
+	if !cfg.isFlagSet("ignore-file") && len(fileCfg.IgnoreFiles) > 0 {
 		cfg.ignoreFiles = ignoreFileFlags(fileCfg.IgnoreFiles)
 	}
 	if len(cfg.schemaMap) == 0 && len(fileCfg.SchemaMap) > 0 {

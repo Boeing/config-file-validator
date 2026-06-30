@@ -91,13 +91,14 @@ func Test_parseCheckFlags(t *testing.T) {
 }
 
 func Test_resolveConfigAllowsNilMergeSarifDir(t *testing.T) {
-	flagSet = flag.NewFlagSet("cfv check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("cfv check", flag.ContinueOnError)
 
 	empty := ""
 	depth := 0
 	falseVal := false
 	trueVal := true
 	cfg := &cfvConfig{
+		fs:               fs,
 		searchPaths:      []string{"."},
 		excludeDirs:      &empty,
 		excludeFileTypes: &empty,
@@ -265,6 +266,7 @@ func Test_subcommandRouter(t *testing.T) {
 		wantCode int
 	}{
 		{"version subcommand", []string{"version"}, 0},
+		{"--version flag", []string{"--version"}, 0},
 		{"help subcommand", []string{"help"}, 0},
 		{"help check subcommand", []string{"help", "check"}, 0},
 		{"help format subcommand", []string{"help", "format"}, 0},

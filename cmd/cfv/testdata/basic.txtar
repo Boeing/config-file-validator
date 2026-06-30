@@ -15,7 +15,7 @@ stdout '×'
 
 # Nonexistent path should fail
 ! exec cfv check /nonexistent/path
-stderr 'error'
+stderr 'no such file or directory'
 
 # No args defaults to cwd
 mkdir empty

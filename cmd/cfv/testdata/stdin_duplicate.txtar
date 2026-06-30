@@ -1,0 +1,10 @@
+# Duplicate stdin (-) path produces a clear error
+! exec cfv check --file-types=json --no-config - -
+stderr 'stdin \(-\) can only be specified once'
+
+# Mixing stdin with a real path also errors
+! exec cfv check --file-types=json --no-config - good.json
+stderr 'stdin \(-\) cannot be combined'
+
+-- good.json --
+{"key": "value"}

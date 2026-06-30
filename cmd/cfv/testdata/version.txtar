@@ -1,0 +1,7 @@
+# cfv --version flag works (in addition to cfv version subcommand)
+exec cfv --version
+stdout 'cfv version'
+
+# cfv version subcommand still works
+exec cfv version
+stdout 'cfv version'

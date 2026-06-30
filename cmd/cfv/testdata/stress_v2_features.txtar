@@ -172,7 +172,7 @@ stdout '✓.*package.json'
 
 # Bad search path
 ! exec cfv check /nonexistent/path/to/nowhere
-stderr 'error'
+stderr 'no such file or directory'
 
 # --no-schema + --require-schema conflict
 ! exec cfv check --no-schema --require-schema plain.json
