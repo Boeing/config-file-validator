@@ -1,0 +1,14 @@
+# cfv check --fix coerces string to integer per schema
+exec cfv check --fix --no-config --schema-map=config.json:schema.json .
+stdout '✓'
+! stdout '×'
+
+# Verify the file was rewritten
+cmp config.json expected.json
+
+-- config.json --
+{"port": "8080", "host": "localhost"}
+-- schema.json --
+{"type": "object", "properties": {"port": {"type": "integer"}, "host": {"type": "string"}}}
+-- expected.json --
+{"port": 8080, "host": "localhost"}

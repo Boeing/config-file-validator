@@ -1,0 +1,12 @@
+# cfv check --fix removes trailing commas and reports success
+exec cfv check --fix --no-config .
+stdout '✓'
+! stdout '×'
+
+# Verify the file was rewritten correctly
+cmp bad.json expected.json
+
+-- bad.json --
+{"key": "value", "port": 8080,}
+-- expected.json --
+{"key": "value", "port": 8080}

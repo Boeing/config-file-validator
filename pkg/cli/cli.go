@@ -12,6 +12,7 @@ import (
 
 	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v3/pkg/finder"
+	"github.com/Boeing/config-file-validator/v3/pkg/fixer"
 	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/v3/pkg/tools"
@@ -160,6 +161,15 @@ func (c *CLI) Run() (int, error) {
 		}
 
 		report := c.validate(content, f.FileType, f.Name, f.Path)
+
+		// When --fix is enabled and there are errors, attempt to fix.
+		if c.fix && report.HasErrors() {
+			fixedReport := c.attemptFix(content, f.FileType, f.Name, f.Path)
+			if fixedReport != nil {
+				report = *fixedReport
+			}
+		}
+
 		if report.HasErrors() {
 			c.errorFound = true
 		}
@@ -429,4 +439,87 @@ func isBrokenSymlink(path string) bool {
 	}
 	_, err = os.Stat(path)
 	return os.IsNotExist(err)
+}
+
+// defaultFixRules returns the standard set of safe fix rules.
+func defaultFixRules() []fixer.Rule {
+	return []fixer.Rule{
+		fixer.JSONTrailingComma{},
+		fixer.JSONStringToInt{},
+		fixer.JSONStringToBool{},
+	}
+}
+
+// attemptFix runs the fixer on content and writes the result if fixes were applied.
+// Returns a new report reflecting the post-fix state, or nil if no fixes could be applied.
+func (c *CLI) attemptFix(content []byte, ft filetype.FileType, name, path string) *reporter.Report {
+	// Resolve schema bytes for this file (nil if no schema).
+	schemaBytes := c.resolveSchemaBytes(ft.Validator, path)
+
+	f := fixer.New(defaultFixRules()...)
+	result := f.Fix(content, schemaBytes, ft.Name)
+
+	if len(result.Applied) == 0 {
+		return nil // no fixes available
+	}
+
+	// Verify the fixed output is valid before writing.
+	verifyReport := c.validate(result.Fixed, ft, name, path)
+	if verifyReport.HasErrors() {
+		// Fix didn't fully resolve the issue — don't write a partial fix.
+		// Return nil to keep the original error report.
+		return nil
+	}
+
+	// Write the fixed file atomically.
+	if err := writeFileAtomic(path, result.Fixed); err != nil {
+		// Write failed — report as the original error.
+		return nil
+	}
+
+	// Build a pass report with notes about what was fixed.
+	report := reporter.Report{
+		FileName: name,
+		FilePath: path,
+		Status:   reporter.StatusPass,
+		IsQuiet:  c.quiet,
+	}
+	for _, fix := range result.Applied {
+		report.Notes = append(report.Notes, "fixed: "+fix.Message)
+	}
+
+	return &report
+}
+
+// resolveSchemaBytes returns the raw JSON Schema bytes for a file, or nil
+// if no schema is available. This is used by the fixer to understand what
+// types fields should have.
+func (c *CLI) resolveSchemaBytes(v validator.Validator, filePath string) []byte {
+	if c.noSchema {
+		return nil
+	}
+
+	// Check schema-map first.
+	if schemaPath, ok := c.lookupSchemaMap(filePath); ok {
+		data, err := os.ReadFile(schemaPath)
+		if err == nil {
+			return data
+		}
+	}
+
+	// Check SchemaStore.
+	if c.schemaStore != nil {
+		if schemaPath, ok := c.schemaStore.Resolve(filePath); ok {
+			data, err := os.ReadFile(schemaPath)
+			if err == nil {
+				return data
+			}
+		}
+	}
+
+	// Check inline schema declaration (JSON $schema property).
+	_ = v // validator might declare schema inline — but we'd need to fetch it.
+	// For now, only support explicitly mapped schemas.
+
+	return nil
 }
