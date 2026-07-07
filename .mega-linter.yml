@@ -23,6 +23,8 @@ DISABLE_LINTERS:
 DISABLE_ERRORS_LINTERS:
   # copypaste checker (JSCPD), can be added in a separate PR as this will need test refactor
   - COPYPASTE_JSCPD
+  # zizmor requires GitHub API access that isn't always available in CI
+  - ACTION_ZIZMOR
 
 FILTER_REGEX_EXCLUDE: "(test/)"
 JSON_JSONLINT_FILTER_REGEX_EXCLUDE: "(test/)"
