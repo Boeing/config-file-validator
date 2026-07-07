@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -139,6 +140,20 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 
 	formatted, err := fmter.Format(content, opts)
 	if err != nil {
+		// Check if the formatter skipped this file (e.g., mixed content XML).
+		// Report it to the user as a pass with the skip reason.
+		var skipped *formatter.ErrSkipped
+		if errors.As(err, &skipped) {
+			return &reporter.Report{
+				FileName: name,
+				FilePath: path,
+				Status:   reporter.StatusPass,
+				IsQuiet:  c.quiet,
+				Issues: []reporter.Issue{
+					{Message: skipped.Error(), Type: reporter.IssueTypeFormat},
+				},
+			}
+		}
 		// Formatter could not parse the file — it's a syntax error, not a
 		// formatting issue. cfv check would catch it. Skip here.
 		return nil

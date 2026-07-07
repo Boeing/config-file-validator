@@ -313,7 +313,7 @@ func runCheck(args []string) int {
 		return 2
 	}
 
-	resolved, err := resolveConfig(&cfg)
+	resolved, err := resolveCheckConfig(&cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
 		return 2
@@ -461,7 +461,7 @@ func runFormat(args []string) int {
 		return 2
 	}
 
-	resolved, err := resolveConfig(&cfg)
+	resolved, err := resolveFormatConfig(&cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
 		return 2
@@ -564,7 +564,7 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		return cfvConfig{}, err
 	}
 
-	// Schema fields are nil for format — resolveConfig handles nil safely.
+	// Schema fields are nil for format — resolveFormatConfig does not use them.
 
 	return cfvConfig{
 		fs:               fs,
@@ -609,13 +609,14 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 	if rc.formatCfg != nil {
 		globalCfg = &rc.formatCfg.FormatOptions
 		perFormatCfg = map[string]*configfile.FormatOptions{
-			"json": rc.formatCfg.JSON,
-			"yaml": rc.formatCfg.YAML,
-			"hcl":  rc.formatCfg.HCL,
-			"toml": rc.formatCfg.TOML,
-			"xml":  rc.formatCfg.XML,
-			"ini":  rc.formatCfg.INI,
-			"env":  rc.formatCfg.ENV,
+			"json":       rc.formatCfg.JSON,
+			"yaml":       rc.formatCfg.YAML,
+			"hcl":        rc.formatCfg.HCL,
+			"toml":       rc.formatCfg.TOML,
+			"xml":        rc.formatCfg.XML,
+			"ini":        rc.formatCfg.INI,
+			"env":        rc.formatCfg.ENV,
+			"properties": rc.formatCfg.Properties,
 		}
 	}
 
@@ -1045,12 +1046,77 @@ func getReporter(reportType, outputDest string) reporter.Reporter {
 // Config resolution
 // =============================================================================
 
-func resolveConfig(cfg *cfvConfig) (*resolvedConfig, error) {
+// resolveBaseConfig handles configuration shared by all subcommands:
+// config file loading, reporters, groupOutput, quiet, fix, diff, stdin,
+// and finder options. It does not touch schema-specific fields.
+func resolveBaseConfig(cfg *cfvConfig) (*resolvedConfig, *configfile.ValidatorOptions, error) {
 	validatorOpts, formatCfg, err := applyConfigFile(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("loading config file: %w", err)
+		return nil, nil, fmt.Errorf("loading config file: %w", err)
 	}
 
+	reporters, err := buildReporters(cfg.reportType, reporter.SARIFMergeConfig{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	groupOutput := strings.Split(*cfg.groupOutput, ",")
+
+	resolved := &resolvedConfig{
+		reporters:   reporters,
+		groupOutput: groupOutput,
+		quiet:       *cfg.quiet,
+		fix:         cfg.fix != nil && *cfg.fix,
+		diff:        cfg.fmtDiff != nil && *cfg.fmtDiff,
+		formatCfg:   formatCfg,
+	}
+
+	// Handle stdin mode: single path of "-"
+	stdinCount := 0
+	for _, p := range cfg.searchPaths {
+		if p == "-" {
+			stdinCount++
+		}
+	}
+	if stdinCount > 1 {
+		return nil, nil, errors.New("stdin (-) can only be specified once")
+	}
+	if stdinCount == 1 && len(cfg.searchPaths) > 1 {
+		return nil, nil, errors.New("stdin (-) cannot be combined with other search paths")
+	}
+
+	if len(cfg.searchPaths) == 1 && cfg.searchPaths[0] == "-" {
+		ft, data, err := readStdin(*cfg.fileTypes)
+		if err != nil {
+			return nil, nil, err
+		}
+		resolved.isStdin = true
+		resolved.stdinData = data
+		resolved.stdinFileType = ft
+		return resolved, validatorOpts, nil
+	}
+
+	excludeFileTypes := getExcludeFileTypes(*cfg.excludeFileTypes)
+	configuredTypes := applyValidatorOptions(validatorOpts)
+	fsOpts, err := buildFinderOpts(*cfg, excludeFileTypes, configuredTypes)
+	if err != nil {
+		return nil, nil, err
+	}
+	resolved.finderOpts = fsOpts
+
+	return resolved, validatorOpts, nil
+}
+
+// resolveCheckConfig resolves configuration for the check subcommand.
+// Adds schema validation, schema map, schema store, and SARIF merge
+// on top of the base configuration.
+func resolveCheckConfig(cfg *cfvConfig) (*resolvedConfig, error) {
+	resolved, _, err := resolveBaseConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Schema-specific resolution.
 	noSchema := cfg.noSchema != nil && *cfg.noSchema
 	requireSchema := cfg.requireSchema != nil && *cfg.requireSchema
 	useSchemaStore := (cfg.schemaStore != nil && *cfg.schemaStore) ||
@@ -1060,6 +1126,22 @@ func resolveConfig(cfg *cfvConfig) (*resolvedConfig, error) {
 		return nil, errors.New("--no-schema cannot be used with --require-schema, --schema-map, or --schemastore")
 	}
 
+	resolved.requireSchema = requireSchema
+	resolved.noSchema = noSchema
+
+	schemaMap, err := parseSchemaMapFlags(cfg.schemaMap)
+	if err != nil {
+		return nil, err
+	}
+	resolved.schemaMap = schemaMap
+
+	store, err := openSchemaStore(cfg)
+	if err != nil {
+		return nil, err
+	}
+	resolved.store = store
+
+	// SARIF merge (check-specific).
 	if err := validateSARIFMergeReporters(cfg.reportType, cfg.mergeSarif, cfg.mergeSarifDir); err != nil {
 		return nil, err
 	}
@@ -1072,65 +1154,18 @@ func resolveConfig(cfg *cfvConfig) (*resolvedConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	resolved.reporters = reporters
 
-	schemaMap, err := parseSchemaMapFlags(cfg.schemaMap)
+	return resolved, nil
+}
+
+// resolveFormatConfig resolves configuration for the format subcommand.
+// No schema fields, no SARIF merge — just the base config.
+func resolveFormatConfig(cfg *cfvConfig) (*resolvedConfig, error) {
+	resolved, _, err := resolveBaseConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
-
-	store, err := openSchemaStore(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	groupOutput := strings.Split(*cfg.groupOutput, ",")
-
-	resolved := &resolvedConfig{
-		reporters:     reporters,
-		groupOutput:   groupOutput,
-		quiet:         *cfg.quiet,
-		requireSchema: requireSchema,
-		noSchema:      noSchema,
-		schemaMap:     schemaMap,
-		store:         store,
-		fix:           cfg.fix != nil && *cfg.fix,
-		diff:          cfg.fmtDiff != nil && *cfg.fmtDiff,
-		formatCfg:     formatCfg,
-	}
-
-	// Handle stdin mode: single path of "-"
-	stdinCount := 0
-	for _, p := range cfg.searchPaths {
-		if p == "-" {
-			stdinCount++
-		}
-	}
-	if stdinCount > 1 {
-		return nil, errors.New("stdin (-) can only be specified once")
-	}
-	if stdinCount == 1 && len(cfg.searchPaths) > 1 {
-		return nil, errors.New("stdin (-) cannot be combined with other search paths")
-	}
-
-	if len(cfg.searchPaths) == 1 && cfg.searchPaths[0] == "-" {
-		ft, data, err := readStdin(*cfg.fileTypes)
-		if err != nil {
-			return nil, err
-		}
-		resolved.isStdin = true
-		resolved.stdinData = data
-		resolved.stdinFileType = ft
-		return resolved, nil
-	}
-
-	excludeFileTypes := getExcludeFileTypes(*cfg.excludeFileTypes)
-	configuredTypes := applyValidatorOptions(validatorOpts)
-	fsOpts, err := buildFinderOpts(*cfg, excludeFileTypes, configuredTypes)
-	if err != nil {
-		return nil, err
-	}
-	resolved.finderOpts = fsOpts
-
 	return resolved, nil
 }
 

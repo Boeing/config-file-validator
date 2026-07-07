@@ -3,8 +3,8 @@
 ## Current State — Resume Here
 
 **Branch**: `feat/3.0`
-**Last updated**: 2026-06-30
-**Next task**: Phase 2, Task 7 — TOML, ENV, INI, XML, Properties formatters
+**Last updated**: 2026-07-07
+**Next task**: Phase 2, Task 8 — Final stress test + Opus review
 
 ### What's done
 
@@ -24,7 +24,7 @@
 - ✅ `cfv format --fix .` wired — atomic writes (temp + rename), exit 0
 - ✅ `Formatter` field added to `FileType`. Registered in `pkg/filetype/formatters.go`.
 - ✅ Parallel worker pool (`runtime.NumCPU()`) in `pkg/cli/format.go`
-- ✅ Code review fixes (Tasks 4.5.1–4.5.6, 4.5.9–4.5.11)
+- ✅ Code review fixes (Tasks 4.5.1–4.5.6, 4.5.9–4.5.11) — ALL COMPLETE
 - ✅ YAML formatter (`pkg/formatter/yamlfmt/`) — goccy/go-yaml, token-preserving AST
 - ✅ YAML sort-keys (depth-based `AddColumn` reindent, `SortStableFunc` on mapping values)
 - ✅ YAML quote-style (double/single/preserve on values only, keys untouched)
@@ -38,6 +38,11 @@
 - ✅ Library swap: `gopkg.in/yaml.v3` → `github.com/goccy/go-yaml` (formatter + validator + generator)
 - ✅ Output validation: fail-fast on unsupported YAML constructs
 - ✅ Stress tested: 17M fuzz executions, 1830-file smoke test, all edge cases handled
+- ✅ XML formatter (`pkg/formatter/xmlfmt/`) — go-xmlfmt/xmlfmt, 96.3% coverage
+- ✅ Properties formatter (`pkg/formatter/propfmt/`) — magiconair/properties
+- ✅ INI formatter (`pkg/formatter/inifmt/`) — gopkg.in/ini.v1, 92.3% coverage
+- ✅ ENV formatter (`pkg/formatter/envfmt/`) — custom line-oriented, 92.3% coverage
+- ✅ TOML formatter (`pkg/formatter/tomlfmt/`) — pelletier/go-toml/v2 (no comment preservation)
 
 ### What's next
 
@@ -60,7 +65,7 @@ git checkout feat/3.0
 go test ./cmd/cfv/ ./pkg/... # verify all green
 ```
 
-Then say "let's keep going" — next task is Task 7 (remaining formatters).
+Then say "let's keep going" — next task is Task 8 (Final stress test + Opus review).
 
 ### Pipeline state
 
@@ -70,7 +75,7 @@ gofmt -s -l -e .       ✅
 golangci-lint run      ✅ 0 issues
 go test ./...          ✅ all pass
 fuzz (60s each)        ✅ 17M executions, 0 failures
-coverage               ~91%
+coverage               ✅ 93.4%
 ```
 
 ### Release strategy
@@ -380,9 +385,9 @@ Won't scale to 10+ formatters.
 4.5.6  ✅ (JUnit unformatted)        — StatusUnformatted produces test failure
 4.5.7  DEFERRED → Phase 4           — summary line belongs with `cfv .` unified command
 4.5.8  DEFERRED → Phase 4           — noise reduction belongs with `cfv .` unified command
-4.5.9  🔲 (resolveConfig split)      — independent, lower priority
-4.5.10 🔲 (fuzz validation)          — trivial
-4.5.11 🔲 (fixture options)          — nice-to-have before YAML formatter
+4.5.9  ✅ (resolveConfig split)      — resolveBaseConfig + resolveCheckConfig + resolveFormatConfig
+4.5.10 ✅ (fuzz validation)          — already uses stdjson.Valid (consistent with formatter)
+4.5.11 ✅ (fixture options)          — LoadFixtureOptions in pkg/formatter/fixture_opts.go
 ```
 
 **Why 4.5.7 and 4.5.8 were deferred**: The summary line and pass-line
@@ -721,7 +726,7 @@ git checkout feat/3.0
 go test ./... # verify all green
 ```
 
-Then say "let's keep going" — next task is Task 6 (full vertical slice: .cfv.toml [format] + CLI flags + resolution wiring for JSON/YAML/HCL).
+Then say "let's keep going" — next task is Task 8 (Final stress test + Opus review).
 
 ### Pipeline state
 
@@ -730,7 +735,7 @@ go vet ./...           ✅
 gofmt -s -l -e .       ✅
 golangci-lint run      ✅ 0 issues
 go test ./...          ✅ all pass
-coverage               ✅ 93.9%
+coverage               ✅ 93.7%
 ```
 
 ---

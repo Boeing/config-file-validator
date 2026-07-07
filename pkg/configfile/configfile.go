@@ -44,13 +44,14 @@ type FormatConfig struct {
 	FormatOptions
 
 	// Per-format overrides. Keys are format names: "json", "yaml", "hcl", etc.
-	JSON *FormatOptions `toml:"json"`
-	YAML *FormatOptions `toml:"yaml"`
-	HCL  *FormatOptions `toml:"hcl"`
-	TOML *FormatOptions `toml:"toml"`
-	XML  *FormatOptions `toml:"xml"`
-	INI  *FormatOptions `toml:"ini"`
-	ENV  *FormatOptions `toml:"env"`
+	JSON       *FormatOptions `toml:"json"`
+	YAML       *FormatOptions `toml:"yaml"`
+	HCL        *FormatOptions `toml:"hcl"`
+	TOML       *FormatOptions `toml:"toml"`
+	XML        *FormatOptions `toml:"xml"`
+	INI        *FormatOptions `toml:"ini"`
+	ENV        *FormatOptions `toml:"env"`
+	Properties *FormatOptions `toml:"properties"`
 }
 
 // FormatOptions holds formatting configuration keys.

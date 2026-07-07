@@ -95,6 +95,16 @@ const (
 	QuoteSingle
 )
 
+// ErrSkipped indicates the formatter cannot process this file but it is not
+// a syntax error. The file should be reported to the user with the reason
+// but not counted as a failure or formatted.
+type ErrSkipped struct {
+	Reason string
+}
+
+// Error implements the error interface.
+func (e *ErrSkipped) Error() string { return "skipped: " + e.Reason }
+
 // Result holds the outcome of formatting a single file.
 // It's used internally to communicate between the formatter pipeline and
 // the reporter.

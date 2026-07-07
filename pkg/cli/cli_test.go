@@ -998,8 +998,8 @@ func Test_FormatBrokenSymlink(t *testing.T) {
 
 func Test_FormatNoFormatterRegistered(t *testing.T) {
 	dir := t.TempDir()
-	// .toml has no formatter registered yet
-	testhelper.WriteFile(t, dir, "config.toml", "key = \"value\"\n")
+	// .hocon has no formatter registered
+	testhelper.WriteFile(t, dir, "config.hocon", "key = value\n")
 
 	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
 	rep := &captureReporter{}

@@ -121,7 +121,7 @@ func Test_resolveConfigAllowsNilMergeSarifDir(t *testing.T) {
 	}
 
 	require.NotPanics(t, func() {
-		_, err := resolveConfig(cfg)
+		_, err := resolveCheckConfig(cfg)
 		require.NoError(t, err)
 	})
 }
@@ -285,4 +285,47 @@ func Test_subcommandRouter(t *testing.T) {
 			require.Equal(t, tc.wantCode, code)
 		})
 	}
+}
+
+func Test_resolveFormatConfigNoSchemaFields(t *testing.T) {
+	fs := flag.NewFlagSet("cfv format", flag.ContinueOnError)
+
+	empty := ""
+	depth := 0
+	falseVal := false
+	trueVal := true
+	cfg := &cfvConfig{
+		fs:               fs,
+		searchPaths:      []string{"."},
+		excludeDirs:      &empty,
+		excludeFileTypes: &empty,
+		fileTypes:        &empty,
+		reportType:       []reporterConfig{{reportType: "standard"}},
+		depth:            &depth,
+		groupOutput:      &empty,
+		quiet:            &falseVal,
+		globbing:         &falseVal,
+		configPath:       &empty,
+		noConfig:         &trueVal,
+		gitignore:        &falseVal,
+		fix:              &falseVal,
+		unsafe:           &falseVal,
+		// Schema fields intentionally nil — format subcommand doesn't use them.
+		requireSchema:   nil,
+		noSchema:        nil,
+		schemaStore:     nil,
+		schemaStorePath: nil,
+		mergeSarifDir:   nil,
+	}
+
+	require.NotPanics(t, func() {
+		resolved, err := resolveFormatConfig(cfg)
+		require.NoError(t, err)
+		require.NotNil(t, resolved)
+		// Schema fields should be zero-valued.
+		require.False(t, resolved.requireSchema)
+		require.False(t, resolved.noSchema)
+		require.Nil(t, resolved.schemaMap)
+		require.Nil(t, resolved.store)
+	})
 }

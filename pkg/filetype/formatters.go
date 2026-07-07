@@ -1,8 +1,13 @@
 package filetype
 
 import (
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/envfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/hclfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/inifmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsonfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/propfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/tomlfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/xmlfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/yamlfmt"
 )
 
@@ -21,6 +26,16 @@ func init() {
 			FileTypes[i].Formatter = yamlfmt.Formatter{}
 		case "hcl":
 			FileTypes[i].Formatter = hclfmt.Formatter{}
+		case "xml":
+			FileTypes[i].Formatter = xmlfmt.Formatter{}
+		case "toml":
+			FileTypes[i].Formatter = tomlfmt.Formatter{}
+		case "ini":
+			FileTypes[i].Formatter = inifmt.Formatter{}
+		case "env":
+			FileTypes[i].Formatter = envfmt.Formatter{}
+		case "properties":
+			FileTypes[i].Formatter = propfmt.Formatter{}
 		default:
 			// no formatter registered for this type yet
 		}
