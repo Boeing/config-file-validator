@@ -350,3 +350,48 @@ After all fixes: re-run the full fuzz suite (45s per formatter) to verify the fi
 2. **INI Fix 3**: Enabling `IgnoreContinuation` means files that intentionally use `\` line continuation will be treated as literal backslashes. This is a behavior change. Is that acceptable? (Line continuation in INI is non-standard and incredibly rare outside of Python's configparser.)
 
 3. **Properties Fix 4**: The post-processing only fixes `!` and `#` at the start of keys. If there are OTHER characters that the library fails to escape, we'll find them via the fuzz test re-run. If more surface, we may need to replace `WriteComment` with a custom serializer.
+
+---
+
+## Bugs Found During Manual Stress Testing (post-implementation)
+
+These are cosmetic/low-severity issues discovered during manual QA. They do NOT
+block the release but should be addressed before v3.0.0 final.
+
+### Bug A: TOML comment between sections gets indented
+
+**Severity**: LOW  
+**Reproduce**:
+```toml
+[section_a]
+key = "value"
+
+# Section B comment
+[section_b]
+key2 = "value2"
+```
+After `cfv format --fix`, the `# Section B comment` gets indented as if it
+belongs to `[section_a]`:
+```toml
+[section_a]
+  key = "value"
+
+  # Section B comment
+[section_b]
+  key2 = "value2"
+```
+**Impact**: Cosmetic. The comment visually appears to belong to the wrong section.
+Idempotent (doesn't drift). File remains valid TOML.  
+**Fix**: In the TOML formatter, reset `inSection` when a blank line is encountered.
+A blank line before a comment that precedes a section header should reset the
+indent context.
+
+### Bug B: Empty files get a newline written on format --fix
+
+**Severity**: LOW  
+**Reproduce**: `touch empty.toml && cfv format --fix empty.toml`  
+**Result**: File goes from 0 bytes to 1 byte (`\n`).  
+**Impact**: Cosmetic. FinalNewline=true is doing its job — adding a final newline.
+But on an empty file, that means creating content where none existed.  
+**Fix**: Skip formatting entirely when the file is empty (0 bytes). Return src unchanged.
+Applies to TOML, INI, Properties, ENV formatters.
