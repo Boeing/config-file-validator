@@ -1,6 +1,6 @@
 module github.com/Boeing/config-file-validator/v2
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
