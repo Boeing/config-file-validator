@@ -26,10 +26,6 @@
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v2.svg" alt="Go Reference">
   </a>
 
-  <a href="https://goreportcard.com/report/github.com/Boeing/config-file-validator">
-  <img src="https://goreportcard.com/badge/github.com/Boeing/config-file-validator" alt="Go Report Card">
-  </a>
-
   <a href="https://github.com/boeing/config-file-validator/actions/workflows/go.yml">
   <img src="https://github.com/boeing/config-file-validator/actions/workflows/go.yml/badge.svg" alt="Pipeline Status">
   </a>
