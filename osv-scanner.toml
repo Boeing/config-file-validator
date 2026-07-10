@@ -16,3 +16,13 @@ ignoreUntil = "2026-10-07T00:00:00Z"
 id = "GO-2026-5039"
 reason = "Go stdlib fix is in 1.26.4; osv-scanner bundles Go 1.26.3 so the go.mod directive cannot move forward without breaking govulncheck"
 ignoreUntil = "2026-10-07T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GO-2026-4970"
+reason = "Go stdlib advisory fixed in 1.26.5; cannot be adopted while osv-scanner bundles Go 1.26.3 (bumping the directive breaks govulncheck under GOTOOLCHAIN=local)"
+ignoreUntil = "2026-10-07T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GO-2026-5856"
+reason = "Go stdlib advisory fixed in 1.26.5; cannot be adopted while osv-scanner bundles Go 1.26.3 (bumping the directive breaks govulncheck under GOTOOLCHAIN=local)"
+ignoreUntil = "2026-10-07T00:00:00Z"
