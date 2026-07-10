@@ -3,12 +3,16 @@ id = "GHSA-h67p-54hq-rp68"
 reason = "js-yaml 3.14.2 is a transitive dependency of Docusaurus; waiting for upstream fix"
 ignoreUntil = "2026-10-07T00:00:00Z"
 
+# Go stdlib advisories for the toolchain the go.mod directive pins (1.26.3).
+# osv-scanner's bundled Go is 1.26.3, so bumping the directive to 1.26.4 makes
+# govulncheck fail to load under GOTOOLCHAIN=local; we stay on 1.26.3 and
+# suppress these until setup-go / the scanner image ship a newer patch.
 [[IgnoredVulns]]
-id = "GO-2026-4970"
-reason = "stdlib fix is in Go 1.26.5; actions/setup-go '1.26' still resolves to 1.26.4 with GOTOOLCHAIN=local, so go.mod cannot require 1.26.5 yet"
+id = "GO-2026-5037"
+reason = "Go stdlib fix is in 1.26.4; osv-scanner bundles Go 1.26.3 so the go.mod directive cannot move forward without breaking govulncheck"
 ignoreUntil = "2026-10-07T00:00:00Z"
 
 [[IgnoredVulns]]
-id = "GO-2026-5856"
-reason = "stdlib fix is in Go 1.26.5; actions/setup-go '1.26' still resolves to 1.26.4 with GOTOOLCHAIN=local, so go.mod cannot require 1.26.5 yet"
+id = "GO-2026-5039"
+reason = "Go stdlib fix is in 1.26.4; osv-scanner bundles Go 1.26.3 so the go.mod directive cannot move forward without breaking govulncheck"
 ignoreUntil = "2026-10-07T00:00:00Z"
