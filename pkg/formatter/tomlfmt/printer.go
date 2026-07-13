@@ -288,8 +288,16 @@ func (p *Printer) printArrayInline(elements [][]Token) {
 // printArrayMultiline writes an array with one element per line.
 // Preserves comments between elements.
 func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
-	elemIndent := strings.Repeat(p.opts.Indent, depth+1)
-	closeIndent := strings.Repeat(p.opts.Indent, depth)
+	// For value internals (arrays, inline tables), always use at least 2 spaces
+	// for indentation even if the table-level indent is empty. This matches
+	// taplo's behavior where indent_string applies to value formatting
+	// independently of indent_entries.
+	valueIndent := p.opts.Indent
+	if valueIndent == "" {
+		valueIndent = "  "
+	}
+	elemIndent := strings.Repeat(valueIndent, depth+1)
+	closeIndent := strings.Repeat(valueIndent, depth)
 
 	p.buf.WriteByte('[')
 	for _, elem := range elements {
