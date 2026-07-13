@@ -246,69 +246,97 @@ type File struct {
 
 ---
 
-## Phase 4: TOML CST Parser
+## Phase 4: TOML CST Tokenizer + Printer
 
-**Effort**: 5-7 days
-**Risk**: Medium — TOML grammar is complex (nesting, multiline strings, inline tables, dotted keys)
-**Dependency**: pelletier/go-toml/v2 `unstable` package (read-only AST with comments)
+**Effort**: 7-8 days
+**Risk**: Medium — TOML grammar has genuine complexity in string boundaries
+**Dependency**: pelletier/go-toml/v2 for validation only. No `unstable` package usage.
+**Competition**: taplo (Rust). Must format every real-world TOML file correctly — no one should miss taplo because cfv can't handle their file.
 
-### Approach
+### Architecture
 
-pelletier/go-toml/v2's `unstable.Parser` provides a read-only AST that preserves comments and positions. It has node types for `KeyValue`, `Table`, `ArrayTable`, `Array`, `InlineTable`, and `Comment`. What it lacks is a serializer.
-
-We write a custom printer that walks the `unstable` AST and emits formatted output. The AST gives us structural understanding (scope, nesting, multiline boundaries). The printer handles indentation and separator normalization.
-
-**Trade-off**: The `unstable` package is explicitly marked as not having backward-compatibility guarantees. However:
-- It's been stable in practice for 2+ years
-- We pin exact versions in go.mod
-- The alternative (writing our own TOML lexer/parser) is far more effort and maintenance burden
-- If the API breaks in a future version, the fix is adapting our printer to the new API, not rewriting the parser
-
-### Token-level approach via unstable AST
-
-```go
-// The unstable parser gives us:
-type Node struct {
-    Kind    Kind    // KeyValue, Table, ArrayTable, Comment, etc.
-    Raw     Range   // byte offsets into source
-    Data    []byte  // raw bytes for this node
-    Children []Node
-}
+```
+Validation:  pelletier/go-toml/v2 Unmarshal (semantic correctness)
+Formatting:  our tokenizer → token stream → printer (whitespace normalization)
 ```
 
-We walk nodes, emit their raw bytes with formatting adjustments:
-- `KeyValue` nodes: normalize spacing around `=`
-- `Table`/`ArrayTable` nodes: emit header, indent children
-- `Comment` nodes: preserve verbatim with indent
-- Multiline values: detected by node boundaries, preserved verbatim
-- SortKeys: sort `KeyValue` children within each `Table`, preserving attached comments
+The tokenizer is format-only. It classifies tokens and preserves boundaries. It does NOT:
+- Decode escape sequences or values
+- Resolve dotted keys into table hierarchy
+- Validate semantics (pelletier does this)
+- Build a document model
+
+### Why custom tokenizer (not pelletier's unstable package)
+
+- `unstable` package is explicitly labeled "does not meet backward compatibility guarantees"
+- Depending on it for a core feature of a production tool is unacceptable architecture
+- The `unstable` parser's `Raw` only covers 62% of source bytes (gaps in whitespace, table headers)
+- A format-only tokenizer is fundamentally simpler than a full parser — no semantic model needed
+
+### Why not WASM taplo
+
+- +7-9MB binary size (50% increase) for one formatter
+- Requires Rust toolchain in CI for .wasm compilation
+- Introduces new dependency class (WASM runtime) used by nothing else
+- Build complexity tax for contributors
+
+### Token types
+
+```
+CommentToken       // # through end of line
+WhitespaceToken    // spaces, tabs (not newlines)
+NewlineToken       // \n or \r\n
+TableHeaderToken   // [key] or [[key]] (including brackets)
+KeyToken           // bare key, quoted key, or dotted key sequence
+SeparatorToken     // = with optional surrounding whitespace
+ValueToken         // string, number, bool, datetime, array, inline table
+                   // (opaque — content preserved verbatim)
+```
+
+Values are treated as opaque tokens. The tokenizer tracks boundaries (opening/closing quotes, brackets, braces) but doesn't interpret content. This sidesteps most complexity.
+
+### Hard parts (must get right)
+
+1. **Multiline strings** (`"""..."""` and `'''...'''`) — closing sequence detection
+2. **Inline tables** — nested brace counting `{a = {b = c}}`
+3. **Multiline arrays** — bracket counting across lines with comments interspersed
+4. **Comments after values** — `key = "value" # comment` boundary detection
+5. **Dotted quoted keys** — `"a.b"."c.d" = value`
+
+### Formatting operations on token stream
+
+- **Normalize separator**: Ensure `key = value` spacing
+- **Indent**: Apply configured indent to key-value pairs within tables
+- **SortKeys**: Sort key-value token groups within table scope, preserve attached comments
+- **Multiline values**: Preserved verbatim (content not modified)
+- **FinalNewline/LineEnding**: Normalize newline tokens
 
 ### Tasks
 
-- [ ] 4.1: Implement AST walker and printer in `pkg/formatter/tomlfmt/printer.go`
-  - Walk `unstable.Parser` output
-  - Classify nodes, emit with formatting
-  - Handle all TOML constructs: basic/literal strings, multiline strings, arrays, inline tables, dotted keys, datetime
-  - **Files**: `pkg/formatter/tomlfmt/printer.go`
+- [ ] 4.1: Implement tokenizer in `pkg/formatter/tomlfmt/tokenizer.go`
+  - Lex TOML source into token stream
+  - Handle all string types (basic, literal, multiline basic, multiline literal)
+  - Handle inline tables and multiline arrays (brace/bracket counting)
+  - Every byte of input accounted for in exactly one token
+  - Fuzz against pelletier: if pelletier accepts it, our tokenizer must not choke
 
-- [ ] 4.2: Implement SortKeys
-  - Sort KeyValue nodes within table scope
-  - Preserve comment attachment (comments before a key travel with it)
-  - Handle dotted keys correctly (sort by first segment, preserve sub-key order)
-  - **Files**: `pkg/formatter/tomlfmt/printer.go`
+- [ ] 4.2: Implement printer in `pkg/formatter/tomlfmt/printer.go`
+  - Walk token stream, emit with normalized formatting
+  - Normalize separator spacing
+  - Apply indentation within table scopes
+  - Implement SortKeys (sort key-value groups, preserve comment attachment)
 
 - [ ] 4.3: Replace `toml.go` Format function
-  - Keep `pelletier/go-toml/v2` stable API for validation (`Unmarshal`)
-  - Use `unstable.Parser` for CST access
-  - Remove line-oriented code
-  - Remove multiline preservation hacks
-  - **Files**: `pkg/formatter/tomlfmt/toml.go`
+  - Keep pelletier for validation (`toml.Unmarshal`)
+  - Replace line-oriented code with: validate → tokenize → format → print
+  - Remove all verbatim-preservation heuristics
+  - SortKeys actually works
 
 - [ ] 4.4: Tests
-  - All existing fixtures must produce identical output
-  - New fixtures: multiline strings (basic + literal), inline tables, dotted keys, SortKeys, arrays of tables
+  - All existing fixtures produce identical output
+  - New fixtures: multiline strings, inline tables, dotted keys, SortKeys, arrays of tables
   - Fuzz: 45s minimum, zero failures
-  - **Files**: `pkg/formatter/tomlfmt/toml_test.go`, `testdata/`
+  - Stress test: format every .toml in the Cargo ecosystem (download top crates' Cargo.toml files)
 
 - [ ] 4.5: Pipeline verification
 
@@ -410,9 +438,33 @@ Phases 1-3 can be done sequentially. Phase 6 can slot in anywhere. Phase 4 is th
 - If helium is unresponsive on bug fixes, etree becomes the formatting backend
 - Would add one dependency but eliminate the StripBlanks bug
 
-### 2026-07-13: pelletier/go-toml/v2 `unstable` accepted despite API stability warning
+### 2026-07-13: pelletier/go-toml/v2 `unstable` rejected
 
-- Has been stable in practice for 2+ years
-- We pin versions — breaking changes are a version bump, not a surprise
-- Alternative (write own TOML parser) is effort 7-8 and permanent maintenance
-- Risk is manageable: if API breaks, we adapt the printer, not the parser
+- Package explicitly labeled "does not meet backward compatibility guarantees"
+- Depending on it for a core production feature is unacceptable regardless of de-facto stability
+- The `unstable` parser's `Raw` field only covers 62% of source bytes — gaps in whitespace, table headers
+- Decision: use pelletier only for validation (stable `Unmarshal`), write own tokenizer for formatting
+
+### 2026-07-13: WASM taplo rejected
+
+- Would add +7-9MB to binary (50% increase) for a single formatter
+- Requires Rust toolchain in CI for .wasm compilation
+- Introduces new dependency class (WASM runtime via wazero) used nowhere else
+- Build complexity tax disproportionate to benefit
+- Only format where this pattern would apply (no other Rust-only formatters needed)
+
+### 2026-07-13: Custom TOML tokenizer chosen
+
+- Format-only tokenizer — classifies tokens, preserves boundaries, does not interpret values
+- Fundamentally simpler than a full parser (no semantic model, no value decoding)
+- pelletier handles validation, our tokenizer handles formatting
+- Competition is taplo (Rust). Bar: no one reaches for taplo because cfv can't handle their file.
+- Estimated 7-8 days including fuzz hardening for multiline string edge cases
+- No Go library exists that provides format-preserving TOML (confirmed via exhaustive search)
+
+### 2026-07-13: Contributing to pelletier deferred
+
+- Comment preservation was deliberately removed in v2 (existed in v1)
+- `KeepComments` flag on unstable parser shows awareness but not commitment
+- Filing a feature request for something intentionally killed is tone-deaf
+- If pelletier ships a stable comment-preserving API in the future, we can adopt it then
