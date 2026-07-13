@@ -45,6 +45,7 @@ type FormatConfig struct {
 
 	// Per-format overrides. Keys are format names: "json", "yaml", "hcl", etc.
 	JSON       *FormatOptions `toml:"json"`
+	JSONC      *FormatOptions `toml:"jsonc"`
 	YAML       *FormatOptions `toml:"yaml"`
 	HCL        *FormatOptions `toml:"hcl"`
 	TOML       *FormatOptions `toml:"toml"`

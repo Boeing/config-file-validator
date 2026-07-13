@@ -292,7 +292,13 @@ func printFormatUsage() {
 	fmt.Println()
 	fmt.Println("Report formatting issues. Use --fix to rewrite files.")
 	fmt.Println()
-	fmt.Println("Formats with registered formatters: json")
+	var fmtNames []string
+	for _, ft := range filetype.FileTypes {
+		if ft.Formatter != nil {
+			fmtNames = append(fmtNames, ft.Name)
+		}
+	}
+	fmt.Printf("Formats with registered formatters: %s\n", strings.Join(fmtNames, ", "))
 	fmt.Println("Run 'cfv format --help' for the full flag reference.")
 }
 
@@ -610,6 +616,7 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 		globalCfg = &rc.formatCfg.FormatOptions
 		perFormatCfg = map[string]*configfile.FormatOptions{
 			"json":       rc.formatCfg.JSON,
+			"jsonc":      rc.formatCfg.JSONC,
 			"yaml":       rc.formatCfg.YAML,
 			"hcl":        rc.formatCfg.HCL,
 			"toml":       rc.formatCfg.TOML,
