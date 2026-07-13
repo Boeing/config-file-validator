@@ -9,17 +9,17 @@
 
 ## Current State
 
-| Format | Architecture | Bail-outs | CST Library Available |
-|--------|-------------|-----------|----------------------|
-| HCL | ✅ CST (hclwrite token stream) | 0 | hashicorp/hcl/v2 |
-| JSON | ✅ Semantic (tidwall/pretty) | 0 | encoding/json + tidwall/pretty |
-| YAML | ✅ CST (goccy/go-yaml AST) | 1 (empty file) | goccy/go-yaml |
-| JSONC | ❌ No formatter exists | N/A | tailscale/hujson (**already in go.mod**) |
-| XML | ⚠️ DOM (helium) | 2 (ErrSkipped) | lestrrat-go/helium (has bugs, issues filed) |
-| Properties | ❌ Line-oriented | 4 | None exists — must write CST |
-| INI | ❌ Line-oriented | 3 | None exists — must write CST |
-| TOML | ❌ Line-oriented | 3 | pelletier/go-toml/v2 `unstable` (read-only AST) |
-| ENV | ✅ Line-oriented (format is trivial) | 0 | N/A (format too simple to need CST) |
+| Format | Architecture | Bail-outs | Status |
+|--------|-------------|-----------|--------|
+| HCL | ✅ CST (hclwrite token stream) | 0 | Done (pre-existing) |
+| JSON | ✅ Semantic (tidwall/pretty) | 0 | Done (pre-existing) |
+| YAML | ✅ CST (goccy/go-yaml AST) | 1 (empty file) | Needs cleanup (Phase 6) |
+| JSONC | ✅ CST (hujson + custom walker) | 0 | **Done (dfb2dae)** |
+| TOML | ✅ CST (custom tokenizer/grouper/printer) | 0 | **Done (6166dcc)** — identical to taplo |
+| XML | ⚠️ DOM (helium) | 2 (ErrSkipped) | Blocked on helium upstream |
+| Properties | ❌ Line-oriented | 4 | **Next** |
+| INI | ❌ Line-oriented | 3 | After Properties |
+| ENV | ✅ Line-oriented (format is trivial) | 0 | Done (pre-existing) |
 
 ---
 
@@ -403,7 +403,51 @@ Phase 2: Properties CST                          — next
 Phase 3: INI CST                                 — after Properties
 Phase 6: YAML/ENV cleanup                        — <1 day, negligible risk
 Phase 5: XML (blocked on helium upstream)        — 1-2 days when unblocked
+Phase 7: Ephemeral CLI stress test (ALL formats) — after all formatters done
 ```
+
+---
+
+## Phase 7: Ephemeral CLI Stress Test (ALL Formatters)
+
+**Purpose**: Prove the ENTIRE formatting pipeline works end-to-end through the
+real CLI binary. Not a unit test — a functional stress test that exercises the
+actual user workflow across every supported format.
+
+**Pattern**:
+```
+1. Create temp directory
+2. Generate/place messy config files for ALL formats:
+   - .jsonc (VS Code settings, tsconfig, eslintrc with comments)
+   - .toml (Cargo.toml, pyproject.toml with inline tables, multiline arrays)
+   - .properties (Spring Boot application.properties with continuations, escapes)
+   - .json (package.json, messy spacing)
+   - .yaml (docker-compose, k8s manifests, anchors)
+   - .hcl (Terraform configs)
+   - .ini (my.cnf, php.ini with sections and comments)
+   - .env (dotenv with quotes, exports, comments)
+   - .xml (Maven POM, Spring beans — if helium fixed)
+3. Run: cfv format --fix <dir>
+4. Run: cfv check <dir>  (all files still valid)
+5. Run: cfv format <dir>  (exit 0, no changes — idempotent)
+6. Tear down
+```
+
+**Files should be intentionally messy**:
+- Inconsistent spacing around separators
+- Mixed indentation (tabs + spaces)
+- Missing/extra blank lines
+- Trailing whitespace
+- Missing final newlines
+- Valid but ugly formatting
+
+**Success criteria**:
+- Step 3: all files formatted (✓ on each)
+- Step 4: all files pass validation (exit 0)
+- Step 5: all files already formatted (exit 0, no ~ indicators)
+
+**Implementation**: Go test in `cmd/cfv/` using testscript or a custom test
+that builds the binary and runs it. Must be automated, not manual QA.
 
 Phases 1-3 can be done sequentially. Phase 6 can slot in anywhere. Phase 4 is the largest effort and benefits from patterns established in Phase 2-3. Phase 5 is externally blocked.
 
