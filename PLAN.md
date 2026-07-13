@@ -34,48 +34,38 @@
 
 ---
 
-## Phase 1: JSONC Formatter (hujson)
+## Phase 1: JSONC Formatter (hujson) ✅
 
-**Effort**: 1 day
-**Risk**: Low — library does the heavy lifting
-**Dependency**: tailscale/hujson (already in go.mod)
+**Completed**: 2026-07-13 | **Commit**: dfb2dae
+**Effort**: 1 session | **Risk**: Low
 
 ### What hujson gives us
 
 - Full CST (`Value` with `BeforeExtra`/`AfterExtra` preserving comments and whitespace)
-- `Format()` method — idempotent, comment-preserving
-- `Object.Members` is a public slice — trivially sortable for SortKeys
-- Handles JSON AND JSONC (comments + trailing commas) with one parser
-- If input is standard JSON, output remains standard JSON
+- `Parse()` for lossless parsing of JSON and JSONC
+- `Pack()` for serialization from CST
+- `IsStandard()` to detect whether input is pure JSON
 
-### Limitations to address
+### Design decision: custom CST walker, not hujson's Format()
 
-- `Format()` uses hardcoded 1-tab indent — no configurable indent width
-- SortKeys needs custom implementation (sort `Object.Members` recursively)
+hujson's `Format()` uses hardcoded tab indent with value alignment (padding
+after colons to align values with the longest key). This alignment is
+incompatible with configurable indent width — replacing tabs with spaces
+produces non-idempotent output because the alignment math changes.
 
-### Tasks
+Solution: skip `Format()` entirely. Custom `formatState` walker sets
+`BeforeExtra`/`AfterExtra` on each CST node for clean indentation. ~300
+lines, deterministic, idempotent by construction.
 
-- [ ] 1.1: Create `pkg/formatter/jsoncfmt/` package
-  - Parse with `hujson.Parse()`
-  - If `opts.SortKeys`: recursively sort `Object.Members` by key
-  - Call `value.Format()` for standard formatting
-  - Post-process indent: replace leading tabs with configured indent string
-  - Apply `FinalNewline` and `LineEnding` normalization
-  - No bail-outs, no re-validation
-  - **Files**: `pkg/formatter/jsoncfmt/jsonc.go`
+### Delivered
 
-- [ ] 1.2: Register JSONC formatter in `pkg/filetype/formatters.go`
-  - Map `"jsonc"` → `jsoncfmt.Formatter{}`
-
-- [ ] 1.3: Tests
-  - Fixture-based tests (basic, comments, trailing commas, nested, sorted)
-  - Idempotency test on all fixtures
-  - Fuzz test (same contract: no panics, if succeeds then idempotent)
-  - Verify standard JSON input produces standard JSON output
-  - **Files**: `pkg/formatter/jsoncfmt/jsonc_test.go`, `testdata/`
-
-- [ ] 1.4: Pipeline verification
-  - `go test ./...`, `golangci-lint run`, coverage ≥ 90%
+- `pkg/formatter/jsoncfmt/jsonc.go` — formatter implementation
+- `pkg/formatter/jsoncfmt/jsonc_test.go` — tests + fuzz
+- 7 fixture pairs + 1 fuzz corpus entry
+- Registered in `pkg/filetype/formatters.go`
+- Fuzz: 10M+ executions, zero failures
+- CLI functional test: tsconfig.jsonc, settings.jsonc, .eslintrc.json all format correctly
+- Pipeline: 91.6% coverage, 0 lint issues
 
 ---
 
@@ -377,7 +367,7 @@ Already has zero bail-outs. No changes needed.
 ## Execution Order
 
 ```
-Phase 1: JSONC (hujson)                          — 1 day,  low risk, immediate value
+Phase 1: JSONC (hujson)                          ✅ done (dfb2dae)
 Phase 2: Properties CST                          — 2-3 days, low risk
 Phase 3: INI CST                                 — 2-3 days, low risk
 Phase 6: YAML/ENV cleanup                        — <1 day, negligible risk
