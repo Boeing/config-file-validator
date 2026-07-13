@@ -1,0 +1,9 @@
+{
+    "name":   "app",
+    "items": [
+       "one",
+       "two",
+       "three",
+    ],
+    "enabled": true,
+}

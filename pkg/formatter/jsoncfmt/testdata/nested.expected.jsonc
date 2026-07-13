@@ -1,0 +1,14 @@
+{
+  // Top level config
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "options": {
+      "timeout": 30,
+      "retries": 3,
+    },
+  },
+  "logging": {
+    "level": "info",
+  },
+}

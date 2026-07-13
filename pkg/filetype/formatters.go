@@ -4,6 +4,7 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/envfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/hclfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/inifmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsoncfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsonfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/propfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/tomlfmt"
@@ -22,6 +23,8 @@ func init() {
 		switch ft.Name {
 		case "json":
 			FileTypes[i].Formatter = jsonfmt.Formatter{}
+		case "jsonc":
+			FileTypes[i].Formatter = jsoncfmt.Formatter{}
 		case "yaml":
 			FileTypes[i].Formatter = yamlfmt.Formatter{}
 		case "hcl":

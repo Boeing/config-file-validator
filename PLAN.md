@@ -1,397 +1,428 @@
-# PLAN.md — Stress Test Bug Remediation
+# PLAN.md — Formatter Architecture: CST-Based Rewrite
 
-**Supersedes**: Task 8 "Final stress test + Opus review" in cfv-3.0-plan.md  
-**Date**: 2026-07-07  
-**Context**: Adversarial fuzz + edge case testing found 5 bugs across 4 formatters.
+**Date**: 2026-07-13
+**Context**: Investigation revealed that silent bail-outs (`return src, nil`) in Properties, INI, and TOML formatters are an architectural smell. The root cause is a validate-then-transform pattern where the formatter operates on raw text disconnected from semantic understanding. Every major formatter (gofmt, prettier, rustfmt, black) uses parse→model→print, which is correct by construction. This plan migrates all formatters to CST-based parsing with zero bail-outs.
 
-## Bug Summary
-
-| # | Formatter | Severity | Bug | Root Cause |
-|---|-----------|----------|-----|------------|
-| 1 | XML | HIGH | Mixed content breaks idempotency | go-xmlfmt regex can't handle text nodes adjacent to elements |
-| 2 | XML | MEDIUM | BOM prefix breaks idempotency | Leading newline not trimmed when BOM precedes it |
-| 3 | INI | MEDIUM | Backslash values corrupted on round-trip | ini.v1 treats trailing `\` as line continuation |
-| 4 | Properties | MEDIUM | `!` and `#` in keys vanish on round-trip | Library writes unescaped, re-parse treats as comment |
-| 5 | HCL | LOW | Returns (nil, nil) on empty input | hclwrite.Format returns nil for empty, no guard |
-
-## Remediation Plan
-
-### Fix 5: HCL empty input — trivial guard (do first)
-
-**Problem**: `Format([]byte{}, opts)` returns `(nil, nil)`.  
-**Fix**: After `hclwrite.Format(src)`, if result is nil or empty, return the appropriate output based on `FinalNewline` (either `[]byte("\n")` or `[]byte{}`).
-
-**Files**: `pkg/formatter/hclfmt/hcl.go`  
-**Test**: Add test case: `Format([]byte{}, defaultOpts)` returns non-nil `[]byte("\n")`.  
-**Risk**: Zero. Pure edge case guard.
+**Supersedes**: Round 2 tasks (Fix 6, Fix 7) in previous plan. Those bugs are symptoms of the architecture we're replacing.
 
 ---
 
-### Fix 2: XML BOM prefix — subsumed by Fix 1
+## Current State
 
-**Status**: Handled as part of the helium rewrite in Fix 1. BOM is stripped before parse and restored after serialize. No separate fix needed.
+| Format | Architecture | Bail-outs | CST Library Available |
+|--------|-------------|-----------|----------------------|
+| HCL | ✅ CST (hclwrite token stream) | 0 | hashicorp/hcl/v2 |
+| JSON | ✅ Semantic (tidwall/pretty) | 0 | encoding/json + tidwall/pretty |
+| YAML | ✅ CST (goccy/go-yaml AST) | 1 (empty file) | goccy/go-yaml |
+| JSONC | ❌ No formatter exists | N/A | tailscale/hujson (**already in go.mod**) |
+| XML | ⚠️ DOM (helium) | 2 (ErrSkipped) | lestrrat-go/helium (has bugs, issues filed) |
+| Properties | ❌ Line-oriented | 4 | None exists — must write CST |
+| INI | ❌ Line-oriented | 3 | None exists — must write CST |
+| TOML | ❌ Line-oriented | 3 | pelletier/go-toml/v2 `unstable` (read-only AST) |
+| ENV | ✅ Line-oriented (format is trivial) | 0 | N/A (format too simple to need CST) |
 
 ---
 
-### Fix 1: XML — replace go-xmlfmt with helium + mixed content skip (SEVERITY: HIGH)
+## Design Principles
 
-**Problem**: `go-xmlfmt` is regex-based and cannot handle mixed content. Indentation drifts on each format pass.
+1. **No silent bail-outs.** Either format the file correctly or return an error/ErrSkipped with a reason. Never return input unchanged pretending it worked.
+2. **Parse once, understand fully, print deterministically.** The formatter must understand the file's structure (including escapes, continuations, multiline values, comments) at the token level.
+3. **Idempotent by construction.** Same CST → same output. No runtime idempotency checks.
+4. **Comment preservation is mandatory.** Comments are first-class tokens in the CST, not afterthoughts.
+5. **Use existing libraries where they provide CST.** Only write custom parsers where no library exists.
+6. **Validate with the validation library. Format with the CST.** These may be different libraries.
 
-**Solution**: Replace `go-xmlfmt` with `helium` (already a dependency for XML validation). Use `StripBlanks(true)` on parse + `Format(true).IndentString(indent)` on write. This is idempotent for all structure-only XML (config files).
+---
 
-For true mixed content (text + elements as siblings), detect it and return a sentinel error so the user is notified.
+## Phase 1: JSONC Formatter (hujson)
 
-**Implementation**:
+**Effort**: 1 day
+**Risk**: Low — library does the heavy lifting
+**Dependency**: tailscale/hujson (already in go.mod)
 
-1. Define a sentinel error in `pkg/formatter/formatter.go`:
-   ```go
-   // ErrSkipped indicates the formatter cannot process this file but it's not
-   // a syntax error. The file should be reported to the user with the reason
-   // but not counted as a failure.
-   type ErrSkipped struct {
-       Reason string
-   }
-   func (e *ErrSkipped) Error() string { return "skipped: " + e.Reason }
-   ```
+### What hujson gives us
 
-2. Rewrite `pkg/formatter/xmlfmt/xml.go`:
-   - Parse with `helium.NewParser().StripBlanks(true).Parse(ctx, src)`
-   - Before formatting: walk the DOM to detect mixed content. If any element
-     has both text children (non-whitespace) AND element children, return
-     `&formatter.ErrSkipped{Reason: "contains mixed content"}`
-   - Serialize with `helium.NewWriter().Format(true).IndentString(indent)`
-   - Handle BOM: strip before parse, restore after serialize
+- Full CST (`Value` with `BeforeExtra`/`AfterExtra` preserving comments and whitespace)
+- `Format()` method — idempotent, comment-preserving
+- `Object.Members` is a public slice — trivially sortable for SortKeys
+- Handles JSON AND JSONC (comments + trailing commas) with one parser
+- If input is standard JSON, output remains standard JSON
 
-3. Update `pkg/cli/format.go` to handle `*formatter.ErrSkipped`:
-   - Use `errors.As` to detect the sentinel
-   - Report the file with a distinct message (e.g., `~ path — skipped: reason`)
-   - Do NOT count as failure (no exit 1 contribution)
-   - Do NOT attempt `--fix`
+### Limitations to address
 
-4. Remove `github.com/go-xmlfmt/xmlfmt` from `go.mod`
+- `Format()` uses hardcoded 1-tab indent — no configurable indent width
+- SortKeys needs custom implementation (sort `Object.Members` recursively)
 
-**Mixed content detection algorithm**:
+### Tasks
+
+- [ ] 1.1: Create `pkg/formatter/jsoncfmt/` package
+  - Parse with `hujson.Parse()`
+  - If `opts.SortKeys`: recursively sort `Object.Members` by key
+  - Call `value.Format()` for standard formatting
+  - Post-process indent: replace leading tabs with configured indent string
+  - Apply `FinalNewline` and `LineEnding` normalization
+  - No bail-outs, no re-validation
+  - **Files**: `pkg/formatter/jsoncfmt/jsonc.go`
+
+- [ ] 1.2: Register JSONC formatter in `pkg/filetype/formatters.go`
+  - Map `"jsonc"` → `jsoncfmt.Formatter{}`
+
+- [ ] 1.3: Tests
+  - Fixture-based tests (basic, comments, trailing commas, nested, sorted)
+  - Idempotency test on all fixtures
+  - Fuzz test (same contract: no panics, if succeeds then idempotent)
+  - Verify standard JSON input produces standard JSON output
+  - **Files**: `pkg/formatter/jsoncfmt/jsonc_test.go`, `testdata/`
+
+- [ ] 1.4: Pipeline verification
+  - `go test ./...`, `golangci-lint run`, coverage ≥ 90%
+
+---
+
+## Phase 2: Properties CST Parser
+
+**Effort**: 2-3 days
+**Risk**: Low — grammar is trivial, we're already 80% there
+**Dependency**: None new. Keep magiconair/properties for validation only.
+
+### Why custom CST
+
+No Go library provides format-preserving Properties parsing. Our current `propfmt` already has `findSeparator` that walks characters and handles escapes — it's 80% of a lexer. The gap: it works at line granularity instead of token granularity, which causes it to miss continuation semantics and escape interactions.
+
+### Token types
+
+```
+CommentToken     // # or ! prefix through end of line
+BlankToken       // empty line
+KeyToken         // key characters (with escape sequences preserved)
+SeparatorToken   // =, :, or first whitespace between key and value
+ValueToken       // value characters (with escape sequences preserved)
+ContinuationToken // trailing \ + newline + leading whitespace on next line
+NewlineToken     // \n or \r\n
+```
+
+### Design
+
 ```go
-func hasMixedContent(node helium.Node) bool {
-    // Walk all element nodes. For each element, check if it has
-    // both non-whitespace text children AND element children.
-    // If so, it's mixed content.
+type Token struct {
+    Kind    TokenKind
+    Raw     string   // original bytes exactly as they appeared
+    Value   string   // decoded value (for Key/Value tokens: unescaped)
+}
+
+type Entry struct {
+    LeadingComments []Token  // comment lines preceding this entry
+    Key             Token
+    Separator       Token
+    Value           []Token  // value + continuation tokens
+    InlineComment   *Token   // rarely used in properties but possible
+    Newline         Token
+}
+
+type File struct {
+    Entries  []Entry
+    Trailing []Token  // trailing comments/blanks after last entry
 }
 ```
 
-**Files**:
-- `pkg/formatter/formatter.go` (add ErrSkipped)
-- `pkg/formatter/xmlfmt/xml.go` (rewrite)
-- `pkg/cli/format.go` (handle ErrSkipped)
-- `go.mod` (remove go-xmlfmt)
+### Formatting operations on the CST
 
-**Test**:
-- Existing fixtures still pass (all are structure-only XML)
-- Mixed content input returns ErrSkipped (not a panic, not formatted)
-- BOM input is idempotent
-- `<root><a><b/>0</a></root>` returns ErrSkipped
-- Normal XML remains idempotent after rewrite
+- **Normalize separator**: Replace `SeparatorToken.Raw` with ` = ` (or configured separator)
+- **SortKeys**: Sort `File.Entries` by `Entry.Key.Value` (decoded key), preserving attached `LeadingComments`
+- **Indent**: Not applicable for properties
+- **FinalNewline/LineEnding**: Normalize `NewlineToken`s
 
-**Risk**: Medium. Replacing the entire XML formatter engine. But helium is already a dep and the API is straightforward. Main risk is the mixed content detection producing false positives on legitimate config XML.
+The printer walks `File` and emits `Token.Raw` for every token, except for the Separator which gets normalized. This is correct by construction — we only modify what we intend to, everything else is verbatim.
 
-**Dependency change**: Remove `github.com/go-xmlfmt/xmlfmt`. Net -1 dependency.
+### Tasks
+
+- [ ] 2.1: Implement lexer in `pkg/formatter/propfmt/lexer.go`
+  - Tokenize properties file into stream of tokens
+  - Handle: escape sequences (`\n`, `\t`, `\uXXXX`, `\\`), continuation (`\` + newline), comment lines (`#`, `!`), separator detection (first unescaped `=`, `:`, or whitespace)
+  - Every byte of input is accounted for in exactly one token
+  - **Files**: `pkg/formatter/propfmt/lexer.go`
+
+- [ ] 2.2: Implement parser in `pkg/formatter/propfmt/parser.go`
+  - Build `File` structure from token stream
+  - Associate comments with following entries
+  - Track continuation tokens as part of value
+  - **Files**: `pkg/formatter/propfmt/parser.go`
+
+- [ ] 2.3: Implement printer in `pkg/formatter/propfmt/printer.go`
+  - Walk `File`, emit tokens
+  - Normalize separator spacing
+  - Implement SortKeys (sort entries, preserve comment attachment)
+  - Apply FinalNewline and LineEnding
+  - **Files**: `pkg/formatter/propfmt/printer.go`
+
+- [ ] 2.4: Replace `properties.go` Format function
+  - Keep `magiconair/properties` for validation (catch invalid escape sequences the lexer might accept)
+  - Replace line-oriented code with: validate → lex → parse → transform → print
+  - Remove all `return src, nil` bail-outs
+  - Remove idempotency check (correctness is structural)
+  - **Files**: `pkg/formatter/propfmt/properties.go`
+
+- [ ] 2.5: Tests
+  - All existing fixtures must produce identical output
+  - New fixtures: continuation lines, escaped keys, SortKeys with comments
+  - Fuzz: 45s minimum, zero failures
+  - **Files**: `pkg/formatter/propfmt/properties_test.go`, `testdata/`
+
+- [ ] 2.6: Pipeline verification
 
 ---
 
-### Fix 3: INI backslash — disable line continuation
+## Phase 3: INI CST Parser
 
-**Problem**: `ini.v1` interprets trailing `\` as a line continuation character. After Write serializes a value containing `\`, re-parsing joins it with the next line.
+**Effort**: 2-3 days
+**Risk**: Low — similar complexity to Properties
+**Dependency**: None new. Keep gopkg.in/ini.v1 for validation only.
 
-**Fix**: Set `IgnoreContinuation: true` in `LoadOptions`. This tells the parser to treat `\` as a literal character, not a line continuation. This matches the behavior users expect from a formatter — it should never change the semantic meaning of values.
+### Token types
 
-Verify: after enabling `IgnoreContinuation`, confirm that:
-- `0=\\` round-trips correctly (value stays as `\\`)
-- Regular values without backslash still work
-- Multiline values via Python-style continuation (indented next lines) are NOT affected (those use indentation, not `\`)
+```
+CommentToken      // # or ; prefix through end of line
+BlankToken        // empty line
+SectionToken      // [section-name]
+KeyToken          // key characters
+SeparatorToken    // = or :
+ValueToken        // value characters (may include quotes that the parser preserves verbatim)
+NewlineToken      // \n or \r\n
+```
 
-**Files**: `pkg/formatter/inifmt/ini.go`  
-**Test**: Add test: `[section]\npath = C:\\Users\\test\n` round-trips correctly.  
-**Risk**: Low. `IgnoreContinuation` is a documented, stable option. Line continuation in INI files is non-standard and rare. 
+### Design
+
+```go
+type Section struct {
+    LeadingComments []Token
+    Header          Token     // [section-name] — nil for default section
+    Entries         []Entry
+}
+
+type Entry struct {
+    LeadingComments []Token
+    Key             Token
+    Separator       Token
+    Value           Token
+    InlineComment   *Token
+    Newline         Token
+}
+
+type File struct {
+    Sections []Section
+    Trailing []Token
+}
+```
+
+### Formatting operations
+
+- **Normalize separator**: Replace `SeparatorToken.Raw` with ` = ` (or configured)
+- **Indent**: Prepend configured indent to Key/Comment tokens within sections
+- **SortKeys**: Sort `Section.Entries` by key within each section
+- **Quoted values**: `Value.Raw` is preserved verbatim — we never interpret quotes, we just carry them through
+
+### Tasks
+
+- [ ] 3.1: Implement lexer in `pkg/formatter/inifmt/lexer.go`
+  - Tokenize INI file
+  - Handle: section headers, comments (# and ;), key-value pairs, escaped characters
+  - No interpretation of quoted values — they're opaque value tokens
+  - **Files**: `pkg/formatter/inifmt/lexer.go`
+
+- [ ] 3.2: Implement parser in `pkg/formatter/inifmt/parser.go`
+  - Build `File` → `Section` → `Entry` structure
+  - Associate comments with following entries/sections
+  - **Files**: `pkg/formatter/inifmt/parser.go`
+
+- [ ] 3.3: Implement printer in `pkg/formatter/inifmt/printer.go`
+  - Walk `File`, emit tokens
+  - Normalize separator, apply indent
+  - Implement SortKeys (within sections)
+  - Apply FinalNewline and LineEnding
+  - **Files**: `pkg/formatter/inifmt/printer.go`
+
+- [ ] 3.4: Replace `ini.go` Format function
+  - Keep `gopkg.in/ini.v1` for validation
+  - Remove all `return src, nil` bail-outs
+  - **Files**: `pkg/formatter/inifmt/ini.go`
+
+- [ ] 3.5: Tests
+  - All existing fixtures must produce identical output
+  - New fixtures: quoted values, SortKeys, keys with special characters
+  - Fuzz: 45s minimum, zero failures
+  - **Files**: `pkg/formatter/inifmt/ini_test.go`, `testdata/`
+
+- [ ] 3.6: Pipeline verification
 
 ---
 
-### Fix 4: Properties — replace library serializer with custom line-oriented formatter
+## Phase 4: TOML CST Parser
 
-**Problem**: `magiconair/properties` library writes keys containing `!` or `#` without escaping them. On re-parse, those characters are interpreted as comment prefixes. The library's `WriteComment` is not round-trip safe.
+**Effort**: 5-7 days
+**Risk**: Medium — TOML grammar is complex (nesting, multiline strings, inline tables, dotted keys)
+**Dependency**: pelletier/go-toml/v2 `unstable` package (read-only AST with comments)
 
-**Fix**: Stop using `magiconair/properties` for formatting entirely. Rewrite `propfmt` as a custom line-oriented formatter (same approach as `envfmt`):
+### Approach
 
-1. Use `properties.Load` only for **validation** (confirm the file is parseable)
-2. Walk the source lines directly:
-   - Comment lines (`#` or `!` prefix) — preserve verbatim
-   - Blank lines — preserve
-   - Key-value lines — normalize spacing around separator to `key = value`
-   - Continuation lines (trailing `\`) — preserve verbatim as part of previous key-value
-3. For `SortKeys`: parse keys from lines, sort, re-emit with their attached comments
+pelletier/go-toml/v2's `unstable.Parser` provides a read-only AST that preserves comments and positions. It has node types for `KeyValue`, `Table`, `ArrayTable`, `Array`, `InlineTable`, and `Comment`. What it lacks is a serializer.
 
-This eliminates the library's serialization entirely. We only depend on it for the parse-validity check (which the validator already does, but we keep it here for the formatter's contract: return error on invalid input).
+We write a custom printer that walks the `unstable` AST and emits formatted output. The AST gives us structural understanding (scope, nesting, multiline boundaries). The printer handles indentation and separator normalization.
 
-**Files**: `pkg/formatter/propfmt/properties.go` (rewrite)  
-**Test**:
-- `\!=bang` round-trips (key `!` survives)
-- `\#=hash` round-trips (key `#` survives)
-- Existing fixtures still pass
-- Multiline values (trailing `\`) preserved
-- Comment preservation
+**Trade-off**: The `unstable` package is explicitly marked as not having backward-compatibility guarantees. However:
+- It's been stable in practice for 2+ years
+- We pin exact versions in go.mod
+- The alternative (writing our own TOML lexer/parser) is far more effort and maintenance burden
+- If the API breaks in a future version, the fix is adapting our printer to the new API, not rewriting the parser
 
-**Risk**: Low. Properties format is simple. The ENV formatter proves this approach works.
+### Token-level approach via unstable AST
+
+```go
+// The unstable parser gives us:
+type Node struct {
+    Kind    Kind    // KeyValue, Table, ArrayTable, Comment, etc.
+    Raw     Range   // byte offsets into source
+    Data    []byte  // raw bytes for this node
+    Children []Node
+}
+```
+
+We walk nodes, emit their raw bytes with formatting adjustments:
+- `KeyValue` nodes: normalize spacing around `=`
+- `Table`/`ArrayTable` nodes: emit header, indent children
+- `Comment` nodes: preserve verbatim with indent
+- Multiline values: detected by node boundaries, preserved verbatim
+- SortKeys: sort `KeyValue` children within each `Table`, preserving attached comments
+
+### Tasks
+
+- [ ] 4.1: Implement AST walker and printer in `pkg/formatter/tomlfmt/printer.go`
+  - Walk `unstable.Parser` output
+  - Classify nodes, emit with formatting
+  - Handle all TOML constructs: basic/literal strings, multiline strings, arrays, inline tables, dotted keys, datetime
+  - **Files**: `pkg/formatter/tomlfmt/printer.go`
+
+- [ ] 4.2: Implement SortKeys
+  - Sort KeyValue nodes within table scope
+  - Preserve comment attachment (comments before a key travel with it)
+  - Handle dotted keys correctly (sort by first segment, preserve sub-key order)
+  - **Files**: `pkg/formatter/tomlfmt/printer.go`
+
+- [ ] 4.3: Replace `toml.go` Format function
+  - Keep `pelletier/go-toml/v2` stable API for validation (`Unmarshal`)
+  - Use `unstable.Parser` for CST access
+  - Remove line-oriented code
+  - Remove multiline preservation hacks
+  - **Files**: `pkg/formatter/tomlfmt/toml.go`
+
+- [ ] 4.4: Tests
+  - All existing fixtures must produce identical output
+  - New fixtures: multiline strings (basic + literal), inline tables, dotted keys, SortKeys, arrays of tables
+  - Fuzz: 45s minimum, zero failures
+  - **Files**: `pkg/formatter/tomlfmt/toml_test.go`, `testdata/`
+
+- [ ] 4.5: Pipeline verification
+
+---
+
+## Phase 5: XML (Pending helium upstream fixes)
+
+**Effort**: 1-2 days after helium fixes land
+**Risk**: Low — helium already provides DOM, we just need bugs fixed
+**Dependency**: lestrrat-go/helium (issues filed, awaiting response)
+
+### Issues filed
+
+1. **StripBlanks(true) treats entity-encoded and literal characters differently** — bug, causes idempotency failure
+2. **Writer.Format(true) inserts indentation inside mixed-content elements** — bug, corrupts text content
+
+### Plan
+
+- **If helium fixes both**: Upgrade, remove `ErrSkipped` for mixed content (helium handles it correctly), delete fuzz corpus entry. Done.
+- **If helium fixes StripBlanks only**: Upgrade. Keep `ErrSkipped` for mixed content as a documented scope limitation until Writer fix lands.
+- **If helium is unresponsive (30+ days)**: Evaluate switching to `beevik/etree` for formatting with custom mixed-content-aware serializer (~80 lines). Keep helium for XSD validation only.
+- **If we contribute fixes ourselves**: Fork, fix, PR upstream, use fork via `replace` directive until merged.
+
+### Tasks (deferred until upstream response)
+
+- [ ] 5.1: Upgrade helium when fixes land
+- [ ] 5.2: Remove ErrSkipped for mixed content (if Writer fix lands)
+- [ ] 5.3: Fuzz: 45s, zero failures
+- [ ] 5.4: Pipeline verification
+
+---
+
+## Phase 6: YAML and ENV cleanup
+
+**Effort**: < 1 day
+**Risk**: Negligible
+
+### YAML
+
+The YAML formatter is already CST-based (goccy/go-yaml AST). Two issues:
+- Empty/whitespace input returns `src, nil` → change to `ErrSkipped` or format to empty with final newline
+- `IndentTabs` silently falls back to spaces → return error "YAML does not support tab indentation per spec"
+
+### ENV
+
+Already has zero bail-outs. No changes needed.
+
+### Tasks
+
+- [ ] 6.1: YAML empty input: return `ErrSkipped{Reason: "empty document"}` instead of silent return
+- [ ] 6.2: YAML IndentTabs: return error instead of silent fallback
+- [ ] 6.3: Tests and pipeline verification
 
 ---
 
 ## Execution Order
 
 ```
-Fix 5  ✅ HCL empty input guard
-Fix 3  ✅ INI IgnoreContinuation (partial — fixed backslash, new quoting issue found)
-Fix 4  ✅ Properties custom line-oriented (partial — fixed !/# keys, continuation issue found)
-Fix 1  ✅ XML helium rewrite + ErrSkipped + BOM (fully fixed, -1 dep)
+Phase 1: JSONC (hujson)                          — 1 day,  low risk, immediate value
+Phase 2: Properties CST                          — 2-3 days, low risk
+Phase 3: INI CST                                 — 2-3 days, low risk
+Phase 6: YAML/ENV cleanup                        — <1 day, negligible risk
+Phase 4: TOML CST                                — 5-7 days, medium risk
+Phase 5: XML (blocked on helium upstream)        — 1-2 days when unblocked
 ```
 
-Fix 2 is subsumed by Fix 1.
+Phases 1-3 can be done sequentially. Phase 6 can slot in anywhere. Phase 4 is the largest effort and benefits from patterns established in Phase 2-3. Phase 5 is externally blocked.
 
 ---
 
-## Round 2: Remaining Fuzz Failures
+## Acceptance Criteria (overall)
 
-### Fix 6: Properties — line continuation handling
-
-**Problem**: Input `0\\\n0` (key "0" with value `\` followed by `0` on the next line). In properties spec, trailing `\` on a value means the next line is a continuation. Our formatter emits `0\ = \n0\n` — but on re-parse, the `\` at end of value joins with the next line `0`, changing the structure.
-
-**Root cause**: `normalizeKeyValue` normalizes spacing on the first line of a multi-line value, but doesn't account for the fact that the value portion may end with a continuation `\`. When we emit `key = value\`, the `\` is now at a different position relative to whitespace, and the second line gets treated differently.
-
-**Fix**: Make the formatter continuation-aware during rendering:
-
-1. In `render()`, when emitting a key-value line, check if the value ends with a continuation backslash (odd count of trailing `\`).
-2. If it does, emit the key-value line AND all continuation lines as a single block, preserving the continuation lines verbatim (no normalization on continuation lines — they're part of the value).
-3. The `parse()` function already tracks continuation correctly and stores the full multi-line value in `line.value`. The issue is in `render()` where we split back into lines.
-
-**Approach**: Change `render()` to emit `line.value` as-is (which may contain `\n` from continuation). The value was captured verbatim from the source including continuation lines. We only normalize the key and separator on the first line.
-
-```go
-// In render, for kindKeyVal:
-buf.WriteString(l.key)
-buf.WriteString(" = ")
-buf.WriteString(l.value)  // value includes continuation lines with \n
-buf.WriteByte('\n')
-```
-
-The bug is that `l.value` already contains the continuation content (`\n0`), but we're adding an extra `\n` between the `= ` and the start of value. Wait — let me trace it more carefully:
-
-Input: `0\\\n0`
-- Line 1: `0\\` — key=`0`, separator=`\`, value=`\` (trailing `\` = continuation)
-- Line 2: `0` — continuation of previous value
-
-After parse: `line{key: "0", value: "\\\n0"}` (value is `\` + newline + `0`)
-
-After render: `0 = \\\n0\n`
-
-On re-parse of that output:
-- Line 1: `0 = \\` — key=`0`, value=`\\` — but wait, `\\` is two backslashes, an EVEN count, so NOT a continuation. But the original had one backslash (continuation).
-
-**Actual root cause**: The properties spec says `\` followed by `\` is an escaped backslash (literal `\`), while a single trailing `\` is continuation. The input `0\\` has TWO backslashes — that's a literal backslash as the value, NOT a continuation. But `properties.Load` parses it as key=`0`, value=`\` (interpreting `\\` as escaped backslash). Our line-oriented formatter doesn't interpret escapes — it sees `0\\` and with `endsWithContinuation` (odd count check) it sees 2 backslashes = even = no continuation. Then it emits as a single line.
-
-The mismatch: the library's validation pass interprets escape sequences, but our line-oriented formatter preserves them verbatim. When the library says "this is valid" and our formatter says "I'll preserve it as-is", the two can disagree on what the structure means.
-
-**Revised fix**: The line-oriented formatter must NOT normalize lines that the library would interpret differently. The safest approach:
-
-1. Use `properties.Load` for validation (confirms parseable).
-2. For formatting: walk lines, normalize ONLY the whitespace around the separator on lines that are clearly simple `key=value` (no continuation, no multi-line).
-3. Lines with trailing `\` (odd count): preserve the ENTIRE key-value block verbatim (don't normalize). This is safe because we can't know how the library interprets the escapes without duplicating its logic.
-
-**Implementation**:
-- In `parse()`: when we detect a key-value with continuation, store `kind: kindKeyVal` but set a `multiline: true` flag.
-- In `render()`: if `multiline`, emit the raw original lines verbatim (no normalization).
-- Single-line key-values still get `key = value` normalization.
-
-**Files**: `pkg/formatter/propfmt/properties.go`
-**Test**: Fuzz corpus input `0\\\n0` round-trips correctly.
-**Risk**: Low. We're being more conservative (less normalization) which is always safer.
+- Zero `return src, nil` patterns across all formatters
+- Zero silent bail-outs — every formatter either formats or returns an explicit error
+- Fuzz 45s per formatter, zero failures, all 8+ formatters
+- Full pipeline green, coverage ≥ 90%
+- SortKeys works for: JSON ✅, JSONC (new), YAML ✅, Properties (new), INI (new), TOML (new)
+- All existing fixtures produce identical output (no behavior regression)
 
 ---
 
-### Fix 7: INI — custom Write replacing ini.v1's WriteTo
+## Decision Log
 
-**Problem**: `ini.v1`'s `WriteTo` applies quoting to keys/values containing special characters (backtick, double-quote, `=`, etc.). The quoting it applies is not correctly re-parsed by its own `Load`. Keys like `` 0`" `` get serialized as `` `0`"` `` which fails to round-trip.
+### 2026-07-13: CST-based rewrite over incremental fixes
 
-**Root cause**: The library's writer adds quoting that its parser doesn't correctly reverse. This is a library bug we can't fix upstream.
+- Silent bail-outs are architectural smell from validate-then-transform pattern
+- Every major formatter uses parse→model→print; we should too
+- Line-oriented approach hits ceiling at SortKeys, escape handling, continuation
+- "One-stop shop" positioning requires first-class formatting, not secondary
+- Go ecosystem has no CST libraries for Properties/INI — we must write our own
+- TOML has pelletier's `unstable` AST (read-only, no serializer) — we write the printer
+- JSONC is free via hujson (already in go.mod)
+- XML is blocked on helium upstream bug fixes
 
-**Fix**: Replace `f.WriteTo(&buf)` / `f.WriteToIndent(&buf, indent)` with a custom emitter. Keep `ini.Load` for validation and structural access (sections, keys, values, comments). Write our own serialization:
+### 2026-07-13: etree evaluated but not adopted (for now)
 
-```go
-func writeINI(f *ini.File, indent string) []byte {
-    var buf bytes.Buffer
-    for _, section := range f.Sections() {
-        // Write section comment if any
-        if comment := section.Comment; comment != "" {
-            for _, line := range strings.Split(comment, "\n") {
-                buf.WriteString(line)
-                buf.WriteByte('\n')
-            }
-        }
-        // Write section header (skip DEFAULT section header)
-        if section.Name() != ini.DefaultSection {
-            buf.WriteString("[" + section.Name() + "]\n")
-        }
-        // Write keys
-        for _, key := range section.Keys() {
-            if comment := key.Comment; comment != "" {
-                for _, line := range strings.Split(comment, "\n") {
-                    buf.WriteString(indent + line)
-                    buf.WriteByte('\n')
-                }
-            }
-            buf.WriteString(indent + key.Name() + " = " + key.Value() + "\n")
-        }
-        buf.WriteByte('\n')  // blank line between sections
-    }
-    return buf.Bytes()
-}
-```
+- beevik/etree handles entity/whitespace correctly where helium doesn't
+- Same mixed-content limitation as helium (fundamental XML property)
+- If helium is unresponsive on bug fixes, etree becomes the formatting backend
+- Would add one dependency but eliminate the StripBlanks bug
 
-Key difference from library's Write: we emit `key.Name()` and `key.Value()` directly — no quoting transformation. The name and value are already the parsed (decoded) forms. Since the input was valid (Load succeeded), re-emitting the decoded form with `=` separator produces valid INI that round-trips.
+### 2026-07-13: pelletier/go-toml/v2 `unstable` accepted despite API stability warning
 
-**Wait — problem**: `key.Name()` returns the decoded key name (without escapes/quotes). If we emit that directly, and the key contained `=` or whitespace, the output won't be parseable. For example, key `a = b` would emit as `a = b = value` — ambiguous.
-
-**Revised approach**: Don't use the library's parsed representation for serialization at all. Go fully line-oriented (like ENV and Properties):
-
-1. `ini.Load` for validation only.
-2. Walk source lines directly. Classify as: comment, blank, section header, key-value.
-3. Normalize spacing around `=` on key-value lines.
-4. Preserve everything else verbatim.
-
-This is the same proven pattern as ENV and Properties. No quoting issues because we never decode/re-encode.
-
-**Implementation**:
-```go
-func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
-    // Validate with library.
-    if _, err := ini.LoadSources(loadOpts, src); err != nil {
-        return nil, err
-    }
-    
-    // Line-oriented formatting.
-    lines := splitLines(src)
-    var buf bytes.Buffer
-    inSection := false
-    indent := buildIndent(opts)
-    
-    for _, line := range lines {
-        trimmed := strings.TrimSpace(line)
-        switch {
-        case trimmed == "":
-            buf.WriteByte('\n')
-        case trimmed[0] == '#' || trimmed[0] == ';':
-            // Comment — preserve with section indent.
-            if inSection && indent != "" {
-                buf.WriteString(indent)
-            }
-            buf.WriteString(trimmed)
-            buf.WriteByte('\n')
-        case trimmed[0] == '[':
-            // Section header.
-            inSection = true
-            buf.WriteString(trimmed)
-            buf.WriteByte('\n')
-        default:
-            // Key-value line — normalize spacing around separator.
-            normalized := normalizeINIKeyValue(trimmed)
-            if inSection && indent != "" {
-                buf.WriteString(indent)
-            }
-            buf.WriteString(normalized)
-            buf.WriteByte('\n')
-        }
-    }
-    
-    // FinalNewline + LineEnding handling...
-}
-```
-
-**Files**: `pkg/formatter/inifmt/ini.go` (rewrite)
-**Test**: Fuzz corpus input `` 0`"=0 `` round-trips. Existing fixtures still pass.
-**Risk**: Low. Proven pattern. Library only used for validation.
-
----
-
-## Execution Order (Round 2)
-
-```
-Fix 6  🔲 Properties continuation handling    — 20 min, low risk
-Fix 7  🔲 INI custom line-oriented rewrite    — 30 min, low risk
-       🔲 Full pipeline verification
-       🔲 Final fuzz re-run (45s each, all formatters)
-```
-
-## Acceptance Criteria (Round 2)
-
-- Both fuzz corpus failures pass (exact inputs that triggered bugs)
-- Fuzz 45s per formatter with zero failures on ALL 8 formatters
-- Full pipeline green (vet, fmt, lint, test, coverage ≥ 90%)
-- Existing fixtures unchanged (no behavior regression on well-formed input)
-
-After all fixes: re-run the full fuzz suite (45s per formatter) to verify the fixes don't introduce new issues, then run the full pipeline.
-
-## Acceptance Criteria
-
-- All 5 fuzz corpus failures now pass (the exact inputs that triggered the bugs)
-- Fuzz runs for 45s per formatter with zero new failures
-- Full pipeline green (vet, fmt, lint, test, coverage ≥ 90%)
-- No production behavior changes for well-formed input (existing fixtures still pass)
-
-## Decision Points for Engineer
-
-1. **XML Fix 1**: The "detect and skip" approach means XML files with mixed content won't get formatted. Is that acceptable, or should we find/write a better XML indenter? The alternative is removing the XML formatter entirely until we have a proper library.
-
-2. **INI Fix 3**: Enabling `IgnoreContinuation` means files that intentionally use `\` line continuation will be treated as literal backslashes. This is a behavior change. Is that acceptable? (Line continuation in INI is non-standard and incredibly rare outside of Python's configparser.)
-
-3. **Properties Fix 4**: The post-processing only fixes `!` and `#` at the start of keys. If there are OTHER characters that the library fails to escape, we'll find them via the fuzz test re-run. If more surface, we may need to replace `WriteComment` with a custom serializer.
-
----
-
-## Bugs Found During Manual Stress Testing (post-implementation)
-
-These are cosmetic/low-severity issues discovered during manual QA. They do NOT
-block the release but should be addressed before v3.0.0 final.
-
-### Bug A: TOML comment between sections gets indented
-
-**Severity**: LOW  
-**Reproduce**:
-```toml
-[section_a]
-key = "value"
-
-# Section B comment
-[section_b]
-key2 = "value2"
-```
-After `cfv format --fix`, the `# Section B comment` gets indented as if it
-belongs to `[section_a]`:
-```toml
-[section_a]
-  key = "value"
-
-  # Section B comment
-[section_b]
-  key2 = "value2"
-```
-**Impact**: Cosmetic. The comment visually appears to belong to the wrong section.
-Idempotent (doesn't drift). File remains valid TOML.  
-**Fix**: In the TOML formatter, reset `inSection` when a blank line is encountered.
-A blank line before a comment that precedes a section header should reset the
-indent context.
-
-### Bug B: Empty files get a newline written on format --fix
-
-**Severity**: LOW  
-**Reproduce**: `touch empty.toml && cfv format --fix empty.toml`  
-**Result**: File goes from 0 bytes to 1 byte (`\n`).  
-**Impact**: Cosmetic. FinalNewline=true is doing its job — adding a final newline.
-But on an empty file, that means creating content where none existed.  
-**Fix**: Skip formatting entirely when the file is empty (0 bytes). Return src unchanged.
-Applies to TOML, INI, Properties, ENV formatters.
+- Has been stable in practice for 2+ years
+- We pin versions — breaking changes are a version bump, not a surprise
+- Alternative (write own TOML parser) is effort 7-8 and permanent maintenance
+- Risk is manageable: if API breaks, we adapt the printer, not the parser

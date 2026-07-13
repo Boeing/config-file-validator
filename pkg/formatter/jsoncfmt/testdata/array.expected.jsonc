@@ -1,0 +1,22 @@
+{
+  // Short array stays inline
+  "tags": ["alpha", "beta", "gamma"],
+  // Long array expands to multiline
+  "descriptions": [
+    "this is a fairly long description string that pushes past the line limit",
+    "another lengthy description that ensures we exceed eighty characters total",
+  ],
+  // Array of objects always expands
+  "servers": [
+    {
+      "host": "db1.example.com",
+      "port": 5432,
+    },
+    {
+      "host": "db2.example.com",
+      "port": 5433,
+    },
+  ],
+  // Empty array
+  "empty": [],
+}

@@ -1,0 +1,10 @@
+{
+  // Zebra comment
+  "zebra": 1,
+  // Apple comment
+  "apple": 2,
+  "mango": {
+    "z_inner": true,
+    "a_inner": false,
+  },
+}

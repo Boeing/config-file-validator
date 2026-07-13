@@ -1,0 +1,8 @@
+{
+// Server configuration
+   "host":   "localhost",
+   /* Port for the main service */
+   "port":  8080,
+  // Enable debug mode
+"debug":    true,
+}
