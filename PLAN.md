@@ -404,7 +404,37 @@ Phase 3: INI CST                                 — after Properties
 Phase 6: YAML/ENV cleanup                        — <1 day, negligible risk
 Phase 5: XML (blocked on helium upstream)        — 1-2 days when unblocked
 Phase 7: Ephemeral CLI stress test (ALL formats) — after all formatters done
+Phase 8: CLI UX fixes                            — help text + dry-run diff
 ```
+
+---
+
+## Phase 8: CLI UX Fixes
+
+**Effort**: < 1 hour
+**Risk**: Negligible
+
+### 8.1: Fix stale help text
+
+`cfv format --help` currently says "Formats with registered formatters: json" — hardcoded
+string from before JSONC/TOML/Properties formatters were added.
+
+**Fix**: Replace with dynamic list built from the FileTypes registry (any FileType where
+`Formatter != nil`).
+
+### 8.2: Dry-run diff output
+
+`cfv format .` (no `--fix`) shows `~` for files that need changes but doesn't show what
+would change. Users can't preview before committing.
+
+**Fix**: When a file shows `~`, print a unified diff (before vs after) to stdout. Use the
+same format as `git diff` — `---`/`+++` headers with `@@ @@` hunks. Standard library
+or minimal diff implementation.
+
+### 8.3: Add JSONC to FormatConfig
+
+The `.cfv.toml` `FormatConfig` struct has per-format overrides for JSON, YAML, HCL, TOML,
+XML, INI, ENV, Properties — but not JSONC. Add `JSONC *FormatOptions` field.
 
 ---
 
