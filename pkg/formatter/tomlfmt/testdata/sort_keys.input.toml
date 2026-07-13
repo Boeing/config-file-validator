@@ -1,0 +1,11 @@
+[package]
+# Version comment
+version = "1.0.0"
+# Name comment
+name = "myapp"
+edition = "2021"
+
+[dependencies]
+tokio = "1.28"
+anyhow = "1.0"
+serde = "1.0"

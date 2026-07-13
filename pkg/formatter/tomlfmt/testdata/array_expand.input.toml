@@ -1,0 +1,4 @@
+[package]
+short = [1, 2, 3]
+keywords = ["regex", "grep", "egrep", "search", "pattern", "find", "replace", "utility"]
+categories = ["command-line-utilities", "text-processing", "development-tools"]

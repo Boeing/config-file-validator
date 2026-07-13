@@ -396,12 +396,37 @@ Already has zero bail-outs. No changes needed.
 
 ```
 Phase 1: JSONC (hujson)                          ✅ done (dfb2dae)
+Phase 4: TOML CST                                🔶 in progress — tokenizer/grouper/printer STABLE,
+                                                    printValue needs replan (4 fuzz bugs in session)
 Phase 2: Properties CST                          — 2-3 days, low risk
 Phase 3: INI CST                                 — 2-3 days, low risk
 Phase 6: YAML/ENV cleanup                        — <1 day, negligible risk
-Phase 4: TOML CST                                — 5-7 days, medium risk
 Phase 5: XML (blocked on helium upstream)        — 1-2 days when unblocked
 ```
+
+### Phase 4 Status Detail (2026-07-13)
+
+**STABLE (proven by fuzz, code review, functional testing):**
+- Tokenizer: all 4 string types, multiline boundary detection, 9M+ fuzz executions
+- Grouper: blank merging, multiline value detection via bracket depth, comment grouping
+- Printer: key=value normalization, SortKeys with comment attachment, indentation,
+  table header formatting, blank line collapsing
+- Integration: pelletier validates → tokenize → group → print
+
+**NEEDS REPLAN (printValue — value normalization):**
+- 4 bugs found by fuzz in one session = code smell per steering doc
+- Inline table normalization works for simple cases
+- Array auto-expand works for simple cases
+- Trailing commas on multiline arrays works
+- **BUG PATTERN:** values containing comments trigger edge cases that required
+  a "emit verbatim if comments present" escape hatch. This is a bail-out —
+  exactly what we're trying to eliminate.
+- **ROOT CAUSE:** printValue does not have a proper design for walking value
+  internals. It splits by comma and rewrites, but doesn't account for comments,
+  nested structures with comments, or indentation context within values.
+- **NEXT STEP:** Study taplo's `format_value` function in detail. It handles
+  value formatting with full context (indent level, comment preservation,
+  nested expansion). Design a proper value walker before implementing.
 
 Phases 1-3 can be done sequentially. Phase 6 can slot in anywhere. Phase 4 is the largest effort and benefits from patterns established in Phase 2-3. Phase 5 is externally blocked.
 

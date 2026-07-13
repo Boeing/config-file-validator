@@ -5,8 +5,4 @@ This is a
 multiline string."""
 
 [arrays]
-hosts = [
-  "alpha",
-  "beta",
-  "gamma"
-]
+hosts = ["alpha", "beta", "gamma"]
