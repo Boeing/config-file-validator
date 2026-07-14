@@ -57,6 +57,15 @@ type Options struct {
 	// Only applies to formats with multiple quoting conventions (YAML).
 	// JSON always uses double quotes per spec; this field is ignored for JSON.
 	QuoteStyle QuoteStyle
+
+	// XMLWhitespaceSensitivity controls XML whitespace handling.
+	// Ignore: reformat all indentation (default for config files).
+	// Preserve: only modify existing indentation, never insert newlines.
+	XMLWhitespaceSensitivity XMLWhitespace
+
+	// XMLSelfClosingSpace adds a space before /> in self-closing tags.
+	// true: <br /> ; false: <br/>
+	XMLSelfClosingSpace bool
 }
 
 // IndentStyle selects between spaces and tabs.
@@ -93,6 +102,19 @@ const (
 	QuoteDouble
 	// QuoteSingle forces single-quoted strings.
 	QuoteSingle
+)
+
+// XMLWhitespace controls XML whitespace sensitivity.
+type XMLWhitespace int
+
+const (
+	// XMLWhitespaceIgnore treats all whitespace as insignificant.
+	// The formatter inserts newlines and indentation freely.
+	// Default for config files (POM, .csproj, plist).
+	XMLWhitespaceIgnore XMLWhitespace = iota
+	// XMLWhitespacePreserve only modifies existing indentation.
+	// Never inserts or removes newlines. Safe for XHTML/SVG.
+	XMLWhitespacePreserve
 )
 
 // ErrSkipped indicates the formatter cannot process this file but it is not
