@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	goyaml "github.com/goccy/go-yaml"
+	goyaml "gopkg.in/yaml.v3"
 )
 
 const (

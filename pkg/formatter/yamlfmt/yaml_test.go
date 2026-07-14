@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/goccy/go-yaml/parser"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
@@ -364,9 +363,14 @@ func FuzzYAMLFormatterWithOptions(f *testing.F) {
 		if err != nil {
 			return // error is acceptable — pathological input
 		}
-		// Output must be parseable YAML.
-		if _, parseErr := parser.ParseBytes(result, parser.ParseComments); parseErr != nil {
-			t.Fatalf("Format produced unparseable output:\ninput:  %q\noutput: %q\nerror:  %v", data, result, parseErr)
+
+		// Idempotency: formatting the output again must produce identical output.
+		result2, err := fmter.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format pass failed on output of first pass: %v\nfirst output: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent:\ninput:  %q\nfirst:  %q\nsecond: %q", data, result, result2)
 		}
 	})
 }

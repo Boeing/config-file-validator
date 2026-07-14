@@ -66,6 +66,10 @@ type tokenizer struct {
 	// atLineStart tracks whether we're at the beginning of a line
 	// (immediately after a newline or at the start of input).
 	atLineStart bool
+	// lineHasStructure is true if the current line has emitted a TokColon
+	// or TokDash. Used to determine if |/> can be a block scalar header
+	// (only valid in value position on a line with structural markers).
+	lineHasStructure bool
 }
 
 // emit appends a token to the output.
@@ -73,14 +77,6 @@ func (t *tokenizer) emit(kind TokenKind, start int) {
 	if t.pos > start {
 		t.tokens = append(t.tokens, Token{Kind: kind, Raw: t.src[start:t.pos]})
 	}
-}
-
-// peek returns the byte at the current position, or 0 if at end.
-func (t *tokenizer) peek() byte {
-	if t.pos >= len(t.src) {
-		return 0
-	}
-	return t.src[t.pos]
 }
 
 // remaining returns the number of bytes left.
@@ -145,13 +141,14 @@ func (t *tokenizer) consumeLineContent() {
 		return
 	}
 
-	switch b := t.src[t.pos]; {
-	case b == '\n':
+	switch b := t.src[t.pos]; b {
+	case '\n':
 		t.pos++
 		t.emit(TokNewline, t.pos-1)
 		t.atLineStart = true
+		t.lineHasStructure = false
 
-	case b == '\r':
+	case '\r':
 		start := t.pos
 		t.pos++
 		if t.pos < len(t.src) && t.src[t.pos] == '\n' {
@@ -159,11 +156,12 @@ func (t *tokenizer) consumeLineContent() {
 		}
 		t.emit(TokNewline, start)
 		t.atLineStart = true
+		t.lineHasStructure = false
 
-	case b == '#':
+	case '#':
 		t.consumeComment()
 
-	case b == ' ' || b == '\t':
+	case ' ', '\t':
 		t.consumeSpace()
 
 	default:
@@ -172,6 +170,7 @@ func (t *tokenizer) consumeLineContent() {
 			start := t.pos
 			t.pos += 2 // consume "- " (dash + space)
 			t.emit(TokDash, start)
+			t.lineHasStructure = true
 			return
 		}
 		if b == '-' && t.pos+1 >= len(t.src) {
@@ -179,6 +178,7 @@ func (t *tokenizer) consumeLineContent() {
 			start := t.pos
 			t.pos++
 			t.emit(TokDash, start)
+			t.lineHasStructure = true
 			return
 		}
 		// Anchor, alias, tag at start of content.
@@ -200,7 +200,10 @@ func (t *tokenizer) consumeLineContent() {
 			return
 		}
 		// Check for block scalar indicators (| or >).
-		if (b == '|' || b == '>') && t.isBlockScalarStart() {
+		// Only valid as block scalar headers on lines that have structure
+		// (a colon or dash earlier on this line). On continuation lines
+		// without structure, |/> is a plain scalar value.
+		if (b == '|' || b == '>') && t.lineHasStructure && t.isBlockScalarStart() {
 			t.consumeBlockScalar()
 		} else {
 			// Key/value content.
@@ -270,6 +273,7 @@ func (t *tokenizer) consumeRestOfLine() {
 		t.pos++ // include the space after colon
 	}
 	t.emit(TokColon, colonStart)
+	t.lineHasStructure = true
 
 	// Remaining content on this line is the value (if any).
 	// But first check for block scalar, flow collection, or other special starts.
@@ -293,12 +297,30 @@ func (t *tokenizer) consumeRestOfLine() {
 	case b == '!':
 		t.consumeTag()
 	default:
-		// Plain value — consume to end of line.
+		// Value after colon. If the value starts with a quote AND the matching
+		// close quote is followed by end-of-line/comment/space-comment, consume
+		// as a quoted value. Otherwise treat as plain scalar.
 		valStart := t.pos
-		for t.pos < len(t.src) && t.src[t.pos] != '\n' && t.src[t.pos] != '\r' {
-			t.pos++
+		if t.src[t.pos] == '"' && t.isFullyQuotedDouble() {
+			t.skipDoubleQuoted()
+		} else if t.src[t.pos] == '\'' && t.isFullyQuotedSingle() {
+			t.skipSingleQuoted()
+		} else {
+			// Unquoted value — consume to end of line, stop at inline comments.
+			for t.pos < len(t.src) && t.src[t.pos] != '\n' && t.src[t.pos] != '\r' {
+				if t.src[t.pos] == ' ' && t.pos+1 < len(t.src) && t.src[t.pos+1] == '#' {
+					break
+				}
+				t.pos++
+			}
+			// Trim trailing spaces from value (they become TokSpace before comment).
+			for t.pos > valStart && t.src[t.pos-1] == ' ' {
+				t.pos--
+			}
 		}
-		t.emit(TokValue, valStart)
+		if t.pos > valStart {
+			t.emit(TokValue, valStart)
+		}
 	}
 }
 
@@ -308,8 +330,8 @@ func (t *tokenizer) consumeRestOfLine() {
 func (t *tokenizer) findColonSeparator(p int) int {
 	for p < len(t.src) && t.src[p] != '\n' && t.src[p] != '\r' {
 		b := t.src[p]
-		switch {
-		case b == '"':
+		switch b {
+		case '"':
 			// Skip double-quoted string.
 			p++
 			for p < len(t.src) && t.src[p] != '\n' && t.src[p] != '\r' {
@@ -322,22 +344,21 @@ func (t *tokenizer) findColonSeparator(p int) int {
 					p++
 				}
 			}
-		case b == '\'':
+		case '\'':
 			// Skip single-quoted string.
 			p++
 			for p < len(t.src) && t.src[p] != '\n' && t.src[p] != '\r' {
 				if t.src[p] == '\'' {
 					p++
-					if p < len(t.src) && t.src[p] == '\'' {
-						p++ // escaped ''
-					} else {
+					if p >= len(t.src) || t.src[p] != '\'' {
 						break
 					}
+					p++ // escaped ''
 				} else {
 					p++
 				}
 			}
-		case b == ':':
+		case ':':
 			// Check if followed by space, newline, or EOF.
 			if p+1 >= len(t.src) || t.src[p+1] == ' ' || t.src[p+1] == '\n' || t.src[p+1] == '\r' || t.src[p+1] == '\t' {
 				return p
@@ -394,6 +415,61 @@ func (t *tokenizer) consumeTag() {
 // isYAMLWhitespace returns true for space, tab, newline, or carriage return.
 func isYAMLWhitespace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
+// isFullyQuotedDouble checks if the double-quoted string at t.pos spans to
+// a closing " that is followed by EOL, EOF, or space+#. If not, the quote
+// is part of a plain scalar (e.g., "foo"bar).
+func (t *tokenizer) isFullyQuotedDouble() bool {
+	p := t.pos + 1 // skip opening "
+	for p < len(t.src) {
+		if t.src[p] == '\\' && p+1 < len(t.src) {
+			p += 2 // skip escape
+		} else if t.src[p] == '"' {
+			p++ // skip closing "
+			// Check what follows.
+			if p >= len(t.src) || t.src[p] == '\n' || t.src[p] == '\r' {
+				return true
+			}
+			if t.src[p] == ' ' {
+				return true // space before comment or end of value
+			}
+			return false // characters after close quote → plain scalar
+		} else if t.src[p] == '\n' || t.src[p] == '\r' {
+			return true // multi-line quoted string — treat as quoted
+		} else {
+			p++
+		}
+	}
+	return false // unclosed quote
+}
+
+// isFullyQuotedSingle checks if the single-quoted string at t.pos spans to
+// a closing ' that is followed by EOL, EOF, or space+#.
+func (t *tokenizer) isFullyQuotedSingle() bool {
+	p := t.pos + 1 // skip opening '
+	for p < len(t.src) {
+		switch t.src[p] {
+		case '\'':
+			p++
+			if p >= len(t.src) || t.src[p] != '\'' {
+				// Closing quote. Check what follows.
+				if p >= len(t.src) || t.src[p] == '\n' || t.src[p] == '\r' {
+					return true
+				}
+				if t.src[p] == ' ' {
+					return true
+				}
+				return false // characters after close quote → plain scalar
+			}
+			p++ // escaped '' — continue
+		case '\n', '\r':
+			return true // multi-line quoted string
+		default:
+			p++
+		}
+	}
+	return false // unclosed quote
 }
 
 // consumeBlockScalar consumes a block scalar: the header line (| or >)
@@ -590,29 +666,29 @@ func (t *tokenizer) isBlockScalarStart() bool {
 func (t *tokenizer) consumeFlowCollection() {
 	start := t.pos
 	open := t.src[t.pos]
-	var close byte
+	var closeCh byte
 	if open == '{' {
-		close = '}'
+		closeCh = '}'
 	} else {
-		close = ']'
+		closeCh = ']'
 	}
 	depth := 1
 	t.pos++ // skip opening delimiter
 
 	for t.pos < len(t.src) && depth > 0 {
 		b := t.src[t.pos]
-		switch {
-		case b == open:
+		switch b {
+		case open:
 			depth++
 			t.pos++
-		case b == close:
+		case closeCh:
 			depth--
 			t.pos++
-		case b == '"':
+		case '"':
 			t.skipDoubleQuoted()
-		case b == '\'':
+		case '\'':
 			t.skipSingleQuoted()
-		case b == '#':
+		case '#':
 			// Comment inside flow — consume to EOL (still part of flow token).
 			for t.pos < len(t.src) && t.src[t.pos] != '\n' && t.src[t.pos] != '\r' {
 				t.pos++
@@ -642,18 +718,17 @@ func (t *tokenizer) skipDoubleQuoted() {
 }
 
 // skipSingleQuoted advances past a single-quoted string.
-// In YAML, single-quoted strings escape ' as ''.
+// In YAML, single-quoted strings escape ' as ”.
 func (t *tokenizer) skipSingleQuoted() {
 	t.pos++ // skip opening '
 	for t.pos < len(t.src) {
 		if t.src[t.pos] == '\'' {
 			t.pos++
 			// '' is an escaped single quote — not the end.
-			if t.pos < len(t.src) && t.src[t.pos] == '\'' {
-				t.pos++
-			} else {
+			if t.pos >= len(t.src) || t.src[t.pos] != '\'' {
 				return
 			}
+			t.pos++
 		} else {
 			t.pos++
 		}

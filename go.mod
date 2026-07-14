@@ -20,14 +20,13 @@ require (
 	github.com/toon-format/toon-go v0.0.0-20251108125615-44b4cd22477f
 	github.com/xeipuuv/gojsonschema v1.2.0
 	gopkg.in/ini.v1 v1.67.3
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 )
 
 require (
 	cuelang.org/go v0.17.0
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
-	github.com/goccy/go-yaml v1.19.2
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sblinch/kdl-go v0.0.0-20260121213736-8b7053306ca6
 	github.com/tidwall/pretty v1.2.1

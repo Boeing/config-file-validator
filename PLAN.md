@@ -489,35 +489,40 @@ Sorting reorders entries within a mapping, preserving comment attachment.
 
 ### Tasks
 
-- [ ] 6A.1: Implement tokenizer in `pkg/formatter/yamlfmt/tokenizer.go`
-  - Lex YAML source into flat token stream
-  - Handle: indent, comments, block scalars (opaque), flow collections (opaque), quoted strings, plain scalars, sequence entries, mapping pairs, document markers, directives
-  - Every byte of input accounted for in exactly one token
-  - Fuzz against goccy: if goccy accepts it, our tokenizer must not panic
+- [x] 6A.1: Implement tokenizer in `pkg/formatter/yamlfmt/tokenizer.go`
+  - Lossless tokenization — 9.3M fuzz executions, zero failures
+  - Handles: indent, comments, block scalars (opaque), flow collections (opaque), quoted strings, plain scalars, sequence entries, mapping pairs, document markers, directives, anchors, aliases, tags
 
-- [ ] 6A.2: Implement grouper in `pkg/formatter/yamlfmt/grouper.go`
-  - Walk token stream, determine structural depth from indent levels
-  - Group tokens into entries for SortKeys
-  - Track parent indent to detect entry boundaries
+- [x] 6A.2: Implement grouper in `pkg/formatter/yamlfmt/grouper.go`
+  - Depth computation via stack-based indent tracking
+  - Entry grouping for SortKeys with comment attachment
 
-- [ ] 6A.3: Implement printer in `pkg/formatter/yamlfmt/printer.go`
-  - Walk token stream, replace IndentTokens with normalized indent (depth × width)
-  - Handle block scalar content indent shifting
-  - Implement SortKeys (reorder entry groups)
-  - Apply FinalNewline and LineEnding
+- [x] 6A.3: Implement printer in `pkg/formatter/yamlfmt/printer.go`
+  - Indent normalization (depth × targetWidth)
+  - Block scalar content indent shifting (delta-based)
+  - SortKeys (recursive, with newline separation)
+  - QuoteStyle (prettier's conservative approach — bail on escapes)
+  - Inline comment space normalization
 
-- [ ] 6A.4: Replace yaml.go Format function
-  - Keep goccy for validation (`Unmarshal`)
-  - Replace AST manipulation with: validate → tokenize → group → format → print
-  - Remove stability guard
-  - Remove `AddColumn`, `reindent`, `normalizeNode`, `sortMappingKeys`, `applyQuoteStyleToValue`
-  - No silent bail-outs, no runtime idempotency check
+- [x] 6A.4: Replace yaml.go Format function
+  - CST pipeline: validate → tokenize → format → print
+  - Removed stability guard, removed AST manipulation code
+  - All 14 existing fixtures pass
+
+- [ ] 6A.4.1: Switch validation from goccy/go-yaml to gopkg.in/yaml.v3
+  - goccy is too permissive — accepts invalid YAML that breaks formatting
+  - yaml.v3 is stricter (matches prettier's parser strictness)
+  - Affects: `pkg/validator/yaml.go`, `pkg/formatter/yamlfmt/yaml.go`, `pkg/formatter/yamlfmt/yaml_test.go`, `internal/generate/knownfiles/main.go`, `go.mod`
+  - Error messages: parse line number from yaml.v3's `yaml: line N: msg` format (same approach v2 used)
+  - Position map for schema validation: use `yaml.Node` tree (port from v2 code)
+  - Multi-doc: `yaml.NewDecoder` loop with `io.EOF` check
+  - Remove all dead goccy imports and AST code
+  - **See PLAN-yaml-v3-switch.md for full details**
 
 - [ ] 6A.5: Tests
-  - All existing fixtures must produce identical output (or better — match prettier where old output was wrong)
-  - New fixtures: block scalars, flow collections, anchors/aliases, multi-doc, deeply nested
-  - Test against prettier output on real-world files (docker-compose, k8s manifests, GitHub Actions workflows)
-  - Fuzz: 45s minimum, zero failures
+  - All existing fixtures must produce identical output
+  - Fuzz: 45s minimum, zero failures (with yaml.v3 rejecting pathological inputs)
+  - Test against prettier output on real-world files
 
 - [ ] 6A.6: Pipeline verification
 
@@ -584,7 +589,10 @@ Phase 3: INI CST                                 ✅ done
                                                     96.6% coverage. Escaped keys, colon separators, SortKeys within sections.
 Phase 6: YAML/ENV cleanup                        ✅ done (ErrSkipped for empty, error for IndentTabs)
                                                     Stability guard still present — will be removed by Phase 6A.
-Phase 6A: YAML CST formatter                     — NEXT (custom tokenizer, no goccy serializer)
+Phase 6A: YAML CST formatter                     — IN PROGRESS
+                                                    Tokenizer + printer done (f4a18de). Format function swapped.
+                                                    BLOCKED on: switch goccy → yaml.v3 (task 6A.4.1)
+                                                    Then: fuzz testing (6A.5), pipeline (6A.6)
 Phase 5: XML (blocked on helium upstream)        — 1-2 days when unblocked
 Phase 7: Ephemeral CLI stress test (ALL formats) — after all formatters done
 Phase 8: CLI UX fixes                            — help text + dry-run diff

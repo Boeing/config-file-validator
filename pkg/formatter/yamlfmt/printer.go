@@ -33,6 +33,23 @@ func printFormatted(tokens []Token, opts formatter.Options) []byte {
 	// Reindent: replace each IndentToken with normalized indent.
 	tokens = applyIndent(tokens, depths, targetWidth)
 
+	// Apply quote style preference if requested.
+	if opts.QuoteStyle != formatter.QuotePreserve {
+		tokens = applyQuoteStyle(tokens, opts.QuoteStyle)
+	}
+
+	// Normalize space before inline comments to exactly one space.
+	// Only applies to inline comments (preceded by a value or key on the same line),
+	// not to comments at line start.
+	for i, tok := range tokens {
+		if tok.Kind == TokSpace && i+1 < len(tokens) && tokens[i+1].Kind == TokComment {
+			// Check that this space follows actual content (value, key, etc.), not indent.
+			if i > 0 && tokens[i-1].Kind != TokIndent && tokens[i-1].Kind != TokNewline {
+				tokens[i] = Token{Kind: TokSpace, Raw: []byte(" ")}
+			}
+		}
+	}
+
 	// Serialize: concatenate all Raw fields.
 	var buf bytes.Buffer
 	for _, tok := range tokens {
@@ -85,16 +102,14 @@ func computeDepths(tokens []Token) []int {
 		}
 
 		parent := stack[len(stack)-1]
-		if indent == parent.indent {
-			// Same level as parent — same depth.
-			depths[i] = parent.depth
-		} else if indent > parent.indent {
+		if indent > parent.indent {
 			// Deeper — new child level.
 			newDepth := parent.depth + 1
 			stack = append(stack, level{indent, newDepth})
 			depths[i] = newDepth
 		} else {
-			// This shouldn't happen after the pop loop, but handle gracefully.
+			// Same level as parent (or below, which shouldn't happen after
+			// the pop loop but handled gracefully) — same depth.
 			depths[i] = parent.depth
 		}
 	}
@@ -108,6 +123,8 @@ func computeDepths(tokens []Token) []int {
 
 // applyIndent replaces each IndentToken's Raw with the correct number of spaces
 // based on its computed depth and the target width.
+// When a TokIndent precedes a TokBlockScalar, the block scalar's content
+// lines are shifted by the same delta to maintain relative indentation.
 func applyIndent(tokens []Token, depths []int, targetWidth int) []Token {
 	result := make([]Token, len(tokens))
 	copy(result, tokens)
@@ -116,26 +133,274 @@ func applyIndent(tokens []Token, depths []int, targetWidth int) []Token {
 		if tok.Kind != TokIndent || depths[i] < 0 {
 			continue
 		}
+		oldIndent := len(tok.Raw)
 		newIndent := depths[i] * targetWidth
+		delta := newIndent - oldIndent
+
 		result[i] = Token{
 			Kind: TokIndent,
 			Raw:  []byte(strings.Repeat(" ", newIndent)),
+		}
+
+		// If there's a block scalar on this line, shift its content indent.
+		if delta != 0 {
+			for j := i + 1; j < len(result); j++ {
+				if result[j].Kind == TokNewline {
+					break // end of line, no block scalar found
+				}
+				if result[j].Kind == TokBlockScalar {
+					result[j] = Token{
+						Kind: TokBlockScalar,
+						Raw:  shiftBlockScalarIndent(result[j].Raw, delta),
+					}
+					break
+				}
+			}
 		}
 	}
 
 	return result
 }
 
+// shiftBlockScalarIndent adjusts the indentation of content lines within a
+// block scalar by delta spaces. The header line is not modified.
+// Positive delta adds spaces; negative delta removes spaces (clamped to 0).
+func shiftBlockScalarIndent(raw []byte, delta int) []byte {
+	// Split into lines. First line is the header (|, >, with indicators).
+	var result []byte
+	pos := 0
+
+	// Copy header line (everything up to and including the first newline).
+	for pos < len(raw) {
+		b := raw[pos]
+		result = append(result, b)
+		pos++
+		if b == '\n' {
+			break
+		}
+		if b == '\r' {
+			if pos < len(raw) && raw[pos] == '\n' {
+				result = append(result, raw[pos])
+				pos++
+			}
+			break
+		}
+	}
+
+	// Process content lines: shift indentation.
+	for pos < len(raw) {
+		// Count leading spaces on this line.
+		lineStart := pos
+		spaces := 0
+		for pos < len(raw) && raw[pos] == ' ' {
+			spaces++
+			pos++
+		}
+
+		// Calculate new indent for this line.
+		newSpaces := spaces + delta
+		if newSpaces < 0 {
+			newSpaces = 0
+		}
+
+		// Apply shifted indent. Both empty/whitespace-only lines and
+		// content lines get the same treatment.
+		result = append(result, []byte(strings.Repeat(" ", newSpaces))...)
+
+		// Copy the rest of the line (non-indent content + newline).
+		_ = lineStart // suppress unused warning
+		for pos < len(raw) && raw[pos] != '\n' && raw[pos] != '\r' {
+			result = append(result, raw[pos])
+			pos++
+		}
+		// Copy newline.
+		if pos < len(raw) {
+			result = append(result, raw[pos])
+			pos++
+			if raw[pos-1] == '\r' && pos < len(raw) && raw[pos] == '\n' {
+				result = append(result, raw[pos])
+				pos++
+			}
+		}
+	}
+
+	return result
+}
+
+// applyQuoteStyle converts quoted scalars to the preferred quote style
+// using prettier's conservative approach:
+//   - If content has escape sequences (backslashes) → keep original style
+//   - If content contains double quote → use single quotes
+//   - If content contains single quote → use double quotes
+//   - Otherwise → use preferred style
+//
+// This never performs escape sequence manipulation. It only swaps quotes
+// when the raw content has no characters that would need escaping in the
+// target style.
+func applyQuoteStyle(tokens []Token, style formatter.QuoteStyle) []Token {
+	result := make([]Token, len(tokens))
+	copy(result, tokens)
+
+	for i, tok := range result {
+		if tok.Kind != TokValue {
+			continue
+		}
+		raw := tok.Raw
+		if len(raw) < 2 {
+			continue
+		}
+
+		first := raw[0]
+		last := raw[len(raw)-1]
+
+		// Only process complete, single-line quoted scalars.
+		// A complete quoted scalar starts and ends with the same quote character.
+		// Multi-line quoted scalars (where the token doesn't end with the close quote)
+		// must not be converted.
+		if first == '"' && last == '"' && len(raw) >= 2 {
+			result[i].Raw = convertQuote(raw, style, '"')
+		} else if first == '\'' && last == '\'' && len(raw) >= 2 {
+			result[i].Raw = convertQuote(raw, style, '\'')
+		}
+	}
+
+	return result
+}
+
+// convertQuote applies the preferred quote style to a quoted scalar.
+// currentQuote is the quote character currently wrapping the value.
+func convertQuote(raw []byte, style formatter.QuoteStyle, currentQuote byte) []byte {
+	content := raw[1 : len(raw)-1]
+
+	// Multi-line scalars: don't touch (folding semantics differ).
+	for _, b := range content {
+		if b == '\n' || b == '\r' {
+			return raw
+		}
+	}
+
+	// Check for backslashes — if present, keep original style.
+	// For double-quoted: \[^"] means real escapes → bail.
+	// For single-quoted: any \ means user chose single to keep it literal → bail.
+	if currentQuote == '"' {
+		for j := 0; j < len(content); j++ {
+			if content[j] == '\\' {
+				if j+1 < len(content) && content[j+1] == '"' {
+					j++ // skip \" — this is fine (just an escaped quote)
+					continue
+				}
+				return raw // has non-quote escape → keep double
+			}
+		}
+	} else {
+		for _, b := range content {
+			if b == '\\' {
+				return raw // backslash in single-quoted → keep single
+			}
+		}
+	}
+
+	// Determine target quote.
+	hasSingle := false
+	hasDouble := false
+	for _, b := range content {
+		switch b {
+		case '\'':
+			hasSingle = true
+		case '"':
+			hasDouble = true
+		default:
+		}
+	}
+
+	var targetQuote byte
+	switch style {
+	case formatter.QuoteSingle:
+		if hasSingle && !hasDouble {
+			// Would need escaping in single → use double instead.
+			targetQuote = '"'
+		} else {
+			targetQuote = '\''
+		}
+	case formatter.QuoteDouble:
+		if hasDouble && !hasSingle {
+			// Would need escaping in double → use single instead.
+			targetQuote = '\''
+		} else {
+			targetQuote = '"'
+		}
+	default:
+		return raw
+	}
+
+	// If target is same as current, nothing to do.
+	if targetQuote == currentQuote {
+		return raw
+	}
+
+	// Convert.
+	var out []byte
+	out = append(out, targetQuote)
+
+	if currentQuote == '"' && targetQuote == '\'' {
+		// Double → Single: remove \" escapes (they become literal ").
+		for j := 0; j < len(content); j++ {
+			if content[j] == '\\' && j+1 < len(content) && content[j+1] == '"' {
+				out = append(out, '"')
+				j++ // skip the escaped quote
+			} else if content[j] == '\'' {
+				out = append(out, '\'', '\'') // escape single quote
+			} else {
+				out = append(out, content[j])
+			}
+		}
+	} else if currentQuote == '\'' && targetQuote == '"' {
+		// Single → Double: replace '' with '.
+		for j := 0; j < len(content); j++ {
+			if content[j] == '\'' && j+1 < len(content) && content[j+1] == '\'' {
+				out = append(out, '\'')
+				j++ // skip the doubled quote
+			} else if content[j] == '"' {
+				out = append(out, '\\', '"') // escape double quote
+			} else {
+				out = append(out, content[j])
+			}
+		}
+	}
+
+	out = append(out, targetQuote)
+	return out
+}
+
 // sortKeys sorts mapping entries within each scope by their key.
 // An entry is: optional leading comments + key + colon + value/nested content.
 // Entries are siblings if they share the same parent indent level.
 func sortKeys(tokens []Token, depths []int) []Token {
-	// Find mapping scopes and sort within each.
-	entries := groupTopLevelEntries(tokens, depths, 0, len(tokens), 0)
-	if len(entries) < 2 {
-		return tokens
+	// Sort at depth 0, then recursively sort nested scopes.
+	return sortKeysAtDepth(tokens, depths, 0, 0, len(tokens))
+}
+
+// sortKeysAtDepth sorts entries at the given target depth within [from, to),
+// then recursively sorts within each entry's nested content.
+func sortKeysAtDepth(tokens []Token, depths []int, targetDepth, from, to int) []Token {
+	entries := groupTopLevelEntries(tokens, depths, from, to, targetDepth)
+
+	if len(entries) >= 2 {
+		tokens = sortEntrySlice(tokens, entries)
+		// Recompute entry boundaries after sort (positions shifted).
+		depths = computeDepths(tokens)
+		entries = groupTopLevelEntries(tokens, depths, from, len(tokens), targetDepth)
 	}
-	return sortEntrySlice(tokens, entries)
+
+	// Recursively sort nested mappings within each entry.
+	for _, e := range entries {
+		tokens = sortKeysAtDepth(tokens, depths, targetDepth+1, e.startIdx, e.endIdx)
+		// Recompute after nested sort.
+		depths = computeDepths(tokens)
+		_ = groupTopLevelEntries(tokens, depths, from, len(tokens), targetDepth)
+	}
+
+	return tokens
 }
 
 // mappingEntry represents a key-value entry in a mapping, including
@@ -198,9 +463,18 @@ func sortEntrySlice(tokens []Token, entries []mappingEntry) []Token {
 	copy(sorted, entries)
 	sortByKey(sorted)
 
-	// Emit sorted entries.
-	for _, e := range sorted {
-		result = append(result, tokens[e.startIdx:e.endIdx]...)
+	// Emit sorted entries, ensuring newline separation.
+	for i, e := range sorted {
+		entryTokens := tokens[e.startIdx:e.endIdx]
+		result = append(result, entryTokens...)
+
+		// If this isn't the last entry and doesn't end with a newline, add one.
+		if i < len(sorted)-1 && len(entryTokens) > 0 {
+			last := entryTokens[len(entryTokens)-1]
+			if last.Kind != TokNewline {
+				result = append(result, Token{Kind: TokNewline, Raw: []byte("\n")})
+			}
+		}
 	}
 
 	// Tokens after the last entry.
@@ -232,7 +506,7 @@ func findKeyDepth(tokens []Token, depths []int, keyIdx int) int {
 }
 
 // findEntryStart finds the first token index that belongs to this entry,
-// including the indent token and leading comments.
+// including the indent token, leading dash/tag/anchor, and leading comments.
 func findEntryStart(tokens []Token, keyIdx int) int {
 	start := keyIdx
 
@@ -246,6 +520,29 @@ func findEntryStart(tokens []Token, keyIdx int) int {
 			break
 		} else {
 			break
+		}
+	}
+
+	// Walk further back to include leading comments at the same indent level.
+	// Pattern we look for (backwards): Newline, Comment, [Indent], Newline...
+	for start > 0 {
+		pos := start - 1
+		// Skip newline before this line.
+		if pos < 0 || tokens[pos].Kind != TokNewline {
+			break
+		}
+		pos--
+		// Look for comment.
+		if pos < 0 || tokens[pos].Kind != TokComment {
+			break
+		}
+		pos--
+		// Skip indent before comment.
+		if pos >= 0 && tokens[pos].Kind == TokIndent {
+			start = pos
+		} else {
+			// Comment at column 0: include the newline before it.
+			start = pos + 1
 		}
 	}
 
