@@ -10,7 +10,7 @@ import (
 
 // printFormatted takes a token stream and formatting options, applies
 // indent normalization and optional key sorting, then serializes.
-func printFormatted(tokens []Token, opts formatter.Options) []byte {
+func printFormatted(tokens []Token, opts formatter.Options, structuralLines map[int]bool) []byte {
 	if len(tokens) == 0 {
 		return nil
 	}
@@ -20,18 +20,22 @@ func printFormatted(tokens []Token, opts formatter.Options) []byte {
 		targetWidth = 2
 	}
 
-	// Compute depth for each IndentToken.
-	depths := computeDepths(tokens)
+	// Compute line numbers for each token.
+	lineNums := computeLineNumbers(tokens)
+
+	// Compute depth for each IndentToken (only using structural lines).
+	depths := computeDepths(tokens, lineNums, structuralLines)
 
 	// Sort keys if requested.
 	if opts.SortKeys {
-		tokens = sortKeys(tokens, depths)
-		// Recompute depths after sorting (positions may have shifted).
-		depths = computeDepths(tokens)
+		tokens = sortKeys(tokens, depths, lineNums, structuralLines)
+		// Recompute after sorting.
+		lineNums = computeLineNumbers(tokens)
+		depths = computeDepths(tokens, lineNums, structuralLines)
 	}
 
 	// Reindent: replace each IndentToken with normalized indent.
-	tokens = applyIndent(tokens, depths, targetWidth)
+	tokens = applyIndent(tokens, depths, targetWidth, structuralLines)
 
 	// Apply quote style preference if requested.
 	if opts.QuoteStyle != formatter.QuotePreserve {
@@ -77,7 +81,7 @@ func printFormatted(tokens []Token, opts formatter.Options) []byte {
 //   - First non-zero indent seen sets the "unit" (typically 2)
 //   - Each indent increase of one unit = +1 depth
 //   - Depth stack tracks ancestor indent levels for correct dedent handling
-func computeDepths(tokens []Token) []int {
+func computeDepths(tokens []Token, lineNums []int, structuralLines map[int]bool) []int {
 	depths := make([]int, len(tokens))
 	for i := range depths {
 		depths[i] = -1
@@ -93,6 +97,18 @@ func computeDepths(tokens []Token) []int {
 
 	for i, tok := range tokens {
 		if tok.Kind != TokIndent {
+			continue
+		}
+
+		// Skip indent on blank lines (indent followed immediately by newline).
+		if i+1 < len(tokens) && tokens[i+1].Kind == TokNewline {
+			continue
+		}
+
+		// Skip non-structural lines — they shouldn't affect the depth stack.
+		line := lineNums[i]
+		if structuralLines != nil && !structuralLines[line] {
+			// Assign depth -1 (continuation) — handled specially by applyIndent.
 			continue
 		}
 
@@ -128,17 +144,43 @@ func computeDepths(tokens []Token) []int {
 // based on its computed depth and the target width.
 // When a TokIndent precedes a TokBlockScalar, the block scalar's content
 // lines are shifted by the same delta to maintain relative indentation.
-func applyIndent(tokens []Token, depths []int, targetWidth int) []Token {
+// Only structural lines (keys, sequence items) get independently renormalized.
+// Continuation lines (multi-line values) shift by the same delta as their parent.
+func applyIndent(tokens []Token, depths []int, targetWidth int, structuralLines map[int]bool) []Token {
 	result := make([]Token, len(tokens))
 	copy(result, tokens)
 
+	// Compute line number for each token.
+	lineNums := computeLineNumbers(tokens)
+
+	// Track the last delta applied to a structural indent.
+	lastStructuralDelta := 0
+
 	for i, tok := range result {
-		if tok.Kind != TokIndent || depths[i] < 0 {
+		if tok.Kind != TokIndent {
 			continue
 		}
 		oldIndent := len(tok.Raw)
-		newIndent := depths[i] * targetWidth
-		delta := newIndent - oldIndent
+		line := lineNums[i]
+
+		var newIndent int
+		var delta int
+
+		if depths[i] >= 0 {
+			// Structural line: renormalize to depth × width.
+			newIndent = depths[i] * targetWidth
+			delta = newIndent - oldIndent
+			lastStructuralDelta = delta
+		} else {
+			// Continuation line (depth -1): shift by same delta as parent.
+			newIndent = oldIndent + lastStructuralDelta
+			if newIndent < 0 {
+				newIndent = 0
+			}
+			delta = newIndent - oldIndent
+		}
+
+		_ = line // used by structural check in computeDepths, kept for clarity
 
 		result[i] = Token{
 			Kind: TokIndent,
@@ -149,7 +191,7 @@ func applyIndent(tokens []Token, depths []int, targetWidth int) []Token {
 		if delta != 0 {
 			for j := i + 1; j < len(result); j++ {
 				if result[j].Kind == TokNewline {
-					break // end of line, no block scalar found
+					break
 				}
 				if result[j].Kind == TokBlockScalar {
 					result[j] = Token{
@@ -163,6 +205,21 @@ func applyIndent(tokens []Token, depths []int, targetWidth int) []Token {
 	}
 
 	return result
+}
+
+// computeLineNumbers assigns a 1-based line number to each token.
+func computeLineNumbers(tokens []Token) []int {
+	lines := make([]int, len(tokens))
+	line := 1
+	for i, tok := range tokens {
+		lines[i] = line
+		for _, b := range tok.Raw {
+			if b == '\n' {
+				line++
+			}
+		}
+	}
+	return lines
 }
 
 // shiftBlockScalarIndent adjusts the indentation of content lines within a
@@ -378,29 +435,31 @@ func convertQuote(raw []byte, style formatter.QuoteStyle, currentQuote byte) []b
 // sortKeys sorts mapping entries within each scope by their key.
 // An entry is: optional leading comments + key + colon + value/nested content.
 // Entries are siblings if they share the same parent indent level.
-func sortKeys(tokens []Token, depths []int) []Token {
+func sortKeys(tokens []Token, depths []int, lineNums []int, structuralLines map[int]bool) []Token {
 	// Sort at depth 0, then recursively sort nested scopes.
-	return sortKeysAtDepth(tokens, depths, 0, 0, len(tokens))
+	return sortKeysAtDepth(tokens, depths, 0, 0, len(tokens), lineNums, structuralLines)
 }
 
 // sortKeysAtDepth sorts entries at the given target depth within [from, to),
 // then recursively sorts within each entry's nested content.
-func sortKeysAtDepth(tokens []Token, depths []int, targetDepth, from, to int) []Token {
-	entries := groupTopLevelEntries(tokens, depths, from, to, targetDepth)
+func sortKeysAtDepth(tokens []Token, depths []int, targetDepth, from, to int, lineNums []int, structuralLines map[int]bool) []Token {
+	entries := groupTopLevelEntries(tokens, depths, from, to, targetDepth, lineNums, structuralLines)
 
 	if len(entries) >= 2 {
 		tokens = sortEntrySlice(tokens, entries)
 		// Recompute entry boundaries after sort (positions shifted).
-		depths = computeDepths(tokens)
-		entries = groupTopLevelEntries(tokens, depths, from, len(tokens), targetDepth)
+		lineNums = computeLineNumbers(tokens)
+		depths = computeDepths(tokens, lineNums, structuralLines)
+		entries = groupTopLevelEntries(tokens, depths, from, len(tokens), targetDepth, lineNums, structuralLines)
 	}
 
 	// Recursively sort nested mappings within each entry.
 	for _, e := range entries {
-		tokens = sortKeysAtDepth(tokens, depths, targetDepth+1, e.startIdx, e.endIdx)
+		tokens = sortKeysAtDepth(tokens, depths, targetDepth+1, e.startIdx, e.endIdx, lineNums, structuralLines)
 		// Recompute after nested sort.
-		depths = computeDepths(tokens)
-		_ = groupTopLevelEntries(tokens, depths, from, len(tokens), targetDepth)
+		lineNums = computeLineNumbers(tokens)
+		depths = computeDepths(tokens, lineNums, structuralLines)
+		_ = groupTopLevelEntries(tokens, depths, from, len(tokens), targetDepth, lineNums, structuralLines)
 	}
 
 	return tokens
@@ -417,13 +476,20 @@ type mappingEntry struct {
 // groupTopLevelEntries finds all mapping entries at targetDepth within
 // the token range [from, to). An entry starts at its key token and extends
 // until the next key at the same depth within this range.
-func groupTopLevelEntries(tokens []Token, depths []int, from, to, targetDepth int) []mappingEntry {
+func groupTopLevelEntries(tokens []Token, depths []int, from, to, targetDepth int, lineNums []int, structuralLines map[int]bool) []mappingEntry {
 	var entries []mappingEntry
 
 	for i := from; i < to; i++ {
 		tok := tokens[i]
 		if tok.Kind != TokKey {
 			continue
+		}
+		// Only consider keys on structural lines (skip continuation values
+		// that happen to contain a colon).
+		if structuralLines != nil && lineNums != nil && i < len(lineNums) {
+			if !structuralLines[lineNums[i]] {
+				continue
+			}
 		}
 		keyDepth := findKeyDepth(tokens, depths, i)
 		if keyDepth != targetDepth {
@@ -542,7 +608,9 @@ func findEntryStart(tokens []Token, keyIdx int) int {
 	}
 
 	// Walk further back to include leading comments at the same indent level.
-	// Pattern we look for (backwards): Newline, Comment, [Indent], Newline...
+	// A leading comment is one that is the ONLY non-whitespace content on its line
+	// (preceded by indent or start-of-line). Inline comments (after a key/value
+	// on the same line) belong to the previous entry.
 	for start > 0 {
 		pos := start - 1
 		// Skip newline before this line.
@@ -554,13 +622,18 @@ func findEntryStart(tokens []Token, keyIdx int) int {
 		if pos < 0 || tokens[pos].Kind != TokComment {
 			break
 		}
+		commentPos := pos
 		pos--
-		// Skip indent before comment.
+		// Check what precedes the comment — must be indent or newline (start of line).
+		// If it's anything else (colon, value, key, etc.) → inline comment, stop.
 		if pos >= 0 && tokens[pos].Kind == TokIndent {
 			start = pos
+		} else if pos < 0 || tokens[pos].Kind == TokNewline {
+			// Comment at column 0.
+			start = commentPos
 		} else {
-			// Comment at column 0: include the newline before it.
-			start = pos + 1
+			// Inline comment on previous entry's line — don't grab it.
+			break
 		}
 	}
 
