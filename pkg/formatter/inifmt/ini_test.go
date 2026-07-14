@@ -130,6 +130,33 @@ func TestFinalNewlineFalse(t *testing.T) {
 	require.NotEqual(t, byte('\n'), got[len(got)-1], "expected no trailing newline")
 }
 
+// TestCRLineEndings verifies bare \r (old Mac) line endings are handled.
+func TestCRLineEndings(t *testing.T) {
+	t.Parallel()
+	src := []byte("[section]\rkey=value\r")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "key = value", "key-value should be formatted")
+}
+
+// TestCRLFInputNormalization verifies CRLF input is parsed correctly.
+func TestCRLFInputNormalization(t *testing.T) {
+	t.Parallel()
+	src := []byte("[section]\r\nkey=value\r\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "key = value", "key-value should be formatted")
+}
+
+// TestWhitespaceOnlyInput verifies trailing whitespace without newline.
+func TestWhitespaceOnlyInput(t *testing.T) {
+	t.Parallel()
+	src := []byte("   ")
+	_, err := f.Format(src, defaultOpts)
+	// whitespace-only is either valid empty or error — just no panic
+	_ = err
+}
+
 // FuzzFormat feeds arbitrary bytes to Format and checks:
 // - No panics on any input
 // - If Format succeeds, output re-parses without error

@@ -49,7 +49,12 @@ func DefaultOptions() formatter.Options {
 // Returns an error if src cannot be parsed as valid YAML.
 func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 	if len(bytes.TrimSpace(src)) == 0 {
-		return src, nil
+		return nil, &formatter.ErrSkipped{Reason: "empty document"}
+	}
+
+	// YAML spec requires spaces for indentation — tabs are not permitted.
+	if opts.IndentStyle == formatter.IndentTabs {
+		return nil, errors.New("yaml: tab indentation is not supported (YAML spec requires spaces)")
 	}
 
 	// Reject null bytes (YAML spec forbids them; goccy doesn't catch this).
@@ -130,11 +135,6 @@ func resolveOptions(opts formatter.Options) formatter.Options {
 		opts.IndentStyle = defaults.IndentStyle
 	}
 	if opts.IndentWidth == 0 {
-		opts.IndentWidth = defaults.IndentWidth
-	}
-	// YAML spec requires spaces for indentation. Tabs silently fall back.
-	if opts.IndentStyle == formatter.IndentTabs {
-		opts.IndentStyle = formatter.IndentSpaces
 		opts.IndentWidth = defaults.IndentWidth
 	}
 	return opts
@@ -301,10 +301,12 @@ func applyQuoteStyleToValue(node ast.Node, style formatter.QuoteStyle) {
 // or sequence as its body. Bare scalars and other exotic root types are valid
 // YAML but aren't config files — they're returned unchanged by Format.
 func hasFormattableRoot(file *ast.File) bool {
+	hasContent := false
 	for _, doc := range file.Docs {
 		if doc.Body == nil {
 			continue
 		}
+		hasContent = true
 		switch doc.Body.(type) {
 		case *ast.MappingNode, *ast.MappingValueNode, *ast.SequenceNode:
 			// formattable
@@ -312,5 +314,5 @@ func hasFormattableRoot(file *ast.File) bool {
 			return false
 		}
 	}
-	return true
+	return hasContent
 }

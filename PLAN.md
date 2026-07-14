@@ -13,12 +13,12 @@
 |--------|-------------|-----------|--------|
 | HCL | ✅ CST (hclwrite token stream) | 0 | Done (pre-existing) |
 | JSON | ✅ Semantic (tidwall/pretty) | 0 | Done (pre-existing) |
-| YAML | ✅ CST (goccy/go-yaml AST) | 1 (empty file) | Needs cleanup (Phase 6) |
+| YAML | ⚠️ AST (goccy/go-yaml) — unstable serializer | 1 (stability guard) | **Phase 6A: CST rewrite** |
 | JSONC | ✅ CST (hujson + custom walker) | 0 | **Done (dfb2dae)** |
 | TOML | ✅ CST (custom tokenizer/grouper/printer) | 0 | **Done (6166dcc)** — identical to taplo |
 | XML | ⚠️ DOM (helium) | 2 (ErrSkipped) | Blocked on helium upstream |
-| Properties | ❌ Line-oriented | 4 | **Next** |
-| INI | ❌ Line-oriented | 3 | After Properties |
+| Properties | ✅ CST (custom tokenizer/printer) | 0 | **Done** |
+| INI | ✅ CST (custom tokenizer/parser/printer) | 0 | **Done** |
 | ENV | ✅ Line-oriented (format is trivial) | 0 | Done (pre-existing) |
 
 ---
@@ -126,39 +126,50 @@ The printer walks `File` and emits `Token.Raw` for every token, except for the S
 
 ### Tasks
 
-- [ ] 2.1: Implement lexer in `pkg/formatter/propfmt/lexer.go`
+- [x] 2.1: Implement lexer in `pkg/formatter/propfmt/lexer.go`
   - Tokenize properties file into stream of tokens
   - Handle: escape sequences (`\n`, `\t`, `\uXXXX`, `\\`), continuation (`\` + newline), comment lines (`#`, `!`), separator detection (first unescaped `=`, `:`, or whitespace)
   - Every byte of input is accounted for in exactly one token
   - **Files**: `pkg/formatter/propfmt/lexer.go`
 
-- [ ] 2.2: Implement parser in `pkg/formatter/propfmt/parser.go`
+- [x] 2.2: Implement parser in `pkg/formatter/propfmt/parser.go`
   - Build `File` structure from token stream
   - Associate comments with following entries
   - Track continuation tokens as part of value
   - **Files**: `pkg/formatter/propfmt/parser.go`
 
-- [ ] 2.3: Implement printer in `pkg/formatter/propfmt/printer.go`
+- [x] 2.3: Implement printer in `pkg/formatter/propfmt/printer.go`
   - Walk `File`, emit tokens
   - Normalize separator spacing
   - Implement SortKeys (sort entries, preserve comment attachment)
   - Apply FinalNewline and LineEnding
   - **Files**: `pkg/formatter/propfmt/printer.go`
 
-- [ ] 2.4: Replace `properties.go` Format function
+- [x] 2.4: Replace `properties.go` Format function
   - Keep `magiconair/properties` for validation (catch invalid escape sequences the lexer might accept)
   - Replace line-oriented code with: validate → lex → parse → transform → print
   - Remove all `return src, nil` bail-outs
   - Remove idempotency check (correctness is structural)
   - **Files**: `pkg/formatter/propfmt/properties.go`
 
-- [ ] 2.5: Tests
+- [x] 2.5: Tests
   - All existing fixtures must produce identical output
   - New fixtures: continuation lines, escaped keys, SortKeys with comments
-  - Fuzz: 45s minimum, zero failures
+  - Fuzz: 45s minimum (8.7M executions), zero failures
   - **Files**: `pkg/formatter/propfmt/properties_test.go`, `testdata/`
 
-- [ ] 2.6: Pipeline verification
+- [x] 2.6: Pipeline verification
+
+### Delivered
+
+- `pkg/formatter/propfmt/tokenizer.go` — lossless tokenizer (handles escapes, continuations, comments)
+- `pkg/formatter/propfmt/printer.go` — CST grouper + printer (separator normalization, SortKeys with comment attachment)
+- `pkg/formatter/propfmt/properties.go` — Format function: validate → tokenize → group → print (zero bail-outs)
+- `pkg/formatter/propfmt/properties_test.go` — fixtures, idempotency, fuzz
+- 7 fixture pairs: basic, comments, sorted, already_formatted, continuation, escaped_keys, sorted_comments
+- Fuzz: 8.7M+ executions in 45s, zero failures
+- Registered in `pkg/filetype/formatters.go`
+- Pipeline: 91.9% coverage, 0 lint issues
 
 ---
 
@@ -213,36 +224,47 @@ type File struct {
 
 ### Tasks
 
-- [ ] 3.1: Implement lexer in `pkg/formatter/inifmt/lexer.go`
+- [x] 3.1: Implement lexer in `pkg/formatter/inifmt/lexer.go`
   - Tokenize INI file
   - Handle: section headers, comments (# and ;), key-value pairs, escaped characters
   - No interpretation of quoted values — they're opaque value tokens
   - **Files**: `pkg/formatter/inifmt/lexer.go`
 
-- [ ] 3.2: Implement parser in `pkg/formatter/inifmt/parser.go`
+- [x] 3.2: Implement parser in `pkg/formatter/inifmt/parser.go`
   - Build `File` → `Section` → `Entry` structure
   - Associate comments with following entries/sections
   - **Files**: `pkg/formatter/inifmt/parser.go`
 
-- [ ] 3.3: Implement printer in `pkg/formatter/inifmt/printer.go`
+- [x] 3.3: Implement printer in `pkg/formatter/inifmt/printer.go`
   - Walk `File`, emit tokens
   - Normalize separator, apply indent
   - Implement SortKeys (within sections)
   - Apply FinalNewline and LineEnding
   - **Files**: `pkg/formatter/inifmt/printer.go`
 
-- [ ] 3.4: Replace `ini.go` Format function
+- [x] 3.4: Replace `ini.go` Format function
   - Keep `gopkg.in/ini.v1` for validation
   - Remove all `return src, nil` bail-outs
   - **Files**: `pkg/formatter/inifmt/ini.go`
 
-- [ ] 3.5: Tests
+- [x] 3.5: Tests
   - All existing fixtures must produce identical output
-  - New fixtures: quoted values, SortKeys, keys with special characters
-  - Fuzz: 45s minimum, zero failures
+  - New fixtures: quoted values, SortKeys, keys with special characters, escaped keys, sort with escapes
+  - Fuzz: 45s minimum (3.1M executions), zero failures
   - **Files**: `pkg/formatter/inifmt/ini_test.go`, `testdata/`
 
-- [ ] 3.6: Pipeline verification
+- [x] 3.6: Pipeline verification (96.6% coverage, 0 lint issues)
+
+### Delivered
+
+- `pkg/formatter/inifmt/lexer.go` — lossless tokenizer (sections, comments, key-value, CR/CRLF/LF)
+- `pkg/formatter/inifmt/parser.go` — Section→Entry tree builder with comment association
+- `pkg/formatter/inifmt/printer.go` — formatter (separator normalization, indent, SortKeys within sections)
+- `pkg/formatter/inifmt/ini.go` — Format function: validate → tokenize → parse → print (zero bail-outs)
+- `pkg/formatter/inifmt/ini_test.go` — fixtures, idempotency, fuzz, edge cases (CR, CRLF, whitespace-only)
+- 8 fixture pairs: basic, comments, already_formatted, quoted_values, sort_keys, colon_separator, escaped_keys, sort_escaped
+- Fuzz: 3.1M+ executions in 45s, zero failures
+- Pipeline: 96.6% coverage, 0 lint issues
 
 ---
 
@@ -369,7 +391,154 @@ Values are treated as opaque tokens. The tokenizer tracks boundaries (opening/cl
 
 ---
 
-## Phase 6: YAML and ENV cleanup
+## Phase 6A: YAML CST Formatter (custom tokenizer)
+
+**Effort**: 1-2 sessions
+**Risk**: Medium — YAML grammar is complex but we only need token boundaries, not semantics
+**Dependency**: goccy/go-yaml for validation only. Custom tokenizer for formatting.
+**Reference**: prettier (via yaml-unist-parser) for expected output behavior.
+
+### Why custom tokenizer
+
+No Go library provides a lossless YAML token stream suitable for formatting:
+- goccy/go-yaml: `Origin` field exists but whitespace boundaries are inconsistent (indent may be on preceding token's tail OR following token's head). `file.String()` is a reconstructive serializer, not a CST printer.
+- go-yaml/yaml (v3): No CST at all. Decode/encode only.
+- google/yamlfmt: Same decode/encode pattern with placeholder-comment hacks for blank-line preservation.
+
+prettier's YAML plugin uses `yaml-unist-parser` (unist AST with source positions) and slices `originalText` for verbatim content. We take this further: a pure tokenizer where every byte is one token, and formatting is token manipulation.
+
+### Architecture
+
+```
+Validation:  goccy/go-yaml Unmarshal (semantic correctness, duplicate keys, anchors)
+Formatting:  custom tokenizer → token stream → printer (indent normalization)
+```
+
+The tokenizer classifies bytes into tokens. It does NOT:
+- Decode escape sequences or values
+- Resolve anchors/aliases
+- Build a document model
+- Validate semantics
+
+### Token types
+
+```
+IndentToken        // leading spaces at start of line (the thing we modify)
+NewlineToken       // \n or \r\n
+CommentToken       // # through end of line (not including newline)
+KeyToken           // bare key, quoted key (content opaque)
+ColonToken         // : (with optional trailing space)
+ValueToken         // scalar value content on same line as colon
+DashToken          // - (sequence entry indicator)
+DocStartToken      // ---
+DocEndToken        // ...
+TagToken           // !tag, !!type
+AnchorToken        // &name
+AliasToken         // *name
+BlockScalarToken   // | or > plus header plus all content lines (opaque block)
+FlowToken          // { ... } or [ ... ] (opaque — brace/bracket counted)
+DirectiveToken     // %YAML, %TAG
+SpaceToken         // horizontal whitespace not at line start (between tokens)
+```
+
+Key design decisions:
+- **IndentToken is separate from SpaceToken** — indent is leading whitespace on a line, space is whitespace between tokens on the same line. Only IndentToken gets modified during formatting.
+- **BlockScalarToken is opaque** — includes the header (|+, >-) and ALL content lines. Content indentation is relative to the scalar's indent and MUST NOT be modified independently.
+- **FlowToken is opaque** — `{key: value, other: [1,2,3]}` is a single token. We don't reformat flow internals (same as prettier).
+- **Values are opaque** — quoted strings, multiline plain scalars — content preserved verbatim.
+
+### What the tokenizer needs to handle
+
+1. **Line-start indent detection** — after every newline, consume spaces → IndentToken
+2. **Comments** — `#` through EOL (not including the newline)
+3. **Block scalar boundaries** — `|` or `>` followed by optional indicators, then content lines determined by indent level. First non-empty content line sets the content indent; everything at or above that indent (until indent drops) is part of the block.
+4. **Flow collection boundaries** — `{`/`}` and `[`/`]` nesting count. Everything inside is one FlowToken.
+5. **Quoted strings** — `'...'` and `"..."` with escape handling for double-quote. These are part of ValueToken or KeyToken.
+6. **Plain scalars** — unquoted text that may span multiple lines (continuation lines more indented than key). Boundary detection: next line at same or lower indent starts a new entry.
+7. **Sequence entry** — `- ` at appropriate indent
+8. **Mapping key/value** — key followed by `:` followed by value
+9. **Document markers** — `---` and `...` at column 0
+10. **Directives** — `%` at column 0
+
+### Formatting operations on token stream
+
+- **Reindent**: Replace IndentToken.Raw with new indent (depth × targetWidth). This requires knowing the structural depth — derived from indent levels in the original token stream.
+- **SortKeys**: Group tokens into "entries" (key + colon + value + nested content until indent drops), sort entries within a mapping scope.
+- **FinalNewline/LineEnding**: Normalize NewlineTokens.
+- **Block scalars**: When reindenting, block scalar content indent shifts by the same delta as the scalar's own indent. This maintains the relative indentation within the block.
+
+### Grouping for SortKeys
+
+To sort keys, we need to identify "entries" — a key-value pair and all its nested content:
+
+```
+Entry = IndentToken + KeyToken + ColonToken + [ValueToken | nested content until indent ≤ entry indent]
+```
+
+The grouper walks the token stream and builds:
+```go
+type Entry struct {
+    LeadingComments []Token   // comments at this indent preceding the key
+    Tokens         []Token   // all tokens from key through end of nested content
+    Key            string    // decoded key for sort comparison
+    Indent         int       // the indent level of this entry's key
+}
+```
+
+Sorting reorders entries within a mapping, preserving comment attachment.
+
+### Tasks
+
+- [ ] 6A.1: Implement tokenizer in `pkg/formatter/yamlfmt/tokenizer.go`
+  - Lex YAML source into flat token stream
+  - Handle: indent, comments, block scalars (opaque), flow collections (opaque), quoted strings, plain scalars, sequence entries, mapping pairs, document markers, directives
+  - Every byte of input accounted for in exactly one token
+  - Fuzz against goccy: if goccy accepts it, our tokenizer must not panic
+
+- [ ] 6A.2: Implement grouper in `pkg/formatter/yamlfmt/grouper.go`
+  - Walk token stream, determine structural depth from indent levels
+  - Group tokens into entries for SortKeys
+  - Track parent indent to detect entry boundaries
+
+- [ ] 6A.3: Implement printer in `pkg/formatter/yamlfmt/printer.go`
+  - Walk token stream, replace IndentTokens with normalized indent (depth × width)
+  - Handle block scalar content indent shifting
+  - Implement SortKeys (reorder entry groups)
+  - Apply FinalNewline and LineEnding
+
+- [ ] 6A.4: Replace yaml.go Format function
+  - Keep goccy for validation (`Unmarshal`)
+  - Replace AST manipulation with: validate → tokenize → group → format → print
+  - Remove stability guard
+  - Remove `AddColumn`, `reindent`, `normalizeNode`, `sortMappingKeys`, `applyQuoteStyleToValue`
+  - No silent bail-outs, no runtime idempotency check
+
+- [ ] 6A.5: Tests
+  - All existing fixtures must produce identical output (or better — match prettier where old output was wrong)
+  - New fixtures: block scalars, flow collections, anchors/aliases, multi-doc, deeply nested
+  - Test against prettier output on real-world files (docker-compose, k8s manifests, GitHub Actions workflows)
+  - Fuzz: 45s minimum, zero failures
+
+- [ ] 6A.6: Pipeline verification
+
+### Competition
+
+prettier. Our formatter must produce output that a prettier user would find acceptable. Not necessarily byte-for-byte identical (prettier has its own opinions on quoting, line-wrapping prose), but structurally equivalent: same indent, same key order when sorted, same comment placement, block scalars verbatim.
+
+### Hard parts (must get right)
+
+1. **Block scalar boundary detection** — the indent of the first content line sets the boundary. Must handle empty lines within block scalars (they don't terminate the scalar).
+2. **Plain scalar continuation** — a plain value continues on the next line if that line is more indented than the mapping key. Must not split a multi-line plain scalar.
+3. **Entry boundary for SortKeys** — "where does this entry end?" requires tracking indent. An entry ends when the next non-comment, non-blank token is at the same or lower indent.
+4. **Block scalar reindent** — when the parent changes indent, block scalar content shifts by the same delta. Must not corrupt content.
+
+---
+
+## Phase 6B: YAML and ENV cleanup (post-CST)
+
+**Effort**: < 1 day
+**Risk**: Negligible
+**Status**: ✅ Done (completed during Phase 6A prep)
 
 **Effort**: < 1 day
 **Risk**: Negligible
@@ -386,9 +555,17 @@ Already has zero bail-outs. No changes needed.
 
 ### Tasks
 
-- [ ] 6.1: YAML empty input: return `ErrSkipped{Reason: "empty document"}` instead of silent return
-- [ ] 6.2: YAML IndentTabs: return error instead of silent fallback
-- [ ] 6.3: Tests and pipeline verification
+- [x] 6.1: YAML empty input: return `ErrSkipped{Reason: "empty document"}` instead of silent return
+- [x] 6.2: YAML IndentTabs: return error instead of silent fallback
+- [x] 6.3: Tests and pipeline verification
+
+### Delivered
+
+- Empty/whitespace input now returns `ErrSkipped` (no more silent `return src, nil`)
+- `IndentTabs` returns explicit error: "tab indentation is not supported (YAML spec requires spaces)"
+- Fixed `hasFormattableRoot` to reject documents with all-nil bodies (prevents formatter producing whitespace-only output that can't be re-formatted)
+- Fuzz: 1.8M executions, zero failures
+- Pipeline: 92.1% coverage, 0 lint issues
 
 ---
 
@@ -399,9 +576,15 @@ Phase 1: JSONC (hujson)                          ✅ done (dfb2dae)
 Phase 4: TOML CST                                ✅ done (6166dcc + 2c76b0a)
                                                     Byte-for-byte identical to taplo on all test cases.
                                                     Values with comments preserved verbatim (matches taplo).
-Phase 2: Properties CST                          — next
-Phase 3: INI CST                                 — after Properties
-Phase 6: YAML/ENV cleanup                        — <1 day, negligible risk
+Phase 2: Properties CST                          ✅ done
+                                                    8.7M fuzz executions, zero failures.
+                                                    Handles continuations, escaped keys, SortKeys with comments.
+Phase 3: INI CST                                 ✅ done
+                                                    3.1M fuzz executions, zero failures.
+                                                    96.6% coverage. Escaped keys, colon separators, SortKeys within sections.
+Phase 6: YAML/ENV cleanup                        ✅ done (ErrSkipped for empty, error for IndentTabs)
+                                                    Stability guard still present — will be removed by Phase 6A.
+Phase 6A: YAML CST formatter                     — NEXT (custom tokenizer, no goccy serializer)
 Phase 5: XML (blocked on helium upstream)        — 1-2 days when unblocked
 Phase 7: Ephemeral CLI stress test (ALL formats) — after all formatters done
 Phase 8: CLI UX fixes                            — help text + dry-run diff
@@ -544,3 +727,15 @@ Phases 1-3 can be done sequentially. Phase 6 can slot in anywhere. Phase 4 is th
 - `KeepComments` flag on unstable parser shows awareness but not commitment
 - Filing a feature request for something intentionally killed is tone-deaf
 - If pelletier ships a stable comment-preserving API in the future, we can adopt it then
+
+### 2026-07-14: Custom YAML tokenizer over goccy/go-yaml AST
+
+- goccy/go-yaml's `file.String()` is a **reconstructive serializer**, not a CST printer. It regenerates output from Position fields using `strings.Repeat(" ", column-1)` and hardcoded formatting patterns. It does NOT walk token Origins.
+- Instability in `file.String()`: flow mappings inside sequences produce extra padding that changes on re-serialization. This is a library bug we can't fix.
+- goccy's token `Origin` field preserves original text, but whitespace boundaries are inconsistent — indent may be on the preceding token's tail OR the following token's head. No clean rule.
+- google/yamlfmt uses same decode/encode pattern (go-yaml/yaml v3 fork) with placeholder-comment hacks (`#magic___^_^___line`) for blank-line preservation. Same architectural flaw.
+- prettier's YAML plugin uses `yaml-unist-parser` (unist AST) and slices `originalText` for verbatim content. Closer to correct but still relies on an IR engine for indentation.
+- **No Go library provides a lossless YAML token stream suitable for formatting.** Confirmed by evaluating goccy, go-yaml, yamlfmt.
+- Decision: write a format-only tokenizer. Same architecture as TOML (tokenize → modify indent → print). Classify bytes into tokens where IndentToken is the only token that gets modified. Block scalars and flow collections are opaque.
+- Reference: prettier for expected output behavior. Our output should be structurally equivalent to prettier on real-world config YAML.
+- This is the first pure CST YAML formatter in Go. No one else has done it because YAML is hard. We're doing it because we're the one config file tool and we're doing it right.

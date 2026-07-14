@@ -112,9 +112,9 @@ func TestDuplicateKeysRejected(t *testing.T) {
 	require.Contains(t, err.Error(), "already defined")
 }
 
-// TestEmptyInputPassthrough verifies that empty or whitespace-only input
-// is returned unchanged without error.
-func TestEmptyInputPassthrough(t *testing.T) {
+// TestEmptyInputReturnsErrSkipped verifies that empty or whitespace-only
+// input returns ErrSkipped rather than silently passing through.
+func TestEmptyInputReturnsErrSkipped(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -126,9 +126,11 @@ func TestEmptyInputPassthrough(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := f.Format([]byte(tc.src), defaultOpts)
-			require.NoError(t, err)
-			require.Equal(t, tc.src, string(got))
+			_, err := f.Format([]byte(tc.src), defaultOpts)
+			require.Error(t, err)
+			var skipped *formatter.ErrSkipped
+			require.ErrorAs(t, err, &skipped)
+			require.Equal(t, "empty document", skipped.Reason)
 		})
 	}
 }
@@ -213,18 +215,17 @@ func TestIndentWidth4(t *testing.T) {
 	require.Contains(t, string(got), "    b: 1", "expected 4-space indent")
 }
 
-// TestTabOptionFallsBackToSpaces verifies that IndentTabs is treated as
-// 2-space indent (YAML spec forbids tabs).
-func TestTabOptionFallsBackToSpaces(t *testing.T) {
+// TestTabOptionReturnsError verifies that IndentTabs returns an error
+// (YAML spec forbids tab indentation).
+func TestTabOptionReturnsError(t *testing.T) {
 	t.Parallel()
 	src := []byte("a:\n  b: 1\n")
 	opts := defaultOpts
 	opts.IndentStyle = formatter.IndentTabs
 
-	got, err := f.Format(src, opts)
-	require.NoError(t, err)
-	require.NotContains(t, string(got), "\t", "output must never contain tabs")
-	require.Contains(t, string(got), "  b: 1", "expected 2-space fallback indent")
+	_, err := f.Format(src, opts)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "tab indentation is not supported")
 }
 
 // TestCommentsPreserved verifies that all comment types survive formatting.

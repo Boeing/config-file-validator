@@ -10,16 +10,17 @@ import (
 
 // entry represents a logical entry in a properties file.
 type entry struct {
-	comments []Token // preceding comment lines (TokComment + TokNewline)
-	key      Token   // the key token
-	sep      Token   // the separator token
-	value    Token   // the value token (may include continuations)
-	newline  Token   // trailing newline
+	comments    []Token // preceding comment lines (TokComment + TokNewline)
+	key         Token   // the key token
+	sep         Token   // the separator token
+	value       Token   // the value token (may include continuations)
+	newline     Token   // trailing newline
+	blankBefore bool    // blank line preceded this entry
 }
 
 // printFormatted formats the token stream into canonical output.
 func printFormatted(tokens []Token, opts formatter.Options) []byte {
-	entries, blanks, trailingComments := groupEntries(tokens)
+	entries, trailingComments := groupEntries(tokens)
 
 	if opts.SortKeys {
 		slices.SortStableFunc(entries, func(a, b entry) int {
@@ -33,7 +34,7 @@ func printFormatted(tokens []Token, opts formatter.Options) []byte {
 
 	for i, e := range entries {
 		// Insert blank line separator between groups if original had one.
-		if i > 0 && blanks[i] {
+		if i > 0 && e.blankBefore {
 			buf.WriteByte('\n')
 		}
 
@@ -80,10 +81,9 @@ func printFormatted(tokens []Token, opts formatter.Options) []byte {
 }
 
 // groupEntries organizes tokens into logical entries with attached comments.
-// Returns entries, a blank-line-before indicator per entry, and any trailing comments.
-func groupEntries(tokens []Token) ([]entry, []bool, []Token) {
+// Returns entries and any trailing comments.
+func groupEntries(tokens []Token) ([]entry, []Token) {
 	var entries []entry
-	var blanks []bool // blanks[i] = true if there was a blank line before entries[i]
 	var pendingComments []Token
 	var trailingComments []Token
 	blankBefore := false
@@ -111,13 +111,14 @@ func groupEntries(tokens []Token) ([]entry, []bool, []Token) {
 			// Start of a key-value entry.
 			e := entry{}
 			e.comments = pendingComments
+			e.blankBefore = blankBefore
 			pendingComments = nil
 			e.key = tok
 			i++
 
 			// Separator.
 			if i < len(tokens) && tokens[i].Kind == TokSeparator {
-				e.sep = tok
+				e.sep = tokens[i]
 				i++
 			}
 
@@ -133,7 +134,6 @@ func groupEntries(tokens []Token) ([]entry, []bool, []Token) {
 				i++
 			}
 
-			blanks = append(blanks, blankBefore)
 			entries = append(entries, e)
 			blankBefore = false
 
@@ -146,7 +146,7 @@ func groupEntries(tokens []Token) ([]entry, []bool, []Token) {
 	// Any pending comments at the end are trailing.
 	trailingComments = pendingComments
 
-	return entries, blanks, trailingComments
+	return entries, trailingComments
 }
 
 // decodeKey decodes escape sequences in a key for sorting purposes.
