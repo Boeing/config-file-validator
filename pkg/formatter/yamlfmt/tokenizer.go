@@ -43,9 +43,12 @@ const (
 
 // Token represents a single lexical token in a YAML file.
 // The Raw field preserves the original bytes exactly.
+// Structural and Depth are set by annotate() after tokenization.
 type Token struct {
-	Kind TokenKind
-	Raw  []byte
+	Kind       TokenKind
+	Raw        []byte
+	Structural bool // true if this indent is for a key/dash/comment (renormalize); false for continuation
+	Depth      int  // structural depth for TokIndent tokens; -1 for others
 }
 
 // tokenize lexes YAML source into a flat token stream.

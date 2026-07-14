@@ -94,14 +94,9 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 
 	resolved := resolveOptions(opts)
 
-	// Build structural line map from yaml.v3 Node tree.
-	// This tells us which lines contain structural elements (keys, sequence items)
-	// vs continuation lines (multi-line scalar values).
-	structuralLines := buildStructuralLineMap(toValidate)
-
-	// CST-based pipeline: tokenize → format → print.
+	// CST-based pipeline: tokenize → annotate → format → print.
 	tokens := tokenize(src)
-	out := printFormatted(tokens, resolved, structuralLines)
+	out := printFormatted(tokens, resolved, toValidate)
 
 	return out, nil
 }
@@ -116,47 +111,4 @@ func resolveOptions(opts formatter.Options) formatter.Options {
 		opts.IndentWidth = defaults.IndentWidth
 	}
 	return opts
-}
-
-// buildStructuralLineMap parses the YAML into a Node tree and returns
-// a set of line numbers that contain structural elements (mapping keys,
-// sequence items). Lines NOT in this set are continuation lines (multi-line
-// scalar values) and should not be independently reindented.
-func buildStructuralLineMap(src []byte) map[int]bool {
-	var root yaml.Node
-	if err := yaml.Unmarshal(src, &root); err != nil {
-		// If parse fails, treat all lines as structural (safe default).
-		return nil
-	}
-	lines := make(map[int]bool)
-	collectStructuralLines(&root, lines)
-	return lines
-}
-
-func collectStructuralLines(n *yaml.Node, lines map[int]bool) {
-	switch n.Kind {
-	case yaml.DocumentNode:
-		for _, c := range n.Content {
-			collectStructuralLines(c, lines)
-		}
-	case yaml.MappingNode:
-		// The mapping node itself is on a structural line.
-		lines[n.Line] = true
-		// Every key in a mapping starts a structural line.
-		for i := 0; i < len(n.Content); i += 2 {
-			lines[n.Content[i].Line] = true
-			// Recurse into the value to find nested structural elements.
-			if i+1 < len(n.Content) {
-				collectStructuralLines(n.Content[i+1], lines)
-			}
-		}
-	case yaml.SequenceNode:
-		// The sequence node itself is on a structural line.
-		lines[n.Line] = true
-		// Every item in a sequence starts a structural line.
-		for _, item := range n.Content {
-			lines[item.Line] = true
-			collectStructuralLines(item, lines)
-		}
-	}
 }
