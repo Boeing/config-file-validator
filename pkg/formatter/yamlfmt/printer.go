@@ -58,6 +58,9 @@ func printFormatted(tokens []Token, opts formatter.Options) []byte {
 
 	out := buf.Bytes()
 
+	// Strip trailing whitespace from each line.
+	out = stripTrailingWhitespace(out)
+
 	// Final newline handling.
 	out = bytes.TrimRight(out, "\r\n")
 	if opts.FinalNewline {
@@ -439,7 +442,22 @@ func groupTopLevelEntries(tokens []Token, depths []int, from, to, targetDepth in
 		if i+1 < len(entries) {
 			entries[i].endIdx = entries[i+1].startIdx
 		} else {
-			entries[i].endIdx = to
+			// Last entry: extend to end of range, but exclude trailing
+			// whitespace-only tokens (indent/newline with no content after them).
+			end := to
+			for end > entries[i].startIdx {
+				tok := tokens[end-1]
+				if tok.Kind == TokIndent || tok.Kind == TokNewline || tok.Kind == TokSpace {
+					end--
+				} else {
+					break
+				}
+			}
+			// But keep the final newline if it follows content.
+			if end < to && tokens[end].Kind == TokNewline {
+				end++
+			}
+			entries[i].endIdx = end
 		}
 	}
 
@@ -554,4 +572,43 @@ func sortByKey(entries []mappingEntry) {
 	slices.SortStableFunc(entries, func(a, b mappingEntry) int {
 		return strings.Compare(a.key, b.key)
 	})
+}
+
+// stripTrailingWhitespace removes trailing spaces and tabs from each line.
+func stripTrailingWhitespace(data []byte) []byte {
+	var result []byte
+	lineStart := 0
+	for i := 0; i < len(data); i++ {
+		if data[i] == '\n' {
+			// Trim trailing spaces/tabs from this line.
+			end := i
+			for end > lineStart && (data[end-1] == ' ' || data[end-1] == '\t') {
+				end--
+			}
+			result = append(result, data[lineStart:end]...)
+			result = append(result, '\n')
+			lineStart = i + 1
+		} else if data[i] == '\r' {
+			end := i
+			for end > lineStart && (data[end-1] == ' ' || data[end-1] == '\t') {
+				end--
+			}
+			result = append(result, data[lineStart:end]...)
+			result = append(result, '\r')
+			if i+1 < len(data) && data[i+1] == '\n' {
+				result = append(result, '\n')
+				i++
+			}
+			lineStart = i + 1
+		}
+	}
+	// Handle last line (no trailing newline).
+	if lineStart < len(data) {
+		end := len(data)
+		for end > lineStart && (data[end-1] == ' ' || data[end-1] == '\t') {
+			end--
+		}
+		result = append(result, data[lineStart:end]...)
+	}
+	return result
 }

@@ -168,7 +168,12 @@ func (t *tokenizer) consumeLineContent() {
 		// Check for sequence entry (- followed by space or newline).
 		if b == '-' && t.pos+1 < len(t.src) && (t.src[t.pos+1] == ' ' || t.src[t.pos+1] == '\n' || t.src[t.pos+1] == '\r') {
 			start := t.pos
-			t.pos += 2 // consume "- " (dash + space)
+			t.pos++ // consume the dash
+			if t.pos < len(t.src) && t.src[t.pos] == ' ' {
+				t.pos++ // include trailing space in TokDash ("- ")
+			}
+			// If followed by newline, DON'T consume it — let the newline
+			// handler set atLineStart so the next line's indent is TokIndent.
 			t.emit(TokDash, start)
 			t.lineHasStructure = true
 			return

@@ -333,13 +333,13 @@ func FuzzYAMLFormatter(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		result, err := fmter.Format(data, opts)
 		if err != nil {
-			return // invalid YAML — expected
+			return // rejected input — fine, just didn't panic
 		}
 
 		// Idempotency: formatting the output again must produce identical output.
 		result2, err := fmter.Format(result, opts)
 		if err != nil {
-			t.Fatalf("second format pass failed on output of first pass: %v\nfirst output: %q", err, result)
+			t.Fatalf("second format pass failed: %v\nfirst output: %q", err, result)
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent:\ninput:  %q\nfirst:  %q\nsecond: %q", data, result, result2)
@@ -361,13 +361,13 @@ func FuzzYAMLFormatterWithOptions(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		result, err := fmter.Format(data, opts)
 		if err != nil {
-			return // error is acceptable — pathological input
+			return // rejected input — fine, just didn't panic
 		}
 
 		// Idempotency: formatting the output again must produce identical output.
 		result2, err := fmter.Format(result, opts)
 		if err != nil {
-			t.Fatalf("second format pass failed on output of first pass: %v\nfirst output: %q", err, result)
+			t.Fatalf("second format pass failed: %v\nfirst output: %q", err, result)
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent:\ninput:  %q\nfirst:  %q\nsecond: %q", data, result, result2)

@@ -80,11 +80,10 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 
 	// Only format documents whose root is a mapping or sequence.
 	// Bare scalars are valid YAML but not config files.
+	// Nil roots (empty documents, binary garbage parsed as nil) have nothing to format.
 	switch firstDoc.(type) {
 	case map[string]any, []any:
 		// formattable
-	case nil:
-		// empty doc after directives — formattable
 	default:
 		return nil, errors.New("yaml: cannot format (document root is not a mapping or sequence)")
 	}
