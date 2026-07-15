@@ -53,9 +53,9 @@ func printFormatted(tokens []Token, opts formatter.Options) []byte {
 		// Emit normalized separator.
 		buf.WriteString(" = ")
 
-		// Emit value.
+		// Emit value with continuations collapsed to canonical single-line form.
 		if len(e.value.Raw) > 0 {
-			buf.Write(e.value.Raw)
+			buf.Write(decodeValueRaw(e.value.Raw))
 		}
 
 		buf.WriteByte('\n')
@@ -172,4 +172,49 @@ func decodeKey(raw []byte) string {
 		}
 	}
 	return b.String()
+}
+
+// decodeValueRaw resolves continuation lines in a value's raw bytes.
+// A continuation is \ + newline + optional leading whitespace on the next line.
+// A trailing \ at EOF is also a continuation (to nothing) and is stripped.
+// The result is the value content with continuations collapsed to nothing.
+// Other escape sequences (\n, \t, \\, \uXXXX, etc.) are preserved verbatim.
+func decodeValueRaw(raw []byte) []byte {
+	var result []byte
+	i := 0
+	for i < len(raw) {
+		if raw[i] == '\\' {
+			if i+1 >= len(raw) {
+				// Trailing backslash at EOF — continuation to nothing; drop it.
+				break
+			}
+			next := raw[i+1]
+			if next == '\n' {
+				// Continuation: skip \ + LF + leading whitespace
+				i += 2
+				for i < len(raw) && (raw[i] == ' ' || raw[i] == '\t' || raw[i] == '\f') {
+					i++
+				}
+				continue
+			}
+			if next == '\r' {
+				// Continuation: skip \ + CR + optional LF + leading whitespace
+				i += 2
+				if i < len(raw) && raw[i] == '\n' {
+					i++
+				}
+				for i < len(raw) && (raw[i] == ' ' || raw[i] == '\t' || raw[i] == '\f') {
+					i++
+				}
+				continue
+			}
+			// Other escape sequence — preserve verbatim (e.g., \\, \n, \t, \uXXXX)
+			result = append(result, raw[i], raw[i+1])
+			i += 2
+		} else {
+			result = append(result, raw[i])
+			i++
+		}
+	}
+	return result
 }

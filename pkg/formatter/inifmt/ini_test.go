@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/ini.v1"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/inifmt"
@@ -224,6 +225,29 @@ func FuzzFormatWithOptions(f *testing.F) {
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+
+		// Semantic equivalence.
+		origINI, origErr := ini.Load(data)
+		fmtINI, fmtErr := ini.Load(result)
+		if origErr == nil && fmtErr != nil {
+			t.Fatalf("formatted output is invalid INI: %v\ninput: %q\noutput: %q", fmtErr, data, result)
+		}
+		if origErr == nil && fmtErr == nil {
+			for _, sec := range origINI.SectionStrings() {
+				origSec := origINI.Section(sec)
+				fmtSec := fmtINI.Section(sec)
+				if fmtSec == nil {
+					t.Fatalf("section %q missing after format", sec)
+				}
+				for _, key := range origSec.KeyStrings() {
+					origVal := origSec.Key(key).String()
+					fmtVal := fmtSec.Key(key).String()
+					if origVal != fmtVal {
+						t.Fatalf("semantics changed: [%s] %s: %q -> %q", sec, key, origVal, fmtVal)
+					}
+				}
+			}
 		}
 	})
 }

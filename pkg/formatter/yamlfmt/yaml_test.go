@@ -1,6 +1,7 @@
 package yamlfmt_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -523,6 +524,19 @@ func FuzzYAMLFormatterWithOptions(f *testing.F) {
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+
+		// Semantic equivalence.
+		var origVal, fmtVal any
+		if yaml.Unmarshal(data, &origVal) == nil {
+			if err := yaml.Unmarshal(result, &fmtVal); err != nil {
+				t.Fatalf("formatted output is invalid YAML: %v\ninput: %q\noutput: %q", err, data, result)
+			}
+			origJSON, _ := json.Marshal(origVal)
+			fmtJSON, _ := json.Marshal(fmtVal)
+			if string(origJSON) != string(fmtJSON) {
+				t.Fatalf("semantics changed:\n  orig: %s\n  fmt:  %s", origJSON, fmtJSON)
+			}
 		}
 	})
 }

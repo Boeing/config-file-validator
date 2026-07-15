@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/magiconair/properties"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
@@ -215,6 +216,22 @@ func FuzzFormatWithOptions(f *testing.F) {
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+
+		// Semantic equivalence.
+		origProps, origErr := properties.Load(data, properties.UTF8)
+		fmtProps, fmtErr := properties.Load(result, properties.UTF8)
+		if origErr == nil && fmtErr != nil {
+			t.Fatalf("formatted output is invalid properties: %v\ninput: %q\noutput: %q", fmtErr, data, result)
+		}
+		if origErr == nil && fmtErr == nil {
+			origMap := origProps.Map()
+			fmtMap := fmtProps.Map()
+			for k, v := range origMap {
+				if fmtMap[k] != v {
+					t.Fatalf("semantics changed for key %q: %q -> %q\ninput: %q\noutput: %q", k, v, fmtMap[k], data, result)
+				}
+			}
 		}
 	})
 }

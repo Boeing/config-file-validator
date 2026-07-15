@@ -1,11 +1,13 @@
 package tomlfmt_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
@@ -207,6 +209,20 @@ func FuzzFormatWithOptions(f *testing.F) {
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+
+		// Semantic equivalence: parsed values must match.
+		var origMap, fmtMap map[string]any
+		if err := toml.Unmarshal(data, &origMap); err == nil {
+			if err := toml.Unmarshal(result, &fmtMap); err != nil {
+				t.Fatalf("formatted output is invalid TOML: %v\ninput: %q\noutput: %q", err, data, result)
+			}
+			// JSON round-trip handles NaN/Inf comparison.
+			origJSON, _ := json.Marshal(origMap)
+			fmtJSON, _ := json.Marshal(fmtMap)
+			if string(origJSON) != string(fmtJSON) {
+				t.Fatalf("semantics changed:\n  input:  %s\n  output: %s", origJSON, fmtJSON)
+			}
 		}
 	})
 }

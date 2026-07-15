@@ -693,11 +693,11 @@ func (*Printer) sortGroups(groups []Group) []Group {
 	}
 
 	// Flush remaining.
+	flushEntries()
 	if len(commentRun) > 0 {
 		// Trailing comments with no entry — emit as-is.
 		result = append(result, commentRun...)
 	}
-	flushEntries()
 
 	return result
 }

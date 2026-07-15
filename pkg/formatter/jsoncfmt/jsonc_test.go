@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tailscale/hujson"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsoncfmt"
@@ -245,6 +246,22 @@ func FuzzFormatWithOptions(f *testing.F) {
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+
+		// Semantic equivalence via hujson parse.
+		origVal, origErr := hujson.Parse(data)
+		fmtVal, fmtErr := hujson.Parse(result)
+		if origErr == nil && fmtErr != nil {
+			t.Fatalf("formatted output is invalid JSONC: %v\ninput: %q\noutput: %q", fmtErr, data, result)
+		}
+		if origErr == nil && fmtErr == nil {
+			origVal.Standardize()
+			origVal.Minimize()
+			fmtVal.Standardize()
+			fmtVal.Minimize()
+			if string(origVal.Pack()) != string(fmtVal.Pack()) {
+				t.Fatalf("semantics changed:\n  orig: %s\n  fmt:  %s", origVal.Pack(), fmtVal.Pack())
+			}
 		}
 	})
 }

@@ -2524,3 +2524,796 @@ Total: ~150 lines net change in printer.go. The file is currently ~760 lines.
 - [ ] 7C.3.19: Add fuzz corpus entries back, verify they pass
 - [ ] 7C.3.20: Fuzz 45s with options
 - [ ] 7C.3.21: Pipeline verification (vet, fmt, lint)
+
+## Phase 10: YAML Inline Spacing Normalization
+
+**Date**: 2026-07-15
+**Priority**: HIGH — without this, users still need prettier/yamlfmt for basic consistency
+**Competition**: prettier and yamlfmt both normalize inline spacing
+
+---
+
+### Problem
+
+After formatting with cfv, YAML files can still have inconsistent spacing:
+```yaml
+name:    my-app
+version:  1.0.0
+flow: {a:  1, b:   2}
+```
+Every other formatter normalizes this. Users perceive a formatter that leaves inconsistent spacing as broken.
+
+---
+
+### Two Operations
+
+#### Operation 1: Strip leading whitespace from block values
+
+`key:    value` → `key: value`
+
+The excess spaces live as leading whitespace in `TokValue.Raw`. The colon token already emits `": "` (one space). The value token has `"   value"` (extra spaces + content).
+
+#### Operation 2: Re-serialize flow collections from the AST
+
+`{a:  1, b:   2}` → `{a: 1, b: 2}`
+
+Flow collections are currently opaque `TokFlow` tokens. Instead of byte-walking them with a hack, use the yaml.v3 Node tree (which fully parses flow content with correct semantics) to re-serialize them with normalized spacing.
+
+---
+
+### Why AST-driven flow re-serialization (not byte walking)
+
+1. **YAML semantics are subtle in flow context.** `b:2` (no space after colon) is a PLAIN SCALAR, not key `b` with value `2`. A byte walker would have to re-implement YAML's flow parsing rules to know the difference. The parser already did this work.
+
+2. **Same principle as the depth refactor.** The AST IS the structure. Don't guess from bytes when the parser tells you the answer.
+
+3. **Extensible.** Once we have AST-driven flow serialization, we can add print-width-based line breaking (break long flows into multiline) in a future phase. A byte walker can't do that.
+
+---
+
+### Architecture
+
+```
+printFormatted:
+    buildASTMetadata(src)           ← already exists
+    annotate(tokens, src, astMeta)  ← already exists
+    normalizeValueSpacing(tokens)   ← NEW (Operation 1 — trivial)
+    normalizeFlowTokens(tokens, src) ← NEW (Operation 2 — AST-driven)
+    sortKeys (if requested)
+    reindentTokens
+    ... rest unchanged
+```
+
+---
+
+### Operation 1: `normalizeValueSpacing`
+
+```go
+// normalizeValueSpacing strips leading horizontal whitespace from TokValue
+// tokens that follow a TokColon. This normalizes "key:    value" to "key: value".
+// The whitespace between : and the value is insignificant in YAML.
+// Internal whitespace within the value is preserved.
+func normalizeValueSpacing(tokens []Token) {
+    for i := range tokens {
+        if tokens[i].Kind != TokValue {
+            continue
+        }
+        if i == 0 || tokens[i-1].Kind != TokColon {
+            continue // Only strip values after colons, not continuation lines
+        }
+        tokens[i].Raw = bytes.TrimLeft(tokens[i].Raw, " \t")
+    }
+}
+```
+
+**Edge cases**:
+- `key:` (no value) — no TokValue emitted, no-op ✓
+- `key: value` (already correct) — TrimLeft on `"value"` is no-op ✓
+- `key:  "quoted"` — value raw is `" \"quoted\""` → becomes `"\"quoted\""` ✓
+- `key:   &anchor val` — value raw is `"  &anchor val"` → becomes `"&anchor val"` ✓
+- `key:   !!str 42` — value raw is `"  !!str 42"` → becomes `"!!str 42"` ✓
+- Continuation line (multi-line plain scalar) — NOT preceded by TokColon, skipped ✓
+
+**Semantic safety**: Verified — `yaml.Unmarshal("key:    value")` == `yaml.Unmarshal("key: value")`.
+
+---
+
+### Operation 2: `normalizeFlowTokens` — AST-driven flow re-serialization
+
+**Approach**: For each `TokFlow` token in the stream, find the corresponding Node in the yaml.v3 tree (by matching line:column), then re-serialize that Node into normalized flow syntax, replacing the `TokFlow.Raw`.
+
+**Why line:column matching works**: The tokenizer records where each TokFlow starts. The yaml.v3 Node tree records Line and Column for each node. A flow map `{...}` at line 3 column 10 in the tokens corresponds to the Node at Line=3 Column=10 with Style=FlowStyle.
+
+#### Building the flow node map
+
+Extend `buildASTMetadata` (or add a companion function) to build a map from `(line, column) → *yaml.Node` for all flow-style nodes:
+
+```go
+type flowNodeMap map[[2]int]*yaml.Node // [line, column] → node
+
+func buildFlowNodeMap(src []byte) flowNodeMap {
+    if len(src) > 0 && src[len(src)-1] != '\n' {
+        src = append(bytes.Clone(src), '\n')
+    }
+    var root yaml.Node
+    if err := yaml.Unmarshal(src, &root); err != nil {
+        return nil
+    }
+    m := make(flowNodeMap)
+    collectFlowNodes(&root, m)
+    return m
+}
+
+func collectFlowNodes(n *yaml.Node, m flowNodeMap) {
+    if (n.Kind == yaml.MappingNode || n.Kind == yaml.SequenceNode) && n.Style == yaml.FlowStyle {
+        m[[2]int{n.Line, n.Column}] = n
+    }
+    for _, c := range n.Content {
+        collectFlowNodes(c, m)
+    }
+}
+```
+
+#### Re-serializing a flow Node
+
+```go
+// serializeFlowNode produces normalized flow syntax from a yaml.Node.
+// Output style: {key: value, key2: value2} (compact braces, single space after : and ,)
+func serializeFlowNode(n *yaml.Node) []byte {
+    var buf bytes.Buffer
+    writeFlowNode(&buf, n)
+    return buf.Bytes()
+}
+
+func writeFlowNode(buf *bytes.Buffer, n *yaml.Node) {
+    switch n.Kind {
+    case yaml.MappingNode:
+        buf.WriteByte('{')
+        for i := 0; i < len(n.Content); i += 2 {
+            if i > 0 {
+                buf.WriteString(", ")
+            }
+            writeFlowNode(buf, n.Content[i])   // key
+            buf.WriteString(": ")
+            writeFlowNode(buf, n.Content[i+1]) // value
+        }
+        buf.WriteByte('}')
+
+    case yaml.SequenceNode:
+        buf.WriteByte('[')
+        for i, item := range n.Content {
+            if i > 0 {
+                buf.WriteString(", ")
+            }
+            writeFlowNode(buf, item)
+        }
+        buf.WriteByte(']')
+
+    case yaml.ScalarNode:
+        writeFlowScalar(buf, n)
+
+    case yaml.AliasNode:
+        buf.WriteByte('*')
+        buf.WriteString(n.Value)
+    }
+}
+
+func writeFlowScalar(buf *bytes.Buffer, n *yaml.Node) {
+    switch n.Style {
+    case yaml.DoubleQuotedStyle:
+        // Re-emit with double quotes. Use the Node.Value (unescaped) and
+        // re-escape for YAML double-quote rules.
+        buf.WriteByte('"')
+        buf.WriteString(escapeDoubleQuoted(n.Value))
+        buf.WriteByte('"')
+    case yaml.SingleQuotedStyle:
+        buf.WriteByte('\'')
+        buf.WriteString(escapeSingleQuoted(n.Value))
+        buf.WriteByte('\'')
+    default:
+        // Plain scalar. For flow context, some values need quoting
+        // (e.g., values containing `:`, `,`, `{`, `}`, `[`, `]`).
+        // The Node.Tag tells us the type; Value is the unescaped content.
+        // If the value is safe as a plain scalar in flow context, emit plain.
+        // Otherwise, double-quote it.
+        if needsQuotingInFlow(n.Value, n.Tag) {
+            buf.WriteByte('"')
+            buf.WriteString(escapeDoubleQuoted(n.Value))
+            buf.WriteByte('"')
+        } else {
+            buf.WriteString(n.Value)
+        }
+    }
+}
+```
+
+#### Helper functions
+
+```go
+// escapeDoubleQuoted escapes a string for YAML double-quoted style.
+func escapeDoubleQuoted(s string) string {
+    // Replace: \ → \\, " → \", newline → \n, tab → \t, etc.
+    var b strings.Builder
+    for _, r := range s {
+        switch r {
+        case '\\': b.WriteString(`\\`)
+        case '"':  b.WriteString(`\"`)
+        case '\n': b.WriteString(`\n`)
+        case '\t': b.WriteString(`\t`)
+        case '\r': b.WriteString(`\r`)
+        default:   b.WriteRune(r)
+        }
+    }
+    return b.String()
+}
+
+// escapeSingleQuoted escapes a string for YAML single-quoted style.
+// Only escape needed: ' → ''
+func escapeSingleQuoted(s string) string {
+    return strings.ReplaceAll(s, "'", "''")
+}
+
+// needsQuotingInFlow returns true if a plain scalar value contains characters
+// that are ambiguous in flow context and must be quoted.
+func needsQuotingInFlow(value, tag string) bool {
+    if value == "" {
+        return true // empty string needs quotes in flow
+    }
+    // Characters that are flow indicators or could be misinterpreted.
+    for _, r := range value {
+        switch r {
+        case '{', '}', '[', ']', ',', ':', '#', '&', '*', '!', '|', '>', '\'', '"', '%', '@', '`':
+            return true
+        }
+    }
+    // Values that look like other types need quoting to preserve string type.
+    if tag == "!!str" {
+        switch value {
+        case "true", "false", "null", "~", "yes", "no", "on", "off":
+            return true
+        }
+        // Check if it looks like a number.
+        if looksNumeric(value) {
+            return true
+        }
+    }
+    return false
+}
+
+// looksNumeric checks if a string would be parsed as a number by YAML.
+func looksNumeric(s string) bool {
+    if len(s) == 0 { return false }
+    // Simple check: starts with digit, -, or .
+    if s[0] == '-' || s[0] == '+' || s[0] == '.' || (s[0] >= '0' && s[0] <= '9') {
+        // Try to parse as int or float.
+        // Use a simple heuristic: if all chars are digits, dots, e, E, -, +
+        for _, r := range s {
+            if !((r >= '0' && r <= '9') || r == '.' || r == 'e' || r == 'E' || r == '-' || r == '+' || r == '_') {
+                return false
+            }
+        }
+        return true
+    }
+    return false
+}
+```
+
+#### Connecting to the token stream
+
+```go
+// normalizeFlowTokens replaces each TokFlow token's Raw with AST-driven
+// re-serialized content. Uses the yaml.v3 Node tree for correct semantics.
+func normalizeFlowTokens(tokens []Token, flowNodes flowNodeMap) {
+    if flowNodes == nil {
+        return // parse failed — leave flows unchanged
+    }
+    for i := range tokens {
+        if tokens[i].Kind != TokFlow {
+            continue
+        }
+        node, ok := flowNodes[[2]int{tokens[i].Line, findFlowColumn(tokens, i)}]
+        if !ok {
+            continue // no matching node — leave unchanged
+        }
+        tokens[i].Raw = serializeFlowNode(node)
+    }
+}
+
+// findFlowColumn computes the column (1-based) of a TokFlow token by
+// summing the widths of tokens on the same line before it.
+func findFlowColumn(tokens []Token, flowIdx int) int {
+    col := 1
+    for j := flowIdx - 1; j >= 0; j-- {
+        if tokens[j].Kind == TokNewline {
+            break
+        }
+        col += len(tokens[j].Raw)
+    }
+    return col
+}
+```
+
+Wait — there's a subtlety. The column computation from tokens may not match the Node tree's column exactly, because the Node tree uses the ORIGINAL source positions, and by the time we call `normalizeFlowTokens`, other normalization steps may have shifted columns.
+
+**Fix**: Call `normalizeFlowTokens` BEFORE any other modifications to the token stream (before `normalizeValueSpacing` and before sort/reindent). At that point, token positions still match the original source.
+
+Actually better: build the flow node map during `annotate` (which runs on the original source) and set `TokFlow.Line` during the line-counting pass. Then matching is straightforward: `flowNodes[[2]int{tokens[i].Line, originalColumn}]`.
+
+But computing `originalColumn` requires knowing the position in the original source, which we track during tokenization. Let me check if the tokenizer records position:
+
+Actually — the simplest correct approach: record the **start byte offset** of each TokFlow during tokenization, and also record the byte offset of each flow Node from the source. But yaml.Node only gives Line:Column, not byte offset.
+
+Let me reconsider. The matching problem:
+- TokFlow at line L, column C (computable from tokens)
+- yaml.Node at Line L, Column C (from Node tree)
+- These WILL match because both refer to the same source bytes and we haven't modified anything yet
+
+The column for the TokFlow token can be precomputed during `annotate`'s line-counting pass. Add a `Column int` field to Token? Or compute it on-the-fly in `normalizeFlowTokens`.
+
+The simplest: compute column from the token positions (sum lengths on current line). Since we run this FIRST (before any modifications), the positions match the source. The `findFlowColumn` function above is correct for this.
+
+**Revised pipeline order**:
+```
+printFormatted:
+    buildASTMetadata(src)
+    buildFlowNodeMap(src)            ← NEW
+    annotate(tokens, src, astMeta)
+    normalizeFlowTokens(tokens, flowNodes)  ← NEW (first — before any token modification)
+    normalizeValueSpacing(tokens)    ← NEW (after flows, so flow values don't get double-processed)
+    sortKeys (if requested)
+    reindentTokens
+    ... rest unchanged
+```
+
+---
+
+### Anchor handling in flow collections
+
+If a flow collection contains an anchor: `{a: &ref 1, b: *ref}`, the Node tree has:
+- Key `a` → Scalar with Anchor="ref", Value="1"
+- Key `b` → AliasNode pointing to the anchor
+
+`writeFlowNode` handles AliasNode by emitting `*name`. For anchors, check `n.Anchor` field:
+
+```go
+case yaml.ScalarNode:
+    if n.Anchor != "" {
+        buf.WriteByte('&')
+        buf.WriteString(n.Anchor)
+        buf.WriteByte(' ')
+    }
+    writeFlowScalar(buf, n)
+```
+
+---
+
+### Empty flow collections
+
+`{}` and `[]` — the Node has zero Content items. `writeFlowNode` emits `{}` or `[]` (no space inside). Matches both prettier and yamlfmt.
+
+---
+
+### Null values in flow
+
+`{key: null}` or `{key: }` — Node has a ScalarNode with Tag=`!!null` and Value="" or "null". 
+
+For null values in flow, prettier emits `null` explicitly. yamlfmt does too. Our serializer should emit `null` for null-tagged scalars:
+
+```go
+func writeFlowScalar(buf *bytes.Buffer, n *yaml.Node) {
+    if n.Tag == "!!null" {
+        buf.WriteString("null")
+        return
+    }
+    // ... rest of style-based logic
+}
+```
+
+---
+
+### Comments inside flow collections
+
+yaml.v3 preserves comments on Nodes (`HeadComment`, `LineComment`, `FootComment`). However, formatting flow collections inline doesn't have a good place for comments. prettier DROPS comments inside flow collections (rewrites them without the comment). yamlfmt preserves them.
+
+**Our approach**: If any node in the flow tree has a comment, **skip re-serialization** for that TokFlow token (leave it unchanged). This is conservative — we don't corrupt data, we just don't normalize spacing for flows with comments. This is rare (comments in flow collections are unusual).
+
+```go
+func hasComments(n *yaml.Node) bool {
+    if n.HeadComment != "" || n.LineComment != "" || n.FootComment != "" {
+        return true
+    }
+    for _, c := range n.Content {
+        if hasComments(c) {
+            return true
+        }
+    }
+    return false
+}
+```
+
+In `normalizeFlowTokens`:
+```go
+if hasComments(node) {
+    continue // skip — preserve original formatting for flows with comments
+}
+```
+
+---
+
+### Multi-line flow collections
+
+Some flow collections span multiple lines:
+```yaml
+config: {
+  key1: value1,
+  key2: value2
+}
+```
+
+After re-serialization, this becomes a single line: `config: {key1: value1, key2: value2}`. This is correct — the formatter normalizes to compact flow style. If the user wants multiline, they should use block style.
+
+But wait — the TokFlow token captures the multi-line content including newlines. The replacement (`serializeFlowNode`) produces a single line. This means subsequent tokens' line numbers will be wrong. Does this matter?
+
+It matters for `normalizeFlowTokens` matching OTHER flow tokens on later lines. But since we're iterating forward and each TokFlow is matched independently by its OWN line/column (which hasn't changed yet at time of access), this is fine. After replacement, line numbers are stale but we don't use them again (annotate already ran, ASTDepth already set).
+
+For reindent: `TokFlow` tokens don't have `TokIndent` before them (they appear inline after a colon). They don't participate in reindentation. So stale line numbers don't affect reindent.
+
+---
+
+### Semantic equivalence guarantee
+
+The re-serialized flow produces the same parsed value as the original because:
+1. We use the PARSED Node tree (which IS the semantic value)
+2. We serialize FROM that tree (no information loss)
+3. Quoting rules ensure round-trip safety (needsQuotingInFlow)
+
+This is proven by our existing stress test framework: `yaml.Unmarshal(original) == yaml.Unmarshal(formatted)`.
+
+---
+
+### Test strategy
+
+1. **Unit test**: `TestNormalizeValueSpacing` — verify stripping on all edge cases
+2. **Unit test**: `TestNormalizeFlowCollections` — verify re-serialization matches expected:
+   - `{a:  1, b:   2}` → `{a: 1, b: 2}`
+   - `{key: "value with : colon"}` → `{key: "value with : colon"}`
+   - `{a: {b: 1}, c: [1, 2]}` → `{a: {b: 1}, c: [1, 2]}`
+   - `{}` → `{}`
+   - `[1,  2,   3]` → `[1, 2, 3]`
+   - `{a: &ref 1, b: *ref}` → `{a: &ref 1, b: *ref}`
+3. **Stress test cases**: Add inputs with messy spacing, verify semantic equivalence
+4. **Prettier comparison**: Format same input, verify our output matches prettier's spacing logic
+5. **All existing tests**: Must produce identical output (they already have correct spacing)
+6. **Real-world corpus**: Must pass
+7. **Fuzz 45s**: Verify idempotency with normalization active
+
+---
+
+### Files
+
+- `pkg/formatter/yamlfmt/printer.go`:
+  - Add `normalizeValueSpacing`
+  - Add `normalizeFlowTokens`, `buildFlowNodeMap`, `collectFlowNodes`
+  - Add `serializeFlowNode`, `writeFlowNode`, `writeFlowScalar`
+  - Add `escapeDoubleQuoted`, `escapeSingleQuoted`, `needsQuotingInFlow`, `looksNumeric`
+  - Add `hasComments`, `findFlowColumn`
+  - Modify `printFormatted` pipeline to call both normalizations
+- `pkg/formatter/yamlfmt/yaml_test.go`: Unit tests
+- `cmd/cfv/stress_format_test.go`: Stress test cases
+
+---
+
+### Tasks
+
+- [ ] 10.1: Implement `normalizeValueSpacing` (trim leading whitespace from TokValue after TokColon)
+- [ ] 10.2: Implement `buildFlowNodeMap` and `collectFlowNodes`
+- [ ] 10.3: Implement `serializeFlowNode`, `writeFlowNode`, `writeFlowScalar`
+- [ ] 10.4: Implement `escapeDoubleQuoted`, `escapeSingleQuoted`, `needsQuotingInFlow`, `looksNumeric`
+- [ ] 10.5: Implement `hasComments` (skip re-serialization for flows with comments)
+- [ ] 10.6: Implement `normalizeFlowTokens` with `findFlowColumn` for line:column matching
+- [ ] 10.7: Wire into `printFormatted`: build flow map, call normalizeFlowTokens then normalizeValueSpacing
+- [ ] 10.8: Add unit tests for value spacing normalization (10+ edge cases)
+- [ ] 10.9: Add unit tests for flow re-serialization (10+ cases including nested, anchors, quoting)
+- [ ] 10.10: Add stress test cases with semantic equivalence verification
+- [ ] 10.11: Compare output against prettier for test inputs
+- [ ] 10.12: Run all YAML tests — zero regressions
+- [ ] 10.13: Run stress tests + real-world corpus
+- [ ] 10.14: Fuzz 45s with options — zero failures
+- [ ] 10.15: Pipeline verification (vet, fmt, lint, build, test)
+
+## Phase 11: Fix Tokenizer Bugs + Add Semantic Fuzz Assertions
+
+**Date**: 2026-07-15
+**Context**: Fuzzing with option combinations found 3 bugs in TOML, INI, Properties tokenizers/printers. These are specific implementation mistakes in boundary handling, not architectural flaws. The fix is to correct each bug AND add semantic equivalence checking to all fuzz targets so future bugs are caught immediately.
+
+---
+
+### 11.1: TOML — Comment attached to wrong entry after multiline string
+
+**Input**: `0="""\n"""\n#` (key `0` with multiline string, followed by comment)
+**With SortKeys**: Output is `#0 = """\n"""` — comment `#` prepended to the key name
+**Root cause**: The TOML grouper (printer.go `sortGroups`) attaches comments to the NEXT entry. The comment `#` on line 3 has no following entry, so it becomes a "trailing comment." But somehow during sort, it gets prepended to the key entry.
+
+**Detailed trace**:
+The grouper produces groups from the token stream:
+- Group 1: `GroupEntry` for `0="""\n"""\n` (key-value with multiline string)
+- Group 2: `GroupComment` for `#`
+
+In `sortGroups`, when a `GroupComment` is encountered, it's stored in `commentRun` waiting to attach to the next entry. If NO entry follows (it's a trailing comment), the flush logic at the end emits it. But with SortKeys reordering, the comment somehow ends up in the wrong position.
+
+Looking at the `sortGroups` logic:
+```go
+case GroupComment:
+    commentRun = append(commentRun, group)
+```
+Then at the end:
+```go
+if len(commentRun) > 0 {
+    result = append(result, commentRun...)
+}
+flushEntries()
+```
+
+The trailing comments are emitted BEFORE `flushEntries()`. If there's one entry in `entryRun`, the comment goes first, then the entry. Output: comment, then entry = `#\n0 = """\n"""`. But the output shows `#0 = ...` — no newline between comment and key. The issue might be that the comment token doesn't include a trailing newline, so when printed it butts up against the key.
+
+**Fix**: In `sortGroups`, trailing comments (commentRun with no following entry) should be emitted AFTER the entries, not before:
+
+```go
+// At end of sortGroups:
+flushEntries()  // entries first
+if len(commentRun) > 0 {
+    result = append(result, commentRun...)  // trailing comments after
+}
+```
+
+Current code has these reversed. Swap them.
+
+**Also**: Verify that the comment token includes a newline in its raw, or that the printer adds one. If the comment raw is just `#` without a newline (because it's at EOF without trailing newline), the printer must handle this.
+
+**Test**: Re-add fuzz corpus entry, verify passes. Add explicit test with multiline string + trailing comment.
+
+**Files**: `pkg/formatter/tomlfmt/printer.go` (sortGroups trailing comment order)
+
+---
+
+### 11.2: INI — SortKeys non-idempotent with escaped backslash keys
+
+**Input**: `A:\n\=00\n\=\` (colon separator, keys are `A`, `\`, `\`)
+**With SortKeys**: First sort produces `\=00\n\=\\nA : `, second produces `\=\\\nA : \n\=00`
+**Root cause**: Two keys have the SAME name (`\`) but different values (`00` and `\`). With `SortKeys`, equal keys should maintain their original order (stable sort). But the sort is not stable for these entries, OR the key extraction is including the value in the comparison.
+
+**Detailed analysis**:
+The INI has three entries in the default section:
+- `A` : `` (empty value, colon separator)
+- `\` = `00`
+- `\` = `\`
+
+After sort: `\`, `\`, `A` (sorted alphabetically). The two `\` entries should maintain original order (`\=00` before `\=\`). But on second pass they flip.
+
+The issue: `sortEntries` in `pkg/formatter/inifmt/printer.go` uses `slices.SortStableFunc`. If the comparison function extracts the key correctly (just `\` for both), they should be stable. Let me check what `sortEntries` compares:
+
+```go
+func sortEntries(entries []Entry) []Entry {
+    sorted := make([]Entry, len(entries))
+    copy(sorted, entries)
+    slices.SortStableFunc(sorted, func(a, b Entry) int {
+        return strings.Compare(a.Key.Raw, b.Key.Raw)  // ← comparing Raw?
+    })
+    return sorted
+}
+```
+
+If it compares `Key.Raw` and both are `\` (one byte: backslash), they should be equal and stable. But wait — the `Key.Raw` for an INI key with backslash might include the escape prefix differently on first vs. second pass.
+
+Actually the real issue might be simpler: after formatting, the separator gets normalized (`:` → ` = `), changing the byte content. On the second pass, the tokenizer re-parses and might extract different key boundaries.
+
+Let me check: on first pass, input is `A:\n\=00\n\=\`. The tokenizer parses:
+- Key `A`, Sep `:`, Value `` 
+- Key `\`, Sep `=`, Value `00`
+- Key `\`, Sep `=`, Value `\`
+
+After sort + format: `\=00\n\=\\nA : `. On second pass:
+- Key `\`, Sep `=`, Value `00`
+- Key `\`, Sep `=`, Value `\` followed by `\nA : ` — wait, does `\` at end of value look like a continuation? 
+
+INI doesn't have continuation lines. But the value `\` at end of file (with FinalNewline=false) might be the issue — the tokenizer might be consuming `\nA` as part of the previous value because it misidentifies the `\` as an escape for the newline.
+
+**Fix**: The INI tokenizer shouldn't treat `\` + newline as an escape sequence for VALUES. INI values are literal (the spec doesn't define escape sequences in values — that's a Properties thing). Check if our INI tokenizer is incorrectly applying escape logic from the Properties world.
+
+**Check**: Read `pkg/formatter/inifmt/lexer.go` to see if it handles `\` specially in values.
+
+**Test**: Re-add corpus entry, verify fix is idempotent. Add explicit test with backslash keys.
+
+**Files**: `pkg/formatter/inifmt/lexer.go` (value parsing, potential incorrect escape handling)
+
+---
+
+### 11.3: Properties — Continuation to empty resolves to backslash literal
+
+**Input**: `0 \\\n` = key `0`, space separator, value `\` + newline (continuation marker)
+**magiconair parses**: key=`0`, value=`""` (empty — continuation to nothing)
+**Our formatter outputs**: `0 = \` (value is a literal backslash — WRONG)
+**Root cause**: The tokenizer captures `\\\n` (bytes: `\`, `\n`) as the value raw. The printer emits this verbatim. When FinalNewline=false strips the trailing `\n`, we're left with `0 = \` — which parses as a continuation, not as an empty value.
+
+The real issue: the tokenizer correctly identifies this as a continuation (that's how it avoids looping — the EOF fix). But the VALUE token's raw bytes include the continuation marker (`\` + `\n`) even though the semantic value is empty. The printer then emits these bytes, producing output with different semantics.
+
+**Fix**: The printer should DECODE continuation values and re-encode them properly. When a value token's raw consists entirely of continuation markers with no actual content, the decoded value is empty, and the output should be empty (no raw bytes for the value):
+
+In the grouper/printer where entries are built:
+```go
+// If the value raw is purely a continuation to nothing (decoded value is empty),
+// emit nothing for the value.
+if isEmptyContinuation(e.value.Raw) {
+    // Don't emit value — it's semantically empty
+} else {
+    buf.Write(e.value.Raw)
+}
+```
+
+`isEmptyContinuation`: Check if the value raw bytes, when decoded (resolving continuations), produce an empty string. A continuation is `\` + newline + optional leading whitespace on the next line. If after resolving all continuations the result is empty, the value is empty.
+
+Actually simpler: the issue is specifically `\` + EOF (or `\` + newline at the end with nothing after). The fix from earlier (breaking at EOF) prevents the infinite loop but still captures `\\\n` as value raw. The fix should be: **if the continuation leads to EOF with no content, trim the continuation marker from the value raw.**
+
+In `tokenizeKeyValue`, after the continuation loop, check if the value is ONLY continuation markers with no content:
+```go
+// After the value loop:
+if *pos > valueStart {
+    valueRaw := src[valueStart:*pos]
+    // If the value is entirely a continuation to nothing (last chars are \+newline
+    // with no non-whitespace content after), trim to actual content.
+    decoded := decodeContinuations(valueRaw)
+    if len(decoded) == 0 {
+        // Value is semantically empty — don't emit a value token.
+    } else {
+        tokens = append(tokens, Token{Kind: TokValue, Raw: valueRaw})
+    }
+}
+```
+
+Wait, that changes the token stream structure. The printer expects a value token to be present (or not). If we suppress it, that's clean — an empty value has no TokValue token.
+
+But actually, this ONLY matters when FinalNewline=false strips the trailing newline from a continuation. With FinalNewline=true (default), the output is `0 = \\\n` which is a valid continuation to an empty next line — and re-parses correctly.
+
+**Simpler fix**: In the printer, when emitting a value that ends with a continuation marker (`\` + newline), and FinalNewline=false would strip that newline, don't emit the continuation — emit the decoded value instead.
+
+Even simpler: **Don't emit continuation markers in the formatted output.** If the value is `hello` (achieved via continuation), emit `hello`. If the value is empty (continuation to nothing), emit nothing. The formatter's job is to produce CANONICAL output, not to preserve continuation syntax.
+
+This is the architecturally correct fix: **the printer should emit decoded values, not raw continuations.** Continuations are an input syntax convenience, not a formatting requirement. No one expects `cfv format` to KEEP continuation lines — they expect normalized output.
+
+**Revised fix**: In the printer, when emitting a value, decode continuations and emit the decoded content:
+
+```go
+// Instead of: buf.Write(e.value.Raw)
+// Do: buf.Write(decodeValue(e.value.Raw))
+```
+
+Where `decodeValue` resolves `\` + newline + leading whitespace into nothing (collapses continuations). This matches what `magiconair/properties` decodes.
+
+But wait — preserving continuations was a deliberate design choice for long values. The plan says "preserving original representation." If someone has:
+```
+long.url = \
+    https://very-long-url.example.com/path
+```
+We'd collapse it to one line. Is that acceptable?
+
+Looking at what prettier does for Properties: prettier doesn't format `.properties` files. But the conventional behavior of properties formatters is to normalize to single-line values. The continuation syntax exists for human readability in source, but a formatter should produce canonical output.
+
+**Decision**: Collapse continuations in the formatted output. This eliminates the entire class of continuation-related bugs and produces canonical output. If the value is long, it's one long line — same as JSON formatters produce long strings on one line.
+
+**Implementation**:
+```go
+func decodeValueRaw(raw []byte) []byte {
+    var result []byte
+    i := 0
+    for i < len(raw) {
+        if raw[i] == '\\' && i+1 < len(raw) {
+            next := raw[i+1]
+            if next == '\n' {
+                // Continuation: skip \ + newline + leading whitespace
+                i += 2
+                for i < len(raw) && (raw[i] == ' ' || raw[i] == '\t') {
+                    i++
+                }
+                continue
+            }
+            if next == '\r' {
+                // Continuation: skip \ + CR (+ optional LF) + leading whitespace
+                i += 2
+                if i < len(raw) && raw[i] == '\n' {
+                    i++
+                }
+                for i < len(raw) && (raw[i] == ' ' || raw[i] == '\t') {
+                    i++
+                }
+                continue
+            }
+            // Other escape — preserve verbatim
+            result = append(result, raw[i], raw[i+1])
+            i += 2
+        } else {
+            result = append(result, raw[i])
+            i++
+        }
+    }
+    return result
+}
+```
+
+In the printer, replace `buf.Write(e.value.Raw)` with `buf.Write(decodeValueRaw(e.value.Raw))`.
+
+**Test**: Fuzz corpus entry passes. Continuation values collapse to single line. Semantic equivalence preserved (decoded value is identical).
+
+**Files**: `pkg/formatter/propfmt/printer.go` (add `decodeValueRaw`, use in value emission)
+
+---
+
+### 11.4: Add semantic equivalence to all FuzzFormatWithOptions targets
+
+Currently, the fuzz targets only check idempotency (format twice = same). They don't check that formatting preserves semantics (parsed value unchanged). Add semantic checking to catch meaning-changing bugs instantly:
+
+**Pattern for each fuzz target**:
+```go
+f.Fuzz(func(t *testing.T, data []byte, optByte byte) {
+    opts := ...
+    result, err := fmtr.Format(data, opts)
+    if err != nil { return }
+
+    // Idempotency (existing)
+    result2, err := fmtr.Format(result, opts)
+    if err != nil { t.Fatalf("second format failed: %v", err) }
+    if string(result) != string(result2) { t.Fatalf("not idempotent") }
+
+    // Semantic equivalence (NEW)
+    if !semanticallyEqual(data, result) {
+        t.Fatalf("semantics changed:\n  input:  %q\n  output: %q", data, result)
+    }
+})
+```
+
+**Per-format `semanticallyEqual`**:
+- **TOML**: `toml.Unmarshal(a)` == `toml.Unmarshal(b)` (using JSON round-trip for NaN handling, same as stress test)
+- **Properties**: `properties.Load(a).Map()` == `properties.Load(b).Map()`
+- **INI**: `ini.Load(a)` sections/keys/values == `ini.Load(b)` sections/keys/values
+- **XML**: `encoding/xml` decode both, compare trees (same as stress test `xmlEquivalent`)
+- **JSONC**: Strip comments, `json.Unmarshal` both, compare
+- **YAML**: `yaml.Unmarshal(a)` == `yaml.Unmarshal(b)`
+
+These functions already exist in `stress_format_test.go`. For the fuzz targets (which are in different packages), implement lightweight versions directly in each test file using only the parsing library.
+
+**Files**: 
+- `pkg/formatter/tomlfmt/toml_test.go`
+- `pkg/formatter/propfmt/properties_test.go`
+- `pkg/formatter/inifmt/ini_test.go`
+- `pkg/formatter/xmlfmt/xml_test.go`
+- `pkg/formatter/jsoncfmt/jsonc_test.go`
+- `pkg/formatter/yamlfmt/yaml_test.go`
+
+---
+
+### Tasks
+
+- [ ] 11.1.1: Fix `sortGroups` trailing comment order (emit after entries, not before)
+- [ ] 11.1.2: Re-add TOML fuzz corpus entry, verify passes
+- [ ] 11.1.3: Add explicit test for multiline string + trailing comment with SortKeys
+
+- [ ] 11.2.1: Investigate INI lexer escape handling in values (does it treat `\` specially?)
+- [ ] 11.2.2: Fix the INI sort/key-extraction issue
+- [ ] 11.2.3: Re-add INI fuzz corpus entry, verify passes
+- [ ] 11.2.4: Add explicit test for backslash keys with SortKeys
+
+- [ ] 11.3.1: Implement `decodeValueRaw` in propfmt/printer.go (collapse continuations)
+- [ ] 11.3.2: Replace `buf.Write(e.value.Raw)` with `buf.Write(decodeValueRaw(e.value.Raw))`
+- [ ] 11.3.3: Re-add Properties fuzz corpus entry, verify passes
+- [ ] 11.3.4: Update existing continuation test fixtures if output changes (single-line values)
+- [ ] 11.3.5: Verify semantic equivalence (magiconair parses same values from formatted output)
+
+- [ ] 11.4.1: Add semantic equivalence check to TOML `FuzzFormatWithOptions`
+- [ ] 11.4.2: Add semantic equivalence check to Properties `FuzzFormatWithOptions`
+- [ ] 11.4.3: Add semantic equivalence check to INI `FuzzFormatWithOptions`
+- [ ] 11.4.4: Add semantic equivalence check to XML `FuzzFormatWithOptions`
+- [ ] 11.4.5: Add semantic equivalence check to JSONC `FuzzFormatWithOptions`
+- [ ] 11.4.6: Add semantic equivalence check to YAML `FuzzYAMLFormatterWithOptions`
+
+- [ ] 11.5: Run all fuzz targets 45s each with semantic checking — fix any new findings
+- [ ] 11.6: Run full stress test suite + real-world corpus
+- [ ] 11.7: Pipeline verification (vet, fmt, lint, build, test)

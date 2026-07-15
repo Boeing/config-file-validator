@@ -1,8 +1,11 @@
 package xmlfmt_test
 
 import (
+	"bytes"
+	"encoding/xml"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -252,6 +255,33 @@ func FuzzFormatWithOptions(f *testing.F) {
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+
+		// Semantic equivalence: both must decode to same XML tokens.
+		// Use a simplified check: both must be valid XML with same element structure.
+		origDec := xml.NewDecoder(bytes.NewReader(data))
+		fmtDec := xml.NewDecoder(bytes.NewReader(result))
+		var origElements, fmtElements []string
+		for {
+			tok, err := origDec.Token()
+			if err != nil {
+				break
+			}
+			if se, ok := tok.(xml.StartElement); ok {
+				origElements = append(origElements, se.Name.Local)
+			}
+		}
+		for {
+			tok, err := fmtDec.Token()
+			if err != nil {
+				break
+			}
+			if se, ok := tok.(xml.StartElement); ok {
+				fmtElements = append(fmtElements, se.Name.Local)
+			}
+		}
+		if len(origElements) > 0 && !slices.Equal(origElements, fmtElements) {
+			t.Fatalf("XML element structure changed:\n  orig: %v\n  fmt:  %v", origElements, fmtElements)
 		}
 	})
 }

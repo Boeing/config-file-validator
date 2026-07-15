@@ -100,14 +100,11 @@ func tokenize(src []byte) []Token {
 func tokenizeKeyValue(src []byte, pos *int) []Token {
 	var tokens []Token
 
-	// Lex key: characters until unescaped separator (=, :) or whitespace before separator.
+	// Lex key: characters until separator (=, :) or whitespace before separator.
+	// INI keys do not support escape sequences — backslashes are literal.
 	keyStart := *pos
 	for *pos < len(src) {
 		b := src[*pos]
-		if b == '\\' && *pos+1 < len(src) {
-			*pos += 2 // skip escaped character
-			continue
-		}
 		if b == '=' || b == ':' || b == '\n' || b == '\r' {
 			break
 		}

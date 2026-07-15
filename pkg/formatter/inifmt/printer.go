@@ -129,18 +129,10 @@ func sortEntries(entries []Entry) []Entry {
 	return sorted
 }
 
-// decodeKey decodes escape sequences in a key for sorting purposes.
+// decodeKey returns the key text for sorting purposes.
+// INI keys do not have escape sequences — backslashes are literal.
 func decodeKey(raw []byte) string {
-	var b strings.Builder
-	for i := 0; i < len(raw); i++ {
-		if raw[i] == '\\' && i+1 < len(raw) {
-			i++
-			_ = b.WriteByte(raw[i])
-		} else {
-			_ = b.WriteByte(raw[i])
-		}
-	}
-	return b.String()
+	return string(raw)
 }
 
 // buildIndent constructs the indent string from options.
