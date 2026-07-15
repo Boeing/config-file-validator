@@ -149,9 +149,27 @@ func tokenizeKeyValue(src []byte, pos *int) []Token {
 	}
 
 	// Lex value: everything until end of line.
+	// Quoted values may contain CR/LF — scan to matching close quote first.
 	valueStart := *pos
-	for *pos < len(src) && src[*pos] != '\n' && src[*pos] != '\r' {
-		*pos++
+	if *pos < len(src) && (src[*pos] == '"' || src[*pos] == '\'') {
+		// Quoted value — scan to closing quote. CR/LF inside are content.
+		quote := src[*pos]
+		*pos++ // skip opening quote
+		for *pos < len(src) && src[*pos] != quote {
+			*pos++
+		}
+		if *pos < len(src) {
+			*pos++ // skip closing quote
+		}
+		// After closing quote, consume remainder to end of line.
+		for *pos < len(src) && src[*pos] != '\n' && src[*pos] != '\r' {
+			*pos++
+		}
+	} else {
+		// Unquoted value — scan to line end.
+		for *pos < len(src) && src[*pos] != '\n' && src[*pos] != '\r' {
+			*pos++
+		}
 	}
 	if *pos > valueStart {
 		tokens = append(tokens, Token{Kind: TokValue, Raw: src[valueStart:*pos]})

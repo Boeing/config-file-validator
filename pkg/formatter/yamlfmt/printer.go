@@ -66,7 +66,7 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	out := serializeWithStrip(tokens)
 
 	// Trim trailing newlines — but preserve them for |+ (keep chomping).
-	if !endsWithKeepChomping(tokens) {
+	if !endsWithBlockScalarPreservingNewlines(tokens) {
 		out = bytes.TrimRight(out, "\r\n")
 	}
 	if opts.FinalNewline && (len(out) == 0 || out[len(out)-1] != '\n') {
@@ -1157,16 +1157,16 @@ func serializeWithStrip(tokens []Token) []byte {
 	return out
 }
 
-// endsWithKeepChomping checks whether the last meaningful token in the stream
-// is a block scalar with keep (+) chomping. When true, the trailing newlines
-// after the scalar are semantically significant and must not be trimmed.
-func endsWithKeepChomping(tokens []Token) bool {
+// endsWithBlockScalarPreservingNewlines checks whether the last meaningful token
+// is a block scalar whose trailing newlines are semantically significant.
+// Only |- (strip) allows removal. Both | (clip) and |+ (keep) preserve newlines.
+func endsWithBlockScalarPreservingNewlines(tokens []Token) bool {
 	for i := len(tokens) - 1; i >= 0; i-- {
 		switch tokens[i].Kind {
 		case TokNewline, TokIndent, TokSpace:
 			continue
 		case TokBlockScalar:
-			return blockScalarHasKeepChomping(tokens[i].Raw)
+			return !blockScalarHasStripChomping(tokens[i].Raw)
 		default:
 			return false
 		}
@@ -1174,12 +1174,21 @@ func endsWithKeepChomping(tokens []Token) bool {
 	return false
 }
 
-// blockScalarHasKeepChomping checks if a block scalar's header contains '+'.
-func blockScalarHasKeepChomping(raw []byte) bool {
-	// Header is everything before the first newline.
+// blockScalarHasStripChomping checks if a block scalar header contains '-' (strip indicator).
+// Only scans the indicator portion of the header (before any comment).
+func blockScalarHasStripChomping(raw []byte) bool {
 	nlIdx := bytes.IndexByte(raw, '\n')
 	if nlIdx < 0 {
-		return false // malformed — no newline in block scalar
+		return false
 	}
-	return bytes.IndexByte(raw[:nlIdx], '+') >= 0
+	// Scan header characters before comment (space/tab + # starts comment).
+	for _, b := range raw[:nlIdx] {
+		if b == ' ' || b == '\t' || b == '#' {
+			break
+		}
+		if b == '-' {
+			return true
+		}
+	}
+	return false
 }

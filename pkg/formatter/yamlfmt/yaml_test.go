@@ -659,3 +659,32 @@ func TestNormalizeFlowCollections(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockScalarFinalNewlineFalse(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+	opts.FinalNewline = false
+
+	cases := []struct {
+		name    string
+		input   string
+		wantVal string // expected value after yaml.Unmarshal of formatted output
+	}{
+		{"clip_preserves_newline", "A: |\n  0\n", "0\n"},
+		{"keep_preserves_all", "A: |+\n  0\n\n\n", "0\n\n\n"},
+		{"strip_removes_newline", "A: |-\n  0\n", "0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := fmtr.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+
+			var parsed map[string]string
+			err = yaml.Unmarshal(result, &parsed)
+			require.NoError(t, err, "formatted output: %q", result)
+			require.Equal(t, tc.wantVal, parsed["A"],
+				"input=%q output=%q", tc.input, result)
+		})
+	}
+}

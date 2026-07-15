@@ -3317,3 +3317,225 @@ These functions already exist in `stress_format_test.go`. For the fuzz targets (
 - [ ] 11.5: Run all fuzz targets 45s each with semantic checking — fix any new findings
 - [ ] 11.6: Run full stress test suite + real-world corpus
 - [ ] 11.7: Pipeline verification (vet, fmt, lint, build, test)
+
+## Phase 12: Fix Semantic Edge-Case Bugs (Found by Fuzz Oracle)
+
+**Date**: 2026-07-15
+**Source**: Phase 11.4 semantic assertions caught 3 meaning-changing bugs
+
+---
+
+### 12.1: Properties — Form-feed not recognized as separator whitespace
+
+**Input**: `0\f:0` (bytes: `[48, 12, 58, 48]`) — key `0`, form-feed, colon `:`, value `0`
+**Expected**: key=`0`, separator=`\f:`, value=`0` (form-feed is whitespace before the colon separator)
+**Actual**: key=`0`, no separator found, value=`\f:0` (form-feed treated as start of value)
+
+**Root cause traced**: In `pkg/formatter/propfmt/tokenizer.go`, function `tokenizeKeyValue`:
+
+Line ~111 (separator whitespace before `=`/`:`):
+```go
+for *pos < len(src) && (src[*pos] == ' ' || src[*pos] == '\t') {
+```
+Missing `|| src[*pos] == '\f'`. Form-feed is NOT included.
+
+Line ~117 (separator whitespace after `=`/`:`):
+```go
+for *pos < len(src) && (src[*pos] == ' ' || src[*pos] == '\t') {
+```
+Same — missing `\f`.
+
+The key scanner (line ~98) correctly breaks on `\f`:
+```go
+if b == '=' || b == ':' || b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' {
+```
+And the top-level leading whitespace (line ~40) correctly handles `\f`:
+```go
+for pos < len(src) && (src[pos] == ' ' || src[pos] == '\t' || src[pos] == '\f') {
+```
+
+Only the separator detection is inconsistent.
+
+**Fix**: Add `|| src[*pos] == '\f'` to BOTH separator whitespace loops in `tokenizeKeyValue`:
+
+Line ~111: `(src[*pos] == ' ' || src[*pos] == '\t' || src[*pos] == '\f')`
+Line ~117: `(src[*pos] == ' ' || src[*pos] == '\t' || src[*pos] == '\f')`
+
+**Verification**: After fix, tokenize `0\f:0` produces:
+- TokKey: `"0"`
+- TokSeparator: `"\f:"` (or `"\f: "` depending on what follows)
+- TokValue: `"0"`
+
+Then `decodeValueRaw("0")` = `"0"`. magiconair parses same value. Semantic equivalence preserved.
+
+**Files**: `pkg/formatter/propfmt/tokenizer.go` lines ~111 and ~117
+
+---
+
+### 12.2: INI — Bare CR inside quoted values treated as line terminator
+
+**Input**: `0="\r"\n` (key `0`, quoted value containing bare CR byte)
+**ini.v1 parses**: key=`0`, value=`\r` (CR preserved inside quotes)
+**Our output**: Error — tokenizer splits at the CR, producing malformed output
+
+**Root cause traced**: The INI tokenizer's value lexing in `pkg/formatter/inifmt/lexer.go` treats `\r` as a line terminator unconditionally, even inside quoted values. When it encounters `\r` during value scanning, it terminates the value token at that point. The closing `"` and everything after are orphaned.
+
+The lexer's line-end detection needs to be aware of quoting context. Inside a quoted value (`"..."` or `'...'`), `\r` is literal content, not a line terminator.
+
+**Fix**: In the INI lexer's value tokenization, when inside quotes, only terminate on the closing quote character. Don't check for `\r` or `\n` as line terminators until the quotes are closed.
+
+Find the value scanning code in `lexer.go`. It should have logic like:
+```go
+// Scan value content
+for *pos < len(src) && src[*pos] != '\n' && src[*pos] != '\r' {
+    *pos++
+}
+```
+
+The fix: if the value starts with `"` or `'`, scan until the matching close quote (handling escaped quotes if the format supports them — INI doesn't have escapes, so just scan to the next matching quote). THEN check for line terminator.
+
+```go
+if *pos < len(src) && (src[*pos] == '"' || src[*pos] == '\'') {
+    // Quoted value — scan to closing quote, CR/LF inside are content
+    quote := src[*pos]
+    *pos++ // skip opening quote
+    for *pos < len(src) && src[*pos] != quote {
+        *pos++
+    }
+    if *pos < len(src) {
+        *pos++ // skip closing quote
+    }
+    // After closing quote, consume to end of line (anything after close quote on same line)
+    for *pos < len(src) && src[*pos] != '\n' && src[*pos] != '\r' {
+        *pos++
+    }
+} else {
+    // Unquoted value — scan to line end as before
+    for *pos < len(src) && src[*pos] != '\n' && src[*pos] != '\r' {
+        *pos++
+    }
+}
+```
+
+Note: ini.v1's `PreserveSurroundedQuote` option means it keeps the quotes as part of the value. Our tokenizer should capture the entire quoted content (including quotes) as the value raw, which the printer emits verbatim.
+
+**Verification**: `0="\r"\n` tokenizes as:
+- TokKey: `"0"`
+- TokSeparator: `"="`
+- TokValue: `""\r""` (the full quoted string including quotes)
+- TokNewline: `"\n"`
+
+After format: `0 = "\r"\n` — ini.v1 re-parses as key=`0`, value=`\r`. Semantic equivalence preserved.
+
+**Files**: `pkg/formatter/inifmt/lexer.go` (value scanning section)
+
+---
+
+### 12.3: YAML — FinalNewline=false strips block scalar clip newline
+
+**Input**: `A: |\n  0\n` with `FinalNewline=false` (optByte bit 3)
+**yaml.v3 parses**: `{A: "0\n"}` — default clip preserves exactly one trailing newline
+**Our output**: `A: |\n  0` (no trailing newline) — yaml.v3 re-parses as `{A: "0"}` (no newline)
+**Semantic change**: Value lost its trailing newline (`"0\n"` → `"0"`)
+
+**Root cause traced**: In `printFormatted` (printer.go), after serialization:
+```go
+if !endsWithKeepChomping(tokens) {
+    out = bytes.TrimRight(out, "\r\n")
+}
+```
+
+`endsWithKeepChomping` only returns true for `|+` (keep chomping — header contains `+`). Default clip (`|`) returns false. So `TrimRight` strips the trailing newline — but that newline IS the clip newline (part of the scalar value).
+
+The only block scalar where it's safe to strip trailing newlines is `|-` (strip chomping). Both `|` (clip) and `|+` (keep) have semantically significant trailing newlines.
+
+**Fix**: Rename `endsWithKeepChomping` to `endsWithBlockScalarPreservingNewlines` and change the logic:
+
+```go
+// endsWithBlockScalarPreservingNewlines checks whether the last meaningful token
+// is a block scalar whose trailing newlines are semantically significant.
+// Only |- (strip) allows removal. Both | (clip) and |+ (keep) need their newlines.
+func endsWithBlockScalarPreservingNewlines(tokens []Token) bool {
+    for i := len(tokens) - 1; i >= 0; i-- {
+        switch tokens[i].Kind {
+        case TokNewline, TokIndent, TokSpace:
+            continue
+        case TokBlockScalar:
+            return !blockScalarHasStripChomping(tokens[i].Raw)
+        default:
+            return false
+        }
+    }
+    return false
+}
+
+// blockScalarHasStripChomping checks if a block scalar header contains '-' (strip).
+func blockScalarHasStripChomping(raw []byte) bool {
+    nlIdx := bytes.IndexByte(raw, '\n')
+    if nlIdx < 0 {
+        return false
+    }
+    return bytes.IndexByte(raw[:nlIdx], '-') >= 0
+}
+```
+
+And update the caller:
+```go
+if !endsWithBlockScalarPreservingNewlines(tokens) {
+    out = bytes.TrimRight(out, "\r\n")
+}
+```
+
+Delete the old `endsWithKeepChomping` and `blockScalarHasKeepChomping` functions.
+
+**Edge case**: What about `|2-` (explicit indent + strip)? The header is `|2-`. `bytes.IndexByte(header, '-')` finds it → correctly returns true (strip). What about `|-2`? Same. What about `|` followed by a comment `# keep-this`? The `-` in the comment would be a false positive! Need to only check before the comment.
+
+Actually — block scalar header syntax is: `[|>] [indent] [chomping] [comment]`. The chomping indicator is `+` or `-`. The indent indicator is a digit 1-9. Comments start with `#`. So we should only scan the header BEFORE any `#` or space (which precedes a comment):
+
+```go
+func blockScalarHasStripChomping(raw []byte) bool {
+    nlIdx := bytes.IndexByte(raw, '\n')
+    if nlIdx < 0 { return false }
+    header := raw[:nlIdx]
+    // Only check indicators before comment (space + #)
+    for _, b := range header {
+        if b == ' ' || b == '\t' || b == '#' {
+            break // rest is comment
+        }
+        if b == '-' {
+            return true
+        }
+    }
+    return false
+}
+```
+
+Same fix for the old `blockScalarHasKeepChomping` — but we're replacing it entirely.
+
+**Verification**: 
+- `A: |\n  0\n` with FinalNewline=false → output is `A: |\n  0\n` (clip newline preserved, document still ends with newline because block scalar needs it)
+- `A: |-\n  0\n` with FinalNewline=false → output is `A: |-\n  0` (strip = no trailing newline, safe to trim)
+- `A: |+\n  0\n\n\n` with FinalNewline=false → output keeps all trailing newlines (keep)
+
+**Files**: `pkg/formatter/yamlfmt/printer.go` (replace `endsWithKeepChomping`/`blockScalarHasKeepChomping` with new functions)
+
+---
+
+### Tasks
+
+- [ ] 12.1.1: Add `|| src[*pos] == '\f'` to both separator whitespace loops in propfmt/tokenizer.go
+- [ ] 12.1.2: Add fuzz corpus entry for `0\f:0`, verify semantic equivalence
+- [ ] 12.1.3: Run propfmt tests
+
+- [ ] 12.2.1: Fix INI lexer value scanning to handle quoted values (CR/LF inside quotes are content)
+- [ ] 12.2.2: Add fuzz corpus entry for `0="\r"\n`, verify semantic equivalence
+- [ ] 12.2.3: Run INI tests
+
+- [ ] 12.3.1: Replace `endsWithKeepChomping`/`blockScalarHasKeepChomping` with `endsWithBlockScalarPreservingNewlines`/`blockScalarHasStripChomping`
+- [ ] 12.3.2: Add fuzz corpus entry for `A: |\n  0\n` with FinalNewline=false, verify semantic equivalence
+- [ ] 12.3.3: Run YAML tests
+- [ ] 12.3.4: Verify existing |+ tests still pass (behavior unchanged for keep)
+
+- [ ] 12.4: Run all fuzz targets 30s with semantic checking — verify these specific bugs are fixed
+- [ ] 12.5: Run stress tests + real-world corpus
+- [ ] 12.6: Pipeline verification (vet, fmt, lint, build, test)

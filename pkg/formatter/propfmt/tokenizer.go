@@ -109,14 +109,14 @@ func tokenizeKeyValue(src []byte, pos *int) []Token {
 	// OR just whitespace (space separator).
 	sepStart := *pos
 	// Skip whitespace before = or :
-	for *pos < len(src) && (src[*pos] == ' ' || src[*pos] == '\t') {
+	for *pos < len(src) && (src[*pos] == ' ' || src[*pos] == '\t' || src[*pos] == '\f') {
 		*pos++
 	}
 	// Check for = or :
 	if *pos < len(src) && (src[*pos] == '=' || src[*pos] == ':') {
 		*pos++
 		// Skip whitespace after = or :
-		for *pos < len(src) && (src[*pos] == ' ' || src[*pos] == '\t') {
+		for *pos < len(src) && (src[*pos] == ' ' || src[*pos] == '\t' || src[*pos] == '\f') {
 			*pos++
 		}
 	}
