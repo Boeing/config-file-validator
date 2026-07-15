@@ -60,10 +60,10 @@ func printFormatted(f *File, opts formatter.Options) []byte {
 			buf.Write(e.Key.Raw)
 
 			// Emit separator and value.
-			// If the value starts with a quote character (" or '), we preserve
-			// the raw separator verbatim. This is required because ini.v1's
-			// PreserveSurroundedQuote mode interprets values differently based
-			// on whether whitespace precedes a quote at the value start.
+			// Preserve original separator when value starts with a quote.
+			// ini.v1's PreserveSurroundedQuote option interprets "key=\"val\""
+			// differently from "key = \"val\"" — introducing whitespace between
+			// = and a quote can change semantics.
 			if len(e.Sep.Raw) > 0 {
 				if valueStartsWithQuote(e.Value.Raw) {
 					buf.Write(e.Sep.Raw)

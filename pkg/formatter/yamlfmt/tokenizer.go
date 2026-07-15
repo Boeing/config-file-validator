@@ -43,12 +43,15 @@ const (
 
 // Token represents a single lexical token in a YAML file.
 // The Raw field preserves the original bytes exactly.
-// Structural and Depth are set by annotate() after tokenization.
+// Structural, Line, ASTDepth, and InSeq are set by annotate() after tokenization.
 type Token struct {
 	Kind       TokenKind
 	Raw        []byte
-	Structural bool // true if this indent is for a key/dash/comment (renormalize); false for continuation
-	Depth      int  // structural depth for TokIndent tokens; -1 for others
+	Structural bool // true if this indent should be renormalized
+	Line       int  // 1-based source line number
+	ASTDepth   int  // mapping nesting depth from AST. -1 = not annotated.
+	InSeq      bool // true if this key is inside a sequence item (dash-relative indent)
+	SeqOffset  int  // number of ancestor non-dash sequence levels contributing +2 each
 }
 
 // tokenize lexes YAML source into a flat token stream.
@@ -642,7 +645,7 @@ func (t *tokenizer) isDocMarkerAt(p int) bool {
 
 // isBlockScalarStart checks whether the | or > at the current position is
 // a block scalar header. A block scalar header consists of | or > followed
-// only by optional [0-9], [+-], space, and #comment until end of line.
+// only by optional [1-9], [+-], space, and #comment until end of line.
 // If any other non-whitespace character follows on the same line, it's a
 // plain scalar containing | or >.
 func (t *tokenizer) isBlockScalarStart() bool {
@@ -658,7 +661,8 @@ func (t *tokenizer) isBlockScalarStart() bool {
 			return true // comment follows — valid header
 		case b == '+' || b == '-':
 			p++
-		case b >= '0' && b <= '9':
+		// YAML spec allows digits 1-9 as explicit indentation indicator.
+		case b >= '1' && b <= '9':
 			p++
 		default:
 			return false // non-header character — not a block scalar

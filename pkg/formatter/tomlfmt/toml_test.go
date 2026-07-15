@@ -177,3 +177,36 @@ func FuzzFormat(f *testing.F) {
 		}
 	})
 }
+
+func FuzzFormatWithOptions(f *testing.F) {
+	f.Add([]byte("[package]\nname = \"x\"\nversion = \"1.0\"\n"), byte(0))
+	f.Add([]byte("[deps]\nserde = {version=\"1.0\", features=[\"derive\"]}\n"), byte(1))
+	f.Add([]byte("[[bin]]\nname=\"a\"\npath=\"b\"\n"), byte(3))
+
+	fmtr := tomlfmt.Formatter{}
+	f.Fuzz(func(t *testing.T, data []byte, optByte byte) {
+		opts := tomlfmt.DefaultOptions()
+		if optByte&0x01 != 0 {
+			opts.SortKeys = true
+		}
+		if optByte&0x02 != 0 {
+			opts.IndentWidth = 4
+		}
+		if optByte&0x04 != 0 {
+			opts.FinalNewline = false
+		}
+
+		result, err := fmtr.Format(data, opts)
+		if err != nil {
+			return
+		}
+
+		result2, err := fmtr.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format failed: %v\nfirst: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+	})
+}

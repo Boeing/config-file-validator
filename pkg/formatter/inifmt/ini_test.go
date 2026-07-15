@@ -194,3 +194,36 @@ func FuzzFormat(f *testing.F) {
 		}
 	})
 }
+
+func FuzzFormatWithOptions(f *testing.F) {
+	f.Add([]byte("[section]\nkey = value\n"), byte(0))
+	f.Add([]byte("; comment\n[s]\nk1 = v1\nk2 = v2\n"), byte(1))
+	f.Add([]byte("[a]\nz = 1\na = 2\n[b]\ny = 3\n"), byte(3))
+
+	fmtr := inifmt.Formatter{}
+	f.Fuzz(func(t *testing.T, data []byte, optByte byte) {
+		opts := inifmt.DefaultOptions()
+		if optByte&0x01 != 0 {
+			opts.SortKeys = true
+		}
+		if optByte&0x02 != 0 {
+			opts.IndentWidth = 4
+		}
+		if optByte&0x04 != 0 {
+			opts.FinalNewline = false
+		}
+
+		result, err := fmtr.Format(data, opts)
+		if err != nil {
+			return
+		}
+
+		result2, err := fmtr.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format failed: %v\nfirst: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+	})
+}

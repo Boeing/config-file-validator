@@ -2,6 +2,7 @@ package yamlfmt
 
 import (
 	"bytes"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -12,9 +13,9 @@ import (
 
 // printFormatted takes a token stream and formatting options, applies
 // indent normalization, optional key sorting, and quote style, then serializes.
-func printFormatted(tokens []Token, opts formatter.Options, src []byte) []byte {
+func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte, error) {
 	if len(tokens) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	targetWidth := opts.IndentWidth
@@ -22,12 +23,19 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) []byte {
 		targetWidth = 2
 	}
 
+	// Build AST metadata for structure-aware formatting.
+	astMeta, err := buildASTMetadata(src)
+	if err != nil {
+		return nil, err
+	}
+
 	// Annotate tokens with structural metadata from yaml.v3 Node tree.
-	annotate(tokens, src)
+	annotate(tokens, src, astMeta)
 
 	// Sort keys if requested. Metadata travels with tokens.
 	if opts.SortKeys {
 		tokens = sortKeys(tokens)
+		// No depth recomputation needed — ASTDepth is position-invariant.
 	}
 
 	// Reindent: structural tokens get depth×width; continuations shift by parent delta.
@@ -47,44 +55,200 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) []byte {
 		}
 	}
 
-	// Serialize.
-	var buf bytes.Buffer
-	for _, tok := range tokens {
-		buf.Write(tok.Raw)
+	// Serialize, stripping trailing whitespace from non-block-scalar lines.
+	out := serializeWithStrip(tokens)
+
+	// Trim trailing newlines — but preserve them for |+ (keep chomping).
+	if !endsWithKeepChomping(tokens) {
+		out = bytes.TrimRight(out, "\r\n")
 	}
-	out := buf.Bytes()
-
-	// Strip trailing whitespace from each line.
-	out = stripTrailingWhitespace(out)
-
-	// Final newline.
-	out = bytes.TrimRight(out, "\r\n")
-	if opts.FinalNewline {
+	if opts.FinalNewline && (len(out) == 0 || out[len(out)-1] != '\n') {
 		out = append(out, '\n')
 	}
 
-	return formatter.NormalizeLineEndings(out, opts.LineEnding)
+	return formatter.NormalizeLineEndings(out, opts.LineEnding), nil
 }
 
 // =============================================================================
-// Annotation: set Structural and Depth on tokens using yaml.v3 Node tree
+// Annotation: set Structural, Line, ASTDepth, InSeq on tokens using yaml.v3 Node tree
 // =============================================================================
 
-// annotate sets Structural and Depth on each TokIndent token.
+type lineMetadata struct {
+	depth     int
+	inSeq     bool
+	seqOffset int // number of ancestor non-dash sequence levels contributing +2 each
+}
+
+// buildASTMetadata walks the yaml.v3 Node tree and returns metadata for each
+// line that contains a mapping key: its semantic depth and whether it's inside
+// a sequence item.
+func buildASTMetadata(src []byte) (map[int]lineMetadata, error) {
+	if len(src) > 0 && src[len(src)-1] != '\n' {
+		src = append(bytes.Clone(src), '\n')
+	}
+	var root yaml.Node
+	if err := yaml.Unmarshal(src, &root); err != nil {
+		return nil, fmt.Errorf("cannot determine document structure: %w", err)
+	}
+	meta := make(map[int]lineMetadata)
+	collectMetadata(&root, meta, 0, false, 0)
+	return meta, nil
+}
+
+//nolint:revive // inSeq is a recursive state parameter, not a control flag
+func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq bool, seqOffset int) {
+	switch n.Kind {
+	case yaml.DocumentNode:
+		for _, c := range n.Content {
+			collectMetadata(c, meta, depth, false, seqOffset)
+		}
+	case yaml.MappingNode:
+		for i := 0; i < len(n.Content); i += 2 {
+			key := n.Content[i]
+			// Only write if no shallower entry exists at this line.
+			// This prevents flow values ({a: 1}) on the same line as
+			// their parent key from overwriting the parent's metadata.
+			if existing, ok := meta[key.Line]; !ok || existing.depth > depth {
+				meta[key.Line] = lineMetadata{depth: depth, inSeq: inSeq, seqOffset: seqOffset}
+			}
+			if i+1 < len(n.Content) {
+				// Children of a non-dash seq key inherit seqOffset+1 because
+				// the parent is inSeq without a dash (it contributes +2).
+				childOffset := seqOffset
+				if inSeq {
+					childOffset = seqOffset + 1
+				}
+				collectMetadata(n.Content[i+1], meta, depth+1, false, childOffset)
+			}
+		}
+	case yaml.SequenceNode:
+		for _, item := range n.Content {
+			// Record the start line of each sequence item at this depth.
+			if item.Line > 0 {
+				if existing, ok := meta[item.Line]; !ok || existing.depth > depth {
+					meta[item.Line] = lineMetadata{depth: depth, inSeq: true, seqOffset: seqOffset}
+				}
+			}
+			if item.Kind == yaml.SequenceNode {
+				// Nested sequence: inner items are one level deeper.
+				// Don't increment seqOffset — the dash handles positioning.
+				collectMetadata(item, meta, depth+1, true, seqOffset)
+			} else {
+				collectMetadata(item, meta, depth, true, seqOffset)
+			}
+		}
+	case yaml.ScalarNode, yaml.AliasNode:
+		// Bare sequence items (scalars/aliases not inside a mapping key/value
+		// pair) need metadata so their lines get proper ASTDepth.
+		if inSeq && n.Line > 0 {
+			if existing, ok := meta[n.Line]; !ok || existing.depth > depth {
+				meta[n.Line] = lineMetadata{depth: depth, inSeq: true, seqOffset: seqOffset}
+			}
+		}
+	default:
+		// Unknown node kind — no metadata to collect.
+	}
+}
+
+// assignASTMetadata sets ASTDepth and InSeq on tokens by matching each TokKey
+// or TokDash to the AST metadata for its line. Also propagates to the preceding
+// TokIndent and to standalone comment lines that precede structural lines.
+func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
+	// Pass 1: Assign metadata from TokKey tokens.
+	for i := range tokens {
+		if tokens[i].Kind != TokKey {
+			continue
+		}
+		lm, ok := meta[tokens[i].Line]
+		if !ok {
+			continue
+		}
+		tokens[i].ASTDepth = lm.depth
+		tokens[i].InSeq = lm.inSeq
+		tokens[i].SeqOffset = lm.seqOffset
+		// Propagate to preceding indent token (reindent operates on indent tokens).
+		indentIdx := findPrecedingIndent(tokens, i)
+		if indentIdx >= 0 {
+			tokens[indentIdx].ASTDepth = lm.depth
+			tokens[indentIdx].InSeq = lm.inSeq
+			tokens[indentIdx].SeqOffset = lm.seqOffset
+		}
+	}
+
+	// Pass 2: Assign metadata from TokDash tokens on lines with no TokKey
+	// (bare sequence items like "- alpha").
+	for i := range tokens {
+		if tokens[i].Kind != TokDash {
+			continue
+		}
+		lm, ok := meta[tokens[i].Line]
+		if !ok {
+			continue
+		}
+		// Only assign if the preceding indent doesn't already have metadata
+		// (a TokKey on the same line would have already set it in pass 1).
+		indentIdx := findPrecedingIndent(tokens, i)
+		if indentIdx >= 0 && tokens[indentIdx].ASTDepth < 0 {
+			tokens[indentIdx].ASTDepth = lm.depth
+			tokens[indentIdx].InSeq = lm.inSeq
+			tokens[indentIdx].SeqOffset = lm.seqOffset
+		}
+	}
+
+	// Pass 3: Propagate metadata to standalone comment lines.
+	// A comment gets the same ASTDepth/InSeq/SeqOffset as the next structural indent.
+	for i := range tokens {
+		if tokens[i].Kind != TokIndent || !tokens[i].Structural || tokens[i].ASTDepth >= 0 {
+			continue
+		}
+		// Check if this indent precedes a comment.
+		if i+1 >= len(tokens) || tokens[i+1].Kind != TokComment {
+			continue
+		}
+		// Find the next structural indent with assigned ASTDepth.
+		for j := i + 1; j < len(tokens); j++ {
+			if tokens[j].Kind == TokIndent && tokens[j].Structural && tokens[j].ASTDepth >= 0 {
+				tokens[i].ASTDepth = tokens[j].ASTDepth
+				tokens[i].InSeq = tokens[j].InSeq
+				tokens[i].SeqOffset = tokens[j].SeqOffset
+				break
+			}
+		}
+	}
+}
+
+// computeNewIndent returns the target indentation for a structural line.
+//
+//nolint:revive // inSeq/hasDash are structural properties, not control flags
+func computeNewIndent(astDepth int, inSeq, hasDash bool, seqOffset, targetWidth int) int {
+	base := astDepth*targetWidth + seqOffset*2
+	if inSeq && !hasDash {
+		return base + 2
+	}
+	return base
+}
+
+// annotate sets Structural, Line, ASTDepth, and InSeq on each token.
 // Uses the yaml.v3 Node tree to determine which lines are structural
 // (mapping keys, sequence items) vs continuation (multi-line values).
-func annotate(tokens []Token, src []byte) {
+func annotate(tokens []Token, src []byte, astMeta map[int]lineMetadata) {
 	// Build set of structural line numbers from Node tree.
 	structuralLines := buildStructuralLineSet(src)
 
-	// Compute line number for each token.
+	// Compute line number for each token and set Structural flag.
 	line := 1
 	for i := range tokens {
-		tokens[i].Depth = -1
+		tokens[i].ASTDepth = -1
+		tokens[i].Line = line
 
 		if tokens[i].Kind == TokIndent {
 			// Skip blank lines (indent followed by newline).
 			if i+1 < len(tokens) && tokens[i+1].Kind == TokNewline {
+				for _, b := range tokens[i].Raw {
+					if b == '\n' {
+						line++
+					}
+				}
 				continue
 			}
 			// Comments are structural (they should be reindented with their context).
@@ -102,33 +266,22 @@ func annotate(tokens []Token, src []byte) {
 		}
 	}
 
-	// Compute depths using a stack — only structural indents participate.
-	type level struct {
-		indent int
-		depth  int
-	}
-	stack := []level{{0, 0}}
+	// Set ASTDepth and InSeq from AST metadata.
+	assignASTMetadata(tokens, astMeta)
+}
 
-	for i := range tokens {
-		if tokens[i].Kind != TokIndent || !tokens[i].Structural {
-			continue
-		}
-		indent := len(tokens[i].Raw)
-
-		// Pop stack until parent.indent < indent.
-		for len(stack) > 1 && stack[len(stack)-1].indent >= indent {
-			stack = stack[:len(stack)-1]
-		}
-		parent := stack[len(stack)-1]
-
-		if indent > parent.indent {
-			newDepth := parent.depth + 1
-			stack = append(stack, level{indent, newDepth})
-			tokens[i].Depth = newDepth
-		} else {
-			tokens[i].Depth = parent.depth
+// lineHasDash checks whether a TokDash follows the indent at index i on the same line.
+func lineHasDash(tokens []Token, indentIdx int) bool {
+	for j := indentIdx + 1; j < len(tokens); j++ {
+		switch tokens[j].Kind {
+		case TokNewline, TokBlockScalar:
+			return false
+		case TokDash:
+			return true
+		default:
 		}
 	}
+	return false
 }
 
 // buildStructuralLineSet parses YAML and returns line numbers containing
@@ -177,10 +330,11 @@ func collectStructuralLines(n *yaml.Node, lines map[int]bool) {
 // Reindent
 // =============================================================================
 
-// reindentTokens modifies TokIndent.Raw based on Structural + Depth.
-// Structural tokens: new indent = Depth × targetWidth.
-// Continuation tokens: shift by same delta as last structural token.
-// Block scalars following a shifted indent also get their content shifted.
+// reindentTokens modifies TokIndent.Raw based on Structural + ASTDepth.
+// Structural tokens with ASTDepth >= 0: new indent = computeNewIndent(...).
+// Continuation tokens (ASTDepth < 0 or non-structural): shift by same delta as
+// last structural token. Block scalars following a shifted indent also get
+// their content shifted.
 func reindentTokens(tokens []Token, targetWidth int) {
 	lastDelta := 0
 
@@ -191,8 +345,9 @@ func reindentTokens(tokens []Token, targetWidth int) {
 		oldIndent := len(tokens[i].Raw)
 
 		var newIndent int
-		if tokens[i].Structural && tokens[i].Depth >= 0 {
-			newIndent = tokens[i].Depth * targetWidth
+		if tokens[i].Structural && tokens[i].ASTDepth >= 0 {
+			hasDash := lineHasDash(tokens, i)
+			newIndent = computeNewIndent(tokens[i].ASTDepth, tokens[i].InSeq, hasDash, tokens[i].SeqOffset, targetWidth)
 			lastDelta = newIndent - oldIndent
 		} else {
 			newIndent = oldIndent + lastDelta
@@ -204,7 +359,7 @@ func reindentTokens(tokens []Token, targetWidth int) {
 		tokens[i].Raw = []byte(strings.Repeat(" ", newIndent))
 		delta := newIndent - oldIndent
 
-		// Shift block scalar content on this line by same delta.
+		// Shift block scalar content by same delta.
 		if delta != 0 {
 			for j := i + 1; j < len(tokens); j++ {
 				if tokens[j].Kind == TokNewline {
@@ -254,7 +409,10 @@ func shiftBlockScalarIndent(raw []byte, delta int) []byte {
 		if newSpaces < 0 {
 			newSpaces = 0
 		}
-		result = append(result, []byte(strings.Repeat(" ", newSpaces))...)
+		// Don't add indent to empty lines (would be trailing whitespace).
+		if pos < len(raw) && raw[pos] != '\n' && raw[pos] != '\r' {
+			result = append(result, []byte(strings.Repeat(" ", newSpaces))...)
+		}
 
 		// Copy rest of line + newline.
 		for pos < len(raw) && raw[pos] != '\n' && raw[pos] != '\r' {
@@ -290,24 +448,115 @@ func sortKeys(tokens []Token) []Token {
 }
 
 func sortKeysAtDepth(tokens []Token, targetDepth, from, to int) []Token {
-	entries := groupEntries(tokens, from, to, targetDepth)
+	// Find sequence item boundaries within [from, to). Keys in different
+	// sequence items are in different mappings and must not be sorted together.
+	subRanges := splitBySeqItems(tokens, from, to, targetDepth)
 
-	if len(entries) >= 2 {
-		tokens = reorderEntries(tokens, entries)
-		// Recompute entries after reorder.
-		entries = groupEntries(tokens, 0, len(tokens), targetDepth)
-	}
+	for _, sr := range subRanges {
+		entries := groupEntries(tokens, sr.from, sr.to, targetDepth)
 
-	// Recurse into nested mappings.
-	for _, e := range entries {
-		tokens = sortKeysAtDepth(tokens, targetDepth+1, e.startIdx, e.endIdx)
+		if len(entries) >= 2 && !hasAnchorAliasDependency(tokens, entries) {
+			tokens = reorderEntries(tokens, entries)
+			// ASTDepth is position-invariant — no recomputation needed.
+			entries = groupEntries(tokens, sr.from, sr.to, targetDepth)
+		}
+
+		// Recurse into nested mappings.
+		for _, e := range entries {
+			tokens = sortKeysAtDepth(tokens, targetDepth+1, e.startIdx, e.endIdx)
+		}
 	}
 
 	return tokens
 }
 
+// subRange represents a contiguous range of tokens that belong to a single mapping scope.
+type subRange struct {
+	from, to int
+}
+
+// splitBySeqItems splits [from, to) into sub-ranges by detecting TokDash tokens
+// that indicate sequence item boundaries at or below targetDepth.
+// If no dashes are found, the entire range is returned as one sub-range.
+func splitBySeqItems(tokens []Token, from, to, targetDepth int) []subRange {
+	// Find all dash positions that start sequence items at targetDepth.
+	// A dash at targetDepth means a new mapping scope for keys at targetDepth.
+	var dashPositions []int
+	for i := from; i < to; i++ {
+		if tokens[i].Kind != TokDash {
+			continue
+		}
+		// Check the indent token preceding this dash — its ASTDepth tells us
+		// the depth of this sequence item.
+		indentIdx := findPrecedingIndent(tokens, i)
+		if indentIdx >= 0 && tokens[indentIdx].ASTDepth == targetDepth && tokens[indentIdx].InSeq {
+			dashPositions = append(dashPositions, indentIdx)
+		}
+	}
+
+	if len(dashPositions) == 0 {
+		return []subRange{{from: from, to: to}}
+	}
+
+	var ranges []subRange
+	// Before the first dash (if there are keys before it at this depth).
+	if dashPositions[0] > from {
+		ranges = append(ranges, subRange{from: from, to: dashPositions[0]})
+	}
+	// Each dash starts a new sub-range.
+	for i, dp := range dashPositions {
+		end := to
+		if i+1 < len(dashPositions) {
+			end = dashPositions[i+1]
+		}
+		ranges = append(ranges, subRange{from: dp, to: end})
+	}
+	return ranges
+}
+
+// hasAnchorAliasDependency checks whether reordering entries would break
+// anchor/alias references. Returns true if any alias in one entry references
+// an anchor defined in a different entry within the same scope.
+//
+// When this returns true, the caller skips sorting for this scope to avoid
+// producing invalid YAML where an alias appears before its anchor definition.
+// Nested mappings within each entry are still sorted independently.
+func hasAnchorAliasDependency(tokens []Token, entries []mappingEntry) bool {
+	// Map anchor names to the entry index that defines them.
+	anchorOwner := make(map[string]int)
+	for i, e := range entries {
+		for j := e.startIdx; j < e.endIdx; j++ {
+			if tokens[j].Kind == TokAnchor {
+				// Anchor raw is "&name" — strip the leading &.
+				name := strings.TrimPrefix(string(tokens[j].Raw), "&")
+				anchorOwner[name] = i
+			}
+		}
+	}
+
+	// If no anchors exist in this scope, sorting is safe.
+	if len(anchorOwner) == 0 {
+		return false
+	}
+
+	// Check if any alias references an anchor from a DIFFERENT entry.
+	for i, e := range entries {
+		for j := e.startIdx; j < e.endIdx; j++ {
+			if tokens[j].Kind == TokAlias {
+				// Alias raw is "*name" — strip the leading *.
+				name := strings.TrimPrefix(string(tokens[j].Raw), "*")
+				if ownerIdx, exists := anchorOwner[name]; exists && ownerIdx != i {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 // groupEntries finds mapping entries at the target depth within [from, to).
-// Only considers keys on structural lines.
+// Uses AST-derived depth for grouping.
 func groupEntries(tokens []Token, from, to, targetDepth int) []mappingEntry {
 	var entries []mappingEntry
 
@@ -315,17 +564,8 @@ func groupEntries(tokens []Token, from, to, targetDepth int) []mappingEntry {
 		if tokens[i].Kind != TokKey {
 			continue
 		}
-		// The key must be on a structural line — check the preceding indent.
-		indentIdx := findPrecedingIndent(tokens, i)
-		if indentIdx >= 0 && !tokens[indentIdx].Structural {
-			continue
-		}
-		// Check depth matches target.
-		depth := 0
-		if indentIdx >= 0 {
-			depth = tokens[indentIdx].Depth
-		}
-		if depth != targetDepth {
+		// Use AST-derived depth for grouping.
+		if tokens[i].ASTDepth != targetDepth {
 			continue
 		}
 
@@ -461,17 +701,58 @@ func applyQuoteStyle(tokens []Token, style formatter.QuoteStyle) {
 		if tokens[i].Kind != TokValue {
 			continue
 		}
-		raw := tokens[i].Raw
+		// Trim trailing horizontal whitespace for quote boundary detection.
+		// serializeWithStrip removes this from the final output anyway —
+		// trimming here ensures the quote decision is idempotent regardless of
+		// whether the input had trailing spaces/tabs after a quoted value.
+		raw := bytes.TrimRight(tokens[i].Raw, " \t")
 		if len(raw) < 2 {
 			continue
 		}
 		first, last := raw[0], raw[len(raw)-1]
-		if first == '"' && last == '"' {
+		if first == '"' && last == '"' && isSimpleQuoted(raw, '"') {
 			tokens[i].Raw = convertQuote(raw, style, '"')
-		} else if first == '\'' && last == '\'' {
+		} else if first == '\'' && last == '\'' && isSimpleQuoted(raw, '\'') {
 			tokens[i].Raw = convertQuote(raw, style, '\'')
 		}
 	}
+}
+
+// isSimpleQuoted verifies that a raw value token is a straightforwardly quoted
+// scalar — the first and last bytes are the matching quotes with actual content
+// between them. Rejects edge cases like `”'` (escaped quote at boundary) or
+// values where the quote character appears in ambiguous positions.
+func isSimpleQuoted(raw []byte, quote byte) bool {
+	if len(raw) < 2 || raw[0] != quote || raw[len(raw)-1] != quote {
+		return false
+	}
+	// For the value to be simply quoted, the last quote must be the CLOSING
+	// quote, not part of an escape sequence or content.
+	// In single-quoted YAML: '' is an escape for literal '. The closing ' must
+	// not be preceded by an odd number of quotes (which would make it part of
+	// an escape pair).
+	if quote == '\'' {
+		// Count consecutive quotes at the end (before the final one).
+		n := 0
+		for j := len(raw) - 2; j > 0 && raw[j] == '\''; j-- {
+			n++
+		}
+		// If odd number of quotes precede the final one, the last quote is
+		// actually the second half of an '' escape — not a closing delimiter.
+		if n%2 == 1 {
+			return false
+		}
+	} else {
+		// For double-quoted: check the last quote isn't escaped by a backslash.
+		n := 0
+		for j := len(raw) - 2; j > 0 && raw[j] == '\\'; j-- {
+			n++
+		}
+		if n%2 == 1 {
+			return false
+		}
+	}
+	return true
 }
 
 func convertQuote(raw []byte, style formatter.QuoteStyle, currentQuote byte) []byte {
@@ -571,40 +852,87 @@ func convertQuote(raw []byte, style formatter.QuoteStyle, currentQuote byte) []b
 // Utilities
 // =============================================================================
 
-func stripTrailingWhitespace(data []byte) []byte {
-	var result []byte
-	lineStart := 0
-	for i := 0; i < len(data); i++ {
-		switch data[i] {
-		case '\n':
-			end := i
-			for end > lineStart && (data[end-1] == ' ' || data[end-1] == '\t') {
-				end--
-			}
-			result = append(result, data[lineStart:end]...)
-			result = append(result, '\n')
-			lineStart = i + 1
-		case '\r':
-			end := i
-			for end > lineStart && (data[end-1] == ' ' || data[end-1] == '\t') {
-				end--
-			}
-			result = append(result, data[lineStart:end]...)
-			result = append(result, '\r')
-			if i+1 < len(data) && data[i+1] == '\n' {
-				result = append(result, '\n')
-				i++
-			}
-			lineStart = i + 1
-		default:
-		}
-	}
-	if lineStart < len(data) {
-		end := len(data)
-		for end > lineStart && (data[end-1] == ' ' || data[end-1] == '\t') {
+// serializeWithStrip walks tokens, strips trailing whitespace from each line,
+// but emits TokBlockScalar tokens verbatim to preserve block scalar semantics
+// (trailing spaces in content lines and trailing newlines for |+ chomping).
+func serializeWithStrip(tokens []Token) []byte {
+	var out []byte
+	var line []byte
+
+	// flushLineStripped trims trailing spaces/tabs and appends to out.
+	flushLineStripped := func() {
+		end := len(line)
+		for end > 0 && (line[end-1] == ' ' || line[end-1] == '\t') {
 			end--
 		}
-		result = append(result, data[lineStart:end]...)
+		out = append(out, line[:end]...)
+		line = line[:0]
 	}
-	return result
+
+	// flushLineRaw appends accumulated line content to out without stripping.
+	flushLineRaw := func() {
+		out = append(out, line...)
+		line = line[:0]
+	}
+
+	for _, tok := range tokens {
+		if tok.Kind == TokBlockScalar {
+			// Flush pending line content WITHOUT stripping — the trailing
+			// space (e.g. from ": ") is needed before the block scalar header.
+			flushLineRaw()
+			// Emit block scalar raw, verbatim — no stripping.
+			out = append(out, tok.Raw...)
+			continue
+		}
+
+		// Accumulate into line buffer; flush on newlines.
+		for _, b := range tok.Raw {
+			if b == '\n' {
+				// Check for CRLF: if line ends with \r, include it in the line
+				// before stripping (strip only spaces/tabs).
+				hasCR := len(line) > 0 && line[len(line)-1] == '\r'
+				if hasCR {
+					line = line[:len(line)-1]
+				}
+				flushLineStripped()
+				if hasCR {
+					out = append(out, '\r')
+				}
+				out = append(out, '\n')
+			} else {
+				line = append(line, b)
+			}
+		}
+	}
+
+	// Flush remaining content (strip trailing whitespace).
+	flushLineStripped()
+	return out
+}
+
+// endsWithKeepChomping checks whether the last meaningful token in the stream
+// is a block scalar with keep (+) chomping. When true, the trailing newlines
+// after the scalar are semantically significant and must not be trimmed.
+func endsWithKeepChomping(tokens []Token) bool {
+	for i := len(tokens) - 1; i >= 0; i-- {
+		switch tokens[i].Kind {
+		case TokNewline, TokIndent, TokSpace:
+			continue
+		case TokBlockScalar:
+			return blockScalarHasKeepChomping(tokens[i].Raw)
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+// blockScalarHasKeepChomping checks if a block scalar's header contains '+'.
+func blockScalarHasKeepChomping(raw []byte) bool {
+	// Header is everything before the first newline.
+	nlIdx := bytes.IndexByte(raw, '\n')
+	if nlIdx < 0 {
+		return false // malformed — no newline in block scalar
+	}
+	return bytes.IndexByte(raw[:nlIdx], '+') >= 0
 }

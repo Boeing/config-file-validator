@@ -70,7 +70,8 @@ func TestReindent(t *testing.T) {
 				FinalNewline: true,
 				LineEnding:   formatter.LineEndingLF,
 			}
-			got := printFormatted(tokens, opts, []byte(tc.input))
+			got, err := printFormatted(tokens, opts, []byte(tc.input))
+			require.NoError(t, err)
 			require.Equal(t, tc.expect, string(got), "reindent failed")
 		})
 	}
@@ -94,10 +95,12 @@ func TestReindentIdempotent(t *testing.T) {
 
 	for _, input := range inputs {
 		tokens := tokenize([]byte(input))
-		first := printFormatted(tokens, opts, []byte(input))
+		first, err := printFormatted(tokens, opts, []byte(input))
+		require.NoError(t, err)
 
 		tokens2 := tokenize(first)
-		second := printFormatted(tokens2, opts, first)
+		second, err := printFormatted(tokens2, opts, first)
+		require.NoError(t, err)
 
 		require.Equal(t, string(first), string(second),
 			"not idempotent.\nInput: %q\nFirst: %q\nSecond: %q", input, first, second)
@@ -139,7 +142,8 @@ func TestSortKeys(t *testing.T) {
 				LineEnding:   formatter.LineEndingLF,
 				SortKeys:     true,
 			}
-			got := printFormatted(tokens, opts, []byte(tc.input))
+			got, err := printFormatted(tokens, opts, []byte(tc.input))
+			require.NoError(t, err)
 			require.Equal(t, tc.expect, string(got), "sort keys failed")
 		})
 	}

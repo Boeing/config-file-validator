@@ -1,0 +1,14 @@
+# Anchors define shared config — aliases reference them.
+# Sorting this scope would put a_service before z_defaults,
+# breaking the alias reference.
+z_defaults: &db_config
+  host: localhost
+  port: 5432
+
+a_service:
+  database: *db_config
+  name: my-service
+
+m_middleware:
+  cache: true
+  database: *db_config

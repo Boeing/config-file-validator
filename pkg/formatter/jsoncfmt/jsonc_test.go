@@ -218,3 +218,33 @@ func FuzzFormat(f *testing.F) {
 		}
 	})
 }
+
+func FuzzFormatWithOptions(f *testing.F) {
+	f.Add([]byte("{\"a\": 1}\n"), byte(0))
+	f.Add([]byte("{\n  // comment\n  \"b\": 2,\n}\n"), byte(1))
+	f.Add([]byte("{\"arr\": [1, 2, 3]}\n"), byte(2))
+
+	fmtr := jsoncfmt.Formatter{}
+	f.Fuzz(func(t *testing.T, data []byte, optByte byte) {
+		opts := jsoncfmt.DefaultOptions()
+		if optByte&0x01 != 0 {
+			opts.IndentWidth = 4
+		}
+		if optByte&0x02 != 0 {
+			opts.FinalNewline = false
+		}
+
+		result, err := fmtr.Format(data, opts)
+		if err != nil {
+			return
+		}
+
+		result2, err := fmtr.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format failed: %v\nfirst: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+	})
+}

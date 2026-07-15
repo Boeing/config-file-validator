@@ -64,10 +64,8 @@ func buildIndentString(opts formatter.Options) string {
 // Annotation
 // =============================================================================
 
-// annotate sets Structural and Depth on TokIndent tokens based on tag nesting.
-// Also detects mixed-content elements from the token stream.
+// annotate sets Depth on TokIndent tokens based on tag nesting.
 func annotate(tokens []Token, _ []byte) {
-	// Compute depth from tag nesting.
 	depth := 0
 	for i := range tokens {
 		tokens[i].Depth = -1
@@ -84,65 +82,6 @@ func annotate(tokens []Token, _ []byte) {
 		default:
 		}
 	}
-
-	// Detect mixed content and mark those indents as non-structural.
-	detectAndMarkMixedContent(tokens)
-}
-
-// detectAndMarkMixedContent finds elements with both text and element children.
-func detectAndMarkMixedContent(tokens []Token) {
-	for i := range tokens {
-		if tokens[i].Kind != TokOpenTag {
-			continue
-		}
-
-		// Find matching close tag and check for mixed content.
-		openDepth := tokens[i].Depth
-		hasText := false
-		hasChild := false
-
-		for j := i + 1; j < len(tokens); j++ {
-			switch tokens[j].Kind {
-			case TokOpenTag, TokSelfClose:
-				if tokens[j].Depth == openDepth+1 || (tokens[j].Kind == TokSelfClose && tokens[j].Depth == -1) {
-					hasChild = true
-				}
-			case TokCloseTag:
-				// Check if this is our matching close.
-				// After a close tag, depth returns to openDepth-1.
-				// We detect this by counting.
-				d := 0
-				for k := i; k <= j; k++ {
-					switch tokens[k].Kind {
-					case TokOpenTag:
-						d++
-					case TokCloseTag:
-						d--
-					default:
-					}
-				}
-				if d == 0 {
-					// Found matching close.
-					if hasText && hasChild {
-						// Mark all indents in this range as non-structural.
-						for k := i + 1; k < j; k++ {
-							if tokens[k].Kind == TokIndent {
-								tokens[k].Structural = false
-							}
-						}
-					}
-					goto nextElement
-				}
-			case TokText:
-				content := strings.TrimSpace(string(tokens[j].Raw))
-				if content != "" {
-					hasText = true
-				}
-			default:
-			}
-		}
-	nextElement:
-	}
 }
 
 // =============================================================================
@@ -151,6 +90,8 @@ func detectAndMarkMixedContent(tokens []Token) {
 
 // insertFormattingWhitespace restructures tokens for pretty-printed output.
 // Removes whitespace-only text between tags, inserts proper newlines + indent.
+// Mixed-content elements (containing both text and child elements) are emitted
+// inline — no formatting whitespace is inserted within them.
 func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 	// First: remove whitespace-only text tokens between tags.
 	cleaned := removeInsignificantWhitespace(tokens)
@@ -158,9 +99,12 @@ func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 	// Second: insert newlines and indentation.
 	var result []Token
 	depth := 0
+	i := 0
 
-	for i, tok := range cleaned {
-		switch tok.Kind {
+	for i < len(cleaned) {
+		tok := cleaned[i]
+
+		switch tok.Kind { //nolint:revive // branches are intentionally parallel for readability per token type
 		case TokOpenTag:
 			// Newline + indent before open tag (except at depth 0, first element).
 			if depth > 0 || (i > 0 && needsNewlineBefore(cleaned, i)) {
@@ -168,6 +112,19 @@ func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 			}
 			result = append(result, tok)
 			depth++
+
+			// Check if this element has mixed content.
+			closeIdx := findMatchingClose(cleaned, i)
+			if closeIdx > 0 && isMixedContent(cleaned, i, closeIdx) {
+				// Emit everything between open and close INLINE (no formatting).
+				for j := i + 1; j <= closeIdx; j++ {
+					result = append(result, cleaned[j])
+				}
+				// Adjust depth — the close tag decremented it.
+				depth--
+				i = closeIdx + 1
+				continue
+			}
 
 		case TokCloseTag:
 			depth--
@@ -184,17 +141,13 @@ func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 			result = append(result, tok)
 
 		case TokComment, TokProcInst, TokCDATA:
-			if depth > 0 {
+			if depth > 0 || (i > 0 && needsNewlineBefore(cleaned, i)) {
 				result = appendNewlineIndent(result, depth, indentUnit)
 			}
 			result = append(result, tok)
 
 		case TokXMLDecl, TokDoctype:
 			result = append(result, tok)
-			// Insert newline after declaration/doctype if more content follows.
-			if i+1 < len(cleaned) {
-				result = append(result, Token{Kind: TokNewline, Raw: []byte("\n")})
-			}
 
 		case TokText:
 			// Keep text inline (no newline before it).
@@ -202,14 +155,70 @@ func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 
 		case TokIndent, TokNewline:
 			// Skip old whitespace — we're inserting new.
+			i++
 			continue
 
 		default:
 			result = append(result, tok)
 		}
+		i++
 	}
 
 	return result
+}
+
+// findMatchingClose finds the index of the matching TokCloseTag for an open tag at idx.
+// Returns -1 if not found.
+func findMatchingClose(tokens []Token, openIdx int) int {
+	depth := 0
+	for j := openIdx; j < len(tokens); j++ {
+		switch tokens[j].Kind {
+		case TokOpenTag:
+			depth++
+		case TokCloseTag:
+			depth--
+			if depth == 0 {
+				return j
+			}
+		default:
+		}
+	}
+	return -1
+}
+
+// isMixedContent returns true if the element between openIdx and closeIdx
+// contains BOTH non-whitespace text AND child element tokens.
+func isMixedContent(tokens []Token, openIdx, closeIdx int) bool {
+	hasText := false
+	hasChild := false
+
+	// Only check direct children — not deeply nested content.
+	// We track depth relative to the parent element.
+	depth := 0
+	for j := openIdx + 1; j < closeIdx; j++ {
+		switch tokens[j].Kind {
+		case TokOpenTag:
+			if depth == 0 {
+				hasChild = true
+			}
+			depth++
+		case TokCloseTag:
+			depth--
+		case TokSelfClose:
+			if depth == 0 {
+				hasChild = true
+			}
+		case TokText:
+			if depth == 0 && strings.TrimSpace(string(tokens[j].Raw)) != "" {
+				hasText = true
+			}
+		default:
+		}
+		if hasText && hasChild {
+			return true
+		}
+	}
+	return false
 }
 
 // removeInsignificantWhitespace removes TokText tokens that are whitespace-only
@@ -291,6 +300,8 @@ func reindentExisting(tokens []Token, indentUnit string) {
 // =============================================================================
 
 // applySelfClosingSpace ensures or removes space before /> in self-closing tags.
+//
+//nolint:revive // flag-parameter: wantSpace is a simple formatting toggle, not control coupling
 func applySelfClosingSpace(tokens []Token, wantSpace bool) {
 	for i := range tokens {
 		if tokens[i].Kind != TokSelfClose {

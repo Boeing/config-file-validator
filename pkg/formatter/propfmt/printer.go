@@ -3,6 +3,7 @@ package propfmt
 import (
 	"bytes"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
@@ -149,16 +150,25 @@ func groupEntries(tokens []Token) ([]entry, []Token) {
 	return entries, trailingComments
 }
 
-// decodeKey decodes escape sequences in a key for sorting purposes.
-// \= → =, \: → :, \\ → \, \<space> → space, etc.
+// decodeKey strips escape sequences from a raw key token to produce
+// the logical key string for sort comparison.
+// Handles: \\= → =, \\: → :, \\\\ → \\, \\uXXXX → rune.
 func decodeKey(raw []byte) string {
 	var b strings.Builder
 	for i := 0; i < len(raw); i++ {
 		if raw[i] == '\\' && i+1 < len(raw) {
 			i++
-			_, _ = b.Write(raw[i : i+1])
+			if raw[i] == 'u' && i+4 < len(raw) {
+				hex := string(raw[i+1 : i+5])
+				if r, err := strconv.ParseUint(hex, 16, 32); err == nil {
+					b.WriteRune(rune(r)) //nolint:gosec // r is bounded to 32 bits by ParseUint
+					i += 4
+					continue
+				}
+			}
+			_ = b.WriteByte(raw[i])
 		} else {
-			_, _ = b.Write(raw[i : i+1])
+			_ = b.WriteByte(raw[i])
 		}
 	}
 	return b.String()

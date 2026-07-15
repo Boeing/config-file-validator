@@ -157,6 +157,8 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	}
 
 	// Keep short primitive arrays on one line.
+	// Note: inlined arrays intentionally omit trailing commas even in JSONC files.
+	// A single-line array like [1, 2, 3] is cleaner without a trailing comma.
 	if isInlineArray(arr) {
 		for i := range arr.Elements {
 			if i == 0 {
@@ -196,6 +198,9 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 // Short arrays of only primitive values (no nested objects/arrays, no comments)
 // are kept inline.
 func isInlineArray(arr *hujson.Array) bool {
+	// totalLen slightly over-counts (+2) because the last element has no
+	// trailing comma+space. This conservative bias means arrays at exactly
+	// the line limit are expanded rather than compacted.
 	totalLen := 2 // [ and ]
 	for _, el := range arr.Elements {
 		if _, ok := el.Value.(hujson.Literal); !ok {
@@ -215,8 +220,9 @@ func hasComment(extra hujson.Extra) bool {
 	return strings.Contains(s, "//") || strings.Contains(s, "/*")
 }
 
-// reindentExtra preserves comments in Extra content while replacing
-// whitespace-only indentation with the new indent.
+// reindentExtra normalizes indentation in Extra (comment/whitespace) content.
+// Blank lines between comments are collapsed — this matches prettier's behavior
+// of not preserving blank lines within structures.
 func reindentExtra(extra hujson.Extra, newIndent string) hujson.Extra {
 	if extra == nil {
 		return hujson.Extra(newIndent)

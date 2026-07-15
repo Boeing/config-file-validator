@@ -45,9 +45,9 @@ func tokenize(src []byte) []Token {
 }
 
 type xmlTokenizer struct {
-	src        []byte
-	pos        int
-	tokens     []Token
+	src         []byte
+	pos         int
+	tokens      []Token
 	atLineStart bool
 }
 
@@ -86,7 +86,7 @@ func (t *xmlTokenizer) consumeContent() {
 		return
 	}
 
-	switch {
+	switch { //nolint:staticcheck // QF1002: tagged switch would lose the multi-char prefix checks
 	case t.src[t.pos] == '\n':
 		t.pos++
 		t.emit(TokNewline, t.pos-1)
@@ -121,10 +121,18 @@ func (t *xmlTokenizer) consumeTag() {
 	} else if t.startsWith("<!DOCTYPE") || t.startsWith("<!doctype") {
 		t.consumeDoctype(start)
 	} else if t.startsWith("<?xml") || t.startsWith("<?XML") {
-		t.consumeXMLDecl(start)
+		// Only treat as XMLDecl if followed by whitespace or '?' — not if it's
+		// part of a longer PI name like <?xml-stylesheet...?>.
+		pos5 := t.pos + 5
+		if pos5 >= len(t.src) || t.src[pos5] == ' ' || t.src[pos5] == '\t' ||
+			t.src[pos5] == '\r' || t.src[pos5] == '\n' || t.src[pos5] == '?' {
+			t.consumeXMLDecl(start)
+		} else {
+			t.consumeProcInst(start)
+		}
 	} else if t.startsWith("<?") {
 		t.consumeProcInst(start)
-	} else if t.startsWith("</") {
+	} else if t.startsWith("</") { //nolint:revive // max-control-nesting: sequential prefix checks require this depth
 		t.consumeCloseTag(start)
 	} else {
 		t.consumeOpenOrSelfClose(start)

@@ -1,13 +1,13 @@
 // Package xmlfmt provides a Formatter for XML files.
 //
-// The formatter uses the helium library (already a dependency for XML
-// validation) for DOM-based parsing and serialization. This provides
-// correct indentation handling and comment preservation.
+// The formatter uses a custom CST-based pipeline: tokenize the raw bytes
+// into a lossless token stream, annotate depth, detect mixed content,
+// then rebuild with proper indentation. helium is used only for validation
+// (parsing to confirm well-formedness), not for serialization.
 //
-// Mixed content (elements with both text and child element siblings)
-// cannot be safely indented without changing document semantics. When
-// mixed content is detected, the formatter returns ErrSkipped so the
-// CLI can notify the user.
+// Mixed content (elements containing both text and child elements) is
+// preserved verbatim — no formatting whitespace is inserted within such
+// elements.
 package xmlfmt
 
 import (
@@ -70,6 +70,3 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 
 	return out, nil
 }
-
-// hasMixedContent walks the DOM tree and returns true if any element
-

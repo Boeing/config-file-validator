@@ -49,6 +49,55 @@ func TestXMLTokenizeLossless(t *testing.T) {
 	}
 }
 
+// TestXMLTokenKindClassification verifies that specific XML constructs are
+// classified as the correct token kind.
+func TestXMLTokenKindClassification(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		src          string
+		expectedKind TokenKind
+		tokenIndex   int // which token to check (0-based)
+	}{
+		{
+			name:         "xml_decl_is_TokXMLDecl",
+			src:          `<?xml version="1.0"?>`,
+			expectedKind: TokXMLDecl,
+			tokenIndex:   0,
+		},
+		{
+			name:         "xml_stylesheet_is_TokProcInst",
+			src:          `<?xml-stylesheet type="text/xsl" href="style.xsl"?>`,
+			expectedKind: TokProcInst,
+			tokenIndex:   0,
+		},
+		{
+			name:         "xml_model_is_TokProcInst",
+			src:          `<?xml-model href="schema.rnc"?>`,
+			expectedKind: TokProcInst,
+			tokenIndex:   0,
+		},
+		{
+			name:         "regular_pi_is_TokProcInst",
+			src:          `<?php echo "hi"; ?>`,
+			expectedKind: TokProcInst,
+			tokenIndex:   0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tokens := tokenize([]byte(tc.src))
+			require.Greater(t, len(tokens), tc.tokenIndex,
+				"not enough tokens produced for input %q", tc.src)
+			require.Equal(t, tc.expectedKind, tokens[tc.tokenIndex].Kind,
+				"wrong token kind for %q", tc.src)
+		})
+	}
+}
+
 func FuzzXMLTokenizeLossless(f *testing.F) {
 	f.Add([]byte("<root/>"))
 	f.Add([]byte("<root>\n  <child/>\n</root>\n"))

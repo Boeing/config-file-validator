@@ -1,0 +1,9 @@
+<doc>
+  <p>Hello <b>world</b> and <i>everyone</i>!</p>
+  <div>
+    <span>text <a href="url">link</a> more</span>
+  </div>
+  <simple>
+    <child>text only</child>
+  </simple>
+</doc>

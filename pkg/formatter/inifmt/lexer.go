@@ -77,7 +77,8 @@ func tokenize(src []byte) []Token {
 			tokens = append(tokens, Token{Kind: TokComment, Raw: src[start:pos]})
 
 		case '[':
-			// Section header — consume through closing ].
+			// Section header — consume to end of line (includes any trailing
+			// content after the closing ], such as inline comments).
 			start := pos
 			for pos < len(src) && src[pos] != '\n' && src[pos] != '\r' {
 				pos++
@@ -120,10 +121,9 @@ func tokenizeKeyValue(src []byte, pos *int) []Token {
 			if ahead < len(src) && (src[ahead] == '=' || src[ahead] == ':') {
 				break // whitespace is part of separator
 			}
-			// No separator found — whitespace is part of the key? No, in INI
-			// a key can't contain unescaped whitespace if followed by more content
-			// on the same line. But the ini.v1 parser allows it (e.g., "my key = val").
-			// We'll include it as part of the key raw until we hit separator or EOL.
+			// No separator found ahead — this whitespace is embedded in the key.
+			// ini.v1 allows keys with spaces (e.g., "my key = val").
+			// Include the whitespace in the key token and continue scanning.
 			*pos++
 			continue
 		}

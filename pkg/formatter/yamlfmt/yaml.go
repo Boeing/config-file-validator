@@ -96,7 +96,10 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 
 	// CST-based pipeline: tokenize → annotate → format → print.
 	tokens := tokenize(src)
-	out := printFormatted(tokens, resolved, toValidate)
+	out, err := printFormatted(tokens, resolved, toValidate)
+	if err != nil {
+		return nil, fmt.Errorf("yaml: %w", err)
+	}
 
 	return out, nil
 }

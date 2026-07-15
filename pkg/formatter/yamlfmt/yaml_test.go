@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/yamlfmt"
@@ -14,6 +15,11 @@ import (
 
 var f = yamlfmt.Formatter{}
 var defaultOpts = yamlfmt.DefaultOptions()
+
+// yamlUnmarshal is a test helper that validates output is parseable YAML.
+func yamlUnmarshal(data []byte, v any) error {
+	return yaml.Unmarshal(data, v)
+}
 
 // TestFixtures runs all .input.yaml -> .expected.yaml fixture pairs.
 func TestFixtures(t *testing.T) {
@@ -318,6 +324,139 @@ func TestZeroOptionsUsesDefaults(t *testing.T) {
 	require.Contains(t, string(got), "  b: 1") // 2-space default
 }
 
+// TestSortKeysAnchorSafety proves that SortKeys does not reorder entries when
+// doing so would break anchor/alias references (producing invalid YAML).
+func TestSortKeysAnchorSafety(t *testing.T) {
+	t.Parallel()
+
+	sortOpts := defaultOpts
+	sortOpts.SortKeys = true
+
+	tests := []struct {
+		name         string
+		input        string
+		expectSorted bool // true = entries SHOULD be sorted; false = entries MUST stay in original order
+	}{
+		{
+			name: "cross_entry_dependency_blocks_sort",
+			input: `z_defaults: &db
+  host: localhost
+a_service:
+  db: *db
+`,
+			expectSorted: false, // a_service uses *db defined in z_defaults — can't reorder
+		},
+		{
+			name: "self_contained_anchors_allow_sort",
+			input: `zebra:
+  config: &z_cfg
+    port: 9090
+  server: *z_cfg
+alpha:
+  value: simple
+`,
+			expectSorted: true, // anchor and alias are within the SAME entry — safe to sort
+		},
+		{
+			name: "merge_key_blocks_sort",
+			input: `z_base: &base
+  timeout: 30
+a_extended:
+  <<: *base
+  retries: 3
+`,
+			expectSorted: false, // merge key references anchor from different entry
+		},
+		{
+			name: "no_anchors_sorts_normally",
+			input: `zebra: 1
+alpha: 2
+`,
+			expectSorted: true,
+		},
+		{
+			name: "nested_mappings_still_sorted_when_top_blocked",
+			input: `z_defaults: &db
+  zoo: 3
+  alpha: 1
+a_service:
+  db: *db
+  zebra: 2
+  ant: 1
+`,
+			expectSorted: false, // top level blocked, but nested should sort
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), sortOpts)
+			require.NoError(t, err, "Format should not error")
+
+			// CRITICAL: output must be valid YAML that yaml.v3 can parse.
+			// This is the core assertion — if sorting broke anchor/alias ordering,
+			// yaml.v3 would reject it with "unknown anchor referenced".
+			var parsed any
+			err = yamlUnmarshal(got, &parsed)
+			require.NoError(t, err, "formatted output must be valid YAML:\n%s", got)
+
+			// Verify sort behavior.
+			output := string(got)
+			if tc.expectSorted {
+				// Keys should be alphabetically ordered at the top level.
+				aIdx := strings.Index(output, "alpha")
+				zIdx := strings.Index(output, "zebra")
+				require.Greater(t, zIdx, aIdx,
+					"expected alpha before zebra (sorted):\n%s", output)
+			} else {
+				// Keys must remain in original order (z before a).
+				zIdx := strings.Index(output, "z_")
+				aIdx := strings.Index(output, "a_")
+				require.Greater(t, aIdx, zIdx,
+					"expected z_ before a_ (unsorted due to anchor dep):\n%s", output)
+			}
+
+			// For the nested test case, verify nested keys ARE sorted even though
+			// top level is blocked.
+			if tc.name == "nested_mappings_still_sorted_when_top_blocked" {
+				// Within z_defaults, alpha should come before zoo.
+				lines := strings.Split(output, "\n")
+				var alphaLine, zooLine int
+				for i, line := range lines {
+					if strings.Contains(line, "alpha:") {
+						alphaLine = i
+					}
+					if strings.Contains(line, "zoo:") {
+						zooLine = i
+					}
+				}
+				require.Greater(t, zooLine, alphaLine,
+					"nested keys should be sorted (alpha before zoo):\n%s", output)
+
+				// Within a_service, ant should come before zebra.
+				var antLine, zebraLine int
+				for i, line := range lines {
+					if strings.Contains(line, "ant:") {
+						antLine = i
+					}
+					if strings.Contains(line, "zebra:") {
+						zebraLine = i
+					}
+				}
+				require.Greater(t, zebraLine, antLine,
+					"nested keys should be sorted (ant before zebra):\n%s", output)
+			}
+
+			// Idempotency: formatting again produces same output.
+			got2, err := f.Format(got, sortOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2),
+				"must be idempotent:\nfirst:  %q\nsecond: %q", got, got2)
+		})
+	}
+}
+
 // FuzzYAMLFormatter verifies no panics and idempotency on arbitrary inputs.
 func FuzzYAMLFormatter(f *testing.F) {
 	f.Add([]byte("a: 1\nb: 2\n"))
@@ -347,30 +486,98 @@ func FuzzYAMLFormatter(f *testing.F) {
 	})
 }
 
-// FuzzYAMLFormatterWithOptions fuzzes with sort-keys + quote-style combined.
+// FuzzYAMLFormatterWithOptions fuzzes with various option combinations.
 func FuzzYAMLFormatterWithOptions(f *testing.F) {
-	f.Add([]byte("z: 'hello'\na: 'world'\n"))
-	f.Add([]byte("---\nlist:\n  - 'one'\n  - 'two'\nmap:\n  z: 1\n  a: 2\n"))
-	f.Add([]byte("key: 'value'\nnested:\n  b: 'x'\n  a: 'y'\n"))
+	f.Add([]byte("z: 'hello'\na: 'world'\n"), byte(0))
+	f.Add([]byte("---\nlist:\n  - 'one'\n  - 'two'\nmap:\n  z: 1\n  a: 2\n"), byte(1))
+	f.Add([]byte("key: 'value'\nnested:\n  b: 'x'\n  a: 'y'\n"), byte(3))
+	f.Add([]byte("data: |\n  line1\n  line2\n"), byte(5))
 
-	fmter := yamlfmt.Formatter{}
-	opts := yamlfmt.DefaultOptions()
-	opts.SortKeys = true
-	opts.QuoteStyle = formatter.QuoteDouble
-
-	f.Fuzz(func(t *testing.T, data []byte) {
-		result, err := fmter.Format(data, opts)
-		if err != nil {
-			return // rejected input — fine, just didn't panic
+	fmtr := yamlfmt.Formatter{}
+	f.Fuzz(func(t *testing.T, data []byte, optByte byte) {
+		opts := yamlfmt.DefaultOptions()
+		if optByte&0x01 != 0 {
+			opts.SortKeys = true
+		}
+		if optByte&0x02 != 0 {
+			opts.QuoteStyle = formatter.QuoteDouble
+		}
+		if optByte&0x04 != 0 {
+			opts.IndentWidth = 4
+		}
+		if optByte&0x08 != 0 {
+			opts.FinalNewline = false
+		}
+		if optByte&0x10 != 0 {
+			opts.QuoteStyle = formatter.QuoteSingle
 		}
 
-		// Idempotency: formatting the output again must produce identical output.
-		result2, err := fmter.Format(result, opts)
+		result, err := fmtr.Format(data, opts)
 		if err != nil {
-			t.Fatalf("second format pass failed: %v\nfirst output: %q", err, result)
+			return
+		}
+
+		result2, err := fmtr.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format failed: %v\nfirst: %q", err, result)
 		}
 		if string(result) != string(result2) {
-			t.Fatalf("not idempotent:\ninput:  %q\nfirst:  %q\nsecond: %q", data, result, result2)
+			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
 		}
 	})
+}
+
+// TestBlockScalarChompingPreservation verifies that formatting preserves
+// block scalar chomping semantics (|+, |-, |, >+, >-).
+func TestBlockScalarChompingPreservation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		input    string
+		expected string // expected value after yaml.Unmarshal of formatted output
+	}{
+		{
+			name:     "literal keep (|+)",
+			input:    "k: |+\n  text\n\n\n",
+			expected: "text\n\n\n",
+		},
+		{
+			name:     "literal strip (|-)",
+			input:    "k: |-\n  text\n",
+			expected: "text",
+		},
+		{
+			name:     "literal clip (|)",
+			input:    "k: |\n  text\n",
+			expected: "text\n",
+		},
+		{
+			name:     "folded keep (>+)",
+			input:    "k: >+\n  text\n\n\n",
+			expected: "text\n\n\n",
+		},
+		{
+			name:     "folded strip (>-)",
+			input:    "k: >-\n  text\n",
+			expected: "text",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			formatted, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err, "Format should not error")
+
+			var result map[string]string
+			err = yaml.Unmarshal(formatted, &result)
+			require.NoError(t, err, "formatted output must be valid YAML: %q", formatted)
+
+			require.Equal(t, tc.expected, result["k"],
+				"chomping semantics corrupted.\nInput:     %q\nFormatted: %q\nGot value: %q",
+				tc.input, formatted, result["k"])
+		})
+	}
 }

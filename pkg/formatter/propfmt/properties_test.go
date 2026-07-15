@@ -150,3 +150,71 @@ func FuzzFormat(f *testing.F) {
 		}
 	})
 }
+
+// TestContinuationAtEOF verifies that a trailing backslash at EOF (or before
+// bare CR / CRLF) does not cause an infinite loop or panic. The fix is in
+// tokenizer.go: break at EOF after endsWithOddBackslashes returns true.
+func TestContinuationAtEOF(t *testing.T) {
+	t.Parallel()
+	fmtr := propfmt.Formatter{}
+	opts := propfmt.DefaultOptions()
+
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"odd_backslash_eof_no_newline", "key = value\\"},
+		{"odd_backslash_before_bare_CR", "key = value\\\r"},
+		{"odd_backslash_before_CRLF", "key = value\\\r\n"},
+		{"even_backslashes_no_continuation", "key = value\\\\"},
+		{"triple_backslash_eof", "key = value\\\\\\"},
+		{"continuation_then_eof_empty", "key = \\\n"},
+		{"continuation_before_bare_CR_content", "key = val\\\ranother = x"},
+		{"multi_continuation_then_eof", "key = a\\\n  b\\\n  c\\"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := fmtr.Format([]byte(tc.input), opts)
+			if err != nil {
+				// Some inputs may be invalid properties (e.g., bare CR in key).
+				// That's fine — the test verifies no infinite loop/panic.
+				return
+			}
+			// Must be idempotent
+			result2, err := fmtr.Format(result, opts)
+			require.NoError(t, err)
+			require.Equal(t, string(result), string(result2))
+		})
+	}
+}
+
+func FuzzFormatWithOptions(f *testing.F) {
+	f.Add([]byte("key = value\n"), byte(0))
+	f.Add([]byte("# comment\nk1 = v1\nk2 = v2\n"), byte(1))
+	f.Add([]byte("multi = line1\\\n  line2\n"), byte(3))
+
+	fmtr := propfmt.Formatter{}
+	f.Fuzz(func(t *testing.T, data []byte, optByte byte) {
+		opts := propfmt.DefaultOptions()
+		if optByte&0x01 != 0 {
+			opts.SortKeys = true
+		}
+		if optByte&0x02 != 0 {
+			opts.FinalNewline = false
+		}
+
+		result, err := fmtr.Format(data, opts)
+		if err != nil {
+			return
+		}
+
+		result2, err := fmtr.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format failed: %v\nfirst: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+	})
+}

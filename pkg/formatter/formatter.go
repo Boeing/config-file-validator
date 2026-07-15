@@ -127,22 +127,6 @@ type ErrSkipped struct {
 // Error implements the error interface.
 func (e *ErrSkipped) Error() string { return "skipped: " + e.Reason }
 
-// Result holds the outcome of formatting a single file.
-// It's used internally to communicate between the formatter pipeline and
-// the reporter.
-type Result struct {
-	// FilePath is the path to the file that was formatted.
-	FilePath string
-
-	// Changed is true when the formatted output differs from the source.
-	Changed bool
-
-	// Err is non-nil when the file could not be formatted (e.g., parse error).
-	// A parse error is not a formatting issue — it means the formatter cannot
-	// process this file.
-	Err error
-}
-
 // DefaultFormatOptions returns the global default formatting options.
 // These are overridden by .cfv.toml [format] settings and per-format
 // overrides in .cfv.toml [format.<type>].

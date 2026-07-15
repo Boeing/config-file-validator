@@ -302,23 +302,32 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 	p.buf.WriteByte('[')
 	for _, elem := range elements {
 		p.writeNewline()
-		// Check if this element has a comment (could be before or after value tokens).
+		// Separate comments from value tokens to avoid duplication.
+		// Comments are emitted on their own lines above the value.
+		var comments []Token
+		var valueTokens []Token
 		for _, tok := range elem {
 			switch tok.Kind {
 			case Whitespace, Newline:
 				continue
 			case Comment:
-				p.buf.WriteString(elemIndent)
-				p.buf.Write(tok.Raw)
-				p.writeNewline()
+				comments = append(comments, tok)
 			default:
-				p.buf.WriteString(elemIndent)
-				p.writeValueTokensTrimmed(elem)
-				p.buf.WriteByte(',')
-				goto nextElem
+				valueTokens = append(valueTokens, tok)
 			}
 		}
-	nextElem:
+		// Emit leading comments.
+		for _, c := range comments {
+			p.buf.WriteString(elemIndent)
+			p.buf.Write(c.Raw)
+			p.writeNewline()
+		}
+		// Emit value.
+		if len(valueTokens) > 0 {
+			p.buf.WriteString(elemIndent)
+			p.writeValueTokensTrimmed(valueTokens)
+			p.buf.WriteByte(',')
+		}
 	}
 	p.writeNewline()
 	p.buf.WriteString(closeIndent)
@@ -701,14 +710,20 @@ func extractKey(group Group) string {
 		return ""
 	}
 	var b strings.Builder
+	pastLeadingWS := false
 	for _, tok := range group.Tokens {
-		if tok.Kind == Equals || tok.Kind == Whitespace {
+		if tok.Kind == Whitespace && !pastLeadingWS {
+			continue // skip leading whitespace (indentation)
+		}
+		if tok.Kind == Equals || (tok.Kind == Whitespace && pastLeadingWS) {
 			break
 		}
 		switch tok.Kind {
 		case BareKey, BasicString, LiteralString:
+			pastLeadingWS = true
 			_, _ = b.Write(tok.Raw)
 		case Dot:
+			pastLeadingWS = true
 			_ = b.WriteByte('.')
 		default:
 			// Other token kinds not part of the key — skip.
@@ -726,6 +741,12 @@ func (p *Printer) writeNewline() {
 	}
 }
 
+// Pre-computed double newline sequences to avoid allocation in ensureBlankLine.
+var (
+	doubleLF   = []byte("\n\n")
+	doubleCRLF = []byte("\r\n\r\n")
+)
+
 // ensureBlankLine ensures there's at least one blank line at the current
 // position in the output buffer.
 func (p *Printer) ensureBlankLine() {
@@ -734,12 +755,15 @@ func (p *Printer) ensureBlankLine() {
 		return
 	}
 
-	// Check if we already end with \n\n.
-	nl := []byte("\n")
+	var nl []byte
+	var doubleNL []byte
 	if p.opts.LineEnding == formatter.LineEndingCRLF {
 		nl = []byte("\r\n")
+		doubleNL = doubleCRLF
+	} else {
+		nl = []byte("\n")
+		doubleNL = doubleLF
 	}
-	doubleNL := append(nl, nl...)
 
 	if bytes.HasSuffix(out, doubleNL) {
 		return

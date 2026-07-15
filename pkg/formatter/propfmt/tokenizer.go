@@ -139,13 +139,17 @@ func tokenizeKeyValue(src []byte, pos *int) []Token {
 			break // no continuation
 		}
 
+		// At EOF with a trailing backslash: no continuation line exists.
+		// Break to avoid looping forever on the same slice.
+		if *pos >= len(src) {
+			break
+		}
+
 		// Consume the newline (part of the value via continuation).
-		if *pos < len(src) {
-			if src[*pos] == '\r' && *pos+1 < len(src) && src[*pos+1] == '\n' {
-				*pos += 2
-			} else if src[*pos] == '\n' || src[*pos] == '\r' {
-				*pos++
-			}
+		if src[*pos] == '\r' && *pos+1 < len(src) && src[*pos+1] == '\n' {
+			*pos += 2
+		} else if src[*pos] == '\n' || src[*pos] == '\r' {
+			*pos++
 		}
 
 		// Skip leading whitespace on continuation line (it's not part of the value

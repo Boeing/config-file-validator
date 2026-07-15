@@ -114,6 +114,76 @@ func TestCommentPreservation(t *testing.T) {
 		"comment was not preserved")
 }
 
+// TestMixedContentPreservation proves that mixed-content elements (containing
+// both text and child elements) are preserved inline without formatting
+// whitespace being inserted between them.
+func TestMixedContentPreservation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		contains []string // substrings that MUST appear in output (inline content preserved)
+		excludes []string // substrings that MUST NOT appear (no newlines injected into mixed content)
+	}{
+		{
+			name:     "inline_emphasis",
+			input:    `<doc><p>Hello <b>world</b>!</p></doc>`,
+			contains: []string{"<p>Hello <b>world</b>!</p>"},
+			excludes: []string{"<p>\n", "\n<b>", "</b>\n"},
+		},
+		{
+			name:     "multiple_inline_elements",
+			input:    `<doc><p>Start <em>middle</em> and <code>end</code>.</p></doc>`,
+			contains: []string{"<p>Start <em>middle</em> and <code>end</code>.</p>"},
+		},
+		{
+			name:     "text_only_element_stays_inline",
+			input:    `<root><name>just text</name></root>`,
+			contains: []string{"<name>just text</name>"},
+		},
+		{
+			name:     "self_closing_in_mixed_content",
+			input:    `<doc><p>Text <br/> more text</p></doc>`,
+			contains: []string{"<p>Text <br/> more text</p>"},
+		},
+		{
+			name:     "structure_only_gets_formatted",
+			input:    `<root><a><b><c>val</c></b></a></root>`,
+			contains: []string{"<root>\n", "  <a>\n", "    <b>\n", "      <c>val</c>"},
+		},
+		{
+			name:     "mixed_at_various_depths",
+			input:    `<root><outer><p>text <b>bold</b> text</p></outer></root>`,
+			contains: []string{"<p>text <b>bold</b> text</p>"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			output := string(got)
+
+			for _, s := range tc.contains {
+				require.Contains(t, output, s,
+					"expected inline content preserved:\ninput:  %s\noutput: %s", tc.input, output)
+			}
+			for _, s := range tc.excludes {
+				require.NotContains(t, output, s,
+					"unexpected formatting whitespace in mixed content:\ninput:  %s\noutput: %s", tc.input, output)
+			}
+
+			// Idempotency check.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2),
+				"must be idempotent:\nfirst:  %q\nsecond: %q", got, got2)
+		})
+	}
+}
+
 // FuzzFormat feeds arbitrary bytes to Format and checks:
 // - No panics on any input
 // - If Format succeeds, output re-parses without error
@@ -149,6 +219,39 @@ func FuzzFormat(f *testing.F) {
 		// Idempotency: Format(Format(x)) == Format(x)
 		if string(result) != string(result2) {
 			t.Fatalf("Format is not idempotent.\nFirst:  %q\nSecond: %q", result, result2)
+		}
+	})
+}
+
+func FuzzFormatWithOptions(f *testing.F) {
+	f.Add([]byte("<?xml version=\"1.0\"?>\n<root><child/></root>\n"), byte(0))
+	f.Add([]byte("<?xml version=\"1.0\"?>\n<r><a x=\"1\"/><b y=\"2\"/></r>\n"), byte(1))
+	f.Add([]byte("<?xml version=\"1.0\"?>\n<r>\n  <c>text</c>\n</r>\n"), byte(4))
+
+	fmtr := xmlfmt.Formatter{}
+	f.Fuzz(func(t *testing.T, data []byte, optByte byte) {
+		opts := xmlfmt.DefaultOptions()
+		if optByte&0x01 != 0 {
+			opts.IndentWidth = 4
+		}
+		if optByte&0x02 != 0 {
+			opts.FinalNewline = false
+		}
+		if optByte&0x04 != 0 {
+			opts.XMLSelfClosingSpace = true
+		}
+
+		result, err := fmtr.Format(data, opts)
+		if err != nil {
+			return
+		}
+
+		result2, err := fmtr.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format failed: %v\nfirst: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
 		}
 	})
 }

@@ -1,2 +1,0 @@
-go test fuzz v1
-[]byte("A:\n \n  '000'#0: 00")

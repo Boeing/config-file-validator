@@ -12,8 +12,9 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/yamlfmt"
 )
 
-// registerFormatters sets the Formatter field on each FileType in the
-// FileTypes slice. This must run after the main init() that builds FileTypes.
+// init registers formatters with their corresponding FileTypes. This must run
+// after the main init() in file_type.go that builds the FileTypes slice (Go
+// processes init() functions in filename-sorted order within a package).
 //
 // We update the slice entries directly because FileTypes holds value copies —
 // updating the package-level vars (JSONFileType etc.) has no effect on the

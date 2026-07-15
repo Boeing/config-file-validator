@@ -75,7 +75,8 @@ func NewLexer(src []byte) *Lexer {
 // Tokenize lexes the entire source and returns all tokens.
 // Every byte in src is accounted for in exactly one token.
 func (l *Lexer) Tokenize() []Token {
-	var tokens []Token
+	// Heuristic: ~4 bytes per token for typical config files.
+	tokens := make([]Token, 0, len(l.src)/4)
 	for l.pos < len(l.src) {
 		tok := l.next()
 		tokens = append(tokens, tok)
