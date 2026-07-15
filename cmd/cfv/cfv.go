@@ -374,8 +374,8 @@ func parseCheckFlags(args []string) (cfvConfig, error) {
 		mergeSarifDirPtr = fs.String("merge-sarif-dir", "",
 			"Directory tree containing SARIF files to merge into SARIF output. Requires --reporter=sarif.")
 		// Phase 1: --fix and --unsafe are reserved. No-op until Phase 4.
-		fixPtr    = fs.Bool("fix", false, "Apply safe fixes automatically [not yet implemented]")
-		unsafePtr = fs.Bool("unsafe", false, "Apply unsafe fixes (requires --fix) [not yet implemented]")
+		fixPtr    = fs.Bool("fix", false, "Apply safe fixes automatically (trailing commas, schema coercion, formatting)")
+		unsafePtr = fs.Bool("unsafe", false, "Apply unsafe fixes (requires --fix)")
 	)
 
 	fs.Var(&reporterConfigFlags, "reporter",

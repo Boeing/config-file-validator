@@ -9,6 +9,7 @@ cfv validates syntax, enforces schemas, and formats configuration files across 1
 
 ```shell
 cfv check .          # Validate syntax and schema
+cfv check --fix .    # Fix what it can: trailing commas, type coercion
 cfv format .         # Report files that need formatting (exit 1 if any)
 cfv format --fix .   # Fix formatting in-place
 ```

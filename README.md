@@ -41,6 +41,7 @@ Validate and format every config file in your repository. One tool, one command,
 
 ```shell
 cfv check .       # Validate syntax + schema across all config files
+cfv check --fix . # Fix what it can: trailing commas, type coercion
 cfv format .      # Show formatting issues
 cfv format --fix  # Fix formatting in-place
 ```
