@@ -9,12 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `cfv format` subcommand with `--fix` (rewrite in place) and `--diff` (print unified diff) modes
+- Formatting support for 9 formats: JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV
+- AST-driven YAML formatter: indent normalization, inline mapping/sequence spacing, flow collection normalization, and alphabetical key sorting
+- CST-based formatters for TOML, Properties, and INI using custom tokenizers that preserve comments and structure
+- JSONC formatting via hujson CST (preserves comments and trailing commas while normalizing whitespace)
+- `--indent` flag to override indent width on `cfv format`
+- `--sort-keys` flag to sort mapping keys alphabetically on `cfv format`
+- `--diff` flag for previewing formatting changes without modifying files
+- Per-format configuration in `.cfv.toml` via `[format.<type>]` tables (yaml, json, jsonc, toml, hcl, xml, ini, properties, env)
+- Format configuration cascade: CLI flags > per-format config > global `[format]` config > defaults
+- Schema validation support for JSONC files via `$schema`, `--schema-map`, and SchemaStore
+- Schema validation support for Properties files via `--schema-map` in `.cfv.toml`
 - **cfv 3.0 Phase 1**: Renamed binary from `validator` to `cfv`. This is a breaking change — no compatibility shim ships. Update scripts: `validator .` → `cfv check .`
 - `cfv check` subcommand — identical behavior to the v2 `validator` binary
-- `cfv format` subcommand stub — placeholder for Phase 2 formatting engine
 - `cfv version` subcommand
 - `cfv help [subcommand]` subcommand
-- `--fix` and `--unsafe` flags reserved (no-op) on `check` and bare invocations, to be wired in Phase 4
 - Running `cfv .` without a subcommand dispatches to `check` (backward-compatible invocation style)
 - CUE syntax validation (`.cue`) via [cuelang.org/go](https://cuelang.org/go) parser (closes #462)
 - KDL Document Language syntax validation (`.kdl`) via [sblinch/kdl-go](https://github.com/sblinch/kdl-go) (closes #463)

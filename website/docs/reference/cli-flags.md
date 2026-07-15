@@ -16,12 +16,13 @@ If no search path is provided, `cfv check` searches the current directory. Use `
 | Subcommand    | Description                                      |
 |---------------|--------------------------------------------------|
 | `check`       | Validate config files. Default when omitted.     |
+| `format`      | Check or fix formatting of config files.         |
 | `version`     | Print the version and exit.                      |
 | `help`        | Show help for a subcommand.                      |
 
-## Flags
+## `check` Flags
 
-All flags apply to the `check` subcommand.
+All flags below apply to the `check` subcommand.
 
 | Flag                  | Type   | Default    | Description                                                                                                        |
 |-----------------------|--------|------------|---------------------------------------------------------------------------------------------------------------------|
@@ -45,3 +46,36 @@ All flags apply to the `check` subcommand.
 | `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |
 | `-no-config`          | bool   | `false`    | Disable automatic `.cfv.toml` discovery.                                                                           |
 | `-type-map`           | string | —          | Map a glob pattern to a file type. Format: `<pattern>:<type>`. Repeatable.                                         |
+
+## `format` Flags
+
+```
+cfv format [flags] [<search_path>...]
+```
+
+Checks formatting of config files. With `--fix`, rewrites files in place. With `--diff`, prints a unified diff of what would change.
+
+### Format-specific flags
+
+| Flag          | Type   | Default | Description                                                   |
+|---------------|--------|---------|---------------------------------------------------------------|
+| `-fix`        | bool   | `false` | Rewrite files in place. Mutually exclusive with `-diff`.      |
+| `-diff`       | bool   | `false` | Print unified diff of formatting changes. Mutually exclusive with `-fix`. |
+| `-indent`     | int    | `2`     | Override indent width (number of spaces per level).           |
+| `-sort-keys`  | bool   | `false` | Sort mapping keys alphabetically.                            |
+
+### Shared flags
+
+These flags work the same as in `check`.
+
+| Flag                  | Type   | Default    | Description                                                                                                        |
+|-----------------------|--------|------------|---------------------------------------------------------------------------------------------------------------------|
+| `-depth`              | int    | unlimited  | Maximum recursion depth. `0` disables recursion.                                                                   |
+| `-exclude-dirs`       | string | —          | Comma-separated list of directory names to skip.                                                                   |
+| `-exclude-file-types` | string | —          | Comma-separated list of file types to ignore. Cannot be used with `-file-types`.                                   |
+| `-file-types`         | string | all        | Comma-separated list of file types to format. Cannot be used with `-exclude-file-types`.                           |
+| `-gitignore`          | bool   | `false`    | Skip files matched by `.gitignore` patterns.                                                                       |
+| `-reporter`           | string | `standard` | Output format and optional path. Format: `<type>:<path>`. Types: `standard`, `json`, `junit`, `sarif`, `github`. Repeatable. |
+| `-quiet`              | bool   | `false`    | Suppress stdout output when writing to file.                                                                       |
+| `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |
+| `-no-config`          | bool   | `false`    | Disable automatic `.cfv.toml` discovery.                                                                           |

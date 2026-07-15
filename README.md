@@ -4,7 +4,7 @@
 <h1 align="center">Config File Validator</h1>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-93.3%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-91%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -22,8 +22,8 @@
   <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
   </a>  
 
-  <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator/v2">
-  <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v2.svg" alt="Go Reference">
+  <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator/v3">
+  <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v3.svg" alt="Go Reference">
   </a>
 
   <a href="https://goreportcard.com/report/github.com/Boeing/config-file-validator">
@@ -35,9 +35,17 @@
   </a>
 </p>
 
-Config File Validator validates config files across 18 formats.
+Validate and format every config file in your repository. One tool, one command, 18 formats.
 
-It recursively searches directories for config files, detects their format by extension or filename, and reports errors.
+## What it does
+
+```shell
+cfv check .       # Validate syntax + schema across all config files
+cfv format .      # Show formatting issues
+cfv format --fix  # Fix formatting in-place
+```
+
+cfv replaces the per-format tools you're wiring together today — prettier, yamlfmt, taplo, terraform fmt, xmllint, jsonlint, v8r — with a single static binary.
 
 ## Install
 
@@ -46,27 +54,25 @@ It recursively searches directories for config files, detects their format by ex
 brew install config-file-validator
 ```
 
-**Winget**
-```shell
-winget install Boeing.config-file-validator
-```
-
 **Go Install**
 ```shell
-go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
+go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
 ```
 
 <details>
 <summary>More install options</summary>
 
-**MacPorts**
+**Winget**
+```shell
+winget install Boeing.config-file-validator
+```
 
+**MacPorts**
 ```shell
 sudo port install config-file-validator
 ```
 
 **Scoop**
-
 ```shell
 scoop install config-file-validator
 ```
@@ -79,25 +85,64 @@ Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases]
 
 ## Usage
 
-Validate all config files in the current directory:
-
 <img src="./img/demo.svg" alt="Config File Validator output showing pass/fail results" width="800" />
+
+Preview what formatting would change:
+
+```shell
+cfv format --diff .
+```
 
 See the [CLI reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags) for all options.
 
 ## Features
 
+**Validation**
+- Syntax checking across 18 file formats
 - Schema validation via JSON Schema, XSD, and automatic [SchemaStore](https://www.schemastore.org/) lookup
+- Duplicate key detection
+
+**Formatting**
+- Normalizes indentation, spacing, and trailing newlines across 9 formats (JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV)
+- Sort keys alphabetically (YAML, JSON, JSONC, TOML, Properties, INI)
+- `--diff` preview without modifying files
+- AST-driven YAML formatting — matches prettier and yamlfmt output
+- Per-format config via [`.cfv.toml`](https://boeing.github.io/config-file-validator/docs/guides/configuration-file)
+
+**Integrations**
 - Auto-detects file types by extension and [known filename](https://boeing.github.io/config-file-validator/docs/reference/known-files)
-- JSON, JUnit, and SARIF output for CI pipelines
+- JSON, JUnit, SARIF, and GitHub output for CI pipelines
 - [GitHub Action](https://github.com/Boeing/validate-configs-action) with PR annotations
 - [Pre-commit hook](https://boeing.github.io/config-file-validator/docs/integrations/pre-commit)
-- Project-level [`.cfv.toml`](https://boeing.github.io/config-file-validator/docs/guides/configuration-file) configuration
 - Usable as a [Go library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
+- Gitignore-aware file discovery
+
+## Supported Formats
+
+| Format | Validate | Format | Schema |
+|--------|:--------:|:------:|:------:|
+| JSON | ✓ | ✓ | ✓ |
+| JSONC | ✓ | ✓ | ✓ |
+| YAML | ✓ | ✓ | ✓ |
+| TOML | ✓ | ✓ | ✓ |
+| XML | ✓ | ✓ | ✓ |
+| HCL | ✓ | ✓ | |
+| INI | ✓ | ✓ | |
+| Properties | ✓ | ✓ | |
+| ENV | ✓ | ✓ | |
+| HOCON | ✓ | | |
+| CSV | ✓ | | |
+| EDITORCONFIG | ✓ | | |
+| Justfile | ✓ | | |
+| KDL | ✓ | | |
+| CUE | ✓ | | |
+| PList | ✓ | | |
+| TOON | ✓ | | ✓ |
+| SARIF | ✓ | | ✓ |
 
 ## Documentation
 
-Documentation is hosted at https://boeing.github.io/config-file-validator.
+Full documentation at https://boeing.github.io/config-file-validator.
 
 ## Contributing
 
