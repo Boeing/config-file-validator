@@ -595,3 +595,67 @@ func TestBlockScalarChompingPreservation(t *testing.T) {
 		})
 	}
 }
+
+// TestNormalizeValueSpacing verifies that extra whitespace between colon and
+// value is normalized to a single space.
+func TestNormalizeValueSpacing(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"extra_spaces", "key:    value\n", "key: value\n"},
+		{"already_correct", "key: value\n", "key: value\n"},
+		{"tab_after_colon", "key:\tvalue\n", "key: value\n"},
+		{"quoted_with_space", "key:  \"quoted\"\n", "key: \"quoted\"\n"},
+		{"anchor_with_space", "key:   &name val\n", "key: &name val\n"},
+		{"tag_with_space", "key:   !!str 42\n", "key: !!str 42\n"},
+		{"nested", "parent:\n  child:    deep\n", "parent:\n  child: deep\n"},
+		{"preserves_internal", "key: value with   spaces\n", "key: value with   spaces\n"},
+		{"empty_value", "key:\n", "key:\n"},
+		{"multiple_keys", "a:   1\nb:  2\nc: 3\n", "a: 1\nb: 2\nc: 3\n"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := fmtr.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(result))
+		})
+	}
+}
+
+// TestNormalizeFlowCollections verifies that flow collections get normalized
+// spacing via AST-driven re-serialization.
+func TestNormalizeFlowCollections(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"normalize_spaces", "x: {a:  1, b:   2}\n", "x: {a: 1, b: 2}\n"},
+		{"nested_flow", "x: {a: {b: 1}, c: [1, 2]}\n", "x: {a: {b: 1}, c: [1, 2]}\n"},
+		{"array_spaces", "x: [1,  2,   3]\n", "x: [1, 2, 3]\n"},
+		{"empty_map", "x: {}\n", "x: {}\n"},
+		{"empty_array", "x: []\n", "x: []\n"},
+		{"quoted_values", "x: {a: \"hello\", b: 'world'}\n", "x: {a: \"hello\", b: 'world'}\n"},
+		{"already_normalized", "x: {a: 1, b: 2}\n", "x: {a: 1, b: 2}\n"},
+		{"mixed_types", "x: {s: hello, n: 42, b: true, null: null}\n", "x: {s: hello, n: 42, b: true, null: null}\n"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := fmtr.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(result))
+		})
+	}
+}

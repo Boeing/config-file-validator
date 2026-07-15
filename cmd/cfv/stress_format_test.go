@@ -959,6 +959,39 @@ nested_items:
 		checkEquivalence: yamlEquivalent,
 		input:            "data:\n  content: |\n    line with trailing   \n    normal line\n",
 	},
+	{
+		name:             "yaml/inline_spacing_normalization",
+		format:           "yaml",
+		formatter:        yamlfmt.Formatter{},
+		checkEquivalence: yamlEquivalent,
+		input: `name:    my-app
+version:  1.0.0
+config:
+    port:     8080
+    host:   localhost
+    debug:  true
+list:
+  - name:   item1
+    value:  123
+  - name:   item2
+    value:  456
+`,
+	},
+
+	{
+		name:             "yaml/flow_spacing_normalization",
+		format:           "yaml",
+		formatter:        yamlfmt.Formatter{},
+		checkEquivalence: yamlEquivalent,
+		input: `simple: {a:  1, b:   2, c:    3}
+nested: {x: {y:  1, z:   2}, w: [1,  2,  3]}
+quoted: {key: "value with : colon", other: 'single'}
+empty_map: {}
+empty_arr: []
+array: [1,  2,   3,    4]
+mixed: [{name:  "a", val:  1}, {name:  "b", val:  2}]
+`,
+	},
 
 	// =========================================================================
 	// TOML — 12 cases
