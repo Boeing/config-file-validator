@@ -1,0 +1,94 @@
+# ============================================================
+# Phase 8: CLI UX features — format help, --diff, JSONC config
+# ============================================================
+
+# ============================================================
+# 8.1: Help text shows all registered formatters dynamically
+# ============================================================
+
+exec cfv format --help
+stdout 'json'
+stdout 'yaml'
+stdout 'xml'
+stdout 'toml'
+stdout 'ini'
+stdout 'properties'
+stdout 'hcl'
+stdout 'env'
+stdout 'jsonc'
+
+# ============================================================
+# 8.2: --diff shows unified diff without modifying files
+# ============================================================
+
+# Format without --diff shows ~ indicator
+! exec cfv format --no-config work
+stdout '~.*messy.json'
+
+# Format with --diff shows unified diff
+! exec cfv format --diff --no-config work
+stdout '--- .*messy.json'
+stdout '\+\+\+ .*messy.json'
+stdout '@@'
+stdout '-{"b":1,"a":2}'
+stdout '\+  "a": 2'
+
+# File was NOT modified (--diff is read-only like format without --fix)
+cmp work/messy.json work/messy.json.orig
+
+# --diff and --fix are mutually exclusive
+! exec cfv format --diff --fix --no-config work
+stderr '--fix and --diff cannot be used together'
+
+# ============================================================
+# 8.2b: --diff on already-formatted file shows nothing
+# ============================================================
+
+exec cfv format --diff --no-config work/good.json
+! stdout '---'
+! stdout '~'
+
+# ============================================================
+# 8.2c: --diff works across multiple formats
+# ============================================================
+
+! exec cfv format --diff --no-config multi
+stdout '--- .*messy.yaml'
+stdout '--- .*messy.toml'
+
+# ============================================================
+# 8.3: JSONC format config in .cfv.toml
+# ============================================================
+
+# With config that sets JSONC indent to 4, format uses it
+! exec cfv format --diff --config=cfgtest/.cfv.toml cfgtest/settings.jsonc
+stdout '\+    "key": 1'
+
+# ============================================================
+# FIXTURE FILES
+# ============================================================
+
+-- work/messy.json --
+{"b":1,"a":2}
+-- work/messy.json.orig --
+{"b":1,"a":2}
+-- work/good.json --
+{
+  "a": 1,
+  "b": 2
+}
+-- multi/messy.yaml --
+a:    1
+b:  2
+-- multi/messy.toml --
+[package]
+name="test"
+version  =  "1.0"
+-- cfgtest/.cfv.toml --
+[format.jsonc]
+indent = 4
+-- cfgtest/settings.jsonc --
+{
+  // comment
+  "key":1
+}

@@ -13,10 +13,10 @@
 |--------|-------------|-----------|--------|
 | HCL | ✅ CST (hclwrite token stream) | 0 | Done (pre-existing) |
 | JSON | ✅ Semantic (tidwall/pretty) | 0 | Done (pre-existing) |
-| YAML | ⚠️ AST (goccy/go-yaml) — unstable serializer | 1 (stability guard) | **Phase 6A: CST rewrite** |
+| YAML | ✅ CST (custom tokenizer) + AST (yaml.v3 Node) | 0 | **Done** |
 | JSONC | ✅ CST (hujson + custom walker) | 0 | **Done (dfb2dae)** |
 | TOML | ✅ CST (custom tokenizer/grouper/printer) | 0 | **Done (6166dcc)** — identical to taplo |
-| XML | ⚠️ DOM (helium) | 2 (ErrSkipped) | Blocked on helium upstream |
+| XML | ✅ CST (custom tokenizer, tag-counting depth) | 0 | **Done** |
 | Properties | ✅ CST (custom tokenizer/printer) | 0 | **Done** |
 | INI | ✅ CST (custom tokenizer/parser/printer) | 0 | **Done** |
 | ENV | ✅ Line-oriented (format is trivial) | 0 | Done (pre-existing) |
@@ -364,11 +364,10 @@ Values are treated as opaque tokens. The tokenizer tracks boundaries (opening/cl
 
 ---
 
-## Phase 5: XML (Pending helium upstream fixes)
+## Phase 5: XML CST Formatter ✅
 
-**Effort**: 1-2 days after helium fixes land
-**Risk**: Low — helium already provides DOM, we just need bugs fixed
-**Dependency**: lestrrat-go/helium (issues filed, awaiting response)
+**Status**: Done (a03e241 + Phase 9 fixes)
+**Approach taken**: Custom tokenizer + tag-counting depth. helium used for validation only (syntax + XSD). The helium Writer bugs (StripBlanks, Format) were bypassed entirely — our CST printer handles formatting independently.
 
 ### Issues filed
 
@@ -3539,3 +3538,39 @@ Same fix for the old `blockScalarHasKeepChomping` — but we're replacing it ent
 - [ ] 12.4: Run all fuzz targets 30s with semantic checking — verify these specific bugs are fixed
 - [ ] 12.5: Run stress tests + real-world corpus
 - [ ] 12.6: Pipeline verification (vet, fmt, lint, build, test)
+
+---
+
+## v3.1 Roadmap: Configurable Lint Rules
+
+**Not in scope for 3.0.** Captured here for future planning.
+
+**Pitch**: Opinionated style rules across all 18 formats, configured in `.cfv.toml`. Replaces yamllint, dotenv-linter, and format-specific style tools with one unified rule system.
+
+**Command**: `cfv lint .` (separate from `check` which is syntax/schema, and `format` which is formatting)
+
+**Rule categories**:
+- Universal: max-line-length, final-newline, no-trailing-whitespace, no-bom, line-endings
+- Key/value: no-duplicate-keys, key-naming-convention, key-ordering
+- YAML: require-document-start, max-nesting-depth, no-anchors, truthy-style
+- TOML: inline-table-max-length, array-style-threshold
+- ENV/Properties: key-must-be-uppercase, no-empty-values
+
+**Architecture**: Rules are assertions on the parsed structure (tokens + AST). Same pipeline as format — parse once, check many rules. Each rule is a function `func(tokens, ast, config) []Diagnostic`.
+
+**Config example**:
+```toml
+[lint]
+max-line-length = 120
+key-naming = "kebab-case"
+
+[lint.yaml]
+require-document-start = true
+truthy = "strict"  # only true/false, not yes/no
+
+[lint.env]
+key-naming = "UPPER_SNAKE_CASE"
+```
+
+**Output**: Same reporters as check/format (stdout, JSON, JUnit, SARIF, GitHub annotations).
+

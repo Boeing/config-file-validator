@@ -6,22 +6,30 @@
   "properties": {
     "exclude-dirs": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Subdirectories to exclude when searching for configuration files"
     },
     "exclude-file-types": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "File types to ignore"
     },
     "ignore-files": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Gitignore-style pattern files to apply during file discovery"
     },
     "file-types": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "File types to validate (cannot be used with exclude-file-types)"
     },
     "depth": {
@@ -31,14 +39,21 @@
     },
     "reporter": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Report formats and optional output paths. Format: type or type:path"
     },
     "groupby": {
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["filetype", "directory", "pass-fail", "error-type"]
+        "enum": [
+          "filetype",
+          "directory",
+          "pass-fail",
+          "error-type"
+        ]
       },
       "maxItems": 3,
       "uniqueItems": true,
@@ -74,12 +89,16 @@
     },
     "schema-map": {
       "type": "object",
-      "additionalProperties": { "type": "string" },
+      "additionalProperties": {
+        "type": "string"
+      },
       "description": "Map glob patterns to schema files. Keys are patterns, values are schema paths."
     },
     "type-map": {
       "type": "object",
-      "additionalProperties": { "type": "string" },
+      "additionalProperties": {
+        "type": "string"
+      },
       "description": "Map glob patterns to file types. Keys are patterns, values are type names."
     },
     "validators": {
@@ -154,7 +173,10 @@
         },
         "line-ending": {
           "type": "string",
-          "enum": ["lf", "crlf"],
+          "enum": [
+            "lf",
+            "crlf"
+          ],
           "description": "Line terminator. Default: lf."
         },
         "max-line-width": {
@@ -165,16 +187,40 @@
         },
         "quote-style": {
           "type": "string",
-          "enum": ["double", "single", "preserve"],
+          "enum": [
+            "double",
+            "single",
+            "preserve"
+          ],
           "description": "Scalar quoting style. Only affects YAML. Default: preserve."
         },
-        "json": { "$ref": "#/$defs/format-options" },
-        "yaml": { "$ref": "#/$defs/format-options" },
-        "hcl": { "$ref": "#/$defs/format-options" },
-        "toml": { "$ref": "#/$defs/format-options" },
-        "xml": { "$ref": "#/$defs/format-options" },
-        "ini": { "$ref": "#/$defs/format-options" },
-        "env": { "$ref": "#/$defs/format-options" }
+        "json": {
+          "$ref": "#/$defs/format-options"
+        },
+        "yaml": {
+          "$ref": "#/$defs/format-options"
+        },
+        "hcl": {
+          "$ref": "#/$defs/format-options"
+        },
+        "toml": {
+          "$ref": "#/$defs/format-options"
+        },
+        "xml": {
+          "$ref": "#/$defs/format-options"
+        },
+        "ini": {
+          "$ref": "#/$defs/format-options"
+        },
+        "env": {
+          "$ref": "#/$defs/format-options"
+        },
+        "jsonc": {
+          "$ref": "#/$defs/format-options"
+        },
+        "properties": {
+          "$ref": "#/$defs/format-options"
+        }
       },
       "additionalProperties": false,
       "description": "Formatting configuration. Global defaults and per-format overrides."
@@ -205,7 +251,10 @@
         },
         "line-ending": {
           "type": "string",
-          "enum": ["lf", "crlf"]
+          "enum": [
+            "lf",
+            "crlf"
+          ]
         },
         "max-line-width": {
           "type": "integer",
@@ -214,7 +263,11 @@
         },
         "quote-style": {
           "type": "string",
-          "enum": ["double", "single", "preserve"]
+          "enum": [
+            "double",
+            "single",
+            "preserve"
+          ]
         }
       },
       "additionalProperties": false
