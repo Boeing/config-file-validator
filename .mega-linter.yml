@@ -19,17 +19,24 @@ DISABLE_LINTERS:
   - SPELL_CSPELL
   # ts-standard enforces StandardJS style which conflicts with Docusaurus conventions
   - TYPESCRIPT_STANDARD
+  # Checkov scans HCL test fixtures as real infrastructure and flags fake resources
+  - REPOSITORY_CHECKOV
 
 DISABLE_ERRORS_LINTERS:
   # copypaste checker (JSCPD), can be added in a separate PR as this will need test refactor
   - COPYPASTE_JSCPD
   # zizmor requires GitHub API access that isn't always available in CI
   - ACTION_ZIZMOR
+  # devskim flags localhost/http in test data — not real connections
+  - REPOSITORY_DEVSKIM
+  # kingfisher flags fake credentials in test fixtures
+  - REPOSITORY_KINGFISHER
 
-FILTER_REGEX_EXCLUDE: "(test/)"
-JSON_JSONLINT_FILTER_REGEX_EXCLUDE: "(test/)"
-YAML_YAMLLINT_FILTER_REGEX_EXCLUDE: "(test/)"
-YAML_PRETTIER_FILTER_REGEX_EXCLUDE: "(test/)"
+FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
+JSON_JSONLINT_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
+YAML_YAMLLINT_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
+YAML_PRETTIER_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
+REPOSITORY_SECRETLINT_FILTER_REGEX_EXCLUDE: "(testdata/|_test\\.go$)"
 SHOW_ELAPSED_TIME: true
 FLAVOR_SUGGESTIONS: false
 REPORT_OUTPUT_FOLDER: megalinter-reports
