@@ -16,7 +16,7 @@ jobs:
   golangci:
     strategy:
       matrix:
-        go: ["1.26"]
+        go: ["~1.26"]
         os: [ubuntu-latest, macos-latest, windows-latest]
     permissions:
       # Optional: Allow write access to checks to allow the action to annotate code in the PR.
@@ -26,7 +26,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
@@ -36,7 +36,7 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: false
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.11.4
           args: --timeout=10m
