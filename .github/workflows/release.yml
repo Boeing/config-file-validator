@@ -46,29 +46,28 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          BINARY="validator"
+          BINARY="cfv"
           if [ "$GOOS" = "windows" ]; then
-            BINARY="validator.exe"
+            BINARY="cfv.exe"
           fi
           go build \
-            -ldflags="-w -s -extldflags '-static' -X github.com/Boeing/config-file-validator.version=${{ github.event.release.tag_name }}" \
+            -ldflags="-w -s -extldflags '-static' -X github.com/Boeing/config-file-validator/v3.version=${{ github.event.release.tag_name }}" \
             -tags netgo \
             -o "$BINARY" \
-            cmd/validator/validator.go
+            cmd/cfv/cfv.go
 
       - name: Create archive
         id: archive
         run: |
           TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"
-          MAJOR_MINOR="${VERSION%.*}"
-          NAME="validator-v${MAJOR_MINOR}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          NAME="cfv-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
 
           if [ "${{ matrix.goos }}" = "windows" ]; then
-            zip "${NAME}.zip" validator.exe LICENSE README.md
+            zip "${NAME}.zip" cfv.exe LICENSE README.md
             echo "filename=${NAME}.zip" >> "$GITHUB_OUTPUT"
           else
-            tar czf "${NAME}.tar.gz" validator LICENSE README.md
+            tar czf "${NAME}.tar.gz" cfv LICENSE README.md
             echo "filename=${NAME}.tar.gz" >> "$GITHUB_OUTPUT"
           fi
 
