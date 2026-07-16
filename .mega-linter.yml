@@ -31,12 +31,13 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_DEVSKIM
   # kingfisher flags fake credentials in test fixtures
   - REPOSITORY_KINGFISHER
+  # secretlint flags fake postgres URLs in stress_format_test.go
+  - REPOSITORY_SECRETLINT
 
 FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
 JSON_JSONLINT_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
 YAML_YAMLLINT_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
 YAML_PRETTIER_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
-REPOSITORY_SECRETLINT_FILTER_REGEX_EXCLUDE: "(testdata/|_test\\.go$)"
 SHOW_ELAPSED_TIME: true
 FLAVOR_SUGGESTIONS: false
 REPORT_OUTPUT_FOLDER: megalinter-reports
