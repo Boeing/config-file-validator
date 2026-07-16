@@ -1,4 +1,31 @@
+# osv-scanner configuration
+# https://google.github.io/osv-scanner/configuration/
+
+# Go stdlib vulnerabilities. MegaLinter v9.6.0 ships Go 1.26.3 with
+# GOTOOLCHAIN=local and osv-scanner 2.3.8 (which always scans go.mod version).
+# These cannot be fixed without upgrading MegaLinter's container.
+# Tracked in: https://github.com/Boeing/config-file-validator/issues/545
 [[IgnoredVulns]]
-id = "GHSA-h67p-54hq-rp68"
-reason = "js-yaml 3.14.2 is a transitive dependency of Docusaurus; waiting for upstream fix"
-ignoreUntil = "2026-10-07T00:00:00Z"
+id = "GO-2026-4970"
+reason = "Go stdlib — fixed in 1.26.5, MegaLinter container ships 1.26.3"
+ignoreUntil = "2026-10-16T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GO-2026-5037"
+reason = "Go stdlib — fixed in 1.26.4, MegaLinter container ships 1.26.3"
+ignoreUntil = "2026-10-16T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GO-2026-5038"
+reason = "Go stdlib — fixed in 1.26.4, MegaLinter container ships 1.26.3"
+ignoreUntil = "2026-10-16T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GO-2026-5039"
+reason = "Go stdlib — fixed in 1.26.4, MegaLinter container ships 1.26.3"
+ignoreUntil = "2026-10-16T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GO-2026-5856"
+reason = "Go stdlib — fixed in 1.26.5, MegaLinter container ships 1.26.3"
+ignoreUntil = "2026-10-16T00:00:00Z"
