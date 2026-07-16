@@ -2,9 +2,11 @@ package finder
 
 import (
 	"bufio"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -132,6 +134,153 @@ func (fsf FileSystemFinder) Find() ([]FileMetadata, error) {
 		uniqueMatches = append(uniqueMatches, matches...)
 	}
 	return uniqueMatches, nil
+}
+
+// MatchFile applies the finder filters to a single file path.
+func (fsf FileSystemFinder) MatchFile(path string) ([]FileMetadata, error) {
+	finder := fsf
+	finder.extCache = make(map[string]struct{})
+
+	path = strings.TrimSpace(path)
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, nil
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, 1)
+	matches := make([]FileMetadata, 0, 1)
+	for _, pathRoot := range finder.PathRoots {
+		if err := finder.matchFileInRoot(absPath, info, strings.TrimSpace(pathRoot), seen, &matches); err != nil {
+			return nil, err
+		}
+	}
+	return matches, nil
+}
+
+func (fsf *FileSystemFinder) matchFileInRoot(
+	absPath string,
+	info os.FileInfo,
+	pathRoot string,
+	seen map[string]struct{},
+	matches *[]FileMetadata,
+) error {
+	if pathRoot == "" {
+		return nil
+	}
+
+	pathRoot = strings.TrimRight(pathRoot, string(os.PathSeparator))
+	rootAbs, err := filepath.Abs(pathRoot)
+	if err != nil {
+		return err
+	}
+	rootInfo, err := os.Stat(rootAbs)
+	if err != nil {
+		return err
+	}
+
+	if !rootInfo.IsDir() {
+		if sameFilesystemPath(rootAbs, absPath) {
+			return fsf.handleFile(absPath, fs.FileInfoToDirEntry(info), seen, matches)
+		}
+		return nil
+	}
+	if !containsPath(rootAbs, absPath) {
+		return nil
+	}
+
+	if err := fsf.checkDirsForFile(rootAbs, filepath.Dir(absPath)); err != nil {
+		if errors.Is(err, filepath.SkipDir) {
+			return nil
+		}
+		return err
+	}
+
+	var gim *gitignoreMatcher
+	if fsf.Gitignore || len(fsf.IgnoreFiles) > 0 {
+		gim = newGitignoreMatcher(rootAbs)
+		if gim != nil {
+			if fsf.Gitignore {
+				gim.loadRepoGitignore()
+			}
+			gim.loadIgnoreFiles(fsf.IgnoreFiles)
+			gim.refreshMatcher()
+		}
+	}
+
+	if gim != nil && gitignoreMatchesPath(gim, rootAbs, absPath) {
+		return nil
+	}
+
+	return fsf.handleFile(absPath, fs.FileInfoToDirEntry(info), seen, matches)
+}
+
+func (fsf *FileSystemFinder) checkDirsForFile(rootAbs, fileDir string) error {
+	var depth int
+	if fsf.Depth != nil {
+		depth = *fsf.Depth
+	}
+	maxDepth := strings.Count(rootAbs, string(os.PathSeparator)) + depth
+
+	for _, dir := range dirsFromRoot(rootAbs, fileDir) {
+		info, err := os.Stat(dir)
+		if err != nil {
+			return err
+		}
+		if err := fsf.handleDir(dir, fs.FileInfoToDirEntry(info), maxDepth); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func gitignoreMatchesPath(gim *gitignoreMatcher, rootAbs, absPath string) bool {
+	for _, dir := range dirsFromRoot(rootAbs, filepath.Dir(absPath)) {
+		if dir != rootAbs && gim.match(dir, true) {
+			return true
+		}
+		gim.pushDir(dir)
+	}
+	return gim.match(absPath, false)
+}
+
+func dirsFromRoot(rootAbs, fileDir string) []string {
+	dirs := []string{rootAbs}
+	relDir, err := filepath.Rel(rootAbs, fileDir)
+	if err != nil || relDir == "." {
+		return dirs
+	}
+
+	dir := rootAbs
+	for _, part := range strings.Split(relDir, string(os.PathSeparator)) {
+		dir = filepath.Join(dir, part)
+		dirs = append(dirs, dir)
+	}
+	return dirs
+}
+
+func containsPath(rootAbs, childAbs string) bool {
+	rel, err := filepath.Rel(rootAbs, childAbs)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
+}
+
+func sameFilesystemPath(a, b string) bool {
+	a = filepath.Clean(a)
+	b = filepath.Clean(b)
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(a, b)
+	}
+	return a == b
 }
 
 // findOne recursively walks through all subdirectories (excluding the excluded subdirectories)

@@ -1,0 +1,11 @@
+# --watch cannot read stdin
+stdin valid.json
+! exec validator --watch --file-types=json -
+stderr '--watch cannot be used with stdin'
+
+# --watch reports missing search paths and exits
+! exec validator --watch missing
+stderr 'watch execution'
+
+-- valid.json --
+{"key": "value"}
