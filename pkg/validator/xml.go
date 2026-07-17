@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -31,7 +32,11 @@ func (XMLValidator) ValidateXSD(b []byte, schemaPath string) (bool, error) {
 
 func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	ctx := context.Background()
-	_, err := helium.NewParser().ValidateDTD(true).Parse(ctx, b)
+	parser := helium.NewParser()
+	if hasDOCTYPE(b) {
+		parser = parser.ValidateDTD(true)
+	}
+	_, err := parser.Parse(ctx, b)
 	if err != nil {
 		errMsg := err.Error()
 		if m := xmlLineColRe.FindStringSubmatch(errMsg); m != nil {
@@ -43,6 +48,22 @@ func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func hasDOCTYPE(b []byte) bool {
+	decoder := xml.NewDecoder(bytes.NewReader(b))
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			return false
+		}
+		if directive, ok := token.(xml.Directive); ok && bytes.HasPrefix(bytes.TrimSpace(directive), []byte("DOCTYPE")) {
+			return true
+		}
+		if _, ok := token.(xml.StartElement); ok {
+			return false
+		}
+	}
 }
 
 func (XMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {

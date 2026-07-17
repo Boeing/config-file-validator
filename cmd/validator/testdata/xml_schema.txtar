@@ -239,6 +239,7 @@ stdout '×'
   <!ELEMENT config (host, port)>
   <!ELEMENT host (#PCDATA)>
   <!ELEMENT port (#PCDATA)>
+  <!ATTLIST config xsi:noNamespaceSchemaLocation CDATA #IMPLIED>
 ]>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="schema.xsd">
@@ -251,6 +252,7 @@ stdout '×'
   <!ELEMENT config (host, port)>
   <!ELEMENT host (#PCDATA)>
   <!ELEMENT port (#PCDATA)>
+  <!ATTLIST config xsi:noNamespaceSchemaLocation CDATA #IMPLIED>
 ]>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="schema.xsd">
@@ -264,6 +266,7 @@ stdout '×'
   <!ELEMENT host (#PCDATA)>
   <!ELEMENT port (#PCDATA)>
   <!ELEMENT database (#PCDATA)>
+  <!ATTLIST config xsi:noNamespaceSchemaLocation CDATA #IMPLIED>
 ]>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="schema.xsd">

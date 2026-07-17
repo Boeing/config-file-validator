@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Upgraded `github.com/lestrrat-go/helium` to v0.5.1 while preserving syntax validation for XML documents without a DTD.
 - Refactored grouped standard and JSON output to support any number of `--groupby` levels.
 - Directory grouped output now uses slash-normalized directory keys without trailing separators; files in the current directory use an empty directory key.
 
