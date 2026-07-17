@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -29,9 +30,20 @@ func (XMLValidator) ValidateXSD(b []byte, schemaPath string) (bool, error) {
 	return ValidateXSD(b, schemaPath)
 }
 
+// hasDOCTYPE reports whether b contains an XML DOCTYPE declaration.
+// The XML spec requires a DOCTYPE to appear before the root element,
+// so a plain substring scan is enough — no need to parse first.
+func hasDOCTYPE(b []byte) bool {
+	return bytes.Contains(b, []byte("<!DOCTYPE"))
+}
+
 func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
 	ctx := context.Background()
-	_, err := helium.NewParser().ValidateDTD(true).Parse(ctx, b)
+	parser := helium.NewParser()
+	if hasDOCTYPE(b) {
+		parser = parser.ValidateDTD(true)
+	}
+	_, err := parser.Parse(ctx, b)
 	if err != nil {
 		errMsg := err.Error()
 		if m := xmlLineColRe.FindStringSubmatch(errMsg); m != nil {
