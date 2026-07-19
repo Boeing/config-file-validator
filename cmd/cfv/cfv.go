@@ -193,7 +193,10 @@ func mainInit() int {
 	// Parse only until the first non-flag argument (the subcommand or a path).
 	// flag.ContinueOnError means unknown flags return an error rather than exiting,
 	// which lets us forward unrecognised flags to the subcommand FlagSet.
-	_ = globalFS.Parse(args)
+	globalErr := globalFS.Parse(args)
+	if errors.Is(globalErr, flag.ErrHelp) {
+		return 0
+	}
 	remaining := globalFS.Args()
 
 	if *versionFlag {
