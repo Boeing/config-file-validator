@@ -1,28 +1,48 @@
 package tools
 
 import (
-	"runtime"
 	"testing"
 )
 
-func TestFileURL(t *testing.T) {
+func TestPathToFileURL(t *testing.T) {
 	t.Parallel()
 
-	tests := map[string]string{
-		"/tmp/schema file#1.json": "file:///tmp/schema%20file%231.json",
-	}
-	if runtime.GOOS == "windows" {
-		tests = map[string]string{
-			`C:\work\schema file#1.json`:      "file:///C:/work/schema%20file%231.json",
-			`\\server\share\schema file.json`: "file://server/share/schema%20file.json",
-		}
+	tests := []struct {
+		name   string
+		path   string
+		volume string
+		want   string
+	}{
+		{
+			name: "unix",
+			path: "/tmp/schema file#1.json",
+			want: "file:///tmp/schema%20file%231.json",
+		},
+		{
+			name:   "drive letter",
+			path:   `C:\work\schema file#1.json`,
+			volume: "C:",
+			want:   "file:///C:/work/schema%20file%231.json",
+		},
+		{
+			name:   "UNC path",
+			path:   `\\server\share\schema file.json`,
+			volume: `\\server\share`,
+			want:   "file://server/share/schema%20file.json",
+		},
+		{
+			name:   "UNC host root",
+			path:   `\\server`,
+			volume: `\\server`,
+			want:   "file://server/",
+		},
 	}
 
-	for path, expected := range tests {
-		t.Run(path, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			if got := FileURL(path); got != expected {
-				t.Fatalf("FileURL(%q) = %q, want %q", path, got, expected)
+			if got := pathToFileURL(test.path, test.volume); got != test.want {
+				t.Fatalf("pathToFileURL(%q, %q) = %q, want %q", test.path, test.volume, got, test.want)
 			}
 		})
 	}
