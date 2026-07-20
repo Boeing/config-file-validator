@@ -1,4 +1,8 @@
 # Test --help and --version
+exec cfv --help
+stdout 'Usage: cfv '
+! stdout '[✓×]'
+
 exec cfv check --help
 stdout 'Usage: cfv check'
 

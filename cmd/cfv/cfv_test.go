@@ -267,6 +267,7 @@ func Test_subcommandRouter(t *testing.T) {
 	}{
 		{"version subcommand", []string{"version"}, 0},
 		{"--version flag", []string{"--version"}, 0},
+		{"--help flag", []string{"--help"}, 0},
 		{"help subcommand", []string{"help"}, 0},
 		{"help check subcommand", []string{"help", "check"}, 0},
 		{"help format subcommand", []string{"help", "format"}, 0},
