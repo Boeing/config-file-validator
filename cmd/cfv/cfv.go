@@ -654,11 +654,9 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 }
 
 // formatDefaults returns the hardcoded default options for a specific format.
-// json and yaml share a case for now since their defaults are currently
-// identical; split them out again when they diverge
 func formatDefaults(formatName string) formatter.Options {
 	switch formatName {
-	case "json", "yaml":
+	case "json":
 		return formatter.Options{
 			IndentStyle:  formatter.IndentSpaces,
 			IndentWidth:  2,
@@ -666,6 +664,15 @@ func formatDefaults(formatName string) formatter.Options {
 			LineEnding:   formatter.LineEndingLF,
 			SortKeys:     false,
 			QuoteStyle:   formatter.QuotePreserve,
+		}
+	case "yaml":
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			LineEnding:   formatter.LineEndingLF,
+			QuoteStyle:   formatter.QuotePreserve,
+			SortKeys:     false,
 		}
 	default:
 		return formatter.Options{
