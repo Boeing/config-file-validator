@@ -8,8 +8,9 @@
 // This is idempotent by construction — the same tree always produces
 // the same output regardless of original formatting.
 //
-// Standard JSON input produces standard JSON output (no trailing commas
-// added). JSONC input preserves trailing commas on multiline structures.
+// Trailing commas follow the style of the input: a file that already uses
+// them gets them on every multiline structure, a file without them gets none.
+// Options.TrailingCommas overrides this to always add or always remove.
 package jsoncfmt
 
 import (
@@ -47,14 +48,17 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 		return nil, err
 	}
 
+	// Detect before sorting: sorting moves the trailing comma marker off the
+	// last member.
+	fs := &formatState{
+		indent:         buildIndent(opts),
+		trailingCommas: wantTrailingCommas(&v, opts.TrailingCommas),
+	}
+
 	if opts.SortKeys {
 		sortObject(&v)
 	}
 
-	fs := &formatState{
-		indent:     buildIndent(opts),
-		isStandard: v.IsStandard(),
-	}
 	fs.formatValue(&v, 0)
 
 	out := v.Pack()
@@ -72,8 +76,49 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 
 // formatState holds the configuration for a single format pass.
 type formatState struct {
-	indent     string // indent string (e.g., "  " or "\t")
-	isStandard bool   // true if input is standard JSON (no trailing commas added)
+	indent         string // indent string (e.g., "  " or "\t")
+	trailingCommas bool   // true if multiline collections get a trailing comma
+}
+
+// wantTrailingCommas resolves the trailing comma mode against the parsed input.
+func wantTrailingCommas(v *hujson.Value, mode formatter.TrailingCommas) bool {
+	switch mode {
+	case formatter.TrailingCommasAll:
+		return true
+	case formatter.TrailingCommasNone:
+		return false
+	default:
+		return hasTrailingComma(v)
+	}
+}
+
+// hasTrailingComma reports whether any object or array in v already ends with
+// a trailing comma. hujson leaves a non-nil AfterExtra on the last member of a
+// collection exactly when a comma follows it.
+func hasTrailingComma(v *hujson.Value) bool {
+	switch val := v.Value.(type) {
+	case *hujson.Object:
+		if n := len(val.Members); n > 0 && val.Members[n-1].Value.AfterExtra != nil {
+			return true
+		}
+		for i := range val.Members {
+			if hasTrailingComma(&val.Members[i].Value) {
+				return true
+			}
+		}
+	case *hujson.Array:
+		if n := len(val.Elements); n > 0 && val.Elements[n-1].AfterExtra != nil {
+			return true
+		}
+		for i := range val.Elements {
+			if hasTrailingComma(&val.Elements[i]) {
+				return true
+			}
+		}
+	default:
+		// Literals hold no trailing comma.
+	}
+	return false
 }
 
 // formatValue applies indentation to a value node in the CST.
@@ -127,9 +172,9 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 		fs.formatValue(&m.Value, depth+1)
 	}
 
-	// Trailing comma on last member for JSONC, none for standard JSON.
+	// Trailing comma on the last member, if this file uses them.
 	last := &obj.Members[len(obj.Members)-1]
-	if !fs.isStandard {
+	if fs.trailingCommas {
 		last.Value.AfterExtra = ensureTrailingComma(last.Value.AfterExtra)
 	}
 
@@ -157,7 +202,7 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	}
 
 	// Keep short primitive arrays on one line.
-	// Note: inlined arrays intentionally omit trailing commas even in JSONC files.
+	// Note: inlined arrays intentionally omit trailing commas.
 	// A single-line array like [1, 2, 3] is cleaner without a trailing comma.
 	if isInlineArray(arr) {
 		for i := range arr.Elements {
@@ -182,9 +227,9 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 		fs.formatValue(&arr.Elements[i], depth+1)
 	}
 
-	// Trailing comma for JSONC.
+	// Trailing comma on the last element, if this file uses them.
 	last := &arr.Elements[len(arr.Elements)-1]
-	if !fs.isStandard {
+	if fs.trailingCommas {
 		last.AfterExtra = ensureTrailingComma(last.AfterExtra)
 	}
 

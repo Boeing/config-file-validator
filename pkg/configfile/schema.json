@@ -194,6 +194,15 @@
           ],
           "description": "Scalar quoting style. Only affects YAML. Default: preserve."
         },
+        "trailing-commas": {
+          "type": "string",
+          "enum": [
+            "all",
+            "none",
+            "preserve"
+          ],
+          "description": "Trailing commas on multiline collections. Only affects JSONC. Default: preserve (match the style already used by the file)."
+        },
         "json": {
           "$ref": "#/$defs/format-options"
         },
@@ -266,6 +275,14 @@
           "enum": [
             "double",
             "single",
+            "preserve"
+          ]
+        },
+        "trailing-commas": {
+          "type": "string",
+          "enum": [
+            "all",
+            "none",
             "preserve"
           ]
         }

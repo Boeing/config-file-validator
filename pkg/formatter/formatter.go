@@ -66,7 +66,25 @@ type Options struct {
 	// XMLSelfClosingSpace adds a space before /> in self-closing tags.
 	// true: <br /> ; false: <br/>
 	XMLSelfClosingSpace bool
+
+	// TrailingCommas controls trailing commas on multiline collections.
+	// Only applies to formats that permit them (JSONC).
+	TrailingCommas TrailingCommas
 }
+
+// TrailingCommas controls trailing commas on multiline collections.
+type TrailingCommas int
+
+const (
+	// TrailingCommasPreserve matches the style already used by the file:
+	// a file with any trailing comma gets them everywhere, a file with
+	// none keeps none.
+	TrailingCommasPreserve TrailingCommas = iota
+	// TrailingCommasAll always adds trailing commas.
+	TrailingCommasAll
+	// TrailingCommasNone always removes trailing commas.
+	TrailingCommasNone
+)
 
 // IndentStyle selects between spaces and tabs.
 type IndentStyle int

@@ -720,6 +720,16 @@ func applyFormatOptions(opts *formatter.Options, cfg *configfile.FormatOptions) 
 			opts.QuoteStyle = formatter.QuotePreserve
 		}
 	}
+	if cfg.TrailingCommas != nil {
+		switch *cfg.TrailingCommas {
+		case "all":
+			opts.TrailingCommas = formatter.TrailingCommasAll
+		case "none":
+			opts.TrailingCommas = formatter.TrailingCommasNone
+		default:
+			opts.TrailingCommas = formatter.TrailingCommasPreserve
+		}
+	}
 }
 
 // applyCLIFormatFlags overlays explicitly-set CLI flags onto opts.
