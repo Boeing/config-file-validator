@@ -662,7 +662,7 @@ func formatDefaults(formatName string) formatter.Options {
 			IndentWidth:  2,
 			FinalNewline: true,
 			LineEnding:   formatter.LineEndingLF,
-			SortKeys:     true,
+			SortKeys:     false,
 			QuoteStyle:   formatter.QuotePreserve,
 		}
 	case "yaml":

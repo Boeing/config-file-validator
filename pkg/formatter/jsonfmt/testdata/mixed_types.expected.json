@@ -1,14 +1,14 @@
 {
+  "str": "hello",
+  "num": 42,
+  "float": 3.14,
+  "bool": true,
+  "null": null,
   "arr": [
     1,
     2
   ],
-  "bool": true,
-  "float": 3.14,
-  "null": null,
-  "num": 42,
   "obj": {
     "a": 1
-  },
-  "str": "hello"
+  }
 }
