@@ -108,6 +108,26 @@ func TestSortKeysFalse(t *testing.T) {
 	require.Less(t, aPos, mPos, "a should come before m when SortKeys=false")
 }
 
+// TestShortArrayStaysOnOneLine verifies that arrays fitting within the default
+// max line width are kept on a single line rather than expanded.
+func TestShortArrayStaysOnOneLine(t *testing.T) {
+	t.Parallel()
+	src := []byte(`{"scripts":["pnpm install","pnpm build"]}`)
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), `["pnpm install", "pnpm build"]`)
+}
+
+// TestLongArrayIsExpanded verifies that an array exceeding the default max line
+// width is expanded to multiple lines.
+func TestLongArrayIsExpanded(t *testing.T) {
+	t.Parallel()
+	src := []byte(`{"items":["aaaaaaaaaa","bbbbbbbbbb","cccccccccc","dddddddddd","eeeeeeeeee"]}`)
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.NotContains(t, string(got), `["aaaaaaaaaa",`)
+}
+
 // TestFinalNewlineFalse verifies that FinalNewline=false strips the trailing newline.
 func TestFinalNewlineFalse(t *testing.T) {
 	t.Parallel()

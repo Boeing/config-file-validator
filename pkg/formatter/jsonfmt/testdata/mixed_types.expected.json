@@ -1,8 +1,5 @@
 {
-  "arr": [
-    1,
-    2
-  ],
+  "arr": [1, 2],
   "bool": true,
   "float": 3.14,
   "null": null,
