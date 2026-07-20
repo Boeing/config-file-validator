@@ -31,10 +31,25 @@ func (XMLValidator) ValidateXSD(b []byte, schemaPath string) (bool, error) {
 }
 
 // hasDOCTYPE reports whether b contains an XML DOCTYPE declaration.
-// The XML spec requires a DOCTYPE to appear before the root element,
-// so a plain substring scan is enough — no need to parse first.
+// It walks tokens rather than doing a plain substring scan, so a
+// "<!DOCTYPE" that only appears inside a comment does not count as a
+// real declaration. The XML spec requires a DOCTYPE to appear before
+// the root element, so scanning stops as soon as the root start
+// element is reached.
 func hasDOCTYPE(b []byte) bool {
-	return bytes.Contains(b, []byte("<!DOCTYPE"))
+	decoder := xml.NewDecoder(bytes.NewReader(b))
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			return false
+		}
+		if directive, ok := token.(xml.Directive); ok && bytes.HasPrefix(bytes.TrimSpace(directive), []byte("DOCTYPE")) {
+			return true
+		}
+		if _, ok := token.(xml.StartElement); ok {
+			return false
+		}
+	}
 }
 
 func (XMLValidator) ValidateSyntax(b []byte) (bool, error) {
