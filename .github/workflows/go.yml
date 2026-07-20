@@ -82,7 +82,7 @@ jobs:
       - name: Build
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-            go build -ldflags='-w -s -extldflags "-static"' -tags netgo -o validator cmd/validator/validator.go
+            go build -ldflags='-w -s -extldflags "-static"' -tags netgo -o cfv cmd/cfv/cfv.go
 
   test:
     needs: download
