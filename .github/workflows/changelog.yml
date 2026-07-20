@@ -19,6 +19,6 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: tarides/changelog-check-action@0189fc7eedec3ef3e9648c713908f6f2a6e99057 # v3
+      - uses: tarides/changelog-check-action@8f47e0becbfa549e4c82a3f562aa6f90d2c2ee8c # v4
         with:
           changelog: CHANGELOG.md
