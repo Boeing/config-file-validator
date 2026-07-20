@@ -631,8 +631,8 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 	}
 
 	return func(formatName string) formatter.Options {
-		// Start with format-specific defaults.
-		opts := formatDefaults()
+		// Start with the hardcoded defaults, shared by all formats.
+		opts := formatterDefaultOpts()
 
 		// Layer 2: .cfv.toml [format] (global)
 		if globalCfg != nil {
@@ -653,8 +653,8 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 	}
 }
 
-// formatDefaults returns the hardcoded default options for a specific format.
-func formatDefaults() formatter.Options {
+// formatterDefaultOpts returns the hardcoded default options shared by all formats.
+func formatterDefaultOpts() formatter.Options {
 	return formatter.Options{
 		IndentStyle:  formatter.IndentSpaces,
 		IndentWidth:  2,
