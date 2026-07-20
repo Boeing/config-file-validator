@@ -52,6 +52,7 @@ type Token struct {
 	ASTDepth   int  // mapping nesting depth from AST. -1 = not annotated.
 	InSeq      bool // true if this key is inside a sequence item (dash-relative indent)
 	SeqOffset  int  // number of ancestor non-dash sequence levels contributing +2 each
+	AtSeqItem  bool // true for a standalone comment that precedes a sequence-item dash
 }
 
 // tokenize lexes YAML source into a flat token stream.
