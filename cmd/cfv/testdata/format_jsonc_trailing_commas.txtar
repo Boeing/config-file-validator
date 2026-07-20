@@ -1,0 +1,74 @@
+# ============================================================
+# JSONC trailing comma handling (issue #559)
+# Proves: preserve (default) matches the file, "all" adds, "none" removes
+# ============================================================
+
+# Default: a file without trailing commas does not gain any
+cp nocomma_orig.jsonc nocomma_test.jsonc
+exec cfv format --fix --no-config nocomma_test.jsonc
+cmp nocomma_test.jsonc nocomma_orig.jsonc
+
+# Default: a file with trailing commas keeps them
+cp comma_orig.jsonc comma_test.jsonc
+exec cfv format --fix --no-config comma_test.jsonc
+cmp comma_test.jsonc comma_orig.jsonc
+
+# trailing-commas = "all" adds them to a file without any
+cp nocomma_orig.jsonc nocomma_test.jsonc
+exec cfv format --fix --config=cfv/all.toml nocomma_test.jsonc
+cmp nocomma_test.jsonc comma_orig.jsonc
+
+# trailing-commas = "none" removes them from a file that has them
+cp comma_orig.jsonc comma_test.jsonc
+exec cfv format --fix --config=cfv/none.toml comma_test.jsonc
+cmp comma_test.jsonc nocomma_orig.jsonc
+
+# Per-format [format.jsonc] overrides the global [format] setting
+cp nocomma_orig.jsonc nocomma_test.jsonc
+exec cfv format --fix --config=cfv/all_performat.toml nocomma_test.jsonc
+cmp nocomma_test.jsonc comma_orig.jsonc
+
+-- nocomma_test.jsonc --
+// Config
+{
+  "nested": {
+    "a": 1,
+    "b": 2
+  }
+}
+-- nocomma_orig.jsonc --
+// Config
+{
+  "nested": {
+    "a": 1,
+    "b": 2
+  }
+}
+-- comma_test.jsonc --
+// Config
+{
+  "nested": {
+    "a": 1,
+    "b": 2,
+  },
+}
+-- comma_orig.jsonc --
+// Config
+{
+  "nested": {
+    "a": 1,
+    "b": 2,
+  },
+}
+-- cfv/all.toml --
+[format]
+trailing-commas = "all"
+-- cfv/none.toml --
+[format]
+trailing-commas = "none"
+-- cfv/all_performat.toml --
+[format]
+trailing-commas = "none"
+
+[format.jsonc]
+trailing-commas = "all"
