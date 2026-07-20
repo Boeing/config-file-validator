@@ -632,7 +632,7 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 
 	return func(formatName string) formatter.Options {
 		// Start with format-specific defaults.
-		opts := formatDefaults(formatName)
+		opts := formatDefaults()
 
 		// Layer 2: .cfv.toml [format] (global)
 		if globalCfg != nil {
@@ -654,34 +654,14 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 }
 
 // formatDefaults returns the hardcoded default options for a specific format.
-func formatDefaults(formatName string) formatter.Options {
-	switch formatName {
-	case "json":
-		return formatter.Options{
-			IndentStyle:  formatter.IndentSpaces,
-			IndentWidth:  2,
-			FinalNewline: true,
-			LineEnding:   formatter.LineEndingLF,
-			SortKeys:     false,
-			QuoteStyle:   formatter.QuotePreserve,
-		}
-	case "yaml":
-		return formatter.Options{
-			IndentStyle:  formatter.IndentSpaces,
-			IndentWidth:  2,
-			FinalNewline: true,
-			LineEnding:   formatter.LineEndingLF,
-			SortKeys:     false,
-			QuoteStyle:   formatter.QuotePreserve,
-		}
-	default:
-		return formatter.Options{
-			IndentStyle:  formatter.IndentSpaces,
-			IndentWidth:  2,
-			FinalNewline: true,
-			LineEnding:   formatter.LineEndingLF,
-			QuoteStyle:   formatter.QuotePreserve,
-		}
+func formatDefaults() formatter.Options {
+	return formatter.Options{
+		IndentStyle:  formatter.IndentSpaces,
+		IndentWidth:  2,
+		FinalNewline: true,
+		LineEnding:   formatter.LineEndingLF,
+		SortKeys:     false,
+		QuoteStyle:   formatter.QuotePreserve,
 	}
 }
 
