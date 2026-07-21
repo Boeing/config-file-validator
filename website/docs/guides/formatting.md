@@ -48,6 +48,33 @@ Running `cfv format --fix` twice always produces the same output. If a file is a
 
 ## Configuration
 
+Format settings are resolved per file, lowest priority first:
+
+`.editorconfig` → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
+
+### `.editorconfig`
+
+If your project has an `.editorconfig`, cfv reads it and uses it as the baseline,
+so formatted output matches what your editors already produce without any cfv
+configuration. The properties cfv understands:
+
+| EditorConfig property  | cfv option       |
+|------------------------|------------------|
+| `indent_style`         | Spaces or tabs   |
+| `indent_size`          | Indent width     |
+| `end_of_line`          | Line ending      |
+| `insert_final_newline` | Trailing newline |
+
+Resolution follows the EditorConfig spec: glob sections are matched against each
+file individually, `.editorconfig` files in parent directories apply to nested
+files, and `root = true` stops the upward search. Other properties are ignored,
+and an unreadable or malformed `.editorconfig` is skipped rather than failing the
+run.
+
+Pass `--no-editorconfig` to ignore `.editorconfig` entirely.
+
+### `.cfv.toml`
+
 Format settings live in `.cfv.toml` at the root of your project.
 
 Global defaults apply to all formats. Per-format sections override them:
@@ -69,13 +96,14 @@ With this config, all formats use 2-space indent with keys unsorted, except TOML
 
 ## CLI flags
 
-These flags override `.cfv.toml` settings for a single invocation:
+These flags override `.cfv.toml` and `.editorconfig` settings for a single invocation:
 
 | Flag | Effect |
 |------|--------|
 | `--indent <n>` | Set indent width |
 | `--sort-keys` | Sort keys alphabetically |
 | `--no-final-newline` | Omit trailing newline |
+| `--no-editorconfig` | Ignore `.editorconfig` files |
 
 Example: check formatting with 4-space indent regardless of config file:
 

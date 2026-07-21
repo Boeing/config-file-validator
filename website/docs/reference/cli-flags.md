@@ -63,6 +63,7 @@ Checks formatting of config files. With `--fix`, rewrites files in place. With `
 | `-diff`       | bool   | `false` | Print unified diff of formatting changes. Mutually exclusive with `-fix`. |
 | `-indent`     | int    | `2`     | Override indent width (number of spaces per level).           |
 | `-sort-keys`  | bool   | `false` | Sort mapping keys alphabetically.                            |
+| `-no-editorconfig` | bool | `false` | Ignore `.editorconfig` files when resolving format options. |
 
 ### Shared flags
 
