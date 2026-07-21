@@ -2,12 +2,15 @@ package validator
 
 import (
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Boeing/config-file-validator/v2/pkg/tools"
 )
 
 // xsNamespace is the W3C XML Schema namespace URI.
@@ -364,8 +367,8 @@ func Test_JSONValidateSchemaArrayRoot(t *testing.T) {
 func Test_JSONValidateSchemaValid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	doc := `{"$schema": "` + schema + `", "host": "db.example.com", "port": 5432, "database": "mydb"}`
-	valid, err := JSONValidator{}.ValidateSchema([]byte(doc), "")
+	doc := `{"$schema": "schema.json", "host": "db.example.com", "port": 5432, "database": "mydb"}`
+	valid, err := JSONValidator{}.ValidateSchema([]byte(doc), filepath.Join(filepath.Dir(schema), "config.json"))
 	require.True(t, valid)
 	require.NoError(t, err)
 }
@@ -373,8 +376,8 @@ func Test_JSONValidateSchemaValid(t *testing.T) {
 func Test_JSONValidateSchemaInvalidDoc(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	doc := `{"$schema": "` + schema + `", "host": "db.example.com", "port": "not_a_number", "database": "mydb"}`
-	valid, err := JSONValidator{}.ValidateSchema([]byte(doc), "")
+	doc := `{"$schema": "schema.json", "host": "db.example.com", "port": "not_a_number", "database": "mydb"}`
+	valid, err := JSONValidator{}.ValidateSchema([]byte(doc), filepath.Join(filepath.Dir(schema), "config.json"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, "schema validation failed")
 }
@@ -389,7 +392,7 @@ func Test_YAMLValidateSchemaNoSchema(t *testing.T) {
 func Test_YAMLValidateSchemaWithComment(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	yaml := "# yaml-language-server: $schema=" + schema + "\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
+	yaml := "# yaml-language-server: $schema=schema.json\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
 	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), filepath.Join(filepath.Dir(schema), "test.yaml"))
 	require.True(t, valid)
 	require.NoError(t, err)
@@ -398,7 +401,7 @@ func Test_YAMLValidateSchemaWithComment(t *testing.T) {
 func Test_YAMLValidateSchemaInvalid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	yaml := "# yaml-language-server: $schema=" + schema + "\nhost: db.example.com\nport: not_a_number\ndatabase: mydb\n"
+	yaml := "# yaml-language-server: $schema=schema.json\nhost: db.example.com\nport: not_a_number\ndatabase: mydb\n"
 	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), filepath.Join(filepath.Dir(schema), "test.yaml"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, "schema validation failed")
@@ -407,7 +410,7 @@ func Test_YAMLValidateSchemaInvalid(t *testing.T) {
 func Test_YAMLValidateSchemaCommentAfterBlank(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	yaml := "\n# yaml-language-server: $schema=" + schema + "\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
+	yaml := "\n# yaml-language-server: $schema=schema.json\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
 	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), filepath.Join(filepath.Dir(schema), "test.yaml"))
 	require.True(t, valid)
 	require.NoError(t, err)
@@ -432,7 +435,7 @@ func Test_TomlValidateSchemaNoSchema(t *testing.T) {
 func Test_TomlValidateSchemaValid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	toml := `"$schema" = "` + schema + "\"\nhost = \"db.example.com\"\nport = 5432\ndatabase = \"mydb\"\n"
+	toml := `"$schema" = "schema.json"` + "\nhost = \"db.example.com\"\nport = 5432\ndatabase = \"mydb\"\n"
 	valid, err := TomlValidator{}.ValidateSchema([]byte(toml), filepath.Join(filepath.Dir(schema), "test.toml"))
 	require.True(t, valid)
 	require.NoError(t, err)
@@ -441,7 +444,7 @@ func Test_TomlValidateSchemaValid(t *testing.T) {
 func Test_TomlValidateSchemaInvalid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	toml := `"$schema" = "` + schema + "\"\nhost = \"db.example.com\"\nport = \"not_a_number\"\ndatabase = \"mydb\"\n"
+	toml := `"$schema" = "schema.json"` + "\nhost = \"db.example.com\"\nport = \"not_a_number\"\ndatabase = \"mydb\"\n"
 	valid, err := TomlValidator{}.ValidateSchema([]byte(toml), filepath.Join(filepath.Dir(schema), "test.toml"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, "schema validation failed")
@@ -457,7 +460,7 @@ func Test_ToonValidateSchemaNoSchema(t *testing.T) {
 func Test_ToonValidateSchemaValid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	toonDoc := "\"$schema\": " + schema + "\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
+	toonDoc := "\"$schema\": schema.json\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
 	valid, err := ToonValidator{}.ValidateSchema([]byte(toonDoc), filepath.Join(filepath.Dir(schema), "test.toon"))
 	require.True(t, valid)
 	require.NoError(t, err)
@@ -466,7 +469,7 @@ func Test_ToonValidateSchemaValid(t *testing.T) {
 func Test_ToonValidateSchemaInvalid(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	toonDoc := "\"$schema\": " + schema + "\nhost: db.example.com\nport: \"not_a_number\"\ndatabase: mydb\n"
+	toonDoc := "\"$schema\": schema.json\nhost: db.example.com\nport: \"not_a_number\"\ndatabase: mydb\n"
 	valid, err := ToonValidator{}.ValidateSchema([]byte(toonDoc), filepath.Join(filepath.Dir(schema), "test.toon"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, "schema validation failed")
@@ -586,14 +589,47 @@ func Test_resolveSchemaURLHTTPS(t *testing.T) {
 
 func Test_resolveSchemaURLAbsPath(t *testing.T) {
 	t.Parallel()
-	got := resolveSchemaURL("/opt/schemas/schema.json", "/some/file.json")
-	require.Equal(t, "file:///opt/schemas/schema.json", got)
+	schema := filepath.Join(t.TempDir(), "schema.json")
+	got := resolveSchemaURL(schema, filepath.Join(filepath.Dir(schema), "config.json"))
+	require.Equal(t, tools.FileURL(schema), got)
 }
 
 func Test_resolveSchemaURLRelative(t *testing.T) {
 	t.Parallel()
-	got := resolveSchemaURL("schema.json", "/project/config/file.json")
-	require.Equal(t, "file:///project/config/schema.json", got)
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "config", "file.json")
+	got := resolveSchemaURL("schema.json", filePath)
+	require.Equal(t, tools.FileURL(filepath.Join(dir, "config", "schema.json")), got)
+}
+
+func Test_JSONValidateSchemaAbsoluteLocalPath(t *testing.T) {
+	t.Parallel()
+	schema := writeTestSchema(t)
+	doc, err := json.Marshal(map[string]any{
+		"$schema":  schema,
+		"host":     "db.example.com",
+		"port":     5432,
+		"database": "mydb",
+	})
+	require.NoError(t, err)
+
+	valid, err := JSONValidator{}.ValidateSchema(doc, filepath.Join(filepath.Dir(schema), "config.json"))
+	require.NoError(t, err)
+	require.True(t, valid)
+}
+
+func Test_JSONValidateSchemaEscapedRelativePath(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	schemaDir := filepath.Join(dir, "schemas #1")
+	require.NoError(t, os.Mkdir(schemaDir, 0700))
+	schema := filepath.Join(schemaDir, "schema file.json")
+	require.NoError(t, os.WriteFile(schema, []byte(`{"type":"object"}`), 0600))
+	doc := []byte(`{"$schema":"schemas #1/schema file.json"}`)
+
+	valid, err := JSONValidator{}.ValidateSchema(doc, filepath.Join(dir, "config.json"))
+	require.NoError(t, err)
+	require.True(t, valid)
 }
 
 // --- ValidateSchema edge cases ---
@@ -828,6 +864,14 @@ func Test_XMLNoDTDStillPasses(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_XMLDOCTYPEInCommentStillPasses(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?><!-- <!DOCTYPE config> --><root/>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
 func writeTestXSD(t *testing.T) string {
 	t.Helper()
 	xsd := `<?xml version="1.0" encoding="UTF-8"?>` +
@@ -855,12 +899,12 @@ func Test_JSONCValidateSchemaValid(t *testing.T) {
 	schema := writeTestSchema(t)
 	doc := `// server config
 {
-  "$schema": "` + schema + `",
+  "$schema": "schema.json",
   "host": "db.example.com",
   "port": 5432,
   "database": "mydb",
 }`
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), "")
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), filepath.Join(filepath.Dir(schema), "config.json"))
 	require.True(t, valid)
 	require.NoError(t, err)
 }
@@ -870,12 +914,12 @@ func Test_JSONCValidateSchemaInvalidDoc(t *testing.T) {
 	schema := writeTestSchema(t)
 	doc := `// server config
 {
-  "$schema": "` + schema + `",
+  "$schema": "schema.json",
   "host": "db.example.com",
   "port": "not_a_number", // wrong type
   "database": "mydb"
 }`
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), "")
+	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), filepath.Join(filepath.Dir(schema), "config.json"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, "schema validation failed")
 }
@@ -1120,8 +1164,8 @@ func Test_buildYAMLPositionMapInvalidYAML(t *testing.T) {
 func Test_JSONSchemaErrorPositions(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	doc := []byte("{\n  \"$schema\": \"" + schema + "\",\n  \"host\": \"db.example.com\",\n  \"port\": \"not_a_number\",\n  \"database\": \"mydb\"\n}")
-	valid, err := JSONValidator{}.ValidateSchema(doc, "")
+	doc := []byte("{\n  \"$schema\": \"schema.json\",\n  \"host\": \"db.example.com\",\n  \"port\": \"not_a_number\",\n  \"database\": \"mydb\"\n}")
+	valid, err := JSONValidator{}.ValidateSchema(doc, filepath.Join(filepath.Dir(schema), "config.json"))
 	require.False(t, valid)
 
 	var se *SchemaErrors
@@ -1138,7 +1182,7 @@ func Test_JSONSchemaErrorPositions(t *testing.T) {
 func Test_YAMLSchemaErrorPositions(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
-	yaml := "# yaml-language-server: $schema=" + schema + "\nhost: db.example.com\nport: not_a_number\ndatabase: mydb\n"
+	yaml := "# yaml-language-server: $schema=schema.json\nhost: db.example.com\nport: not_a_number\ndatabase: mydb\n"
 	valid, err := YAMLValidator{}.ValidateSchema([]byte(yaml), filepath.Join(filepath.Dir(schema), "test.yaml"))
 	require.False(t, valid)
 
@@ -1156,8 +1200,8 @@ func Test_SchemaErrorPositionZeroWhenNoMatch(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
 	// Missing required field "host" — no position since the key doesn't exist
-	doc := []byte("{\n  \"$schema\": \"" + schema + "\",\n  \"port\": 5432,\n  \"database\": \"mydb\"\n}")
-	valid, err := JSONValidator{}.ValidateSchema(doc, "")
+	doc := []byte("{\n  \"$schema\": \"schema.json\",\n  \"port\": 5432,\n  \"database\": \"mydb\"\n}")
+	valid, err := JSONValidator{}.ValidateSchema(doc, filepath.Join(filepath.Dir(schema), "config.json"))
 	require.False(t, valid)
 
 	var se *SchemaErrors

@@ -239,6 +239,9 @@ stdout '×'
   <!ELEMENT config (host, port)>
   <!ELEMENT host (#PCDATA)>
   <!ELEMENT port (#PCDATA)>
+  <!ATTLIST config
+    xmlns:xsi CDATA #IMPLIED
+    xsi:noNamespaceSchemaLocation CDATA #IMPLIED>
 ]>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="schema.xsd">
