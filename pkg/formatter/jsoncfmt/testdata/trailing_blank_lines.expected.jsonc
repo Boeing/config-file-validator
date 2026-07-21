@@ -1,0 +1,18 @@
+{
+  // Keep blank lines between logical sections.
+  "sections": {
+    "first": 1,
+
+    "second": 2
+  },
+
+  "items": [
+    {
+      "name": "one"
+    },
+
+    {
+      "name": "two"
+    }
+  ]
+}
