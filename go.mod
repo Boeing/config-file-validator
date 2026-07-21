@@ -25,7 +25,7 @@ require (
 )
 
 require (
-	cuelang.org/go v0.17.0
+	cuelang.org/go v0.17.1
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sblinch/kdl-go v0.0.0-20260121213736-8b7053306ca6
