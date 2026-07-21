@@ -674,6 +674,15 @@ func formatDefaults(formatName string) formatter.Options {
 			SortKeys:     false,
 			QuoteStyle:   formatter.QuotePreserve,
 		}
+	case "toml":
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  0,
+			FinalNewline: true,
+			LineEnding:   formatter.LineEndingLF,
+			SortKeys:     false,
+			QuoteStyle:   formatter.QuotePreserve,
+		}
 	default:
 		return formatter.Options{
 			IndentStyle:  formatter.IndentSpaces,

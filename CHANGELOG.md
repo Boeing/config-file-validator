@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- TOML formatting now leaves entries under table headers unindented by default while preserving explicit indentation overrides (closes #558).
 - Global `--help` now exits after printing usage instead of running validation on the current directory.
 - Update Go and npm dependencies to resolve 22 known vulnerabilities (CVE-2026-25680, CVE-2026-48779, and others).
 - TOML files with duplicate keys are now rejected as invalid (closes #504).
