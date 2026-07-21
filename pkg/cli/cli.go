@@ -394,7 +394,7 @@ func toSchemaURL(schemaPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolving schema path: %w", err)
 	}
-	return "file://" + absSchema, nil
+	return tools.FileURL(absSchema), nil
 }
 
 func (c *CLI) printReports(reports []reporter.Report) error {
