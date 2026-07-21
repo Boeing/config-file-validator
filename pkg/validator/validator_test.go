@@ -10,8 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Boeing/config-file-validator/v3/pkg/tools"
-)
+	"github.com/Boeing/config-file-validator/v3/pkg/tools")
 
 // xsNamespace is the W3C XML Schema namespace URI.
 // Extracted as a constant to avoid DevSkim DS137138 false positives
