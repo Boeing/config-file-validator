@@ -342,6 +342,19 @@ func Test_CLISchemaMapValid(t *testing.T) {
 	require.Equal(t, 0, exitStatus)
 }
 
+func Test_toSchemaURLLocalPath(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "schemas #1")
+	require.NoError(t, os.Mkdir(dir, 0700))
+	schema := testhelper.WriteFile(t, dir, "schema file.json", `{"type":"object"}`)
+
+	schemaURL, err := toSchemaURL(schema)
+	require.NoError(t, err)
+	valid, err := validator.JSONSchemaValidate(schemaURL, []byte(`{}`))
+	require.NoError(t, err)
+	require.True(t, valid)
+}
+
 func Test_CLISchemaMapInvalid(t *testing.T) {
 	dir := t.TempDir()
 	testhelper.WriteFile(t, dir, "config.json", `{"host": "db", "port": "bad"}`)
@@ -584,11 +597,11 @@ func Test_CLIDocumentSchemaPriorityOverAll(t *testing.T) {
 	// Document $schema should win over schema-map and schemastore
 	dir := t.TempDir()
 	bundle := setupMiniSchemaStore(t)
-	ownSchema := testhelper.WriteFile(t, dir, "own.json", `{
+	testhelper.WriteFile(t, dir, "own.json", `{
 		"type": "object",
 		"properties": {"title": {"type": "string"}}
 	}`)
-	testhelper.WriteFile(t, dir, "package.json", `{"$schema": "`+ownSchema+`", "title": "hello"}`)
+	testhelper.WriteFile(t, dir, "package.json", `{"$schema": "own.json", "title": "hello"}`)
 	strict := testhelper.WriteFile(t, dir, "strict.json", `{
 		"type": "object",
 		"required": ["id"],
@@ -630,13 +643,13 @@ func Test_CLIRequireSchemaWithSchemaStore(t *testing.T) {
 func Test_CLINoSchema(t *testing.T) {
 	// File with $schema should pass syntax-only when --no-schema is set
 	dir := t.TempDir()
-	schema := testhelper.WriteFile(t, dir, "schema.json", `{
+	testhelper.WriteFile(t, dir, "schema.json", `{
 		"type": "object",
 		"required": ["id"],
 		"additionalProperties": false
 	}`)
 	// This file would FAIL schema validation (missing "id", extra "name")
-	testhelper.WriteFile(t, dir, "config.json", `{"$schema": "`+schema+`", "name": "test"}`)
+	testhelper.WriteFile(t, dir, "config.json", `{"$schema": "schema.json", "name": "test"}`)
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(dir + "/config.json"),
