@@ -50,7 +50,7 @@ Running `cfv format --fix` twice always produces the same output. If a file is a
 
 Format settings are resolved per file, lowest priority first:
 
-`.editorconfig` → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
+`.editorconfig` → `taplo.toml` → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
 
 ### `.editorconfig`
 
@@ -72,6 +72,30 @@ and an unreadable or malformed `.editorconfig` is skipped rather than failing th
 run.
 
 Pass `--no-editorconfig` to ignore `.editorconfig` entirely.
+
+### `taplo.toml`
+
+Rust projects usually configure TOML formatting with [taplo](https://taplo.tamasfe.dev/).
+cfv reads the nearest `taplo.toml` (or `.taplo.toml`), searching the current
+directory and its parents, and applies it to TOML files only:
+
+| Taplo option                   | cfv option       |
+|--------------------------------|------------------|
+| `formatting.indent_string`     | Indent width, or tabs |
+| `formatting.column_width`      | Max line width   |
+| `formatting.trailing_newline`  | Trailing newline |
+| `formatting.reorder_keys`      | Sort keys        |
+| `formatting.crlf`              | Line ending      |
+| `formatting.array_trailing_comma` | Trailing commas |
+
+Everything else is ignored, including `[[rule]]` sections and the options cfv
+has no equivalent for: `align_entries`, `align_comments`, `compact_arrays`,
+`compact_inline_tables`, `array_auto_expand`, and `array_auto_collapse`. A
+project that relies on those may still see cfv diverge from taplo on those
+specific behaviors. An unreadable or malformed `taplo.toml` is skipped rather
+than failing the run.
+
+Pass `--no-taplo-config` to ignore `taplo.toml` entirely.
 
 ### `.cfv.toml`
 
@@ -96,7 +120,7 @@ With this config, all formats use 2-space indent with keys unsorted, except TOML
 
 ## CLI flags
 
-These flags override `.cfv.toml` and `.editorconfig` settings for a single invocation:
+These flags override `.cfv.toml`, `taplo.toml`, and `.editorconfig` settings for a single invocation:
 
 | Flag | Effect |
 |------|--------|
@@ -104,6 +128,7 @@ These flags override `.cfv.toml` and `.editorconfig` settings for a single invoc
 | `--sort-keys` | Sort keys alphabetically |
 | `--no-final-newline` | Omit trailing newline |
 | `--no-editorconfig` | Ignore `.editorconfig` files |
+| `--no-taplo-config` | Ignore `taplo.toml` files |
 
 Example: check formatting with 4-space indent regardless of config file:
 

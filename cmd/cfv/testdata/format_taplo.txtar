@@ -1,0 +1,87 @@
+# ============================================================
+# taplo.toml auto-detection
+# Proves: CLI flags > .cfv.toml > taplo.toml > defaults,
+# TOML-only scope, .taplo.toml, and --no-taplo-config.
+# The taplo.toml is servo's, verbatim.
+# ============================================================
+
+# indent_string = "    " indents entries under a table header
+cp orig.toml app.toml
+exec cfv format --fix --no-config app.toml
+exec cat app.toml
+stdout '^    host'
+
+# --no-taplo-config falls back to the TOML default of no indentation
+cp orig.toml app.toml
+exec cfv format --fix --no-config --no-taplo-config app.toml
+exec cat app.toml
+stdout '^host'
+
+# .cfv.toml overrides taplo.toml
+cp orig.toml app.toml
+exec cfv format --fix --config=cfv/indent2.toml app.toml
+exec cat app.toml
+stdout '^  host'
+
+# CLI flags override both
+cp orig.toml app.toml
+exec cfv format --fix --config=cfv/indent2.toml --indent=8 app.toml
+exec cat app.toml
+stdout '^        host'
+
+# column_width = 120 keeps an 80-column array on one line
+cp orig-array.toml array.toml
+exec cfv format --fix --no-config array.toml
+exec cat array.toml
+stdout '^ports = \["aaaaaaaaaa"'
+
+# without taplo.toml the width is taplo's default of 80, so it expands
+cp orig-array.toml array.toml
+exec cfv format --fix --no-config --no-taplo-config array.toml
+exec cat array.toml
+stdout '^  "aaaaaaaaaa",'
+
+# taplo.toml configures TOML only, so JSON keeps the default 2-space indent
+exec cfv format --fix --no-config app.json
+exec cat app.json
+stdout '^  "key"'
+
+# .taplo.toml is discovered too
+cd dotted
+exec cfv format --fix --no-config app.toml
+exec cat app.toml
+stdout '^	host'
+
+-- taplo.toml --
+# upstream files we should not format
+exclude = ["third_party/**", "tests/**"]
+
+[formatting]
+array_auto_collapse = false
+array_auto_expand = false
+align_comments = false
+column_width = 120
+indent_string = "    "
+-- .editorconfig --
+root = true
+-- orig.toml --
+[server]
+host = "example"
+-- app.toml --
+[server]
+host = "example"
+-- orig-array.toml --
+ports = ["aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc", "dddddddddd", "eeeeeeeeee", "ffffff"]
+-- array.toml --
+ports = []
+-- app.json --
+{"key":{"nested":"value"}}
+-- cfv/indent2.toml --
+[format]
+indent = 2
+-- dotted/.taplo.toml --
+[formatting]
+indent_string = "\t"
+-- dotted/app.toml --
+[server]
+host = "example"

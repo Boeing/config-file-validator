@@ -56,8 +56,8 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 
 	printOpts := PrintOptions{
 		Indent:        buildIndent(opts),
-		ColumnWidth:   80,
-		TrailingComma: true,
+		ColumnWidth:   columnWidth(opts),
+		TrailingComma: opts.TrailingCommas != formatter.TrailingCommasNone,
 		AllowedBlanks: 2,
 		SortKeys:      opts.SortKeys,
 		FinalNewline:  opts.FinalNewline,
@@ -66,6 +66,15 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 
 	out := NewPrinter(printOpts).Print(groups)
 	return out, nil
+}
+
+// columnWidth returns the width at which arrays are broken onto multiple
+// lines. 0 means unset, which keeps taplo's default of 80.
+func columnWidth(opts formatter.Options) int {
+	if opts.MaxLineWidth > 0 {
+		return opts.MaxLineWidth
+	}
+	return 80
 }
 
 // buildIndent constructs the indent string from options.
