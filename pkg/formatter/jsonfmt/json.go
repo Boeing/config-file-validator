@@ -5,7 +5,7 @@
 //
 // Defaults:
 //   - 2-space indentation
-//   - sorted keys
+//   - original key order preserved
 //   - trailing newline
 package jsonfmt
 
@@ -31,7 +31,7 @@ func DefaultOptions() formatter.Options {
 		IndentStyle:  formatter.IndentSpaces,
 		IndentWidth:  2,
 		FinalNewline: true,
-		SortKeys:     true,
+		SortKeys:     false,
 	}
 }
 
