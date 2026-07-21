@@ -1,11 +1,6 @@
 # osv-scanner configuration
 # https://google.github.io/osv-scanner/configuration/
 
-[[IgnoredVulns]]
-id = "GHSA-h67p-54hq-rp68"
-reason = "js-yaml 3.14.2 is a transitive dependency of Docusaurus; waiting for upstream fix"
-ignoreUntil = "2026-10-07T00:00:00Z"
-
 # Go stdlib vulnerabilities. MegaLinter v9.6.0 ships Go 1.26.3 with
 # GOTOOLCHAIN=local and osv-scanner 2.3.8 (which always scans go.mod version).
 # These cannot be fixed without upgrading MegaLinter's container.
