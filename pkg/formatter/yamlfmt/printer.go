@@ -218,6 +218,9 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 				tokens[i].ASTDepth = tokens[j].ASTDepth
 				tokens[i].InSeq = tokens[j].InSeq
 				tokens[i].SeqOffset = tokens[j].SeqOffset
+				// When the comment precedes a sequence-item dash, it should align
+				// with the dash (item indent), not the item's content (base + 2).
+				tokens[i].AtSeqItem = lineHasDash(tokens, j)
 				break
 			}
 		}
@@ -353,7 +356,7 @@ func reindentTokens(tokens []Token, targetWidth int) {
 
 		var newIndent int
 		if tokens[i].Structural && tokens[i].ASTDepth >= 0 {
-			hasDash := lineHasDash(tokens, i)
+			hasDash := lineHasDash(tokens, i) || tokens[i].AtSeqItem
 			newIndent = computeNewIndent(tokens[i].ASTDepth, tokens[i].InSeq, hasDash, tokens[i].SeqOffset, targetWidth)
 			lastDelta = newIndent - oldIndent
 		} else {

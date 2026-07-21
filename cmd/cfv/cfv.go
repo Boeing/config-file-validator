@@ -662,7 +662,7 @@ func formatDefaults(formatName string) formatter.Options {
 			IndentWidth:  2,
 			FinalNewline: true,
 			LineEnding:   formatter.LineEndingLF,
-			SortKeys:     true,
+			SortKeys:     false,
 			QuoteStyle:   formatter.QuotePreserve,
 		}
 	case "yaml":
@@ -671,8 +671,8 @@ func formatDefaults(formatName string) formatter.Options {
 			IndentWidth:  2,
 			FinalNewline: true,
 			LineEnding:   formatter.LineEndingLF,
-			SortKeys:     false,
 			QuoteStyle:   formatter.QuotePreserve,
+			SortKeys:     false,
 		}
 	case "toml":
 		return formatter.Options{

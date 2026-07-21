@@ -27,10 +27,10 @@ stdout '        "key"'
 
 # --- SORT-KEYS ---
 
-# Default: JSON sorts keys (a before b before z)
+# Default: JSON preserves original key order (z first)
 cp sortkeys_orig.json sortkeys_test.json
 exec cfv format --fix --no-config .
-cmp sortkeys_test.json sortkeys_sorted.json
+cmp sortkeys_test.json sortkeys_unsorted.json
 
 # Global sort-keys = false preserves original order (z first)
 cp sortkeys_orig.json sortkeys_test.json
