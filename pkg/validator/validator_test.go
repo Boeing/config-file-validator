@@ -864,6 +864,14 @@ func Test_XMLNoDTDStillPasses(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_XMLDOCTYPEInCommentStillPasses(t *testing.T) {
+	t.Parallel()
+	xml := `<?xml version="1.0"?><!-- <!DOCTYPE config> --><root/>`
+	valid, err := XMLValidator{}.ValidateSyntax([]byte(xml))
+	require.True(t, valid)
+	require.NoError(t, err)
+}
+
 func writeTestXSD(t *testing.T) string {
 	t.Helper()
 	xsd := `<?xml version="1.0" encoding="UTF-8"?>` +
