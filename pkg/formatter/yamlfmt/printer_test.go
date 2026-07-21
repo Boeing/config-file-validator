@@ -59,6 +59,18 @@ func TestReindent(t *testing.T) {
 			width:  2,
 			expect: "# header\na:\n  # nested comment\n  b: 1\n",
 		},
+		{
+			name:   "comment before sequence item aligns with dash",
+			input:  "steps:\n    # Deploy\n    - name: Deploy\n      run: ./deploy.sh\n",
+			width:  2,
+			expect: "steps:\n  # Deploy\n  - name: Deploy\n    run: ./deploy.sh\n",
+		},
+		{
+			name:   "comment between keys in sequence item stays at content indent",
+			input:  "steps:\n  - name: a\n    # inner\n    run: b\n",
+			width:  2,
+			expect: "steps:\n  - name: a\n    # inner\n    run: b\n",
+		},
 	}
 
 	for _, tc := range cases {
