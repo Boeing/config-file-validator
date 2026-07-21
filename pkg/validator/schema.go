@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/xeipuuv/gojsonschema"
+
+	"github.com/Boeing/config-file-validator/v2/pkg/tools"
 )
 
 // SourcePosition holds a 1-based line and column in the original source file.
@@ -54,13 +56,13 @@ func validateJSONSchema(schemaURL string, docJSON []byte, posMap map[string]Sour
 }
 
 func resolveSchemaURL(schemaURL, filePath string) string {
+	if filepath.IsAbs(schemaURL) {
+		return tools.FileURL(schemaURL)
+	}
+
 	parsed, err := url.Parse(schemaURL)
 	if err == nil && parsed.Scheme != "" {
 		return schemaURL
-	}
-
-	if filepath.IsAbs(schemaURL) {
-		return "file://" + schemaURL
 	}
 
 	dir := filepath.Dir(filePath)
@@ -68,5 +70,5 @@ func resolveSchemaURL(schemaURL, filePath string) string {
 	if err != nil {
 		return schemaURL
 	}
-	return "file://" + absSchema
+	return tools.FileURL(absSchema)
 }
