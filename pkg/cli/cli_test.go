@@ -874,7 +874,7 @@ func Test_FormatCleanFiles(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep))
 
-	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
 		return formatter.Options{
 			IndentStyle:  formatter.IndentSpaces,
 			IndentWidth:  2,
@@ -896,7 +896,7 @@ func Test_FormatUnformattedFile(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep))
 
-	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
 		return formatter.Options{
 			IndentStyle:  formatter.IndentSpaces,
 			IndentWidth:  2,
@@ -918,7 +918,7 @@ func Test_FormatWithFix(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithFix(true))
 
-	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
 		return formatter.Options{
 			IndentStyle:  formatter.IndentSpaces,
 			IndentWidth:  2,
@@ -944,7 +944,7 @@ func Test_FormatWithDiff(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithDiff(true))
 
-	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
 		return formatter.Options{
 			IndentStyle:  formatter.IndentSpaces,
 			IndentWidth:  2,
@@ -969,7 +969,7 @@ func Test_FormatSkipsUnparseableFiles(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep))
 
-	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
 		return formatter.Options{
 			IndentStyle:  formatter.IndentSpaces,
 			IndentWidth:  2,
@@ -994,7 +994,7 @@ func Test_FormatBrokenSymlink(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep))
 
-	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
 		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
 	})
 	require.NoError(t, err)
@@ -1018,7 +1018,7 @@ func Test_FormatNoFormatterRegistered(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep))
 
-	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
 		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
 	})
 	require.NoError(t, err)
@@ -1036,7 +1036,7 @@ func Test_FormatYAMLDefaults(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep))
 
-	exitStatus, err := cli.Format(func(formatName string) formatter.Options {
+	exitStatus, err := cli.Format(func(formatName, _ string) formatter.Options {
 		opts := formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
 		if formatName == "json" {
 			opts.SortKeys = true
@@ -1064,7 +1064,7 @@ func Test_FormatFixUnwritableDirectory(t *testing.T) {
 	rep := &captureReporter{}
 	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithFix(true))
 
-	exitStatus, err := cli.Format(func(_ string) formatter.Options {
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
 		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true, SortKeys: true}
 	})
 	require.NoError(t, err)

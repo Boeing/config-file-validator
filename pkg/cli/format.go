@@ -16,8 +16,10 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 )
 
-// FormatOptionsFunc returns resolved format options for a given format name.
-type FormatOptionsFunc func(formatName string) formatter.Options
+// FormatOptionsFunc returns resolved format options for a given format name
+// and file path. The path matters because .editorconfig settings are resolved
+// per file.
+type FormatOptionsFunc func(formatName, path string) formatter.Options
 
 // Format runs the formatting pipeline.
 //
@@ -84,7 +86,7 @@ func (c *CLI) Format(optsFunc FormatOptionsFunc) (int, error) {
 		wg.Go(func() {
 			for idx := range jobCh {
 				j := jobs[idx]
-				opts := optsFunc(j.formatName)
+				opts := optsFunc(j.formatName, j.path)
 				results[idx] = c.formatFile(j.path, j.name, j.fmter, opts)
 			}
 		})
