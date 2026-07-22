@@ -67,6 +67,7 @@ type FormatOptions struct {
 	MaxLineWidth    *int    `toml:"max-line-width"`
 	QuoteStyle      *string `toml:"quote-style"`
 	TrailingCommas  *string `toml:"trailing-commas"`
+	IndentSequences *bool   `toml:"indent-sequences"`
 }
 
 // ValidatorOptions holds per-validator configuration.

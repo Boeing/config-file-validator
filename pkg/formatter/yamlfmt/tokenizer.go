@@ -53,6 +53,9 @@ type Token struct {
 	InSeq      bool // true if this key is inside a sequence item (dash-relative indent)
 	SeqOffset  int  // number of ancestor non-dash sequence levels contributing +2 each
 	AtSeqItem  bool // true for a standalone comment that precedes a sequence-item dash
+	// SequenceIndentDepth is the number of ancestor sequences that are direct
+	// mapping values and therefore contribute optional indentation.
+	SequenceIndentDepth int
 }
 
 // tokenize lexes YAML source into a flat token stream.

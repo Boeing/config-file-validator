@@ -46,7 +46,8 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	}
 
 	// Reindent: structural tokens get depth×width; continuations shift by parent delta.
-	reindentTokens(tokens, targetWidth)
+	reindentTokens(tokens, targetWidth,
+		opts.IndentSequences != formatter.SequenceIndentDisabled)
 
 	// Apply quote style preference.
 	if opts.QuoteStyle != formatter.QuotePreserve {
@@ -81,9 +82,10 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 // =============================================================================
 
 type lineMetadata struct {
-	depth     int
-	inSeq     bool
-	seqOffset int // number of ancestor non-dash sequence levels contributing +2 each
+	depth               int
+	inSeq               bool
+	seqOffset           int // number of ancestor non-dash sequence levels contributing +2 each
+	sequenceIndentDepth int // mapping-value sequence levels affecting indentation
 }
 
 // buildASTMetadata walks the yaml.v3 Node tree and returns metadata for each
@@ -98,16 +100,16 @@ func buildASTMetadata(src []byte) (map[int]lineMetadata, error) {
 		return nil, fmt.Errorf("cannot determine document structure: %w", err)
 	}
 	meta := make(map[int]lineMetadata)
-	collectMetadata(&root, meta, 0, false, 0)
+	collectMetadata(&root, meta, 0, false, 0, 0)
 	return meta, nil
 }
 
 //nolint:revive // inSeq is a recursive state parameter, not a control flag
-func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq bool, seqOffset int) {
+func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq bool, seqOffset, sequenceIndentDepth int) {
 	switch n.Kind {
 	case yaml.DocumentNode:
 		for _, c := range n.Content {
-			collectMetadata(c, meta, depth, false, seqOffset)
+			collectMetadata(c, meta, depth, false, seqOffset, sequenceIndentDepth)
 		}
 	case yaml.MappingNode:
 		for i := 0; i < len(n.Content); i += 2 {
@@ -116,7 +118,10 @@ func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq b
 			// This prevents flow values ({a: 1}) on the same line as
 			// their parent key from overwriting the parent's metadata.
 			if existing, ok := meta[key.Line]; !ok || existing.depth > depth {
-				meta[key.Line] = lineMetadata{depth: depth, inSeq: inSeq, seqOffset: seqOffset}
+				meta[key.Line] = lineMetadata{
+					depth: depth, inSeq: inSeq, seqOffset: seqOffset,
+					sequenceIndentDepth: sequenceIndentDepth,
+				}
 			}
 			if i+1 < len(n.Content) {
 				// Children of a non-dash seq key inherit seqOffset+1 because
@@ -125,7 +130,12 @@ func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq b
 				if inSeq {
 					childOffset = seqOffset + 1
 				}
-				collectMetadata(n.Content[i+1], meta, depth+1, false, childOffset)
+				childSequenceIndentDepth := sequenceIndentDepth
+				if n.Content[i+1].Kind == yaml.SequenceNode {
+					childSequenceIndentDepth++
+				}
+				collectMetadata(n.Content[i+1], meta, depth+1, false,
+					childOffset, childSequenceIndentDepth)
 			}
 		}
 	case yaml.SequenceNode:
@@ -133,15 +143,20 @@ func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq b
 			// Record the start line of each sequence item at this depth.
 			if item.Line > 0 {
 				if existing, ok := meta[item.Line]; !ok || existing.depth > depth {
-					meta[item.Line] = lineMetadata{depth: depth, inSeq: true, seqOffset: seqOffset}
+					meta[item.Line] = lineMetadata{
+						depth: depth, inSeq: true, seqOffset: seqOffset,
+						sequenceIndentDepth: sequenceIndentDepth,
+					}
 				}
 			}
 			if item.Kind == yaml.SequenceNode {
 				// Nested sequence: inner items are one level deeper.
 				// Don't increment seqOffset — the dash handles positioning.
-				collectMetadata(item, meta, depth+1, true, seqOffset)
+				collectMetadata(item, meta, depth+1, true, seqOffset,
+					sequenceIndentDepth)
 			} else {
-				collectMetadata(item, meta, depth, true, seqOffset)
+				collectMetadata(item, meta, depth, true, seqOffset,
+					sequenceIndentDepth)
 			}
 		}
 	case yaml.ScalarNode, yaml.AliasNode:
@@ -149,7 +164,10 @@ func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq b
 		// pair) need metadata so their lines get proper ASTDepth.
 		if inSeq && n.Line > 0 {
 			if existing, ok := meta[n.Line]; !ok || existing.depth > depth {
-				meta[n.Line] = lineMetadata{depth: depth, inSeq: true, seqOffset: seqOffset}
+				meta[n.Line] = lineMetadata{
+					depth: depth, inSeq: true, seqOffset: seqOffset,
+					sequenceIndentDepth: sequenceIndentDepth,
+				}
 			}
 		}
 	default:
@@ -173,12 +191,14 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 		tokens[i].ASTDepth = lm.depth
 		tokens[i].InSeq = lm.inSeq
 		tokens[i].SeqOffset = lm.seqOffset
+		tokens[i].SequenceIndentDepth = lm.sequenceIndentDepth
 		// Propagate to preceding indent token (reindent operates on indent tokens).
 		indentIdx := findPrecedingIndent(tokens, i)
 		if indentIdx >= 0 {
 			tokens[indentIdx].ASTDepth = lm.depth
 			tokens[indentIdx].InSeq = lm.inSeq
 			tokens[indentIdx].SeqOffset = lm.seqOffset
+			tokens[indentIdx].SequenceIndentDepth = lm.sequenceIndentDepth
 		}
 	}
 
@@ -199,6 +219,7 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 			tokens[indentIdx].ASTDepth = lm.depth
 			tokens[indentIdx].InSeq = lm.inSeq
 			tokens[indentIdx].SeqOffset = lm.seqOffset
+			tokens[indentIdx].SequenceIndentDepth = lm.sequenceIndentDepth
 		}
 	}
 
@@ -218,6 +239,7 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 				tokens[i].ASTDepth = tokens[j].ASTDepth
 				tokens[i].InSeq = tokens[j].InSeq
 				tokens[i].SeqOffset = tokens[j].SeqOffset
+				tokens[i].SequenceIndentDepth = tokens[j].SequenceIndentDepth
 				// When the comment precedes a sequence-item dash, it should align
 				// with the dash (item indent), not the item's content (base + 2).
 				tokens[i].AtSeqItem = lineHasDash(tokens, j)
@@ -230,8 +252,15 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 // computeNewIndent returns the target indentation for a structural line.
 //
 //nolint:revive // inSeq/hasDash are structural properties, not control flags
-func computeNewIndent(astDepth int, inSeq, hasDash bool, seqOffset, targetWidth int) int {
+func computeNewIndent(astDepth int, inSeq, hasDash bool, seqOffset,
+	sequenceIndentDepth, targetWidth int, indentSequences bool) int {
 	base := astDepth*targetWidth + seqOffset*2
+	if !indentSequences {
+		base -= sequenceIndentDepth * targetWidth
+		if base < 0 {
+			base = 0
+		}
+	}
 	if inSeq && !hasDash {
 		return base + 2
 	}
@@ -345,7 +374,7 @@ func collectStructuralLines(n *yaml.Node, lines map[int]bool) {
 // Continuation tokens (ASTDepth < 0 or non-structural): shift by same delta as
 // last structural token. Block scalars following a shifted indent also get
 // their content shifted.
-func reindentTokens(tokens []Token, targetWidth int) {
+func reindentTokens(tokens []Token, targetWidth int, indentSequences bool) {
 	lastDelta := 0
 
 	for i := range tokens {
@@ -357,7 +386,9 @@ func reindentTokens(tokens []Token, targetWidth int) {
 		var newIndent int
 		if tokens[i].Structural && tokens[i].ASTDepth >= 0 {
 			hasDash := lineHasDash(tokens, i) || tokens[i].AtSeqItem
-			newIndent = computeNewIndent(tokens[i].ASTDepth, tokens[i].InSeq, hasDash, tokens[i].SeqOffset, targetWidth)
+			newIndent = computeNewIndent(tokens[i].ASTDepth, tokens[i].InSeq,
+				hasDash, tokens[i].SeqOffset, tokens[i].SequenceIndentDepth,
+				targetWidth, indentSequences)
 			lastDelta = newIndent - oldIndent
 		} else {
 			newIndent = oldIndent + lastDelta

@@ -70,7 +70,24 @@ type Options struct {
 	// TrailingCommas controls trailing commas on multiline collections.
 	// Only applies to formats that permit them (JSONC).
 	TrailingCommas TrailingCommas
+
+	// IndentSequences controls whether YAML sequences used as mapping values
+	// receive an additional indentation level.
+	IndentSequences SequenceIndent
 }
+
+// SequenceIndent controls indentation of YAML sequences under mapping keys.
+type SequenceIndent int
+
+const (
+	// SequenceIndentDefault means the formatter uses its own convention.
+	SequenceIndentDefault SequenceIndent = iota
+	// SequenceIndentEnabled indents sequences one level under mapping keys.
+	SequenceIndentEnabled
+	// SequenceIndentDisabled keeps sequence indicators aligned with the key's
+	// value indentation.
+	SequenceIndentDisabled
+)
 
 // TrailingCommas controls trailing commas on multiline collections.
 type TrailingCommas int
