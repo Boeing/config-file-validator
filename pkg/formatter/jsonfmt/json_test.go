@@ -143,6 +143,17 @@ func TestCRLFLineEnding(t *testing.T) {
 	require.Contains(t, string(got), "\r\n", "expected CRLF line endings")
 }
 
+func TestCRLFPreservesBlankLines(t *testing.T) {
+	t.Parallel()
+	src := []byte("{\r\n  \"a\": 1,\r\n\r\n  \"b\": 2\r\n}\r\n")
+	opts := jsonfmt.DefaultOptions()
+	opts.LineEnding = formatter.LineEndingCRLF
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Equal(t, "{\r\n  \"a\": 1,\r\n\r\n  \"b\": 2\r\n}\r\n", string(got))
+}
+
 // TestIndentWidth4 verifies 4-space indent produces correctly indented output.
 func TestIndentWidth4(t *testing.T) {
 	t.Parallel()
