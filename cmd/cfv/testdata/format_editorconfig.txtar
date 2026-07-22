@@ -1,0 +1,78 @@
+# ============================================================
+# .editorconfig auto-detection
+# Proves: CLI flags > .cfv.toml > .editorconfig > defaults,
+# per-file globs, root = true, and --no-editorconfig.
+# ============================================================
+
+# .editorconfig indent_size = 6 replaces the default 2
+cp orig.json indent.json
+exec cfv format --fix --no-config indent.json
+exec cat indent.json
+stdout '      "key"'
+
+# --no-editorconfig falls back to the default 2
+cp orig.json indent.json
+exec cfv format --fix --no-config --no-editorconfig indent.json
+exec cat indent.json
+stdout '^  "key"'
+
+# .cfv.toml overrides .editorconfig
+cp orig.json indent.json
+exec cfv format --fix --config=cfv/indent4.toml indent.json
+exec cat indent.json
+stdout '^    "key"'
+
+# CLI flags override both
+cp orig.json indent.json
+exec cfv format --fix --config=cfv/indent4.toml --indent=8 indent.json
+exec cat indent.json
+stdout '        "key"'
+
+# Globs are matched per file: [*.yaml] wins over [*] for YAML only
+exec cfv format --fix --no-config app.yaml
+exec cat app.yaml
+stdout '^   nested:'
+
+# Formats that default to no indentation stay unindented: a project-wide
+# indent_size must not indent keys under a TOML table header
+exec cfv format --fix --no-config app.toml
+exec cat app.toml
+stdout '^host'
+
+# an explicit --indent still wins over that
+exec cfv format --fix --no-config --indent=2 app.toml
+exec cat app.toml
+stdout '^  host'
+
+# root = true stops the upward search, so the parent's indent_size = 6
+# does not apply and JSON falls back to the default 2
+cp orig.json rooted/f.json
+exec cfv format --fix --no-config rooted/f.json
+exec cat rooted/f.json
+stdout '^  "key"'
+
+-- .editorconfig --
+root = true
+
+[*]
+indent_size = 6
+
+[*.yaml]
+indent_size = 3
+-- orig.json --
+{"key":{"nested":"value"}}
+-- indent.json --
+{"key":{"nested":"value"}}
+-- app.yaml --
+key:
+    nested: value
+-- app.toml --
+[server]
+host = "example"
+-- rooted/.editorconfig --
+root = true
+-- rooted/f.json --
+{"key":{"nested":"value"}}
+-- cfv/indent4.toml --
+[format]
+indent = 4

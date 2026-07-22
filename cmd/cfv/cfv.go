@@ -87,14 +87,15 @@ type cfvConfig struct {
 	fix    *bool
 	unsafe *bool
 	// Format option flags (cfv format only).
-	fmtIndent       *int
-	fmtUseTabs      *bool
-	fmtSortKeys     *bool
-	fmtNoSortKeys   *bool
-	fmtLineEnding   *string
-	fmtMaxLineWidth *int
-	fmtQuoteStyle   *string
-	fmtDiff         *bool
+	fmtIndent         *int
+	fmtUseTabs        *bool
+	fmtSortKeys       *bool
+	fmtNoSortKeys     *bool
+	fmtLineEnding     *string
+	fmtMaxLineWidth   *int
+	fmtQuoteStyle     *string
+	fmtDiff           *bool
+	fmtNoEditorConfig *bool
 }
 
 // reporterConfig pairs a reporter format name with an optional output path.
@@ -515,14 +516,15 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		fixPtr       = fs.Bool("fix", false, "Rewrite files to canonical style")
 		unsafePtr    = fs.Bool("unsafe", false, "Apply unsafe formatting fixes (requires --fix) [not yet implemented]")
 		// Format option flags.
-		fmtIndentPtr       = fs.Int("indent", 0, "Override indent width (1-16). 0 = use config/default.")
-		fmtUseTabsPtr      = fs.Bool("use-tabs", false, "Use tabs for indentation")
-		fmtSortKeysPtr     = fs.Bool("sort-keys", false, "Sort object/mapping keys alphabetically")
-		fmtNoSortKeysPtr   = fs.Bool("no-sort-keys", false, "Disable key sorting (overrides config)")
-		fmtLineEndingPtr   = fs.String("line-ending", "", "Line ending: lf, crlf")
-		fmtMaxLineWidthPtr = fs.Int("max-line-width", 0, "Max line width hint (0 = unlimited)")
-		fmtQuoteStylePtr   = fs.String("quote-style", "", "Quote style: double, single, preserve")
-		fmtDiffPtr         = fs.Bool("diff", false, "Show unified diff instead of rewriting (implies no --fix)")
+		fmtIndentPtr         = fs.Int("indent", 0, "Override indent width (1-16). 0 = use config/default.")
+		fmtUseTabsPtr        = fs.Bool("use-tabs", false, "Use tabs for indentation")
+		fmtSortKeysPtr       = fs.Bool("sort-keys", false, "Sort object/mapping keys alphabetically")
+		fmtNoSortKeysPtr     = fs.Bool("no-sort-keys", false, "Disable key sorting (overrides config)")
+		fmtLineEndingPtr     = fs.String("line-ending", "", "Line ending: lf, crlf")
+		fmtMaxLineWidthPtr   = fs.Int("max-line-width", 0, "Max line width hint (0 = unlimited)")
+		fmtQuoteStylePtr     = fs.String("quote-style", "", "Quote style: double, single, preserve")
+		fmtNoEditorConfigPtr = fs.Bool("no-editorconfig", false, "Ignore .editorconfig files when resolving format options")
+		fmtDiffPtr           = fs.Bool("diff", false, "Show unified diff instead of rewriting (implies no --fix)")
 	)
 
 	fs.Var(&reporterConfigFlags, "reporter",
@@ -576,30 +578,31 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 	// Schema fields are nil for format — resolveFormatConfig does not use them.
 
 	return cfvConfig{
-		fs:               fs,
-		searchPaths:      searchPaths,
-		excludeDirs:      excludeDirsPtr,
-		excludeFileTypes: excludeTypesPtr,
-		fileTypes:        fileTypesPtr,
-		reportType:       reporterConf,
-		depth:            depthPtr,
-		groupOutput:      groupOutputPtr,
-		quiet:            quietPtr,
-		globbing:         globbingPtr,
-		configPath:       configPathPtr,
-		noConfig:         noConfigPtr,
-		gitignore:        gitignorePtr,
-		ignoreFiles:      ignoreFileConfigFlags,
-		fix:              fixPtr,
-		unsafe:           unsafePtr,
-		fmtIndent:        fmtIndentPtr,
-		fmtUseTabs:       fmtUseTabsPtr,
-		fmtSortKeys:      fmtSortKeysPtr,
-		fmtNoSortKeys:    fmtNoSortKeysPtr,
-		fmtLineEnding:    fmtLineEndingPtr,
-		fmtMaxLineWidth:  fmtMaxLineWidthPtr,
-		fmtQuoteStyle:    fmtQuoteStylePtr,
-		fmtDiff:          fmtDiffPtr,
+		fs:                fs,
+		searchPaths:       searchPaths,
+		excludeDirs:       excludeDirsPtr,
+		excludeFileTypes:  excludeTypesPtr,
+		fileTypes:         fileTypesPtr,
+		reportType:        reporterConf,
+		depth:             depthPtr,
+		groupOutput:       groupOutputPtr,
+		quiet:             quietPtr,
+		globbing:          globbingPtr,
+		configPath:        configPathPtr,
+		noConfig:          noConfigPtr,
+		gitignore:         gitignorePtr,
+		ignoreFiles:       ignoreFileConfigFlags,
+		fix:               fixPtr,
+		unsafe:            unsafePtr,
+		fmtIndent:         fmtIndentPtr,
+		fmtUseTabs:        fmtUseTabsPtr,
+		fmtSortKeys:       fmtSortKeysPtr,
+		fmtNoSortKeys:     fmtNoSortKeysPtr,
+		fmtLineEnding:     fmtLineEndingPtr,
+		fmtMaxLineWidth:   fmtMaxLineWidthPtr,
+		fmtQuoteStyle:     fmtQuoteStylePtr,
+		fmtDiff:           fmtDiffPtr,
+		fmtNoEditorConfig: fmtNoEditorConfigPtr,
 	}, nil
 }
 
@@ -610,10 +613,15 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 // buildFormatOptionsResolver builds a function that resolves format options
 // for any format name using the cascade:
 //
-//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > format-specific defaults
+//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > .editorconfig > format-specific defaults
 func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOptionsFunc {
 	var globalCfg *configfile.FormatOptions
 	var perFormatCfg map[string]*configfile.FormatOptions
+
+	var editorCfg *formatter.EditorConfig
+	if cfg.fmtNoEditorConfig == nil || !*cfg.fmtNoEditorConfig {
+		editorCfg = formatter.NewEditorConfig()
+	}
 
 	if rc.formatCfg != nil {
 		globalCfg = &rc.formatCfg.FormatOptions
@@ -630,23 +638,37 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 		}
 	}
 
-	return func(formatName string) formatter.Options {
+	return func(formatName, path string) formatter.Options {
 		// Start with format-specific defaults.
 		opts := formatDefaults(formatName)
 
-		// Layer 2: .cfv.toml [format] (global)
+		// Layer 2: .editorconfig (resolved per file)
+		if editorCfg != nil {
+			// A zero default width means the format is not indented at all
+			// (TOML keys under a table header). That is a property of the
+			// format rather than an editor preference, so a project-wide
+			// [*] indent_size must not reintroduce indentation. An explicit
+			// .cfv.toml or --indent still can, in the layers below.
+			unindented := opts.IndentWidth == 0
+			editorCfg.Apply(&opts, path)
+			if unindented {
+				opts.IndentWidth = 0
+			}
+		}
+
+		// Layer 3: .cfv.toml [format] (global)
 		if globalCfg != nil {
 			applyFormatOptions(&opts, globalCfg)
 		}
 
-		// Layer 3: .cfv.toml [format.<type>]
+		// Layer 4: .cfv.toml [format.<type>]
 		if perFormatCfg != nil {
 			if perFmt := perFormatCfg[formatName]; perFmt != nil {
 				applyFormatOptions(&opts, perFmt)
 			}
 		}
 
-		// Layer 4: CLI flags (highest priority)
+		// Layer 5: CLI flags (highest priority)
 		applyCLIFormatFlags(&opts, cfg)
 
 		return opts
