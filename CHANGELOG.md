@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Format configuration cascade: CLI flags > per-format config > global `[format]` config > `.editorconfig` > defaults
 - `trailing-commas` format option (`preserve` | `all` | `none`) to control trailing commas on multiline JSONC collections
 - `.editorconfig` auto-detection for `cfv format`: `indent_style`, `indent_size`, `end_of_line`, and `insert_final_newline` are resolved per file (globs, parent directories, and `root = true` are all respected). Disable with `--no-editorconfig` (closes #562)
+- `indent-sequences` YAML format option. Sequence items under mapping keys are indented by default; set it to `false` to restore the compact style (closes #582).
 - Schema validation support for JSONC files via `$schema`, `--schema-map`, and SchemaStore
 - Schema validation support for Properties files via `--schema-map` in `.cfv.toml`
 - **cfv 3.0 Phase 1**: Renamed binary from `validator` to `cfv`. This is a breaking change — no compatibility shim ships. Update scripts: `validator .` → `cfv check .`

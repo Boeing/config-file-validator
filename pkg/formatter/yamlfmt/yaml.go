@@ -36,9 +36,10 @@ var _ formatter.Formatter = Formatter{}
 // DefaultOptions returns the default formatting options for YAML.
 func DefaultOptions() formatter.Options {
 	return formatter.Options{
-		IndentStyle:  formatter.IndentSpaces,
-		IndentWidth:  2,
-		FinalNewline: true,
+		IndentStyle:     formatter.IndentSpaces,
+		IndentWidth:     2,
+		FinalNewline:    true,
+		IndentSequences: formatter.SequenceIndentEnabled,
 	}
 }
 
@@ -112,6 +113,9 @@ func resolveOptions(opts formatter.Options) formatter.Options {
 	}
 	if opts.IndentWidth == 0 {
 		opts.IndentWidth = defaults.IndentWidth
+	}
+	if opts.IndentSequences == formatter.SequenceIndentDefault {
+		opts.IndentSequences = defaults.IndentSequences
 	}
 	return opts
 }

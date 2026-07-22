@@ -22,6 +22,7 @@ line-ending = "lf"            # "lf" | "crlf". Line terminator.
 max-line-width = 0            # int, 0=unlimited. Hint for line wrapping.
 quote-style = "preserve"      # "double" | "single" | "preserve". Scalar quoting.
 trailing-commas = "preserve"  # "all" | "none" | "preserve". Trailing commas on multiline collections.
+indent-sequences = true       # bool. Indent YAML sequences under mapping keys.
 
 # Per-format overrides — same keys, override the global [format] values.
 [format.json]
@@ -49,6 +50,7 @@ quote-style = "double"        # Force double quotes on YAML scalars
 | `max-line-width` | int | 0–320 | `0` | json |
 | `quote-style` | string | `"double"`, `"single"`, `"preserve"` | `"preserve"` | yaml (json always double) |
 | `trailing-commas` | string | `"all"`, `"none"`, `"preserve"` | `"preserve"` | jsonc (json forbids them) |
+| `indent-sequences` | bool | — | `true` | yaml |
 
 ¹ JSON default: 2. YAML default: 2. HCL: ignored (always 2, HashiCorp canonical).
 ² JSON default: `true` (sorted). YAML default: `false` (preserve order).

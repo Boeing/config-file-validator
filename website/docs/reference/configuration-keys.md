@@ -57,6 +57,7 @@ The `[format]` table controls formatting behavior for `cfv format`.
 | `line-ending`      | string  | `"lf"`       | Line ending style: `"lf"` or `"crlf"`.                 |
 | `quote-style`      | string  | `"preserve"` | Quote style: `"preserve"`, `"double"`, or `"single"` (YAML only). |
 | `trailing-commas`  | string  | `"preserve"` | Trailing commas on multiline collections: `"preserve"` (match the file), `"all"`, or `"none"` (JSONC only). |
+| `indent-sequences` | boolean | `true`       | Indent YAML sequences used as mapping values by one additional level. Set to `false` for compact sequence indentation. |
 
 ### Per-format overrides
 
@@ -70,6 +71,7 @@ sort-keys = false
 [format.yaml]
 indent = 2
 quote-style = "double"
+indent-sequences = false
 
 [format.json]
 indent = 4

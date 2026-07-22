@@ -689,12 +689,13 @@ func formatDefaults(formatName string) formatter.Options {
 		}
 	case "yaml":
 		return formatter.Options{
-			IndentStyle:  formatter.IndentSpaces,
-			IndentWidth:  2,
-			FinalNewline: true,
-			LineEnding:   formatter.LineEndingLF,
-			QuoteStyle:   formatter.QuotePreserve,
-			SortKeys:     false,
+			IndentStyle:     formatter.IndentSpaces,
+			IndentWidth:     2,
+			FinalNewline:    true,
+			LineEnding:      formatter.LineEndingLF,
+			QuoteStyle:      formatter.QuotePreserve,
+			SortKeys:        false,
+			IndentSequences: formatter.SequenceIndentEnabled,
 		}
 	case "toml":
 		return formatter.Options{
@@ -759,6 +760,13 @@ func applyFormatOptions(opts *formatter.Options, cfg *configfile.FormatOptions) 
 			opts.TrailingCommas = formatter.TrailingCommasNone
 		default:
 			opts.TrailingCommas = formatter.TrailingCommasPreserve
+		}
+	}
+	if cfg.IndentSequences != nil {
+		if *cfg.IndentSequences {
+			opts.IndentSequences = formatter.SequenceIndentEnabled
+		} else {
+			opts.IndentSequences = formatter.SequenceIndentDisabled
 		}
 	}
 }

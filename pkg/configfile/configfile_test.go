@@ -214,6 +214,7 @@ trailing-newline = true
 line-ending = "lf"
 max-line-width = 80
 quote-style = "double"
+indent-sequences = false
 `)
 
 	cfg, err := Load(filepath.Join(dir, FileName))
@@ -225,6 +226,7 @@ quote-style = "double"
 	require.Equal(t, "lf", *cfg.Format.LineEnding)
 	require.Equal(t, 80, *cfg.Format.MaxLineWidth)
 	require.Equal(t, "double", *cfg.Format.QuoteStyle)
+	require.False(t, *cfg.Format.IndentSequences)
 }
 
 func TestLoadFormatPerType(t *testing.T) {
@@ -241,6 +243,7 @@ indent = 4
 [format.yaml]
 quote-style = "single"
 indent = 3
+indent-sequences = false
 `)
 
 	cfg, err := Load(filepath.Join(dir, FileName))
@@ -258,6 +261,7 @@ indent = 3
 	require.NotNil(t, cfg.Format.YAML)
 	require.Equal(t, 3, *cfg.Format.YAML.Indent)
 	require.Equal(t, "single", *cfg.Format.YAML.QuoteStyle)
+	require.False(t, *cfg.Format.YAML.IndentSequences)
 }
 
 func TestLoadFormatUnknownKey(t *testing.T) {

@@ -203,6 +203,10 @@
           ],
           "description": "Trailing commas on multiline collections. Only affects JSONC. Default: preserve (match the style already used by the file)."
         },
+        "indent-sequences": {
+          "type": "boolean",
+          "description": "Indent YAML sequences used as mapping values by one additional level. Default: true."
+        },
         "json": {
           "$ref": "#/$defs/format-options"
         },
@@ -285,6 +289,9 @@
             "none",
             "preserve"
           ]
+        },
+        "indent-sequences": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
