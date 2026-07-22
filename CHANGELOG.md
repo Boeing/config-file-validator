@@ -13,13 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formatting support for 9 formats: JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV
 - AST-driven YAML formatter: indent normalization, inline mapping/sequence spacing, flow collection normalization, and alphabetical key sorting
 - CST-based formatters for TOML, Properties, and INI using custom tokenizers that preserve comments and structure
-- JSONC formatting via hujson CST (preserves comments and existing trailing-comma style while normalizing whitespace)
+- JSONC formatting via hujson CST (preserves comments while normalizing whitespace and trailing commas)
 - `--indent` flag to override indent width on `cfv format`
 - `--sort-keys` flag to sort mapping keys alphabetically on `cfv format`
 - `--diff` flag for previewing formatting changes without modifying files
 - Per-format configuration in `.cfv.toml` via `[format.<type>]` tables (yaml, json, jsonc, toml, hcl, xml, ini, properties, env)
 - Format configuration cascade: CLI flags > per-format config > global `[format]` config > `.editorconfig` > defaults
-- `trailing-commas` format option (`preserve` | `all` | `none`) to control trailing commas on multiline JSONC collections
+- `trailing-comma` format option (`all` | `none` | `preserve`) to control trailing commas on expanded JSONC collections
 - `.editorconfig` auto-detection for `cfv format`: `indent_style`, `indent_size`, `end_of_line`, and `insert_final_newline` are resolved per file (globs, parent directories, and `root = true` are all respected). Disable with `--no-editorconfig` (closes #562)
 - Schema validation support for JSONC files via `$schema`, `--schema-map`, and SchemaStore
 - Schema validation support for Properties files via `--schema-map` in `.cfv.toml`
@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TOML formatting now leaves entries under table headers unindented by default while preserving explicit indentation overrides (closes #558).
 - XML files without a DOCTYPE declaration are validated as syntax-only again; `ValidateSyntax` now enables DTD validation only when a DOCTYPE is present, restoring compatibility after upgrading `helium` to v0.5.1's stricter "DTD required" semantics (closes #546)
 - Local JSON Schema paths are encoded as file URLs on Windows (closes #550)
-- JSONC formatting no longer adds trailing commas to files that do not already use them (closes #559).
+- JSONC `trailing-comma = "preserve"` mode retains the trailing-comma style already used by the file (closes #559).
 - Global `--help` now exits after printing usage instead of running validation on the current directory.
 - Update Go and npm dependencies to resolve 22 known vulnerabilities (CVE-2026-25680, CVE-2026-48779, and others).
 - TOML files with duplicate keys are now rejected as invalid (closes #504).
@@ -66,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- JSONC formatting now adds trailing commas to expanded objects and arrays by default, matching Prettier; collapsed collections and strict JSON remain unchanged (closes #589).
 - Refactored grouped standard and JSON output to support any number of `--groupby` levels.
 - Directory grouped output now uses slash-normalized directory keys without trailing separators; files in the current directory use an empty directory key.
 

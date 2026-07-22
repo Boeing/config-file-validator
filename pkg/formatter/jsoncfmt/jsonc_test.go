@@ -95,30 +95,42 @@ func TestInvalidJSONC(t *testing.T) {
 	}
 }
 
-// TestStandardJSONPassthrough verifies standard JSON input produces standard
-// JSON output (no trailing commas added).
-func TestStandardJSONPassthrough(t *testing.T) {
+// TestDefaultTrailingCommas verifies the JSONC default adds trailing commas to
+// expanded objects and arrays while leaving collapsed collections unchanged.
+func TestDefaultTrailingCommas(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
 		src  string
+		want string
 	}{
-		{"simple object", `{"a": 1, "b": 2}`},
-		{"nested", `{"outer": {"inner": true}}`},
-		{"array", `{"list": [1, 2, 3]}`},
-		{"empty object", `{}`},
-		{"empty array", `{"a": []}`},
+		{
+			"expanded object",
+			`{"a": 1, "b": 2}`,
+			"{\n  \"a\": 1,\n  \"b\": 2,\n}\n",
+		},
+		{
+			"expanded array",
+			`{"list": [{"id": 1}, {"id": 2}]}`,
+			"{\n  \"list\": [\n    {\n      \"id\": 1,\n    },\n    {\n      \"id\": 2,\n    },\n  ],\n}\n",
+		},
+		{
+			"collapsed array",
+			`[1, 2, 3]`,
+			"[1, 2, 3]\n",
+		},
+		{
+			"empty collections",
+			`{"object": {}, "array": []}`,
+			"{\n  \"object\": {},\n  \"array\": [],\n}\n",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := f.Format([]byte(tc.src), defaultOpts)
 			require.NoError(t, err)
-			// Standard JSON output must not contain trailing commas.
-			// A trailing comma is ",\n" followed by a closing bracket.
-			output := string(got)
-			require.NotContains(t, output, ",\n}", "trailing comma before }")
-			require.NotContains(t, output, ",\n]", "trailing comma before ]")
+			require.Equal(t, tc.want, string(got))
 		})
 	}
 }

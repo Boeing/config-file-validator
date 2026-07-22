@@ -214,6 +214,7 @@ trailing-newline = true
 line-ending = "lf"
 max-line-width = 80
 quote-style = "double"
+trailing-comma = "none"
 `)
 
 	cfg, err := Load(filepath.Join(dir, FileName))
@@ -225,6 +226,7 @@ quote-style = "double"
 	require.Equal(t, "lf", *cfg.Format.LineEnding)
 	require.Equal(t, 80, *cfg.Format.MaxLineWidth)
 	require.Equal(t, "double", *cfg.Format.QuoteStyle)
+	require.Equal(t, "none", *cfg.Format.TrailingCommas)
 }
 
 func TestLoadFormatPerType(t *testing.T) {

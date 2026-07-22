@@ -56,7 +56,7 @@ The `[format]` table controls formatting behavior for `cfv format`.
 | `trailing-newline` | boolean | `true`       | Ensure file ends with a newline.                        |
 | `line-ending`      | string  | `"lf"`       | Line ending style: `"lf"` or `"crlf"`.                 |
 | `quote-style`      | string  | `"preserve"` | Quote style: `"preserve"`, `"double"`, or `"single"` (YAML only). |
-| `trailing-commas`  | string  | `"preserve"` | Trailing commas on multiline collections: `"preserve"` (match the file), `"all"`, or `"none"` (JSONC only). |
+| `trailing-comma`   | string  | `"all"`      | Trailing commas on expanded collections: `"all"`, `"none"`, or `"preserve"` (match the file; JSONC only). |
 
 ### Per-format overrides
 

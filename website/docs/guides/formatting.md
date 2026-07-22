@@ -94,6 +94,23 @@ sort-keys = true
 
 With this config, all formats use 2-space indent with keys unsorted, except TOML which sorts keys alphabetically.
 
+### JSONC trailing commas
+
+By default, JSONC formatting adds a trailing comma to expanded objects and
+arrays, matching Prettier's `trailingComma: "all"` behavior. Collapsed
+single-line collections do not receive a trailing comma, and strict JSON is
+unchanged.
+
+Use `trailing-comma` to override the JSONC behavior:
+
+```toml
+[format.jsonc]
+trailing-comma = "none" # "all" (default), "none", or "preserve"
+```
+
+The `"preserve"` mode applies the trailing-comma style already present in the
+file to all expanded collections.
+
 ## CLI flags
 
 These flags override `.cfv.toml` and `.editorconfig` settings for a single invocation:

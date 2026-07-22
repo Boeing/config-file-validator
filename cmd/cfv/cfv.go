@@ -696,6 +696,16 @@ func formatDefaults(formatName string) formatter.Options {
 			QuoteStyle:   formatter.QuotePreserve,
 			SortKeys:     false,
 		}
+	case "jsonc":
+		return formatter.Options{
+			IndentStyle:    formatter.IndentSpaces,
+			IndentWidth:    2,
+			FinalNewline:   true,
+			LineEnding:     formatter.LineEndingLF,
+			SortKeys:       false,
+			QuoteStyle:     formatter.QuotePreserve,
+			TrailingCommas: formatter.TrailingCommasAll,
+		}
 	case "toml":
 		return formatter.Options{
 			IndentStyle:  formatter.IndentSpaces,

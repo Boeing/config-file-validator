@@ -1,16 +1,16 @@
 // Package jsoncfmt provides a Formatter for JSONC (JSON with Comments) files.
 //
 // The formatter uses tailscale/hujson's CST (concrete syntax tree) for
-// lossless parsing and serialization. Comments (line and block) and
-// trailing commas are preserved through the format cycle.
+// lossless parsing and serialization. Comments (line and block) are
+// preserved through the format cycle.
 //
 // Formatting walks the CST to apply indentation and normalize spacing.
 // This is idempotent by construction — the same tree always produces
 // the same output regardless of original formatting.
 //
-// Trailing commas follow the style of the input: a file that already uses
-// them gets them on every multiline structure, a file without them gets none.
-// Options.TrailingCommas overrides this to always add or always remove.
+// Trailing commas are added to expanded objects and arrays by default,
+// matching Prettier's trailingComma: "all" behavior. Options.TrailingCommas
+// can preserve the input style or remove trailing commas instead.
 package jsoncfmt
 
 import (
@@ -31,11 +31,12 @@ var _ formatter.Formatter = Formatter{}
 // DefaultOptions returns the default formatting options for JSONC.
 func DefaultOptions() formatter.Options {
 	return formatter.Options{
-		IndentStyle:  formatter.IndentSpaces,
-		IndentWidth:  2,
-		FinalNewline: true,
-		LineEnding:   formatter.LineEndingLF,
-		SortKeys:     false,
+		IndentStyle:    formatter.IndentSpaces,
+		IndentWidth:    2,
+		FinalNewline:   true,
+		LineEnding:     formatter.LineEndingLF,
+		SortKeys:       false,
+		TrailingCommas: formatter.TrailingCommasAll,
 	}
 }
 
@@ -172,7 +173,7 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 		fs.formatValue(&m.Value, depth+1)
 	}
 
-	// Trailing comma on the last member, if this file uses them.
+	// Trailing comma on the last member, if enabled.
 	last := &obj.Members[len(obj.Members)-1]
 	if fs.trailingCommas {
 		last.Value.AfterExtra = ensureTrailingComma(last.Value.AfterExtra)
@@ -227,7 +228,7 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 		fs.formatValue(&arr.Elements[i], depth+1)
 	}
 
-	// Trailing comma on the last element, if this file uses them.
+	// Trailing comma on the last element, if enabled.
 	last := &arr.Elements[len(arr.Elements)-1]
 	if fs.trailingCommas {
 		last.AfterExtra = ensureTrailingComma(last.AfterExtra)
