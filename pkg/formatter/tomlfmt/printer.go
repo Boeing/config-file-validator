@@ -50,6 +50,7 @@ func (p *Printer) Print(groups []Group) []byte {
 	if p.opts.SortKeys {
 		groups = p.sortGroups(groups)
 	}
+	alignedCommentColumns := findAlignedCommentColumns(groups)
 
 	inTable := false
 	started := false // tracks whether we've emitted any non-blank content
@@ -104,7 +105,7 @@ func (p *Printer) Print(groups []Group) []byte {
 				p.buf.WriteString(p.opts.Indent)
 				entryDepth = 1
 			}
-			p.printEntry(group, entryDepth)
+			p.printEntry(group, entryDepth, alignedCommentColumns[i])
 		default:
 			// Unknown group kind — skip.
 		}
@@ -164,7 +165,7 @@ func (p *Printer) printTableHeader(group Group) {
 
 // printEntry writes a key = value entry with normalized spacing.
 // depth is the current indentation depth (0 for top-level, 1 for inside a table).
-func (p *Printer) printEntry(group Group, depth int) {
+func (p *Printer) printEntry(group Group, depth, commentColumn int) {
 	tokens := group.Tokens
 
 	// Split entry tokens into: key tokens, equals, value tokens, trailing comment, newline.
@@ -196,7 +197,7 @@ func (p *Printer) printEntry(group Group, depth int) {
 
 	// Emit trailing comment if present.
 	if commentStart >= 0 {
-		p.buf.WriteString(" ")
+		p.writeCommentSpacing(commentColumn)
 		for i := commentStart; i < len(tokens); i++ {
 			tok := tokens[i]
 			if tok.Kind == Comment {
@@ -206,6 +207,64 @@ func (p *Printer) printEntry(group Group, depth int) {
 	}
 
 	p.writeNewline()
+}
+
+// findAlignedCommentColumns returns the original comment column for runs of
+// two or more consecutive entries whose inline comments share that column.
+// Isolated comments deliberately get zero so arbitrary padding is normalized.
+func findAlignedCommentColumns(groups []Group) []int {
+	columns := make([]int, len(groups))
+	for start := 0; start < len(groups); {
+		column, ok := inlineCommentColumn(groups[start])
+		if !ok {
+			start++
+			continue
+		}
+		end := start + 1
+		for end < len(groups) {
+			nextColumn, nextOK := inlineCommentColumn(groups[end])
+			if !nextOK || nextColumn != column {
+				break
+			}
+			end++
+		}
+		if end-start >= 2 {
+			for i := start; i < end; i++ {
+				columns[i] = column
+			}
+		}
+		start = end
+	}
+	return columns
+}
+
+func inlineCommentColumn(group Group) (int, bool) {
+	if group.Kind != GroupEntry {
+		return 0, false
+	}
+	column := 0
+	for _, tok := range group.Tokens {
+		if tok.Kind == Comment {
+			return column, true
+		}
+		if tok.Kind == Newline {
+			return 0, false
+		}
+		column += len(tok.Raw)
+	}
+	return 0, false
+}
+
+func (p *Printer) writeCommentSpacing(targetColumn int) {
+	spaces := 1
+	if targetColumn > 0 {
+		lineStart := bytes.LastIndexByte(p.buf.Bytes(), '\n') + 1
+		currentColumn := p.buf.Len() - lineStart
+		if targetColumn > currentColumn {
+			spaces = targetColumn - currentColumn
+		}
+	}
+	p.buf.WriteString(strings.Repeat(" ", spaces))
 }
 
 // printValue writes value tokens. For simple values, emit verbatim.

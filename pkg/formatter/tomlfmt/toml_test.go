@@ -117,6 +117,16 @@ func TestInlineCommentPreserved(t *testing.T) {
 	require.Contains(t, string(got), "port = 8080", "spacing not normalized")
 }
 
+func TestAlignedInlineComments(t *testing.T) {
+	t.Parallel()
+	src := []byte("allow-unsafe = true       # old default\ngenerate-hashes = false   # pip bug\nstrip-extras = true       # reduce churn\nsingle = true        # normalize me\n")
+	want := "allow-unsafe = true       # old default\ngenerate-hashes = false   # pip bug\nstrip-extras = true       # reduce churn\nsingle = true # normalize me\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
 // TestCRLFLineEnding verifies CRLF line endings are applied.
 func TestCRLFLineEnding(t *testing.T) {
 	t.Parallel()
