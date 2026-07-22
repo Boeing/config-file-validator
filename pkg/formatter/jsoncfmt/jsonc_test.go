@@ -178,6 +178,17 @@ func TestCRLF(t *testing.T) {
 	}
 }
 
+func TestCRLFPreservesBlankLines(t *testing.T) {
+	t.Parallel()
+	src := []byte("{\r\n  // Group A\r\n  \"a\": 1,\r\n\r\n  \"b\": 2\r\n}\r\n")
+	opts := jsoncfmt.DefaultOptions()
+	opts.LineEnding = formatter.LineEndingCRLF
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Equal(t, "{\r\n  // Group A\r\n  \"a\": 1,\r\n\r\n  \"b\": 2\r\n}\r\n", string(got))
+}
+
 // FuzzFormat feeds arbitrary bytes to Format and checks:
 // - No panics on any input
 // - If Format succeeds, output re-parses without error
