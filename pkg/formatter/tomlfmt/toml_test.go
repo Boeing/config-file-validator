@@ -117,6 +117,20 @@ func TestInlineCommentPreserved(t *testing.T) {
 	require.Contains(t, string(got), "port = 8080", "spacing not normalized")
 }
 
+func TestBlankLinesBeforeTables(t *testing.T) {
+	t.Parallel()
+	src := []byte("[package]\nname = \"app\"\n[dependencies]\nserde = \"1\"\n# binaries\n[[bin]]\nname = \"app\"\n")
+	want := "[package]\nname = \"app\"\n\n[dependencies]\nserde = \"1\"\n\n# binaries\n[[bin]]\nname = \"app\"\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+
+	gotAgain, err := f.Format(got, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(gotAgain), "existing section breaks must not be doubled")
+}
+
 // TestCRLFLineEnding verifies CRLF line endings are applied.
 func TestCRLFLineEnding(t *testing.T) {
 	t.Parallel()
