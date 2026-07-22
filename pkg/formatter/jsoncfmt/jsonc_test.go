@@ -135,6 +135,55 @@ func TestDefaultTrailingCommas(t *testing.T) {
 	}
 }
 
+// TestTrailingCommasNoneWithFinalComment verifies that removing a trailing
+// comma does not discard a comment attached to the final value.
+func TestTrailingCommasNoneWithFinalComment(t *testing.T) {
+	t.Parallel()
+	opts := defaultOpts
+	opts.TrailingCommas = formatter.TrailingCommasNone
+
+	cases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			"object",
+			`{"key": 1 /* final comment */,}`,
+			"{\n  \"key\": 1 /* final comment */\n}\n",
+		},
+		{
+			"array",
+			`[{"key": 1} /* final comment */,]`,
+			"[\n  {\n    \"key\": 1\n  } /* final comment */\n]\n",
+		},
+		{
+			"nested object",
+			`{"outer": {"key": 1 /* final comment */,},}`,
+			"{\n  \"outer\": {\n    \"key\": 1 /* final comment */\n  }\n}\n",
+		},
+		{
+			"line comment",
+			`{"key": 1 // final comment
+,}`,
+			"{\n  \"key\": 1 // final comment\n}\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.src), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			second, err := f.Format(got, opts)
+			require.NoError(t, err)
+			require.Equal(t, got, second, "formatting must be idempotent")
+		})
+	}
+}
+
 // TestSortKeys verifies sorting works correctly with comments attached.
 func TestSortKeys(t *testing.T) {
 	t.Parallel()
