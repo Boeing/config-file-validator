@@ -3,3 +3,7 @@ grep = { version = "0.3.2", path = "crates/grep" }
 tokio = { version = "1.28", features = ["full"] }
 empty = {}
 nested = { a = { b = 1, c = 2 }, d = 3 }
+authors = [{ name = "Ansible Project" }]
+points = [{ x = 1, y = 2 }, { x = 3, y = 4 }]
+empties = [{}, {}]
+deep = [{ a = { b = "c" } }]
