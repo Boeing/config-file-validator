@@ -7,7 +7,7 @@ import styles from './index.module.css';
 export const SUPPORTED_FORMATS = [
   'JSON', 'YAML', 'TOML', 'XML', 'HCL', 'INI', 'HOCON', 'ENV', 
   'CSV', 'Properties', 'EDITORCONFIG', 'Justfile', 'PList', 
-  'SARIF', 'JSONC', 'TOON',
+  'SARIF', 'JSONC', 'TOON', 'CUE', 'KDL',
 ]
 
 function Hero() {
