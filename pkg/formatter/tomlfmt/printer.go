@@ -36,6 +36,9 @@ func DefaultPrintOptions() PrintOptions {
 type Printer struct {
 	opts PrintOptions
 	buf  bytes.Buffer
+	// inInlineTable is true while printing the contents of an inline table,
+	// where newlines are not allowed by the TOML spec.
+	inInlineTable bool
 }
 
 // NewPrinter creates a Printer with the given options.
@@ -264,7 +267,9 @@ func (p *Printer) printArray(tokens []Token, depth int, prefixLen int) {
 	// - Exceeds column width (including key prefix) → multiline
 	// - Fits and was originally multiline → collapse (taplo array_auto_collapse default)
 	// - Fits and was originally inline → stay inline
-	multiline := hasComments || (prefixLen+singleLineLen) > p.opts.ColumnWidth
+	// Inline tables must stay on one line, so an array nested in one can
+	// never be expanded regardless of width.
+	multiline := !p.inInlineTable && (hasComments || (prefixLen+singleLineLen) > p.opts.ColumnWidth)
 
 	if multiline {
 		p.printArrayMultiline(elements, depth)
@@ -381,6 +386,10 @@ func (p *Printer) printInlineTable(tokens []Token, depth int) {
 	}
 
 	// Emit as single-line: { key = val, key2 = val2 }
+	wasInline := p.inInlineTable
+	p.inInlineTable = true
+	defer func() { p.inInlineTable = wasInline }()
+
 	p.buf.WriteString("{ ")
 	for i, pair := range pairs {
 		if i > 0 {
