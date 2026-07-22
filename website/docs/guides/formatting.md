@@ -101,11 +101,11 @@ arrays, matching Prettier's `trailingComma: "all"` behavior. Collapsed
 single-line collections do not receive a trailing comma, and strict JSON is
 unchanged.
 
-Use `trailing-comma` to override the JSONC behavior:
+Use `trailing-commas` to override the JSONC behavior:
 
 ```toml
 [format.jsonc]
-trailing-comma = "none" # "all" (default), "none", or "preserve"
+trailing-commas = "none" # "all" (default), "none", or "preserve"
 ```
 
 The `"preserve"` mode applies the trailing-comma style already present in the

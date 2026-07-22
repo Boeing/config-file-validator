@@ -214,7 +214,7 @@ trailing-newline = true
 line-ending = "lf"
 max-line-width = 80
 quote-style = "double"
-trailing-comma = "none"
+trailing-commas = "none"
 `)
 
 	cfg, err := Load(filepath.Join(dir, FileName))

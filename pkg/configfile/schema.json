@@ -194,7 +194,7 @@
           ],
           "description": "Scalar quoting style. Only affects YAML. Default: preserve."
         },
-        "trailing-comma": {
+        "trailing-commas": {
           "type": "string",
           "enum": [
             "all",
@@ -278,7 +278,7 @@
             "preserve"
           ]
         },
-        "trailing-comma": {
+        "trailing-commas": {
           "type": "string",
           "enum": [
             "all",

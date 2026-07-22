@@ -13,17 +13,17 @@ cp comma_orig.jsonc comma_test.jsonc
 exec cfv format --fix --no-config comma_test.jsonc
 cmp comma_test.jsonc comma_orig.jsonc
 
-# trailing-comma = "preserve" keeps a file without trailing commas unchanged
+# trailing-commas = "preserve" keeps a file without trailing commas unchanged
 cp nocomma_orig.jsonc nocomma_test.jsonc
 exec cfv format --fix --config=cfv/preserve.toml nocomma_test.jsonc
 cmp nocomma_test.jsonc nocomma_orig.jsonc
 
-# trailing-comma = "preserve" keeps existing trailing commas
+# trailing-commas = "preserve" keeps existing trailing commas
 cp comma_orig.jsonc comma_test.jsonc
 exec cfv format --fix --config=cfv/preserve.toml comma_test.jsonc
 cmp comma_test.jsonc comma_orig.jsonc
 
-# trailing-comma = "none" removes them from a file that has them
+# trailing-commas = "none" removes them from a file that has them
 cp comma_orig.jsonc comma_test.jsonc
 exec cfv format --fix --config=cfv/none.toml comma_test.jsonc
 cmp comma_test.jsonc nocomma_orig.jsonc
@@ -93,13 +93,13 @@ cmp strict.json strict_expected.json
 }
 -- cfv/preserve.toml --
 [format]
-trailing-comma = "preserve"
+trailing-commas = "preserve"
 -- cfv/none.toml --
 [format]
-trailing-comma = "none"
+trailing-commas = "none"
 -- cfv/all_performat.toml --
 [format]
-trailing-comma = "none"
+trailing-commas = "none"
 
 [format.jsonc]
-trailing-comma = "all"
+trailing-commas = "all"

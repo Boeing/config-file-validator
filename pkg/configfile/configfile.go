@@ -66,7 +66,7 @@ type FormatOptions struct {
 	LineEnding      *string `toml:"line-ending"`
 	MaxLineWidth    *int    `toml:"max-line-width"`
 	QuoteStyle      *string `toml:"quote-style"`
-	TrailingCommas  *string `toml:"trailing-comma"`
+	TrailingCommas  *string `toml:"trailing-commas"`
 }
 
 // ValidatorOptions holds per-validator configuration.
