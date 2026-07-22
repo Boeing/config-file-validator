@@ -10,7 +10,7 @@
 //
 // Defaults:
 //   - 2-space indentation
-//   - preserve existing quote style
+//   - normalize quoted scalars to double quotes
 //   - preserve key order
 //   - trailing newline
 package yamlfmt
@@ -39,6 +39,7 @@ func DefaultOptions() formatter.Options {
 		IndentStyle:  formatter.IndentSpaces,
 		IndentWidth:  2,
 		FinalNewline: true,
+		QuoteStyle:   formatter.QuoteDouble,
 	}
 }
 
