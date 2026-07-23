@@ -1,0 +1,66 @@
+# ============================================================
+# .yamlfmt auto-detection
+# Proves: CLI flags > .cfv.toml > .yamlfmt > defaults,
+# YAML-only scope, .yamlfmt.yaml, and --no-yamlfmt-config.
+# ============================================================
+
+# formatter.indent = 4 replaces the YAML default of 2
+cp orig.yaml app.yaml
+exec cfv format --fix --no-config app.yaml
+exec cat app.yaml
+stdout '^    nested:'
+
+# --no-yamlfmt-config falls back to the default 2
+cp orig.yaml app.yaml
+exec cfv format --fix --no-config --no-yamlfmt-config app.yaml
+exec cat app.yaml
+stdout '^  nested:'
+
+# .cfv.toml overrides .yamlfmt
+cp orig.yaml app.yaml
+exec cfv format --fix --config=cfv/indent2.toml app.yaml
+exec cat app.yaml
+stdout '^  nested:'
+
+# CLI flags override both
+cp orig.yaml app.yaml
+exec cfv format --fix --config=cfv/indent2.toml --indent=8 app.yaml
+exec cat app.yaml
+stdout '^        nested:'
+
+# .yamlfmt configures YAML only, so JSON keeps the default 2-space indent
+exec cfv format --fix --no-config app.json
+exec cat app.json
+stdout '^  "key"'
+
+# .yamlfmt.yaml is discovered too
+cd dotted
+exec cfv format --fix --no-config app.yaml
+exec cat app.yaml
+stdout '^   nested:'
+
+-- .yamlfmt --
+formatter:
+  type: basic
+  indent: 4
+  line_ending: lf
+-- .editorconfig --
+root = true
+-- orig.yaml --
+key:
+  nested: value
+-- app.yaml --
+key:
+  nested: value
+-- app.json --
+{"key":{"nested":"value"}}
+-- cfv/indent2.toml --
+[format]
+indent = 2
+-- dotted/.yamlfmt.yaml --
+formatter:
+  type: basic
+  indent: 3
+-- dotted/app.yaml --
+key:
+  nested: value
