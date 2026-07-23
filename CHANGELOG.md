@@ -18,9 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--sort-keys` flag to sort mapping keys alphabetically on `cfv format`
 - `--diff` flag for previewing formatting changes without modifying files
 - Per-format configuration in `.cfv.toml` via `[format.<type>]` tables (yaml, json, jsonc, toml, hcl, xml, ini, properties, env)
-- Format configuration cascade: CLI flags > per-format config > global `[format]` config > `.editorconfig` > defaults
+- Format configuration cascade: CLI flags > per-format config > global `[format]` config > `.yamlfmt` > `.editorconfig` > defaults
 - `trailing-commas` format option (`preserve` | `all` | `none`) to control trailing commas on multiline JSONC collections
 - `.editorconfig` auto-detection for `cfv format`: `indent_style`, `indent_size`, `end_of_line`, and `insert_final_newline` are resolved per file (globs, parent directories, and `root = true` are all respected). Disable with `--no-editorconfig` (closes #562)
+- `.yamlfmt` / `.yamlfmt.yaml` auto-detection for YAML formatting: `formatter.indent`, `formatter.line_ending`, and `formatter.max_line_length` are mapped onto the equivalent cfv options. Disable with `--no-yamlfmt-config` (closes #565)
 - Schema validation support for JSONC files via `$schema`, `--schema-map`, and SchemaStore
 - Schema validation support for Properties files via `--schema-map` in `.cfv.toml`
 - **cfv 3.0 Phase 1**: Renamed binary from `validator` to `cfv`. This is a breaking change — no compatibility shim ships. Update scripts: `validator .` → `cfv check .`
