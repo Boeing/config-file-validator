@@ -96,6 +96,7 @@ type cfvConfig struct {
 	fmtQuoteStyle     *string
 	fmtDiff           *bool
 	fmtNoEditorConfig *bool
+	fmtNoPrettier     *bool
 }
 
 // reporterConfig pairs a reporter format name with an optional output path.
@@ -524,6 +525,7 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		fmtMaxLineWidthPtr   = fs.Int("max-line-width", 0, "Max line width hint (0 = unlimited)")
 		fmtQuoteStylePtr     = fs.String("quote-style", "", "Quote style: double, single, preserve")
 		fmtNoEditorConfigPtr = fs.Bool("no-editorconfig", false, "Ignore .editorconfig files when resolving format options")
+		fmtNoPrettierPtr     = fs.Bool("no-prettier-config", false, "Ignore .prettierrc files when resolving format options")
 		fmtDiffPtr           = fs.Bool("diff", false, "Show unified diff instead of rewriting (implies no --fix)")
 	)
 
@@ -603,6 +605,7 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		fmtQuoteStyle:     fmtQuoteStylePtr,
 		fmtDiff:           fmtDiffPtr,
 		fmtNoEditorConfig: fmtNoEditorConfigPtr,
+		fmtNoPrettier:     fmtNoPrettierPtr,
 	}, nil
 }
 
@@ -613,7 +616,7 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 // buildFormatOptionsResolver builds a function that resolves format options
 // for any format name using the cascade:
 //
-//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > .editorconfig > format-specific defaults
+//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > .prettierrc > .editorconfig > format-specific defaults
 func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOptionsFunc {
 	var globalCfg *configfile.FormatOptions
 	var perFormatCfg map[string]*configfile.FormatOptions
@@ -621,6 +624,11 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 	var editorCfg *formatter.EditorConfig
 	if cfg.fmtNoEditorConfig == nil || !*cfg.fmtNoEditorConfig {
 		editorCfg = formatter.NewEditorConfig()
+	}
+
+	var prettierCfg *formatter.PrettierConfig
+	if cfg.fmtNoPrettier == nil || !*cfg.fmtNoPrettier {
+		prettierCfg = formatter.NewPrettierConfig()
 	}
 
 	if rc.formatCfg != nil {
@@ -642,18 +650,25 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 		// Start with format-specific defaults.
 		opts := formatDefaults(formatName)
 
+		// A zero default width means the format is not indented at all
+		// (TOML keys under a table header). That is a property of the
+		// format rather than an editor/tool preference, so neither
+		// .editorconfig nor .prettierrc may reintroduce indentation. An
+		// explicit .cfv.toml or --indent still can, in the layers below.
+		unindented := opts.IndentWidth == 0
+
 		// Layer 2: .editorconfig (resolved per file)
 		if editorCfg != nil {
-			// A zero default width means the format is not indented at all
-			// (TOML keys under a table header). That is a property of the
-			// format rather than an editor preference, so a project-wide
-			// [*] indent_size must not reintroduce indentation. An explicit
-			// .cfv.toml or --indent still can, in the layers below.
-			unindented := opts.IndentWidth == 0
 			editorCfg.Apply(&opts, path)
-			if unindented {
-				opts.IndentWidth = 0
-			}
+		}
+
+		// Layer 2.1: .prettierrc (resolved per file)
+		if prettierCfg != nil {
+			prettierCfg.Apply(&opts, path)
+		}
+
+		if unindented {
+			opts.IndentWidth = 0
 		}
 
 		// Layer 3: .cfv.toml [format] (global)
