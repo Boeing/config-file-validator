@@ -18,10 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--sort-keys` flag to sort mapping keys alphabetically on `cfv format`
 - `--diff` flag for previewing formatting changes without modifying files
 - Per-format configuration in `.cfv.toml` via `[format.<type>]` tables (yaml, json, jsonc, toml, hcl, xml, ini, properties, env)
-- Format configuration cascade: CLI flags > per-format config > global `[format]` config > `taplo.toml` > `.editorconfig` > defaults
+- Format configuration cascade: CLI flags > per-format config > global `[format]` config > format-specific config (`.yamlfmt` / `taplo.toml`) > `.editorconfig` > defaults
 - `trailing-commas` format option (`preserve` | `all` | `none`) to control trailing commas on multiline JSONC collections
 - `.editorconfig` auto-detection for `cfv format`: `indent_style`, `indent_size`, `end_of_line`, and `insert_final_newline` are resolved per file (globs, parent directories, and `root = true` are all respected). Disable with `--no-editorconfig` (closes #562)
 - `taplo.toml` / `.taplo.toml` auto-detection for TOML formatting: `indent_string`, `column_width`, `trailing_newline`, `reorder_keys`, `crlf`, and `array_trailing_comma` are mapped onto the equivalent cfv options. Disable with `--no-taplo-config` (closes #564)
+- `.yamlfmt` / `.yamlfmt.yaml` auto-detection for YAML formatting: `formatter.indent`, `formatter.line_ending`, and `formatter.max_line_length` are mapped onto the equivalent cfv options. Disable with `--no-yamlfmt-config` (closes #565)
 - `max-line-width` and `trailing-commas` are now honored by the TOML formatter
 - Schema validation support for JSONC files via `$schema`, `--schema-map`, and SchemaStore
 - Schema validation support for Properties files via `--schema-map` in `.cfv.toml`

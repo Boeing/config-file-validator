@@ -50,7 +50,7 @@ Running `cfv format --fix` twice always produces the same output. If a file is a
 
 Format settings are resolved per file, lowest priority first:
 
-`.editorconfig` → `taplo.toml` → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
+`.editorconfig` → format-specific config (`.yamlfmt` or `taplo.toml`) → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
 
 ### `.editorconfig`
 
@@ -97,6 +97,25 @@ than failing the run.
 
 Pass `--no-taplo-config` to ignore `taplo.toml` entirely.
 
+### `.yamlfmt`
+
+Projects that already configure Google's [yamlfmt](https://github.com/google/yamlfmt)
+via `.yamlfmt` or `.yamlfmt.yaml` get those settings applied to YAML formatting
+automatically. The options cfv understands:
+
+| yamlfmt option              | cfv option      |
+|-----------------------------|-----------------|
+| `formatter.indent`          | Indent width    |
+| `formatter.line_ending`     | Line ending     |
+| `formatter.max_line_length` | Max line width  |
+
+Other yamlfmt options (`include_document_start`, `retain_line_breaks`,
+`pad_line_comments`, …) are ignored. Discovery walks up from the working
+directory and prefers `.yamlfmt` over `.yamlfmt.yaml`. A malformed file is
+skipped rather than failing the run.
+
+Pass `--no-yamlfmt-config` to ignore yamlfmt config files entirely.
+
 ### `.cfv.toml`
 
 Format settings live in `.cfv.toml` at the root of your project.
@@ -129,6 +148,7 @@ These flags override `.cfv.toml`, `taplo.toml`, and `.editorconfig` settings for
 | `--no-final-newline` | Omit trailing newline |
 | `--no-editorconfig` | Ignore `.editorconfig` files |
 | `--no-taplo-config` | Ignore `taplo.toml` files |
+| `--no-yamlfmt-config` | Ignore `.yamlfmt` / `.yamlfmt.yaml` files |
 
 Example: check formatting with 4-space indent regardless of config file:
 

@@ -65,6 +65,7 @@ Checks formatting of config files. With `--fix`, rewrites files in place. With `
 | `-sort-keys`  | bool   | `false` | Sort mapping keys alphabetically.                            |
 | `-no-editorconfig` | bool | `false` | Ignore `.editorconfig` files when resolving format options. |
 | `-no-taplo-config` | bool | `false` | Ignore `taplo.toml` files when resolving TOML format options. |
+| `-no-yamlfmt-config` | bool | `false` | Ignore `.yamlfmt` / `.yamlfmt.yaml` files when resolving YAML format options. |
 
 ### Shared flags
 
