@@ -142,7 +142,7 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 			// Comments in empty objects need proper indentation.
 			childIndent := "\n" + strings.Repeat(fs.indent, depth+1)
 			closeIndent := "\n" + strings.Repeat(fs.indent, depth)
-			obj.AfterExtra = reindentExtra(obj.AfterExtra, childIndent)
+			obj.AfterExtra = reindentCompactExtra(obj.AfterExtra, childIndent)
 			// Ensure closing brace is on its own line after the comment.
 			s := string(obj.AfterExtra)
 			if !strings.HasSuffix(s, closeIndent) {
@@ -161,7 +161,11 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 		m := &obj.Members[i]
 
 		// Preserve comments from BeforeExtra, apply correct indentation.
-		m.Name.BeforeExtra = reindentExtra(m.Name.BeforeExtra, childIndent)
+		if i == 0 {
+			m.Name.BeforeExtra = reindentCompactExtra(m.Name.BeforeExtra, childIndent)
+		} else {
+			m.Name.BeforeExtra = reindentExtra(m.Name.BeforeExtra, childIndent)
+		}
 		m.Name.AfterExtra = nil
 
 		// Single space between colon and value.
@@ -178,7 +182,7 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 		last.Value.AfterExtra = ensureTrailingComma(last.Value.AfterExtra)
 	}
 
-	obj.AfterExtra = reindentExtra(obj.AfterExtra, closeIndent)
+	obj.AfterExtra = reindentCompactExtra(obj.AfterExtra, closeIndent)
 	if obj.AfterExtra == nil {
 		obj.AfterExtra = hujson.Extra(closeIndent)
 	}
@@ -190,7 +194,7 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 		if hasComment(arr.AfterExtra) {
 			childIndent := "\n" + strings.Repeat(fs.indent, depth+1)
 			closeIndent := "\n" + strings.Repeat(fs.indent, depth)
-			arr.AfterExtra = reindentExtra(arr.AfterExtra, childIndent)
+			arr.AfterExtra = reindentCompactExtra(arr.AfterExtra, childIndent)
 			s := string(arr.AfterExtra)
 			if !strings.HasSuffix(s, closeIndent) {
 				arr.AfterExtra = hujson.Extra(s + closeIndent)
@@ -222,7 +226,11 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	closeIndent := "\n" + strings.Repeat(fs.indent, depth)
 
 	for i := range arr.Elements {
-		arr.Elements[i].BeforeExtra = reindentExtra(arr.Elements[i].BeforeExtra, childIndent)
+		if i == 0 {
+			arr.Elements[i].BeforeExtra = reindentCompactExtra(arr.Elements[i].BeforeExtra, childIndent)
+		} else {
+			arr.Elements[i].BeforeExtra = reindentExtra(arr.Elements[i].BeforeExtra, childIndent)
+		}
 		arr.Elements[i].AfterExtra = clearWhitespace(arr.Elements[i].AfterExtra)
 		fs.formatValue(&arr.Elements[i], depth+1)
 	}
@@ -233,7 +241,7 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 		last.AfterExtra = ensureTrailingComma(last.AfterExtra)
 	}
 
-	arr.AfterExtra = reindentExtra(arr.AfterExtra, closeIndent)
+	arr.AfterExtra = reindentCompactExtra(arr.AfterExtra, closeIndent)
 	if arr.AfterExtra == nil {
 		arr.AfterExtra = hujson.Extra(closeIndent)
 	}
@@ -266,8 +274,7 @@ func hasComment(extra hujson.Extra) bool {
 }
 
 // reindentExtra normalizes indentation in Extra (comment/whitespace) content.
-// Blank lines between comments are collapsed — this matches prettier's behavior
-// of not preserving blank lines within structures.
+// Blank lines between sibling members are preserved.
 func reindentExtra(extra hujson.Extra, newIndent string) hujson.Extra {
 	if extra == nil {
 		return hujson.Extra(newIndent)
@@ -277,6 +284,11 @@ func reindentExtra(extra hujson.Extra, newIndent string) hujson.Extra {
 
 	// If extra is whitespace-only (no comments), replace entirely.
 	if !hasComment(extra) {
+		lineBreaks := strings.Count(s, "\n")
+		if lineBreaks > 1 {
+			indent := strings.TrimPrefix(newIndent, "\n")
+			return hujson.Extra(strings.Repeat("\n", lineBreaks) + indent)
+		}
 		return hujson.Extra(newIndent)
 	}
 
@@ -300,6 +312,15 @@ func reindentExtra(extra hujson.Extra, newIndent string) hujson.Extra {
 	b.WriteString(newIndent)
 
 	return hujson.Extra(b.String())
+}
+
+// reindentCompactExtra normalizes leading and closing trivia without
+// preserving blank lines.
+func reindentCompactExtra(extra hujson.Extra, newIndent string) hujson.Extra {
+	if extra == nil || !hasComment(extra) {
+		return hujson.Extra(newIndent)
+	}
+	return reindentExtra(extra, newIndent)
 }
 
 // clearWhitespace removes whitespace from Extra but preserves comments.
