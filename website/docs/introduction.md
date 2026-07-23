@@ -3,17 +3,24 @@ sidebar_position: 1
 slug: /introduction
 ---
 
+import Head from '@docusaurus/Head';
+import { SUPPORTED_FORMATS, SCHEMA_FORMATS, SYNTAX_FORMATS } from '@site/src/data/supportedFormats';
+
+<Head>
+  <meta name="description" content={`Validates config files across ${SUPPORTED_FORMATS.length} formats`} />
+</Head>
+
 # Introduction
 
-Config File Validator validates config files across 18 formats.
+Config File Validator validates config files across {SUPPORTED_FORMATS.length} formats.
 
 It recursively searches directories for config files, detects their format by extension or filename, and reports errors.
 
 ## Supported formats
 
-**Syntax + Schema:** `JSON` `JSONC` `YAML` `TOML` `XML` `TOON` `SARIF`
+**Syntax + Schema:** {SCHEMA_FORMATS.map(f => `\`${f}\``).join(' ')}
 
-**Syntax:** `HCL` `INI` `HOCON` `ENV` `CSV` `Properties` `EDITORCONFIG` `Justfile` `KDL` `CUE` `PList`
+**Syntax:** {SYNTAX_FORMATS.map(f => `\`${f}\``).join(' ')}
 
 ## When to use it
 
