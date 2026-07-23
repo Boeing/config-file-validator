@@ -1,0 +1,111 @@
+# ============================================================
+# .prettierrc auto-detection
+# Proves: CLI flags > .cfv.toml > .prettierrc > .editorconfig > defaults,
+# discovery priority within a directory, closest-directory-wins, JSON/YAML/
+# TOML formats, unsupported JS configs skipped, and --no-prettier-config.
+# ============================================================
+
+# .prettierrc.json tabWidth = 4 replaces the default 2
+cp orig.json indent.json
+exec cfv format --fix --no-config indent.json
+exec cat indent.json
+stdout '^    "key"'
+
+# --no-prettier-config falls back to the default 2
+cp orig.json indent.json
+exec cfv format --fix --no-config --no-prettier-config indent.json
+exec cat indent.json
+stdout '^  "key"'
+
+# .cfv.toml overrides .prettierrc
+cp orig.json indent.json
+exec cfv format --fix --config=cfv/indent6.toml indent.json
+exec cat indent.json
+stdout '^      "key"'
+
+# CLI flags override both
+cp orig.json indent.json
+exec cfv format --fix --config=cfv/indent6.toml --indent=8 indent.json
+exec cat indent.json
+stdout '^        "key"'
+
+# .prettierrc.json overrides .editorconfig
+cp orig.json ec/indent.json
+exec cfv format --fix --no-config ec/indent.json
+exec cat ec/indent.json
+stdout '^    "key"'
+
+# bare .prettierrc (JSON content) is discovered ahead of .prettierrc.yaml
+exec cfv format --fix --no-config bare/app.json
+exec cat bare/app.json
+stdout '^     "k"'
+
+# YAML .prettierrc.yaml maps singleQuote / printWidth
+exec cfv format --fix --no-config yamlcfg/app.yaml
+exec cat yamlcfg/app.yaml
+stdout 'key: .value.'
+
+# TOML .prettierrc.toml maps tabWidth
+exec cfv format --fix --no-config tomlcfg/app.jsonc
+exec cat tomlcfg/app.jsonc
+stdout '^   "key"'
+
+# nested directory's .prettierrc wins over the parent's
+exec cfv format --fix --no-config nested/child/app.json
+exec cat nested/child/app.json
+stdout '^  "key"'
+
+# unsupported .prettierrc.js is skipped; parent's supported config applies
+exec cfv format --fix --no-config jsskip/child/app.json
+exec cat jsskip/child/app.json
+stdout '^   "key"'
+
+-- orig.json --
+{"key":"value"}
+-- .prettierrc.json --
+{"tabWidth": 4}
+-- cfv/indent6.toml --
+[format]
+indent = 6
+
+-- ec/.editorconfig --
+root = true
+
+[*]
+indent_size = 6
+-- ec/.prettierrc.json --
+{"tabWidth": 4}
+-- ec/orig.json --
+{"key":"value"}
+
+-- bare/.prettierrc --
+{"tabWidth": 5}
+-- bare/.prettierrc.yaml --
+tabWidth: 9
+-- bare/app.json --
+{"k":"v"}
+
+-- yamlcfg/.prettierrc.yaml --
+printWidth: 40
+singleQuote: true
+-- yamlcfg/app.yaml --
+key: "value"
+
+-- tomlcfg/.prettierrc.toml --
+tabWidth = 3
+-- tomlcfg/app.jsonc --
+{"key":"value"}
+
+-- nested/.prettierrc.json --
+{"tabWidth": 8}
+-- nested/child/.prettierrc.json --
+{"tabWidth": 2}
+-- nested/child/app.json --
+{"key":"value"}
+
+-- jsskip/.prettierrc.json --
+{"tabWidth": 3}
+-- jsskip/child/.prettierrc.js --
+module.exports = { tabWidth: 4 };
+-- jsskip/child/app.json --
+{"key":"value"}

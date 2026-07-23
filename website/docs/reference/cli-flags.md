@@ -64,6 +64,7 @@ Checks formatting of config files. With `--fix`, rewrites files in place. With `
 | `-indent`     | int    | `2`     | Override indent width (number of spaces per level).           |
 | `-sort-keys`  | bool   | `false` | Sort mapping keys alphabetically.                            |
 | `-no-editorconfig` | bool | `false` | Ignore `.editorconfig` files when resolving format options. |
+| `-no-prettier-config` | bool | `false` | Ignore `.prettierrc` files when resolving format options. |
 
 ### Shared flags
 
