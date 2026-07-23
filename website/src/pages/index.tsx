@@ -2,13 +2,7 @@ import React from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import styles from './index.module.css';
-
-// Master list of all supported configuration file formats.
-export const SUPPORTED_FORMATS = [
-  'JSON', 'YAML', 'TOML', 'XML', 'HCL', 'INI', 'HOCON', 'ENV', 
-  'CSV', 'Properties', 'EDITORCONFIG', 'Justfile', 'PList', 
-  'SARIF', 'JSONC', 'TOON', 'CUE', 'KDL',
-]
+import { SUPPORTED_FORMATS, formatList } from '../data/supportedFormats';
 
 function Hero() {
   return (
@@ -45,15 +39,6 @@ function Hero() {
       </div>
     </header>
   );
-}
-
-// Formats an array of strings into a readable comma-separated list (e.g., "A, B, and C").
-function formatList(items: string[]): string {
-  if (items.length === 0) return '';
-  if (items.length === 1) return items[0] + '.';
-  const last = items[items.length - 1];
-  const rest = items.slice(0, -1).join(', ');
-  return `${rest}, and ${last}.`;
 }
 
 const features = [
@@ -107,7 +92,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Config File Validator"
-      description="Validates config files across ${SUPPORTED_FORMATS.length} formats"
+      description={`Validates config files across ${SUPPORTED_FORMATS.length} formats`}
     >
       <Hero />
       <main>
