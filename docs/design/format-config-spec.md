@@ -20,7 +20,7 @@ sort-keys = false             # bool. Sort object/mapping keys alphabetically.
 trailing-newline = true       # bool. Ensure file ends with exactly one newline.
 line-ending = "lf"            # "lf" | "crlf". Line terminator.
 max-line-width = 0            # int, 0=unlimited. Hint for line wrapping.
-quote-style = "preserve"      # "double" | "single" | "preserve". Scalar quoting.
+quote-style = "double"        # "double" | "single" | "preserve". Scalar quoting.
 trailing-commas = "preserve"  # "all" | "none" | "preserve". Trailing commas on multiline collections.
 
 # Per-format overrides — same keys, override the global [format] values.
@@ -47,7 +47,7 @@ quote-style = "double"        # Force double quotes on YAML scalars
 | `trailing-newline` | bool | — | `true` | all |
 | `line-ending` | string | `"lf"`, `"crlf"` | `"lf"` | all |
 | `max-line-width` | int | 0–320 | `0` | json |
-| `quote-style` | string | `"double"`, `"single"`, `"preserve"` | `"preserve"` | yaml (json always double) |
+| `quote-style` | string | `"double"`, `"single"`, `"preserve"` | `"double"` | yaml (json always double) |
 | `trailing-commas` | string | `"all"`, `"none"`, `"preserve"` | `"preserve"` | jsonc (json forbids them) |
 
 ¹ JSON default: 2. YAML default: 2. HCL: ignored (always 2, HashiCorp canonical).
