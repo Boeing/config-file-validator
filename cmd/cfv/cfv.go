@@ -678,7 +678,6 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 		} else if formatName == "yaml" {
 			yamlfmtCfg.Apply(&opts)
 		}
-		}
 
 		// Layer 4: .cfv.toml [format] (global)
 		if globalCfg != nil {
@@ -1653,14 +1652,6 @@ func applyINIOptions(opts *configfile.INIOptions) validator.IniValidator {
 func parseDelimiter(s string) rune {
 	if s == "\\t" || s == "\t" {
 		return '\t'
-	}
-	r := []rune(s)
-	if len(r) == 1 {
-		return r[0]
-	}
-	return 0
-}
-t'
 	}
 	r := []rune(s)
 	if len(r) == 1 {
