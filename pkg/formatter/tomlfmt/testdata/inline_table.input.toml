@@ -8,3 +8,4 @@ points = [{x=1,y=2}, {x=3,y=4}]
 empties = [{},{}]
 deep = [{a={b="c"}}]
 wide = { features = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc", "dddddddddddddddd", "eeeeeeeeeeeeee"] }
+000000000000000000000000000000000000000000000000000000000000000000 = [[0b0, 0, 0]]

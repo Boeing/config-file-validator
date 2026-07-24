@@ -285,7 +285,7 @@ func (p *Printer) printArrayInline(elements [][]Token, depth int) {
 		if i > 0 {
 			p.buf.WriteString(", ")
 		}
-		p.printValue(trimValueTokens(elem), depth, p.column())
+		p.printValue(trimValueTokens(elem), depth, 0)
 	}
 	p.buf.WriteByte(']')
 }
