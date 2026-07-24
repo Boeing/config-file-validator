@@ -300,7 +300,7 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 	closeIndent := strings.Repeat(valueIndent, depth)
 
 	p.buf.WriteByte('[')
-	for _, elem := range elements {
+	for i, elem := range elements {
 		p.writeNewline()
 		// Separate comments from value tokens to avoid duplication.
 		// Comments are emitted on their own lines above the value.
@@ -326,7 +326,9 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 		if len(valueTokens) > 0 {
 			p.buf.WriteString(elemIndent)
 			p.writeValueTokensTrimmed(valueTokens)
-			p.buf.WriteByte(',')
+			if p.opts.TrailingComma || i < len(elements)-1 {
+				p.buf.WriteByte(',')
+			}
 		}
 	}
 	p.writeNewline()

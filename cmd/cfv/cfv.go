@@ -96,6 +96,7 @@ type cfvConfig struct {
 	fmtQuoteStyle     *string
 	fmtDiff           *bool
 	fmtNoEditorConfig *bool
+	fmtNoTaploConfig  *bool
 }
 
 // reporterConfig pairs a reporter format name with an optional output path.
@@ -524,6 +525,7 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		fmtMaxLineWidthPtr   = fs.Int("max-line-width", 0, "Max line width hint (0 = unlimited)")
 		fmtQuoteStylePtr     = fs.String("quote-style", "", "Quote style: double, single, preserve")
 		fmtNoEditorConfigPtr = fs.Bool("no-editorconfig", false, "Ignore .editorconfig files when resolving format options")
+		fmtNoTaploConfigPtr  = fs.Bool("no-taplo-config", false, "Ignore taplo.toml files when resolving TOML format options")
 		fmtDiffPtr           = fs.Bool("diff", false, "Show unified diff instead of rewriting (implies no --fix)")
 	)
 
@@ -603,6 +605,7 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		fmtQuoteStyle:     fmtQuoteStylePtr,
 		fmtDiff:           fmtDiffPtr,
 		fmtNoEditorConfig: fmtNoEditorConfigPtr,
+		fmtNoTaploConfig:  fmtNoTaploConfigPtr,
 	}, nil
 }
 
@@ -613,7 +616,7 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 // buildFormatOptionsResolver builds a function that resolves format options
 // for any format name using the cascade:
 //
-//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > .editorconfig > format-specific defaults
+//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > taplo.toml > .editorconfig > format-specific defaults
 func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOptionsFunc {
 	var globalCfg *configfile.FormatOptions
 	var perFormatCfg map[string]*configfile.FormatOptions
@@ -621,6 +624,11 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 	var editorCfg *formatter.EditorConfig
 	if cfg.fmtNoEditorConfig == nil || !*cfg.fmtNoEditorConfig {
 		editorCfg = formatter.NewEditorConfig()
+	}
+
+	var taploCfg *formatter.Taplo
+	if cfg.fmtNoTaploConfig == nil || !*cfg.fmtNoTaploConfig {
+		taploCfg = formatter.LoadTaplo(".")
 	}
 
 	if rc.formatCfg != nil {
@@ -656,19 +664,25 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 			}
 		}
 
-		// Layer 3: .cfv.toml [format] (global)
+		// Layer 3: taplo.toml, which only configures TOML formatting.
+		// Apply is a no-op when no taplo.toml was found.
+		if formatName == "toml" {
+			taploCfg.Apply(&opts)
+		}
+
+		// Layer 4: .cfv.toml [format] (global)
 		if globalCfg != nil {
 			applyFormatOptions(&opts, globalCfg)
 		}
 
-		// Layer 4: .cfv.toml [format.<type>]
+		// Layer 5: .cfv.toml [format.<type>]
 		if perFormatCfg != nil {
 			if perFmt := perFormatCfg[formatName]; perFmt != nil {
 				applyFormatOptions(&opts, perFmt)
 			}
 		}
 
-		// Layer 5: CLI flags (highest priority)
+		// Layer 6: CLI flags (highest priority)
 		applyCLIFormatFlags(&opts, cfg)
 
 		return opts

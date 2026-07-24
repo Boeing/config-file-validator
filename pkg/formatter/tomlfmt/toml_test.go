@@ -142,6 +142,41 @@ func TestIndentedTableContents(t *testing.T) {
 	require.Contains(t, string(got), "  port = ", "expected 2-space indent")
 }
 
+// TestMaxLineWidthBreaksArrays verifies MaxLineWidth decides when an array is
+// split across lines. Without it the width is taplo's default of 80.
+func TestMaxLineWidthBreaksArrays(t *testing.T) {
+	t.Parallel()
+	src := []byte("arr = [\"aaaa\", \"bbbb\", \"cccc\"]\n")
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, string(src), string(got), "array fits in 80 columns")
+
+	opts := defaultOpts
+	opts.MaxLineWidth = 10
+	got, err = f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "\n  \"aaaa\",", "expected one element per line")
+}
+
+// TestTrailingCommasNone drops the comma after the last array element.
+func TestTrailingCommasNone(t *testing.T) {
+	t.Parallel()
+	src := []byte("arr = [\n  \"aaaa\",\n  \"bbbb\",\n]\n")
+	opts := defaultOpts
+	opts.MaxLineWidth = 10
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "\"bbbb\",\n]", "preserve keeps the trailing comma")
+
+	opts.TrailingCommas = formatter.TrailingCommasNone
+	got, err = f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "\"aaaa\",\n", "commas between elements are kept")
+	require.Contains(t, string(got), "\"bbbb\"\n]", "expected no trailing comma")
+}
+
 // FuzzFormat feeds arbitrary bytes to Format and checks:
 // - No panics on any input
 // - If Format succeeds, output re-parses without error
