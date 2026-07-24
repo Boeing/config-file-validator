@@ -629,8 +629,7 @@ func TestNormalizeValueSpacing(t *testing.T) {
 	}
 }
 
-// TestNormalizeFlowCollections verifies that flow collections get normalized
-// spacing via AST-driven re-serialization.
+// TestNormalizeFlowCollections verifies Prettier-compatible bracketSpacing.
 func TestNormalizeFlowCollections(t *testing.T) {
 	t.Parallel()
 	fmtr := yamlfmt.Formatter{}
@@ -641,14 +640,14 @@ func TestNormalizeFlowCollections(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"normalize_spaces", "x: {a:  1, b:   2}\n", "x: {a: 1, b: 2}\n"},
-		{"nested_flow", "x: {a: {b: 1}, c: [1, 2]}\n", "x: {a: {b: 1}, c: [1, 2]}\n"},
-		{"array_spaces", "x: [1,  2,   3]\n", "x: [1, 2, 3]\n"},
+		{"brace_padding", "x: {key: value}\n", "x: { key: value }\n"},
+		{"preserve_colon_and_comma_spacing", "x: {a:1,b:  2}\n", "x: { a:1,b:  2 }\n"},
+		{"nested_flow", "x: [{a: 1}, { b: 2 }]\n", "x: [{ a: 1 }, { b: 2 }]\n"},
+		{"array_spaces_unchanged", "x: [1,  2,   3]\n", "x: [1,  2,   3]\n"},
 		{"empty_map", "x: {}\n", "x: {}\n"},
 		{"empty_array", "x: []\n", "x: []\n"},
-		{"quoted_values", "x: {a: \"hello\", b: 'world'}\n", "x: {a: \"hello\", b: 'world'}\n"},
-		{"already_normalized", "x: {a: 1, b: 2}\n", "x: {a: 1, b: 2}\n"},
-		{"mixed_types", "x: {s: hello, n: 42, b: true, null: null}\n", "x: {s: hello, n: 42, b: true, null: null}\n"},
+		{"quoted_braces_unchanged", "x: {value: \"{literal}\"}\n", "x: { value: \"{literal}\" }\n"},
+		{"already_normalized", "x: { a: 1, b: 2 }\n", "x: { a: 1, b: 2 }\n"},
 	}
 
 	for _, tc := range cases {

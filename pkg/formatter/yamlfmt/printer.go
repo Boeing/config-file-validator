@@ -28,13 +28,13 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	flowNodes := buildFlowNodeMap(src)
 
 	// Annotate tokens with structural metadata from yaml.v3 Node tree.
 	annotate(tokens, src, astMeta)
 
-	// Normalize flow collections using AST-driven re-serialization.
-	normalizeFlowTokens(tokens, flowNodes)
+	// Match Prettier's bracketSpacing behavior for flow mappings without
+	// rewriting the user's colon or comma spacing.
+	normalizeFlowTokens(tokens)
 
 	// Normalize value spacing: strip leading whitespace from values after colons.
 	normalizeValueSpacing(tokens)
@@ -891,211 +891,60 @@ func normalizeValueSpacing(tokens []Token) {
 // Flow collection normalization
 // =============================================================================
 
-// flowNodeMap maps [line, column] to the yaml.v3 Node for a flow collection.
-type flowNodeMap map[[2]int]*yaml.Node
-
-// buildFlowNodeMap parses src and returns a map of all flow-style collection
-// nodes keyed by their [line, column] position.
-func buildFlowNodeMap(src []byte) flowNodeMap {
-	if len(src) > 0 && src[len(src)-1] != '\n' {
-		src = append(bytes.Clone(src), '\n')
-	}
-	var root yaml.Node
-	if err := yaml.Unmarshal(src, &root); err != nil {
-		return nil
-	}
-	m := make(flowNodeMap)
-	collectFlowNodes(&root, m)
-	return m
-}
-
-func collectFlowNodes(n *yaml.Node, m flowNodeMap) {
-	if (n.Kind == yaml.MappingNode || n.Kind == yaml.SequenceNode) && n.Style == yaml.FlowStyle {
-		m[[2]int{n.Line, n.Column}] = n
-	}
-	for _, c := range n.Content {
-		collectFlowNodes(c, m)
-	}
-}
-
-// serializeFlowNode re-serializes a flow collection node with normalized spacing.
-func serializeFlowNode(n *yaml.Node) []byte {
-	var buf bytes.Buffer
-	writeFlowNode(&buf, n)
-	return buf.Bytes()
-}
-
-func writeFlowNode(buf *bytes.Buffer, n *yaml.Node) {
-	switch n.Kind {
-	case yaml.MappingNode:
-		buf.WriteByte('{')
-		for i := 0; i < len(n.Content); i += 2 {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			writeFlowNode(buf, n.Content[i]) // key
-			buf.WriteString(": ")
-			writeFlowNode(buf, n.Content[i+1]) // value
-		}
-		buf.WriteByte('}')
-	case yaml.SequenceNode:
-		buf.WriteByte('[')
-		for i, item := range n.Content {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			writeFlowNode(buf, item)
-		}
-		buf.WriteByte(']')
-	case yaml.ScalarNode:
-		writeFlowScalar(buf, n)
-	case yaml.AliasNode:
-		buf.WriteByte('*')
-		buf.WriteString(n.Value)
-	default:
-		// Unknown node kind — skip
-	}
-}
-
-func writeFlowScalar(buf *bytes.Buffer, n *yaml.Node) {
-	if n.Anchor != "" {
-		buf.WriteByte('&')
-		buf.WriteString(n.Anchor)
-		buf.WriteByte(' ')
-	}
-	if n.Tag == "!!null" || (n.Tag == "" && n.Value == "") {
-		buf.WriteString("null")
-		return
-	}
-	switch n.Style {
-	case yaml.DoubleQuotedStyle:
-		buf.WriteByte('"')
-		buf.WriteString(escapeDoubleQuoted(n.Value))
-		buf.WriteByte('"')
-	case yaml.SingleQuotedStyle:
-		buf.WriteByte('\'')
-		buf.WriteString(escapeSingleQuoted(n.Value))
-		buf.WriteByte('\'')
-	default:
-		// Plain scalar. Quote if needed in flow context.
-		if needsQuotingInFlow(n.Value, n.Tag) {
-			buf.WriteByte('"')
-			buf.WriteString(escapeDoubleQuoted(n.Value))
-			buf.WriteByte('"')
-		} else {
-			buf.WriteString(n.Value)
-		}
-	}
-}
-
-func escapeDoubleQuoted(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		switch r {
-		case '\\':
-			b.WriteString(`\\`)
-		case '"':
-			b.WriteString(`\"`)
-		case '\n':
-			b.WriteString(`\n`)
-		case '\t':
-			b.WriteString(`\t`)
-		case '\r':
-			b.WriteString(`\r`)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
-
-func escapeSingleQuoted(s string) string {
-	return strings.ReplaceAll(s, "'", "''")
-}
-
-func needsQuotingInFlow(value, tag string) bool {
-	if value == "" {
-		return true
-	}
-	// Characters that are flow indicators or ambiguous.
-	for _, r := range value {
-		switch r {
-		case '{', '}', '[', ']', ',', ':', '#', '&', '*', '!', '|', '>', '\'', '"', '%', '@', '`':
-			return true
-		}
-	}
-	// Values that look like other YAML types need quoting to preserve string semantics.
-	if tag == "!!str" {
-		switch strings.ToLower(value) {
-		case "true", "false", "null", "~", "yes", "no", "on", "off":
-			return true
-		}
-		if looksNumeric(value) {
-			return true
-		}
-	}
-	return false
-}
-
-func looksNumeric(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	for _, r := range s {
-		if (r < '0' || r > '9') && r != '.' && r != 'e' && r != 'E' && r != '-' && r != '+' && r != '_' {
-			return false
-		}
-	}
-	return true
-}
-
-// flowHasComments returns true if the node or any of its children have comments.
-// Flows with comments are not re-serialized to preserve the original formatting.
-func flowHasComments(n *yaml.Node) bool {
-	if n.HeadComment != "" || n.LineComment != "" || n.FootComment != "" {
-		return true
-	}
-	for _, c := range n.Content {
-		if flowHasComments(c) {
-			return true
-		}
-	}
-	return false
-}
-
-// normalizeFlowTokens replaces each TokFlow token with AST-driven re-serialized
-// content for normalized spacing. Skips flows with comments.
-func normalizeFlowTokens(tokens []Token, flowNodes flowNodeMap) {
-	if flowNodes == nil {
-		return
-	}
+// normalizeFlowTokens adds one space inside non-empty flow mapping braces.
+// It intentionally leaves flow sequence brackets and all spacing around
+// colons and commas untouched, matching Prettier's bracketSpacing option.
+func normalizeFlowTokens(tokens []Token) {
 	for i := range tokens {
 		if tokens[i].Kind != TokFlow {
 			continue
 		}
-		col := computeTokenColumn(tokens, i)
-		node, ok := flowNodes[[2]int{tokens[i].Line, col}]
-		if !ok {
-			continue
-		}
-		if flowHasComments(node) {
-			continue // preserve original for flows with comments
-		}
-		tokens[i].Raw = serializeFlowNode(node)
+		tokens[i].Raw = addFlowMappingPadding(tokens[i].Raw)
 	}
 }
 
-// computeTokenColumn computes the 1-based column of a token by summing
-// the lengths of tokens on the same line before it.
-func computeTokenColumn(tokens []Token, idx int) int {
-	col := 1
-	for j := idx - 1; j >= 0; j-- {
-		if tokens[j].Kind == TokNewline {
-			break
+func addFlowMappingPadding(raw []byte) []byte {
+	var out []byte
+	quote := byte(0)
+	escaped := false
+	for i, b := range raw {
+		if quote != 0 {
+			out = append(out, b)
+			if quote == '"' && b == '\\' && !escaped {
+				escaped = true
+				continue
+			}
+			if b == quote && !escaped {
+				// A doubled single quote is content, not the closing quote.
+				if quote == '\'' && i+1 < len(raw) && raw[i+1] == '\'' {
+					continue
+				}
+				quote = 0
+			}
+			escaped = false
+			continue
 		}
-		col += len(tokens[j].Raw)
+		if b == '"' || b == '\'' {
+			quote = b
+			out = append(out, b)
+			continue
+		}
+		switch b {
+		case '{':
+			out = append(out, b)
+			if i+1 < len(raw) && raw[i+1] != '}' && raw[i+1] != ' ' && raw[i+1] != '\n' && raw[i+1] != '\r' {
+				out = append(out, ' ')
+			}
+		case '}':
+			if i > 0 && raw[i-1] != '{' && raw[i-1] != ' ' && raw[i-1] != '\n' && raw[i-1] != '\r' {
+				out = append(out, ' ')
+			}
+			out = append(out, b)
+		default:
+			out = append(out, b)
+		}
 	}
-	return col
+	return out
 }
 
 // =============================================================================
