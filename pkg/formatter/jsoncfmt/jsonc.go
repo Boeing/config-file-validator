@@ -258,6 +258,10 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 // Short arrays of only primitive values (no nested objects/arrays, no comments)
 // are kept inline.
 func isInlineArray(arr *hujson.Array) bool {
+	if hasComment(arr.AfterExtra) {
+		return false
+	}
+
 	// totalLen slightly over-counts (+2) because the last element has no
 	// trailing comma+space. This conservative bias means arrays at exactly
 	// the line limit are expanded rather than compacted.

@@ -158,6 +158,11 @@ func TestTrailingCommasNoneWithFinalComment(t *testing.T) {
 			"[\n  {\n    \"key\": 1\n  } /* final comment */\n]\n",
 		},
 		{
+			"inline array",
+			`[1, 2, 3 /* last */,]`,
+			"[\n  1,\n  2,\n  3 /* last */\n]\n",
+		},
+		{
 			"nested object",
 			`{"outer": {"key": 1 /* final comment */,},}`,
 			"{\n  \"outer\": {\n    \"key\": 1 /* final comment */\n  }\n}\n",
