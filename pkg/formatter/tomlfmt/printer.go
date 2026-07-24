@@ -36,6 +36,9 @@ func DefaultPrintOptions() PrintOptions {
 type Printer struct {
 	opts PrintOptions
 	buf  bytes.Buffer
+	// inInlineTable is true while printing the contents of an inline table,
+	// where newlines are not allowed by the TOML spec.
+	inInlineTable bool
 }
 
 // NewPrinter creates a Printer with the given options.
@@ -264,23 +267,25 @@ func (p *Printer) printArray(tokens []Token, depth int, prefixLen int) {
 	// - Exceeds column width (including key prefix) → multiline
 	// - Fits and was originally multiline → collapse (taplo array_auto_collapse default)
 	// - Fits and was originally inline → stay inline
-	multiline := hasComments || (prefixLen+singleLineLen) > p.opts.ColumnWidth
+	// Inline tables must stay on one line, so an array nested in one can
+	// never be expanded regardless of width.
+	multiline := !p.inInlineTable && (hasComments || (prefixLen+singleLineLen) > p.opts.ColumnWidth)
 
 	if multiline {
 		p.printArrayMultiline(elements, depth)
 	} else {
-		p.printArrayInline(elements)
+		p.printArrayInline(elements, depth)
 	}
 }
 
 // printArrayInline writes an array on a single line: [elem, elem, elem]
-func (p *Printer) printArrayInline(elements [][]Token) {
+func (p *Printer) printArrayInline(elements [][]Token, depth int) {
 	p.buf.WriteByte('[')
 	for i, elem := range elements {
 		if i > 0 {
 			p.buf.WriteString(", ")
 		}
-		p.writeValueTokensTrimmed(elem)
+		p.printValue(trimValueTokens(elem), depth, 0)
 	}
 	p.buf.WriteByte(']')
 }
@@ -308,7 +313,7 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 		var valueTokens []Token
 		for _, tok := range elem {
 			switch tok.Kind {
-			case Whitespace, Newline:
+			case Newline:
 				continue
 			case Comment:
 				comments = append(comments, tok)
@@ -316,6 +321,7 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 				valueTokens = append(valueTokens, tok)
 			}
 		}
+		valueTokens = trimValueTokens(valueTokens)
 		// Emit leading comments.
 		for _, c := range comments {
 			p.buf.WriteString(elemIndent)
@@ -325,7 +331,7 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 		// Emit value.
 		if len(valueTokens) > 0 {
 			p.buf.WriteString(elemIndent)
-			p.writeValueTokensTrimmed(valueTokens)
+			p.printValue(valueTokens, depth+1, p.column())
 			if p.opts.TrailingComma || i < len(elements)-1 {
 				p.buf.WriteByte(',')
 			}
@@ -380,6 +386,10 @@ func (p *Printer) printInlineTable(tokens []Token, depth int) {
 	}
 
 	// Emit as single-line: { key = val, key2 = val2 }
+	wasInline := p.inInlineTable
+	p.inInlineTable = true
+	defer func() { p.inInlineTable = wasInline }()
+
 	p.buf.WriteString("{ ")
 	for i, pair := range pairs {
 		if i > 0 {
@@ -424,16 +434,19 @@ func (p *Printer) writeInlineTablePair(tokens []Token, depth int) {
 	p.printValue(valueTokens, depth+1, 0)
 }
 
-// writeValueTokensTrimmed writes value tokens with leading/trailing whitespace removed.
-func (p *Printer) writeValueTokensTrimmed(tokens []Token) {
-	trimmed := trimLeadingWhitespace(tokens)
-	trimmed = trimTrailingWhitespace(trimmed)
-	for _, tok := range trimmed {
-		if tok.Kind == Newline || tok.Kind == Whitespace {
-			continue
-		}
-		p.buf.Write(tok.Raw)
+// trimValueTokens removes leading and trailing whitespace/newline tokens.
+func trimValueTokens(tokens []Token) []Token {
+	return trimTrailingWhitespace(trimLeadingWhitespace(tokens))
+}
+
+// column returns the number of bytes written since the last newline, i.e. the
+// column the next byte will land on.
+func (p *Printer) column() int {
+	out := p.buf.Bytes()
+	if i := bytes.LastIndexByte(out, '\n'); i >= 0 {
+		return len(out) - i - 1
 	}
+	return len(out)
 }
 
 // splitArrayElements splits array tokens into individual element token slices.
