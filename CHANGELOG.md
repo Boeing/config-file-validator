@@ -18,9 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--sort-keys` flag to sort mapping keys alphabetically on `cfv format`
 - `--diff` flag for previewing formatting changes without modifying files
 - Per-format configuration in `.cfv.toml` via `[format.<type>]` tables (yaml, json, jsonc, toml, hcl, xml, ini, properties, env)
-- Format configuration cascade: CLI flags > per-format config > global `[format]` config > `.editorconfig` > defaults
+- Format configuration cascade: CLI flags > per-format config > global `[format]` config > `taplo.toml` > `.editorconfig` > defaults
 - `trailing-commas` format option (`all` | `none` | `preserve`) to control trailing commas on expanded JSONC collections
 - `.editorconfig` auto-detection for `cfv format`: `indent_style`, `indent_size`, `end_of_line`, and `insert_final_newline` are resolved per file (globs, parent directories, and `root = true` are all respected). Disable with `--no-editorconfig` (closes #562)
+- `taplo.toml` / `.taplo.toml` auto-detection for TOML formatting: `indent_string`, `column_width`, `trailing_newline`, `reorder_keys`, `crlf`, and `array_trailing_comma` are mapped onto the equivalent cfv options. Disable with `--no-taplo-config` (closes #564)
+- `max-line-width` and `trailing-commas` are now honored by the TOML formatter
 - Schema validation support for JSONC files via `$schema`, `--schema-map`, and SchemaStore
 - Schema validation support for Properties files via `--schema-map` in `.cfv.toml`
 - **cfv 3.0 Phase 1**: Renamed binary from `validator` to `cfv`. This is a breaking change — no compatibility shim ships. Update scripts: `validator .` → `cfv check .`
@@ -46,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - JSONC `trailing-commas = "none"` formatting now removes trailing commas next to final-value comments while preserving the comments.
+- JSON and JSONC formatting removes blank lines before closing braces and brackets while preserving blank lines between members (closes #581).
 - TOML formatting now leaves entries under table headers unindented by default while preserving explicit indentation overrides (closes #558).
 - XML files without a DOCTYPE declaration are validated as syntax-only again; `ValidateSyntax` now enables DTD validation only when a DOCTYPE is present, restoring compatibility after upgrading `helium` to v0.5.1's stricter "DTD required" semantics (closes #546)
 - Local JSON Schema paths are encoded as file URLs on Windows (closes #550)
