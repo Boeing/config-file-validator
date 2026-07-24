@@ -217,3 +217,20 @@ func TestZeroOptionsUsesJSONDefaults(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(got), "  \"a\"") // 2-space default indent
 }
+
+// TestTabsNormalizedToSpacesByDefault locks issue #584: without editorconfig,
+// tab-indented JSON is reformatted with spaces (prettier-compatible default).
+func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
+	t.Parallel()
+	src := []byte("{\n\t\"name\": \"my-app\",\n\t\"version\": \"1.0.0\"\n}\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.NotContains(t, string(got), "\t", "default format must not preserve tabs")
+	require.Contains(t, string(got), "  \"name\"")
+	// Explicit IndentTabs still uses tabs when requested.
+	tabOpts := defaultOpts
+	tabOpts.IndentStyle = formatter.IndentTabs
+	gotTabs, err := f.Format(src, tabOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(gotTabs), "\t")
+}

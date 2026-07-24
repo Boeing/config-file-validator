@@ -265,3 +265,14 @@ func FuzzFormatWithOptions(f *testing.F) {
 		}
 	})
 }
+
+// TestTabsNormalizedToSpacesByDefault locks issue #584 for JSONC: default
+// indent style is spaces, so tab-indented input is reformatted with spaces.
+func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
+	t.Parallel()
+	src := []byte("{\n\t\"name\": \"my-app\"\n}\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.NotContains(t, string(got), "\t", "default format must not preserve tabs")
+	require.Contains(t, string(got), "  \"name\"")
+}
