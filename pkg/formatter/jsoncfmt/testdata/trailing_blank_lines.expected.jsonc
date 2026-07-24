@@ -3,16 +3,16 @@
   "sections": {
     "first": 1,
 
-    "second": 2
+    "second": 2,
   },
 
   "items": [
     {
-      "name": "one"
+      "name": "one",
     },
 
     {
-      "name": "two"
-    }
-  ]
+      "name": "two",
+    },
+  ],
 }

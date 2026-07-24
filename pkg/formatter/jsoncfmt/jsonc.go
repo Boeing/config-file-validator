@@ -1,16 +1,16 @@
 // Package jsoncfmt provides a Formatter for JSONC (JSON with Comments) files.
 //
 // The formatter uses tailscale/hujson's CST (concrete syntax tree) for
-// lossless parsing and serialization. Comments (line and block) and
-// trailing commas are preserved through the format cycle.
+// lossless parsing and serialization. Comments (line and block) are
+// preserved through the format cycle.
 //
 // Formatting walks the CST to apply indentation and normalize spacing.
 // This is idempotent by construction — the same tree always produces
 // the same output regardless of original formatting.
 //
-// Trailing commas follow the style of the input: a file that already uses
-// them gets them on every multiline structure, a file without them gets none.
-// Options.TrailingCommas overrides this to always add or always remove.
+// Trailing commas are added to expanded objects and arrays by default,
+// matching Prettier's trailingComma: "all" behavior. Options.TrailingCommas
+// can preserve the input style or remove trailing commas instead.
 package jsoncfmt
 
 import (
@@ -31,11 +31,12 @@ var _ formatter.Formatter = Formatter{}
 // DefaultOptions returns the default formatting options for JSONC.
 func DefaultOptions() formatter.Options {
 	return formatter.Options{
-		IndentStyle:  formatter.IndentSpaces,
-		IndentWidth:  2,
-		FinalNewline: true,
-		LineEnding:   formatter.LineEndingLF,
-		SortKeys:     false,
+		IndentStyle:    formatter.IndentSpaces,
+		IndentWidth:    2,
+		FinalNewline:   true,
+		LineEnding:     formatter.LineEndingLF,
+		SortKeys:       false,
+		TrailingCommas: formatter.TrailingCommasAll,
 	}
 }
 
@@ -51,8 +52,9 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 	// Detect before sorting: sorting moves the trailing comma marker off the
 	// last member.
 	fs := &formatState{
-		indent:         buildIndent(opts),
-		trailingCommas: wantTrailingCommas(&v, opts.TrailingCommas),
+		indent:               buildIndent(opts),
+		trailingCommas:       wantTrailingCommas(&v, opts.TrailingCommas),
+		removeTrailingCommas: opts.TrailingCommas == formatter.TrailingCommasNone,
 	}
 
 	if opts.SortKeys {
@@ -76,8 +78,9 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 
 // formatState holds the configuration for a single format pass.
 type formatState struct {
-	indent         string // indent string (e.g., "  " or "\t")
-	trailingCommas bool   // true if multiline collections get a trailing comma
+	indent               string // indent string (e.g., "  " or "\t")
+	trailingCommas       bool   // true if multiline collections get a trailing comma
+	removeTrailingCommas bool   // true if trailing commas must be explicitly removed
 }
 
 // wantTrailingCommas resolves the trailing comma mode against the parsed input.
@@ -176,13 +179,19 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 		fs.formatValue(&m.Value, depth+1)
 	}
 
-	// Trailing comma on the last member, if this file uses them.
+	// Trailing comma on the last member, if enabled.
 	last := &obj.Members[len(obj.Members)-1]
 	if fs.trailingCommas {
 		last.Value.AfterExtra = ensureTrailingComma(last.Value.AfterExtra)
+	} else if fs.removeTrailingCommas {
+		obj.AfterExtra = removeTrailingComma(&last.Value.AfterExtra, obj.AfterExtra)
 	}
 
-	obj.AfterExtra = reindentCompactExtra(obj.AfterExtra, closeIndent)
+	if fs.removeTrailingCommas {
+		obj.AfterExtra = reindentClosingExtra(obj.AfterExtra, closeIndent)
+	} else {
+		obj.AfterExtra = reindentCompactExtra(obj.AfterExtra, closeIndent)
+	}
 	if obj.AfterExtra == nil {
 		obj.AfterExtra = hujson.Extra(closeIndent)
 	}
@@ -235,13 +244,19 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 		fs.formatValue(&arr.Elements[i], depth+1)
 	}
 
-	// Trailing comma on the last element, if this file uses them.
+	// Trailing comma on the last element, if enabled.
 	last := &arr.Elements[len(arr.Elements)-1]
 	if fs.trailingCommas {
 		last.AfterExtra = ensureTrailingComma(last.AfterExtra)
+	} else if fs.removeTrailingCommas {
+		arr.AfterExtra = removeTrailingComma(&last.AfterExtra, arr.AfterExtra)
 	}
 
-	arr.AfterExtra = reindentCompactExtra(arr.AfterExtra, closeIndent)
+	if fs.removeTrailingCommas {
+		arr.AfterExtra = reindentClosingExtra(arr.AfterExtra, closeIndent)
+	} else {
+		arr.AfterExtra = reindentCompactExtra(arr.AfterExtra, closeIndent)
+	}
 	if arr.AfterExtra == nil {
 		arr.AfterExtra = hujson.Extra(closeIndent)
 	}
@@ -251,6 +266,10 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 // Short arrays of only primitive values (no nested objects/arrays, no comments)
 // are kept inline.
 func isInlineArray(arr *hujson.Array) bool {
+	if hasComment(arr.AfterExtra) {
+		return false
+	}
+
 	// totalLen slightly over-counts (+2) because the last element has no
 	// trailing comma+space. This conservative bias means arrays at exactly
 	// the line limit are expanded rather than compacted.
@@ -271,6 +290,18 @@ func isInlineArray(arr *hujson.Array) bool {
 func hasComment(extra hujson.Extra) bool {
 	s := string(extra)
 	return strings.Contains(s, "//") || strings.Contains(s, "/*")
+}
+
+// reindentClosingExtra preserves a comment that starts on the same line as
+// the final value. Other comments and whitespace use the collection's closing
+// indentation.
+func reindentClosingExtra(extra hujson.Extra, closeIndent string) hujson.Extra {
+	s := strings.TrimLeft(string(extra), " \t")
+	if strings.HasPrefix(s, "//") || strings.HasPrefix(s, "/*") {
+		s = strings.TrimRight(s, " \t\r\n")
+		return hujson.Extra(" " + s + closeIndent)
+	}
+	return reindentCompactExtra(extra, closeIndent)
 }
 
 // reindentExtra normalizes indentation in Extra (comment/whitespace) content.
@@ -347,6 +378,19 @@ func ensureTrailingComma(extra hujson.Extra) hujson.Extra {
 		return hujson.Extra("")
 	}
 	return extra
+}
+
+// removeTrailingComma clears hujson's trailing-comma marker. Comments stored
+// in the marker are moved into the collection's closing extra so they remain
+// before the closing delimiter.
+func removeTrailingComma(extra *hujson.Extra, collectionExtra hujson.Extra) hujson.Extra {
+	if *extra == nil {
+		return collectionExtra
+	}
+
+	result := slices.Concat(*extra, collectionExtra)
+	*extra = nil
+	return result
 }
 
 // sortObject recursively sorts object members by key name.

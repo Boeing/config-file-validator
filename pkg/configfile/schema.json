@@ -201,7 +201,7 @@
             "none",
             "preserve"
           ],
-          "description": "Trailing commas on multiline collections. Only affects JSONC. Default: preserve (match the style already used by the file)."
+          "description": "Trailing commas on expanded collections. Only affects JSONC. Default: all (matches Prettier)."
         },
         "json": {
           "$ref": "#/$defs/format-options"

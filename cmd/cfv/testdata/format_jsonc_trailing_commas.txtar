@@ -1,22 +1,27 @@
 # ============================================================
-# JSONC trailing comma handling (issue #559)
-# Proves: preserve (default) matches the file, "all" adds, "none" removes
+# JSONC trailing comma handling (issues #559 and #589)
+# Proves: all (default) adds, preserve matches the file, none removes
 # ============================================================
 
-# Default: a file without trailing commas does not gain any
+# Default: a file without trailing commas gains them on expanded collections
 cp nocomma_orig.jsonc nocomma_test.jsonc
 exec cfv format --fix --no-config nocomma_test.jsonc
-cmp nocomma_test.jsonc nocomma_orig.jsonc
+cmp nocomma_test.jsonc comma_orig.jsonc
 
 # Default: a file with trailing commas keeps them
 cp comma_orig.jsonc comma_test.jsonc
 exec cfv format --fix --no-config comma_test.jsonc
 cmp comma_test.jsonc comma_orig.jsonc
 
-# trailing-commas = "all" adds them to a file without any
+# trailing-commas = "preserve" keeps a file without trailing commas unchanged
 cp nocomma_orig.jsonc nocomma_test.jsonc
-exec cfv format --fix --config=cfv/all.toml nocomma_test.jsonc
-cmp nocomma_test.jsonc comma_orig.jsonc
+exec cfv format --fix --config=cfv/preserve.toml nocomma_test.jsonc
+cmp nocomma_test.jsonc nocomma_orig.jsonc
+
+# trailing-commas = "preserve" keeps existing trailing commas
+cp comma_orig.jsonc comma_test.jsonc
+exec cfv format --fix --config=cfv/preserve.toml comma_test.jsonc
+cmp comma_test.jsonc comma_orig.jsonc
 
 # trailing-commas = "none" removes them from a file that has them
 cp comma_orig.jsonc comma_test.jsonc
@@ -27,6 +32,14 @@ cmp comma_test.jsonc nocomma_orig.jsonc
 cp nocomma_orig.jsonc nocomma_test.jsonc
 exec cfv format --fix --config=cfv/all_performat.toml nocomma_test.jsonc
 cmp nocomma_test.jsonc comma_orig.jsonc
+
+# Collapsed arrays do not get trailing commas
+exec cfv format --fix --no-config collapsed.jsonc
+cmp collapsed.jsonc collapsed_expected.jsonc
+
+# Strict JSON never gets trailing commas
+exec cfv format --fix --no-config strict.json
+cmp strict.json strict_expected.json
 
 -- nocomma_test.jsonc --
 // Config
@@ -60,9 +73,27 @@ cmp nocomma_test.jsonc comma_orig.jsonc
     "b": 2,
   },
 }
--- cfv/all.toml --
+-- collapsed.jsonc --
+[1,2,3]
+-- collapsed_expected.jsonc --
+[1, 2, 3]
+-- strict.json --
+{"nested":{"a":1,"b":2},"items":[1,2,3]}
+-- strict_expected.json --
+{
+  "nested": {
+    "a": 1,
+    "b": 2
+  },
+  "items": [
+    1,
+    2,
+    3
+  ]
+}
+-- cfv/preserve.toml --
 [format]
-trailing-commas = "all"
+trailing-commas = "preserve"
 -- cfv/none.toml --
 [format]
 trailing-commas = "none"
