@@ -50,7 +50,9 @@ Running `cfv format --fix` twice always produces the same output. If a file is a
 
 Format settings are resolved per file, lowest priority first:
 
-`.editorconfig` → `taplo.toml` → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
+`.editorconfig` → `taplo.toml` / `.prettierrc` → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
+
+`taplo.toml` only applies to TOML files and `.prettierrc` only applies to JSON/JSONC/YAML files, so the two never compete for the same file.
 
 ### `.editorconfig`
 
@@ -97,6 +99,46 @@ than failing the run.
 
 Pass `--no-taplo-config` to ignore `taplo.toml` entirely.
 
+### `.prettierrc`
+
+If your project has a `.prettierrc` (or one of its static variants), cfv reads
+it and layers it on top of `.editorconfig`, so JSON, JSONC, and YAML files
+format to match your existing Prettier settings without duplicating them in
+`.cfv.toml`. The options cfv understands:
+
+| Prettier option | cfv option        | Notes                                |
+|------------------|-------------------|---------------------------------------|
+| `tabWidth`       | Indent width      |                                       |
+| `useTabs`        | Spaces or tabs    |                                       |
+| `printWidth`     | Max line width    |                                       |
+| `endOfLine`      | Line ending       | `lf` / `crlf` map; `auto`/`cr` are ignored |
+| `trailingComma`  | Trailing commas   | JSONC only; `all` / `none`            |
+| `singleQuote`    | Quote style       | YAML only                             |
+
+Supported file formats, checked in this order in each directory (first match wins):
+
+1. `.prettierrc` (JSON content tried first, then YAML)
+2. `.prettierrc.json`
+3. `.prettierrc.yaml` / `.prettierrc.yml`
+4. `.prettierrc.toml`
+
+cfv walks up from each file's directory and uses the nearest directory that
+has a supported config; unlike `.editorconfig`, prettier configs are not
+merged across directory levels — the closest one found fully determines the
+result.
+
+**Known limitations (v1):**
+
+- `.prettierrc.js`, `.prettierrc.cjs`, `.prettierrc.mjs`, and
+  `prettier.config.*` require JS evaluation and are not supported. They are
+  skipped silently (not an error), and the search continues upward for a
+  supported config.
+- A `"prettier"` key in `package.json` is not yet read.
+- The `overrides` array is not supported — only top-level options apply.
+- A malformed config file is skipped rather than failing the run.
+
+Pass `--no-prettier-config` to ignore `.prettierrc` entirely.
+
 ### `.cfv.toml`
 
 Format settings live in `.cfv.toml` at the root of your project.
@@ -137,7 +179,7 @@ file to all expanded collections.
 
 ## CLI flags
 
-These flags override `.cfv.toml`, `taplo.toml`, and `.editorconfig` settings for a single invocation:
+These flags override `.cfv.toml`, `taplo.toml`, `.prettierrc`, and `.editorconfig` settings for a single invocation:
 
 | Flag | Effect |
 |------|--------|
@@ -146,6 +188,7 @@ These flags override `.cfv.toml`, `taplo.toml`, and `.editorconfig` settings for
 | `--no-final-newline` | Omit trailing newline |
 | `--no-editorconfig` | Ignore `.editorconfig` files |
 | `--no-taplo-config` | Ignore `taplo.toml` files |
+| `--no-prettier-config` | Ignore `.prettierrc` files |
 
 Example: check formatting with 4-space indent regardless of config file:
 
