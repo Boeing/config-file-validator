@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - JSONC `trailing-commas = "none"` formatting now removes trailing commas next to final-value comments while preserving the comments.
 - JSON and JSONC formatting removes blank lines before closing braces and brackets while preserving blank lines between members (closes #581).
+- JSON/JSONC formatters normalize tab indentation to spaces by default (prettier-compatible); explicit `indent_style = tab` via `.editorconfig` or `.cfv.toml` still preserves tabs (closes #584)
 - TOML formatting now normalizes spacing inside inline tables and nested arrays that appear as array elements, so `[{name="x"}]` becomes `[{ name = "x" }]` (closes #587).
 - TOML formatting now inserts one blank line before each table and array-of-tables section while keeping leading section comments attached (closes #583).
 - TOML formatting now leaves entries under table headers unindented by default while preserving explicit indentation overrides (closes #558).
