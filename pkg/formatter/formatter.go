@@ -31,7 +31,7 @@ type Formatter interface {
 //
 // Options are resolved by the CLI before being passed to a formatter:
 //
-//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > taplo.toml > .editorconfig > hardcoded defaults
+//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > format-specific config > .editorconfig > hardcoded defaults
 type Options struct {
 	// IndentStyle selects spaces or tabs. Zero value = format default.
 	IndentStyle IndentStyle

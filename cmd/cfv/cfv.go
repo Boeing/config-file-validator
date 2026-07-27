@@ -89,17 +89,18 @@ type cfvConfig struct {
 	unsafe *bool
 	watch  *bool
 	// Format option flags (cfv format only).
-	fmtIndent         *int
-	fmtUseTabs        *bool
-	fmtSortKeys       *bool
-	fmtNoSortKeys     *bool
-	fmtLineEnding     *string
-	fmtMaxLineWidth   *int
-	fmtQuoteStyle     *string
-	fmtDiff           *bool
-	fmtNoEditorConfig *bool
-	fmtNoTaploConfig  *bool
-	fmtNoPrettier     *bool
+	fmtIndent          *int
+	fmtUseTabs         *bool
+	fmtSortKeys        *bool
+	fmtNoSortKeys      *bool
+	fmtLineEnding      *string
+	fmtMaxLineWidth    *int
+	fmtQuoteStyle      *string
+	fmtDiff            *bool
+	fmtNoEditorConfig  *bool
+	fmtNoTaploConfig   *bool
+	fmtNoPrettier      *bool
+	fmtNoYamlfmtConfig *bool
 }
 
 // reporterConfig pairs a reporter format name with an optional output path.
@@ -532,17 +533,18 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 		fixPtr       = fs.Bool("fix", false, "Rewrite files to canonical style")
 		unsafePtr    = fs.Bool("unsafe", false, "Apply unsafe formatting fixes (requires --fix) [not yet implemented]")
 		// Format option flags.
-		fmtIndentPtr         = fs.Int("indent", 0, "Override indent width (1-16). 0 = use config/default.")
-		fmtUseTabsPtr        = fs.Bool("use-tabs", false, "Use tabs for indentation")
-		fmtSortKeysPtr       = fs.Bool("sort-keys", false, "Sort object/mapping keys alphabetically")
-		fmtNoSortKeysPtr     = fs.Bool("no-sort-keys", false, "Disable key sorting (overrides config)")
-		fmtLineEndingPtr     = fs.String("line-ending", "", "Line ending: lf, crlf")
-		fmtMaxLineWidthPtr   = fs.Int("max-line-width", 0, "Max line width hint (0 = unlimited)")
-		fmtQuoteStylePtr     = fs.String("quote-style", "", "Quote style: double, single, preserve")
-		fmtNoEditorConfigPtr = fs.Bool("no-editorconfig", false, "Ignore .editorconfig files when resolving format options")
-		fmtNoTaploConfigPtr  = fs.Bool("no-taplo-config", false, "Ignore taplo.toml files when resolving TOML format options")
-		fmtNoPrettierPtr     = fs.Bool("no-prettier-config", false, "Ignore .prettierrc files when resolving format options")
-		fmtDiffPtr           = fs.Bool("diff", false, "Show unified diff instead of rewriting (implies no --fix)")
+		fmtIndentPtr          = fs.Int("indent", 0, "Override indent width (1-16). 0 = use config/default.")
+		fmtUseTabsPtr         = fs.Bool("use-tabs", false, "Use tabs for indentation")
+		fmtSortKeysPtr        = fs.Bool("sort-keys", false, "Sort object/mapping keys alphabetically")
+		fmtNoSortKeysPtr      = fs.Bool("no-sort-keys", false, "Disable key sorting (overrides config)")
+		fmtLineEndingPtr      = fs.String("line-ending", "", "Line ending: lf, crlf")
+		fmtMaxLineWidthPtr    = fs.Int("max-line-width", 0, "Max line width hint (0 = unlimited)")
+		fmtQuoteStylePtr      = fs.String("quote-style", "", "Quote style: double, single, preserve")
+		fmtNoEditorConfigPtr  = fs.Bool("no-editorconfig", false, "Ignore .editorconfig files when resolving format options")
+		fmtNoTaploConfigPtr   = fs.Bool("no-taplo-config", false, "Ignore taplo.toml files when resolving TOML format options")
+		fmtNoPrettierPtr      = fs.Bool("no-prettier-config", false, "Ignore .prettierrc files when resolving format options")
+		fmtNoYamlfmtConfigPtr = fs.Bool("no-yamlfmt-config", false, "Ignore .yamlfmt files when resolving YAML format options")
+		fmtDiffPtr            = fs.Bool("diff", false, "Show unified diff instead of rewriting (implies no --fix)")
 	)
 
 	fs.Var(&reporterConfigFlags, "reporter",
@@ -596,33 +598,34 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 	// Schema fields are nil for format — resolveFormatConfig does not use them.
 
 	return cfvConfig{
-		fs:                fs,
-		searchPaths:       searchPaths,
-		excludeDirs:       excludeDirsPtr,
-		excludeFileTypes:  excludeTypesPtr,
-		fileTypes:         fileTypesPtr,
-		reportType:        reporterConf,
-		depth:             depthPtr,
-		groupOutput:       groupOutputPtr,
-		quiet:             quietPtr,
-		globbing:          globbingPtr,
-		configPath:        configPathPtr,
-		noConfig:          noConfigPtr,
-		gitignore:         gitignorePtr,
-		ignoreFiles:       ignoreFileConfigFlags,
-		fix:               fixPtr,
-		unsafe:            unsafePtr,
-		fmtIndent:         fmtIndentPtr,
-		fmtUseTabs:        fmtUseTabsPtr,
-		fmtSortKeys:       fmtSortKeysPtr,
-		fmtNoSortKeys:     fmtNoSortKeysPtr,
-		fmtLineEnding:     fmtLineEndingPtr,
-		fmtMaxLineWidth:   fmtMaxLineWidthPtr,
-		fmtQuoteStyle:     fmtQuoteStylePtr,
-		fmtDiff:           fmtDiffPtr,
-		fmtNoEditorConfig: fmtNoEditorConfigPtr,
-		fmtNoTaploConfig:  fmtNoTaploConfigPtr,
-		fmtNoPrettier:     fmtNoPrettierPtr,
+		fs:                 fs,
+		searchPaths:        searchPaths,
+		excludeDirs:        excludeDirsPtr,
+		excludeFileTypes:   excludeTypesPtr,
+		fileTypes:          fileTypesPtr,
+		reportType:         reporterConf,
+		depth:              depthPtr,
+		groupOutput:        groupOutputPtr,
+		quiet:              quietPtr,
+		globbing:           globbingPtr,
+		configPath:         configPathPtr,
+		noConfig:           noConfigPtr,
+		gitignore:          gitignorePtr,
+		ignoreFiles:        ignoreFileConfigFlags,
+		fix:                fixPtr,
+		unsafe:             unsafePtr,
+		fmtIndent:          fmtIndentPtr,
+		fmtUseTabs:         fmtUseTabsPtr,
+		fmtSortKeys:        fmtSortKeysPtr,
+		fmtNoSortKeys:      fmtNoSortKeysPtr,
+		fmtLineEnding:      fmtLineEndingPtr,
+		fmtMaxLineWidth:    fmtMaxLineWidthPtr,
+		fmtQuoteStyle:      fmtQuoteStylePtr,
+		fmtDiff:            fmtDiffPtr,
+		fmtNoEditorConfig:  fmtNoEditorConfigPtr,
+		fmtNoTaploConfig:   fmtNoTaploConfigPtr,
+		fmtNoPrettier:      fmtNoPrettierPtr,
+		fmtNoYamlfmtConfig: fmtNoYamlfmtConfigPtr,
 	}, nil
 }
 
@@ -633,10 +636,10 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 // buildFormatOptionsResolver builds a function that resolves format options
 // for any format name using the cascade:
 //
-//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > taplo.toml / .prettierrc > .editorconfig > format-specific defaults
+//	CLI flags > .cfv.toml [format.<type>] > .cfv.toml [format] > format-specific config (.yamlfmt / taplo.toml / .prettierrc) > .editorconfig > format-specific defaults
 //
-// taplo.toml only applies to TOML files and .prettierrc only applies to
-// JSON/JSONC/YAML files, so the two never compete for the same file.
+// taplo.toml only applies to TOML files, .prettierrc only applies to
+// JSON/JSONC/YAML files, and .yamlfmt only applies to YAML files.
 func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOptionsFunc {
 	var globalCfg *configfile.FormatOptions
 	var perFormatCfg map[string]*configfile.FormatOptions
@@ -654,6 +657,11 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 	var prettierCfg *formatter.PrettierConfig
 	if cfg.fmtNoPrettier == nil || !*cfg.fmtNoPrettier {
 		prettierCfg = formatter.NewPrettierConfig()
+	}
+
+	var yamlfmtCfg *formatter.Yamlfmt
+	if cfg.fmtNoYamlfmtConfig == nil || !*cfg.fmtNoYamlfmtConfig {
+		yamlfmtCfg = formatter.LoadYamlfmt(".")
 	}
 
 	if rc.formatCfg != nil {
@@ -696,10 +704,11 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 			opts.IndentWidth = 0
 		}
 
-		// Layer 3: taplo.toml, which only configures TOML formatting.
-		// Apply is a no-op when no taplo.toml was found.
+		// Layer 3: format-specific config (taplo.toml or .yamlfmt)
 		if formatName == "toml" {
 			taploCfg.Apply(&opts)
+		} else if formatName == "yaml" {
+			yamlfmtCfg.Apply(&opts)
 		}
 
 		// Layer 4: .cfv.toml [format] (global)
