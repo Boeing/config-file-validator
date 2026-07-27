@@ -740,7 +740,7 @@ func formatDefaults(formatName string) formatter.Options {
 			IndentWidth:  2,
 			FinalNewline: true,
 			LineEnding:   formatter.LineEndingLF,
-			QuoteStyle:   formatter.QuotePreserve,
+			QuoteStyle:   formatter.QuoteDouble,
 			SortKeys:     false,
 		}
 	case "jsonc":

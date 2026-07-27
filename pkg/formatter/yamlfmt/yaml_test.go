@@ -17,6 +17,16 @@ import (
 var f = yamlfmt.Formatter{}
 var defaultOpts = yamlfmt.DefaultOptions()
 
+func TestDefaultQuoteStyleMatchesPrettier(t *testing.T) {
+	t.Parallel()
+	src := []byte("plain: unchanged\nversion: '1.0.0'\nmessage: 'say \"hi\"'\napostrophe: \"it's\"\nescape: \"line\\nnext\"\n")
+	want := "plain: unchanged\nversion: \"1.0.0\"\nmessage: 'say \"hi\"'\napostrophe: \"it's\"\nescape: \"line\\nnext\"\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
 // yamlUnmarshal is a test helper that validates output is parseable YAML.
 func yamlUnmarshal(data []byte, v any) error {
 	return yaml.Unmarshal(data, v)

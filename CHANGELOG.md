@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON and JSONC formatting removes blank lines before closing braces and brackets while preserving blank lines between members (closes #581).
 - JSON and JSONC formatting now preserves a single blank line between object properties and array elements while removing blank lines before closing delimiters (closes #588).
 - YAML formatting now adds space padding inside non-empty flow mappings while preserving colon and comma spacing (closes #585).
+- YAML formatting now normalizes quoted scalars to double quotes by default, with conflict and escape safeguards; `quote-style = "preserve"` retains the previous behavior (closes #580).
 - JSON/JSONC formatters normalize tab indentation to spaces by default (prettier-compatible); explicit `indent_style = tab` via `.editorconfig` or `.cfv.toml` still preserves tabs (closes #584)
 - TOML formatting now normalizes spacing inside inline tables and nested arrays that appear as array elements, so `[{name="x"}]` becomes `[{ name = "x" }]` (closes #587).
 - TOML formatting now inserts one blank line before each table and array-of-tables section while keeping leading section comments attached (closes #583).
