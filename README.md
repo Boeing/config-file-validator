@@ -4,7 +4,7 @@
 <h1 align="center">Config File Validator</h1>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-91%25-brightgreen" alt="Code Coverage">
+<img id="cov" src="https://img.shields.io/badge/Coverage-92%25-brightgreen" alt="Code Coverage">
 
   <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
     <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
@@ -20,7 +20,7 @@
 
   <a href="https://github.com/avelino/awesome-go">
   <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
-  </a>  
+  </a>
 
   <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator/v3">
   <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v3.svg" alt="Go Reference">
@@ -31,93 +31,66 @@
   </a>
 </p>
 
-Validate and format every config file in your repository. One tool, one command, 18 formats.
-
-## What it does
+`cfv` is a command-line tool that validates and formats configuration files.
 
 ```shell
-cfv check .       # Validate syntax + schema across all config files
-cfv check --fix . # Fix what it can: trailing commas, type coercion
-cfv format .      # Show formatting issues
-cfv format --fix  # Fix formatting in-place
+cfv check .
 ```
-
-cfv replaces the per-format tools you're wiring together today — prettier, yamlfmt, taplo, terraform fmt, xmllint, jsonlint, v8r — with a single static binary.
-
-## Install
-
-**Homebrew**
-```shell
-brew install config-file-validator
-```
-
-**Go Install**
-```shell
-go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
-```
-
-<details>
-<summary>More install options</summary>
-
-**Winget**
-```shell
-winget install Boeing.config-file-validator
-```
-
-**MacPorts**
-```shell
-sudo port install config-file-validator
-```
-
-**Scoop**
-```shell
-scoop install config-file-validator
-```
-
-**Binary releases**
-
-Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/Boeing/config-file-validator/releases).
-
-</details>
-
-## Usage
 
 <img src="./img/demo.svg" alt="Config File Validator output showing pass/fail results" width="800" />
 
-Preview what formatting would change:
+## What it does
+
+**Syntax validation** — Detects malformed files: missing braces, duplicate keys, invalid escape sequences.
+
+**Schema validation** — Validates against JSON Schema and XSD. Matches files to [SchemaStore](https://www.schemastore.org/) schemas by filename.
+
+**Formatting** — Checks indentation, spacing, and key ordering. Reads `.editorconfig`, `.prettierrc`, and `taplo.toml`. Output is compatible with prettier and taplo.
+
+**Reporting** — Stdout, JSON, JUnit, or SARIF. Same format across all 18 file types.
+
+## Usage
+
+Validate syntax, schema, and formatting in one pass:
+
+```shell
+cfv .
+```
+
+Validate syntax and schema:
+
+```shell
+cfv check .
+```
+
+Validate and auto-fix what can be fixed:
+
+```shell
+cfv check --fix .
+```
+
+Check formatting:
+
+```shell
+cfv format .
+```
+
+Format in place:
+
+```shell
+cfv format --fix .
+```
+
+Preview formatting changes:
 
 ```shell
 cfv format --diff .
 ```
 
-See the [CLI reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags) for all options.
+## Supported formats
 
-## Features
-
-**Validation**
-- Syntax checking across 18 file formats
-- Schema validation via JSON Schema, XSD, and automatic [SchemaStore](https://www.schemastore.org/) lookup
-- Duplicate key detection
-
-**Formatting**
-- Normalizes indentation, spacing, and trailing newlines across 9 formats (JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV)
-- Sort keys alphabetically (YAML, JSON, JSONC, TOML, Properties, INI)
-- `--diff` preview without modifying files
-- AST-driven YAML formatting — matches prettier and yamlfmt output
-- Per-format config via [`.cfv.toml`](https://boeing.github.io/config-file-validator/docs/guides/configuration-file)
-
-**Integrations**
-- Auto-detects file types by extension and [known filename](https://boeing.github.io/config-file-validator/docs/reference/known-files)
-- JSON, JUnit, SARIF, and GitHub output for CI pipelines
-- [GitHub Action](https://github.com/Boeing/validate-configs-action) with PR annotations
-- [Pre-commit hook](https://boeing.github.io/config-file-validator/docs/integrations/pre-commit)
-- Usable as a [Go library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
-- Gitignore-aware file discovery
-
-## Supported Formats
-
-| Format | Validate | Format | Schema |
-|--------|:--------:|:------:|:------:|
+| Format | Syntax | Format | Schema |
+|--------|:------:|:------:|:------:|
 | JSON | ✓ | ✓ | ✓ |
 | JSONC | ✓ | ✓ | ✓ |
 | YAML | ✓ | ✓ | ✓ |
@@ -137,13 +110,44 @@ See the [CLI reference](https://boeing.github.io/config-file-validator/docs/refe
 | TOON | ✓ | | ✓ |
 | SARIF | ✓ | | ✓ |
 
+## Install
+
+```shell
+brew install config-file-validator
+```
+
+```shell
+go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
+```
+
+Single static binary. No runtime dependencies.
+
+<details>
+<summary>Winget, MacPorts, Scoop, binary releases</summary>
+
+```shell
+winget install Boeing.config-file-validator
+```
+
+```shell
+sudo port install config-file-validator
+```
+
+```shell
+scoop install config-file-validator
+```
+
+Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/Boeing/config-file-validator/releases).
+
+</details>
+
 ## Documentation
 
-Full documentation at https://boeing.github.io/config-file-validator.
+Full docs at [boeing.github.io/config-file-validator](https://boeing.github.io/config-file-validator).
 
 ## Contributing
 
-We welcome contributions! See the [contributing guide](./CONTRIBUTING.md).
+Contributions welcome. See the [contributing guide](./CONTRIBUTING.md).
 
 ## Contributors
 

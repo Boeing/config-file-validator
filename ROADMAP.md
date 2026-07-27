@@ -10,6 +10,7 @@ Syntax + schema + formatting in one tool.
 - Per-format config in `.cfv.toml`
 - Binary renamed to `cfv`, subcommand-based CLI
 - `cfv check --fix` auto-fixes JSON trailing commas and schema type coercion
+- `cfv .` unified command — runs syntax, schema, and formatting validation in one pass
 
 ## v3.1 — Stable
 
