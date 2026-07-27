@@ -699,6 +699,7 @@ func formatDefaults(formatName string) formatter.Options {
 			FinalNewline: true,
 			LineEnding:   formatter.LineEndingLF,
 			SortKeys:     false,
+			MaxLineWidth: 80,
 			QuoteStyle:   formatter.QuotePreserve,
 		}
 	case "yaml":
@@ -709,6 +710,16 @@ func formatDefaults(formatName string) formatter.Options {
 			LineEnding:   formatter.LineEndingLF,
 			QuoteStyle:   formatter.QuotePreserve,
 			SortKeys:     false,
+		}
+	case "jsonc":
+		return formatter.Options{
+			IndentStyle:    formatter.IndentSpaces,
+			IndentWidth:    2,
+			FinalNewline:   true,
+			LineEnding:     formatter.LineEndingLF,
+			SortKeys:       false,
+			QuoteStyle:     formatter.QuotePreserve,
+			TrailingCommas: formatter.TrailingCommasAll,
 		}
 	case "toml":
 		return formatter.Options{
