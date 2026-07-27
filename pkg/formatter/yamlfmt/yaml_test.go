@@ -673,6 +673,51 @@ func TestNormalizeFlowCollections(t *testing.T) {
 	}
 }
 
+func TestIndentSequencesDisabled(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+	opts.IndentSequences = formatter.SequenceIndentDisabled
+
+	cases := []struct {
+		name, input, want string
+	}{
+		{
+			"single_level_compact",
+			"items:\n  - one\n  - two\n",
+			"items:\n- one\n- two\n",
+		},
+		{
+			"comment_before_item",
+			"items:\n  # comment\n  - one\n",
+			"items:\n# comment\n- one\n",
+		},
+		{
+			"nested_compact",
+			"spec:\n  containers:\n    - name: app\n    - name: sidecar\n",
+			"spec:\n  containers:\n  - name: app\n  - name: sidecar\n",
+		},
+		{
+			"top_level_sequence_unaffected",
+			"- one\n- two\n",
+			"- one\n- two\n",
+		},
+		{
+			"deeply_nested",
+			"a:\n  b:\n    c:\n      - x\n      - y\n",
+			"a:\n  b:\n    c:\n    - x\n    - y\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := fmtr.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+		})
+	}
+}
+
 func TestBlockScalarFinalNewlineFalse(t *testing.T) {
 	t.Parallel()
 	fmtr := yamlfmt.Formatter{}
