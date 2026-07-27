@@ -83,7 +83,7 @@ actively maintained). Map editorconfig keys to `formatter.Options`:
 **What users want**:
 ```toml
 [format.jsonc]
-trailing-comma = "all"    # "all" | "none" | "preserve"
+trailing-commas = "all"   # "all" | "none" | "preserve"
 ```
 
 **Prerequisite**: JSONC formatter (Phase 3 in the plan). Once that exists,

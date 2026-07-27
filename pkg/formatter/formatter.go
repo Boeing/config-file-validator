@@ -80,7 +80,8 @@ const (
 	// a file with any trailing comma gets them everywhere, a file with
 	// none keeps none.
 	TrailingCommasPreserve TrailingCommas = iota
-	// TrailingCommasAll always adds trailing commas.
+	// TrailingCommasAll always adds trailing commas. It is the JSONC default,
+	// matching Prettier's trailingComma: "all" behavior.
 	TrailingCommasAll
 	// TrailingCommasNone always removes trailing commas.
 	TrailingCommasNone
