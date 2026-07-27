@@ -7,6 +7,7 @@
 //   - 2-space indentation
 //   - original key order preserved
 //   - trailing newline
+//   - arrays/objects collapsed to one line when they fit within 80 columns
 package jsonfmt
 
 import (
@@ -34,6 +35,7 @@ func DefaultOptions() formatter.Options {
 		IndentWidth:  2,
 		FinalNewline: true,
 		SortKeys:     false,
+		MaxLineWidth: 80,
 	}
 }
 
