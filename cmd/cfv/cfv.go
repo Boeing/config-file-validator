@@ -705,10 +705,13 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 		}
 
 		// Layer 3: format-specific config (taplo.toml or .yamlfmt)
-		if formatName == "toml" {
+		switch formatName {
+		case "toml":
 			taploCfg.Apply(&opts)
-		} else if formatName == "yaml" {
+		case "yaml":
 			yamlfmtCfg.Apply(&opts)
+		default:
+			// No format-specific config for other formats.
 		}
 
 		// Layer 4: .cfv.toml [format] (global)
