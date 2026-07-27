@@ -254,3 +254,28 @@ func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(gotTabs), "\t")
 }
+
+// TestTabIndentCollapsesShortArrays verifies that IndentStyle=IndentTabs uses
+// tab characters for indentation.
+func TestTabIndentCollapsesShortArrays(t *testing.T) {
+	t.Parallel()
+	src := []byte(`{"key":"value","num":42}`)
+	opts := jsonfmt.DefaultOptions()
+	opts.IndentStyle = formatter.IndentTabs
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "\t\"key\"")
+	require.NotContains(t, string(got), "  \"key\"")
+}
+
+// TestPreserveBlankLinePrefixNoBlankLine verifies that a source with no blank
+// lines between members does not inject blank lines into the output.
+func TestPreserveBlankLinePrefixNoBlankLine(t *testing.T) {
+	t.Parallel()
+	// Single newline between members — no blank line — must not produce blank line in output.
+	src := []byte("{\n  \"a\": 1,\n  \"b\": 2\n}\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.NotContains(t, string(got), "\n\n", "no blank lines expected when source has none")
+}

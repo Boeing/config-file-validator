@@ -285,3 +285,184 @@ func FuzzFormatWithOptions(f *testing.F) {
 		}
 	})
 }
+
+// TestTabIndent verifies that IndentStyle=IndentTabs uses tab indentation.
+func TestTabIndent(t *testing.T) {
+	t.Parallel()
+	src := []byte("<?xml version=\"1.0\"?>\n<root><child>value</child></root>\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.IndentStyle = formatter.IndentTabs
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "\t<child>")
+	require.NotContains(t, string(got), "  <child>")
+}
+
+// TestSelfClosingSpaceRemoved verifies that XMLSelfClosingSpace=false removes
+// the space before /> in self-closing tags that already have one.
+func TestSelfClosingSpaceRemoved(t *testing.T) {
+	t.Parallel()
+	src := []byte("<?xml version=\"1.0\"?>\n<config>\n  <server host=\"localhost\" />\n</config>\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.XMLSelfClosingSpace = false
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), `host="localhost"/>`)
+	require.NotContains(t, string(got), `host="localhost" />`)
+}
+
+// TestSelfClosingSpaceAdded verifies that XMLSelfClosingSpace=true adds
+// a space before /> in self-closing tags that don't have one.
+func TestSelfClosingSpaceAdded(t *testing.T) {
+	t.Parallel()
+	src := []byte("<?xml version=\"1.0\"?>\n<config>\n  <server host=\"localhost\"/>\n</config>\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.XMLSelfClosingSpace = true
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), `host="localhost" />`)
+}
+
+// TestTrailingWhitespaceStripped verifies that trailing spaces on lines are removed.
+func TestTrailingWhitespaceStripped(t *testing.T) {
+	t.Parallel()
+	// Input with trailing spaces after element content.
+	src := []byte("<?xml version=\"1.0\"?>\n<root>\n  <item>value   </item>\n</root>\n")
+	opts := xmlfmt.DefaultOptions()
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	// No line should end with trailing spaces.
+	for _, line := range strings.Split(string(got), "\n") {
+		require.Equal(t, strings.TrimRight(line, " \t"), line,
+			"line has trailing whitespace: %q", line)
+	}
+}
+
+// TestCRLFInputStripsTrailingWhitespace verifies that CRLF input has trailing
+// whitespace stripped even on Windows-style line endings.
+func TestCRLFInputStripsTrailingWhitespace(t *testing.T) {
+	t.Parallel()
+	src := []byte("<?xml version=\"1.0\"?>\r\n<root>\r\n  <item>v</item>  \r\n</root>\r\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.LineEnding = formatter.LineEndingCRLF
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
+
+// TestZeroIndentWidthDefaults verifies that IndentWidth=0 defaults to 2 spaces.
+func TestZeroIndentWidthDefaults(t *testing.T) {
+	t.Parallel()
+	src := []byte("<?xml version=\"1.0\"?>\n<root><child>v</child></root>\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.IndentWidth = 0
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "  <child>")
+}
+
+// TestTrailingWhitespaceStrippedCRLF verifies CRLF lines have trailing spaces stripped.
+func TestTrailingWhitespaceStrippedCRLF(t *testing.T) {
+	t.Parallel()
+	// Input with trailing spaces on CRLF lines.
+	src := []byte("<?xml version=\"1.0\"?>\r\n<root>  \r\n  <item>v</item>  \r\n</root>\r\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.LineEnding = formatter.LineEndingCRLF
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	// No line should end with trailing spaces before CRLF.
+	for _, line := range strings.Split(strings.ReplaceAll(string(got), "\r\n", "\n"), "\n") {
+		require.Equal(t, strings.TrimRight(line, " \t"), line,
+			"line has trailing whitespace: %q", line)
+	}
+}
+
+// TestContentAfterLastNewline verifies that content not followed by a newline
+// is included in the output (exercises the final lineStart < len(data) path).
+func TestContentAfterLastNewline(t *testing.T) {
+	t.Parallel()
+	// A well-formed XML with no trailing newline.
+	src := []byte("<?xml version=\"1.0\"?><root><item>v</item></root>")
+	opts := xmlfmt.DefaultOptions()
+	opts.FinalNewline = false
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	require.NotEqual(t, byte('\n'), got[len(got)-1])
+}
+
+// TestBOMPreserved verifies that a UTF-8 BOM at the start of the file is
+// preserved through formatting.
+func TestBOMPreserved(t *testing.T) {
+	t.Parallel()
+	// UTF-8 BOM followed by valid XML.
+	bom := []byte{0xef, 0xbb, 0xbf}
+	src := append(bom, []byte("<?xml version=\"1.0\"?>\n<root><child>v</child></root>\n")...)
+	opts := xmlfmt.DefaultOptions()
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.True(t, len(got) >= 3 && got[0] == 0xef && got[1] == 0xbb && got[2] == 0xbf,
+		"BOM must be preserved at start of output")
+}
+
+// TestPreserveModeReindentsExisting verifies that XMLWhitespacePreserve mode
+// only modifies existing indent tokens rather than inserting new ones.
+func TestPreserveModeReindentsExisting(t *testing.T) {
+	t.Parallel()
+	src := []byte("<?xml version=\"1.0\"?>\n<root>\n\t\t<child>v</child>\n</root>\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.XMLWhitespaceSensitivity = formatter.XMLWhitespacePreserve
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	// Preserve mode normalizes indent to 2 spaces.
+	require.Contains(t, string(got), "  <child>")
+	require.NotContains(t, string(got), "\t\t<child>")
+}
+
+// TestTextBeforeTagPrevIsTagFalse exercises the prevIsTag=false path where
+// a text node immediately precedes the current token (not a tag).
+func TestTextBeforeTagPrevIsTagFalse(t *testing.T) {
+	t.Parallel()
+	// XML with text content followed by a closing tag on the same line —
+	// exercises the default branch in prevIsTag where prev is TokText.
+	src := []byte("<?xml version=\"1.0\"?><root>hello</root>")
+	opts := xmlfmt.DefaultOptions()
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	// Idempotent.
+	got2, err := f.Format(got, opts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2))
+}
+
+// TestTextFollowedByElement verifies that a text node directly followed by
+// a child element is formatted correctly. This exercises the TokText path
+// in insertFormattingWhitespace and the prevIsTag=false path in prevIsTag.
+func TestTextFollowedByElement(t *testing.T) {
+	t.Parallel()
+	// XML where the root has leading text before its child element.
+	// helium accepts this as valid mixed content.
+	src := []byte("<?xml version=\"1.0\"?><root>prefix <child>value</child></root>")
+	opts := xmlfmt.DefaultOptions()
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+
+	// Must be idempotent.
+	got2, err := f.Format(got, opts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2))
+}

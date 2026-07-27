@@ -97,6 +97,26 @@ func TestOptionsIgnored(t *testing.T) {
 	require.Equal(t, string(src), string(got), "HCL formatter should ignore options")
 }
 
+// TestEmptyInputWithFinalNewline verifies that empty input with FinalNewline=true
+// returns a single newline.
+func TestEmptyInputWithFinalNewline(t *testing.T) {
+	t.Parallel()
+	opts := formatter.Options{FinalNewline: true}
+	got, err := f.Format([]byte{}, opts)
+	require.NoError(t, err)
+	require.Equal(t, "\n", string(got))
+}
+
+// TestEmptyInputWithoutFinalNewline verifies that empty input with FinalNewline=false
+// returns an empty byte slice.
+func TestEmptyInputWithoutFinalNewline(t *testing.T) {
+	t.Parallel()
+	opts := formatter.Options{FinalNewline: false}
+	got, err := f.Format([]byte{}, opts)
+	require.NoError(t, err)
+	require.Empty(t, got)
+}
+
 // FuzzHCLFormatter verifies no panics and idempotency on arbitrary inputs.
 func FuzzHCLFormatter(f *testing.F) {
 	f.Add([]byte("variable \"x\" {\n  default = 1\n}\n"))
