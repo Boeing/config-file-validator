@@ -19,10 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--sort-keys` flag to sort mapping keys alphabetically on `cfv format`
 - `--diff` flag for previewing formatting changes without modifying files
 - Per-format configuration in `.cfv.toml` via `[format.<type>]` tables (yaml, json, jsonc, toml, hcl, xml, ini, properties, env)
-- Format configuration cascade: CLI flags > per-format config > global `[format]` config > `taplo.toml` > `.editorconfig` > defaults
+- Format configuration cascade: CLI flags > per-format config > global `[format]` config > `taplo.toml` / `.prettierrc` > `.editorconfig` > defaults
 - `trailing-commas` format option (`all` | `none` | `preserve`) to control trailing commas on expanded JSONC collections
 - `.editorconfig` auto-detection for `cfv format`: `indent_style`, `indent_size`, `end_of_line`, and `insert_final_newline` are resolved per file (globs, parent directories, and `root = true` are all respected). Disable with `--no-editorconfig` (closes #562)
 - `taplo.toml` / `.taplo.toml` auto-detection for TOML formatting: `indent_string`, `column_width`, `trailing_newline`, `reorder_keys`, `crlf`, and `array_trailing_comma` are mapped onto the equivalent cfv options. Disable with `--no-taplo-config` (closes #564)
+- `.prettierrc` auto-detection for `cfv format`: `tabWidth`, `useTabs`, `printWidth`, `endOfLine`, `trailingComma`, and `singleQuote` are read from `.prettierrc`, `.prettierrc.json`, `.prettierrc.yaml`/`.yml`, or `.prettierrc.toml` (closest directory wins; JS-based configs are skipped, not an error). Slots into the cascade between `.editorconfig` and `.cfv.toml`. Disable with `--no-prettier-config` (closes #563)
 - `max-line-width` and `trailing-commas` are now honored by the TOML formatter
 - Schema validation support for JSONC files via `$schema`, `--schema-map`, and SchemaStore
 - Schema validation support for Properties files via `--schema-map` in `.cfv.toml`
@@ -50,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - JSONC `trailing-commas = "none"` formatting now removes trailing commas next to final-value comments while preserving the comments.
 - JSON and JSONC formatting removes blank lines before closing braces and brackets while preserving blank lines between members (closes #581).
+- YAML formatting now adds space padding inside non-empty flow mappings while preserving colon and comma spacing (closes #585).
 - JSON/JSONC formatters normalize tab indentation to spaces by default (prettier-compatible); explicit `indent_style = tab` via `.editorconfig` or `.cfv.toml` still preserves tabs (closes #584)
 - TOML formatting now normalizes spacing inside inline tables and nested arrays that appear as array elements, so `[{name="x"}]` becomes `[{ name = "x" }]` (closes #587).
 - TOML formatting now inserts one blank line before each table and array-of-tables section while keeping leading section comments attached (closes #583).
