@@ -3,3 +3,8 @@
 # Only used to parse trusted markdown front matter from this repo — not exploitable.
 # Re-evaluate when Docusaurus updates gray-matter or switches to js-yaml 4.x.
 CVE-2026-53550
+
+# brace-expansion 1.x is pinned by @docusaurus/core via serve-handler/minimatch@3.1.x.
+# The fix (5.0.8) requires a major version bump that breaks minimatch 3.x.
+# Not user-addressable without a Docusaurus update. Not exploitable in a static docs build.
+CVE-2026-14257
