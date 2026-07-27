@@ -658,6 +658,10 @@ func TestNormalizeFlowCollections(t *testing.T) {
 		{"empty_array", "x: []\n", "x: []\n"},
 		{"quoted_braces_unchanged", "x: {value: \"{literal}\"}\n", "x: { value: \"{literal}\" }\n"},
 		{"already_normalized", "x: { a: 1, b: 2 }\n", "x: { a: 1, b: 2 }\n"},
+		{"doubled_single_quote", "x: {key: 'it''s a test'}\n", "x: { key: 'it''s a test' }\n"},
+		{"multiple_doubled_quotes", "x: {key: 'has''two''escapes'}\n", "x: { key: 'has''two''escapes' }\n"},
+		{"single_quote_no_escape", "x: {key: 'simple'}\n", "x: { key: 'simple' }\n"},
+		{"doubled_quote_empty_value", "x: {key: ''}\n", "x: { key: '' }\n"},
 	}
 
 	for _, tc := range cases {

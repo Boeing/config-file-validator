@@ -938,7 +938,8 @@ func addFlowMappingPadding(raw []byte) []byte {
 	var out []byte
 	quote := byte(0)
 	escaped := false
-	for i, b := range raw {
+	for i := 0; i < len(raw); i++ {
+		b := raw[i]
 		if quote != 0 {
 			out = append(out, b)
 			if quote == '"' && b == '\\' && !escaped {
@@ -946,8 +947,11 @@ func addFlowMappingPadding(raw []byte) []byte {
 				continue
 			}
 			if b == quote && !escaped {
-				// A doubled single quote is content, not the closing quote.
 				if quote == '\'' && i+1 < len(raw) && raw[i+1] == '\'' {
+					// Doubled single-quote: escape representing a literal '.
+					// Consume BOTH bytes as content, stay in quoted state.
+					out = append(out, raw[i+1])
+					i++ // skip the second '
 					continue
 				}
 				quote = 0
