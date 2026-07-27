@@ -366,3 +366,36 @@ func TestLoadEditorconfig(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, *cfg.Editorconfig)
 }
+
+// TestLoadInvalidTOML verifies that a file with invalid TOML syntax returns an error.
+func TestLoadInvalidTOML(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, "not valid toml [[[")
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid TOML")
+}
+
+// TestLoadSchemaValidationFailure verifies that an unknown key causes schema rejection.
+func TestLoadSchemaValidationFailure(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeConfig(t, dir, `unknown-key-that-does-not-exist = "bad"`)
+	_, err := Load(filepath.Join(dir, FileName))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "schema validation")
+}
+
+// TestDiscoverAbsPathError verifies that Discover returns empty string when
+// startDir is a non-existent path (filepath.Abs may still succeed, so no
+// config will be found walking up).
+func TestDiscoverNoConfigFound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// Subdirectory with no .cfv.toml anywhere in the tree.
+	sub := filepath.Join(dir, "a", "b", "c")
+	require.NoError(t, os.MkdirAll(sub, 0o755))
+	result := Discover(sub)
+	require.Empty(t, result)
+}

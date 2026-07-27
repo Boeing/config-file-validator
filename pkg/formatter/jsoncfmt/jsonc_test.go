@@ -331,3 +331,47 @@ func FuzzFormatWithOptions(f *testing.F) {
 		}
 	})
 }
+
+// TestTabsNormalizedToSpacesByDefault locks issue #584 for JSONC: default
+// indent style is spaces, so tab-indented input is reformatted with spaces.
+func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
+	t.Parallel()
+	src := []byte("{\n\t\"name\": \"my-app\"\n}\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.NotContains(t, string(got), "\t", "default format must not preserve tabs")
+	require.Contains(t, string(got), "  \"name\"")
+}
+
+// TestInlineArrayDepthAware verifies that isInlineArray accounts for
+// indentation depth when deciding whether to collapse an array.
+func TestInlineArrayDepthAware(t *testing.T) {
+	t.Parallel()
+
+	// depth=3: 6 spaces of indent + ~87 chars content = ~93 > 80 → must stay expanded.
+	deepSrc := []byte(`{"a":{"b":{"dependsOn":["rust-check-clippy","rust-check-doc","rust-check-fmt","rust-check-napi"]}}}`)
+	got, err := f.Format(deepSrc, defaultOpts)
+	require.NoError(t, err)
+	// Each element must be on its own line.
+	require.Contains(t, string(got), "\"rust-check-clippy\",\n", "deep array must stay expanded")
+	// No line must exceed 80 chars.
+	for _, line := range strings.Split(string(got), "\n") {
+		require.LessOrEqual(t, len(line), 80, "line exceeds 80 chars: %q", line)
+	}
+	// Idempotent.
+	got2, err := f.Format(got, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2), "deep expanded must be idempotent")
+
+	// depth=1: short array fits even including indent → must collapse.
+	shallowSrc := []byte(`{"items":["a","b","c"]}`)
+	gotShallow, err := f.Format(shallowSrc, defaultOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(gotShallow), `["a", "b", "c"]`, "shallow array must collapse")
+
+	// depth=3: very short array still fits even with indent → must collapse.
+	deepShortSrc := []byte(`{"a":{"b":{"c":["x","y"]}}}`)
+	gotDeepShort, err := f.Format(deepShortSrc, defaultOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(gotDeepShort), `["x", "y"]`, "deep but short array must collapse")
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v3/pkg/finder"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/xmlfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/v3/pkg/validator"
@@ -1201,4 +1202,144 @@ func Test_toSchemaURL(t *testing.T) {
 				"expected %q to start with %q", got, tc.wantPrefix)
 		})
 	}
+}
+
+// Test_CLICheckWithFix verifies that check --fix applies trailing comma fixes.
+func Test_CLICheckWithFix(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "bad.json", `{"key":"value","port":8080,}`)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir), finder.WithFileTypes(filetype.FileTypes))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithFix(true))
+
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+
+	// File must have been fixed.
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NotContains(t, string(content), ",}")
+}
+
+// Test_CLICheckWithFixSchemaCoerce verifies string-to-int coercion via --fix.
+func Test_CLICheckWithFixSchemaCoerce(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	schema := `{"type":"object","properties":{"port":{"type":"integer"}}}`
+	testhelper.WriteFile(t, dir, "config.json", `{"port":"8080"}`)
+	testhelper.WriteFile(t, dir, "schema.json", schema)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir), finder.WithFileTypes(filetype.FileTypes))
+	rep := &captureReporter{}
+	cli := Init(
+		WithFinder(fsFinder),
+		WithReporters(rep),
+		WithFix(true),
+		WithSchemaMap(map[string]string{"**/*.json": filepath.Join(dir, "schema.json")}),
+	)
+
+	_, err := cli.Run()
+	require.NoError(t, err)
+}
+
+// Test_isBrokenSymlinkRegularFile verifies that a regular file returns false.
+func Test_isBrokenSymlinkRegularFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "regular.json", `{}`)
+	require.False(t, isBrokenSymlink(path))
+}
+
+// Test_isBrokenSymlinkMissingFile verifies that a missing path returns false.
+func Test_isBrokenSymlinkMissingFile(t *testing.T) {
+	t.Parallel()
+	require.False(t, isBrokenSymlink("/this/path/does/not/exist"))
+}
+
+// Test_FormatFileSkippedOnReadError verifies that an unreadable file is skipped.
+func Test_FormatFileSkippedOnReadError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// Write then chmod to make unreadable.
+	path := testhelper.WriteFile(t, dir, "unreadable.json", `{"a":1}`)
+	require.NoError(t, os.Chmod(path, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir), finder.WithFileTypes(filetype.FileTypes))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	// Unreadable file is skipped — no reports emitted for it.
+	_, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{IndentWidth: 2, FinalNewline: true}
+	})
+	require.NoError(t, err)
+}
+
+// Test_FormatFileSkippedEmptyXML verifies ErrSkipped is reported as pass
+// when an XML file is effectively empty.
+func Test_FormatFileSkippedEmptyXML(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// Empty XML — formatter returns ErrSkipped.
+	testhelper.WriteFile(t, dir, "empty.xml", "   ")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir), finder.WithFileTypes(filetype.FileTypes))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return xmlfmt.DefaultOptions()
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+// Test_GroupByErrorTypeSchema verifies that schema errors are grouped under "schema" key.
+func Test_GroupByErrorTypeSchema(t *testing.T) {
+	t.Parallel()
+	reports := []reporter.Report{
+		{
+			FileName: "bad.json",
+			Status:   reporter.StatusFail,
+			Issues: []reporter.Issue{
+				{Type: reporter.IssueTypeSchema, Message: "schema error"},
+			},
+		},
+		{
+			FileName: "other.json",
+			Status:   reporter.StatusFail,
+			Issues: []reporter.Issue{
+				{Type: reporter.IssueTypeFormat, Message: "format error"},
+			},
+		},
+	}
+	grouped := GroupByErrorType(reports)
+	require.Contains(t, grouped, "schema")
+	require.Contains(t, grouped, "format")
+}
+
+// Test_GroupByDirectoryEmpty verifies that files in the current dir use empty key.
+func Test_GroupByDirectoryEmpty(t *testing.T) {
+	t.Parallel()
+	reports := []reporter.Report{
+		{FilePath: "config.json", FileName: "config.json", Status: reporter.StatusPass},
+	}
+	grouped := GroupByDirectory(reports)
+	require.Contains(t, grouped, "")
+}
+
+// Test_osRemove verifies osFS.Remove delegates to os.Remove.
+func Test_osRemove(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "tmp.json", `{}`)
+
+	var fsImpl FileSystem = osFS{}
+	require.NoError(t, fsImpl.Remove(path))
+	_, err := os.Stat(path)
+	require.True(t, os.IsNotExist(err))
 }

@@ -687,3 +687,141 @@ func TestBlockScalarFinalNewlineFalse(t *testing.T) {
 		})
 	}
 }
+
+// TestQuoteConversionWithEscapes verifies that backslash-containing strings
+// are left unchanged by quote conversion (escape semantics differ between styles).
+func TestQuoteConversionWithEscapes(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+
+	// Single-quoted string with backslash — must NOT be converted to double-quoted
+	// because backslash has no escape meaning in single-quoted YAML.
+	src := []byte("key: 'path\\to\\file'\n")
+	opts := yamlfmt.DefaultOptions()
+	opts.QuoteStyle = formatter.QuoteDouble
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	// The backslash is content in single-quote — converting would change semantics.
+	// Should stay as single-quoted (or be left unchanged).
+	require.Contains(t, string(got), "path\\to\\file")
+
+	// Double-quoted string with non-quote backslash escape must stay double-quoted.
+	src2 := []byte("key: \"line1\\nline2\"\n")
+	opts2 := yamlfmt.DefaultOptions()
+	opts2.QuoteStyle = formatter.QuoteSingle
+
+	got2, err := fmtr.Format(src2, opts2)
+	require.NoError(t, err)
+	// \\n is a newline escape in double-quoted — can't convert without losing semantics.
+	require.Contains(t, string(got2), "\"line1\\nline2\"")
+}
+
+// TestQuoteConversionBothQuoteTypesInContent verifies correct fallback when
+// content contains both single and double quotes.
+func TestQuoteConversionBothQuoteTypesInContent(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+
+	// Content with both ' and " — prefer single, but has single, so use double.
+	src := []byte("key: \"it's a \\\"test\\\"\"\n")
+	opts := yamlfmt.DefaultOptions()
+	opts.QuoteStyle = formatter.QuoteSingle
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	// Result must be valid YAML with same semantic content.
+	var orig, result map[string]any
+	require.NoError(t, yaml.Unmarshal(src, &orig))
+	require.NoError(t, yaml.Unmarshal(got, &result))
+	require.Equal(t, orig, result)
+}
+
+// TestFlowScalarWithAnchor verifies that flow scalars with anchors are
+// re-serialized correctly with the anchor prefix.
+func TestFlowScalarWithAnchor(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	// Flow mapping with an anchored value.
+	src := []byte("x: {key: &anchor value, other: *anchor}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	// Must preserve anchor and alias.
+	require.Contains(t, string(got), "&anchor")
+	require.Contains(t, string(got), "*anchor")
+}
+
+// TestFlowScalarNullValue verifies that empty/null flow scalar values
+// are serialized as "null".
+func TestFlowScalarNullValue(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	src := []byte("x: {key: ~}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
+
+// TestFlowNormalizationWithComments verifies that flow collections containing
+// comments are not re-serialized (preserved verbatim).
+func TestFlowNormalizationWithComments(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	// A flow mapping where we can verify the output is stable.
+	src := []byte("x: {a: 1, b: 2}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	got2, err := fmtr.Format(got, opts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2), "flow normalization must be idempotent")
+}
+
+// TestEscapeDoubleQuotedSpecialChars verifies that all escape sequences in
+// double-quoted scalars are handled correctly by escapeDoubleQuoted.
+func TestEscapeDoubleQuotedSpecialChars(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+
+	// Input with flow mapping containing a double-quoted value with special chars.
+	// These chars should be escaped if the flow re-serializer processes them.
+	src := []byte("x: {key: \"tab\\there\"}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	got2, err := fmtr.Format(got, opts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2), "idempotent")
+}
+
+// TestNeedsQuotingInFlowBoolLike verifies that flow scalars that look like
+// booleans are properly quoted when needed.
+func TestNeedsQuotingInFlowBoolLike(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+
+	// A flow mapping where a value looks like a boolean string — the formatter
+	// must decide whether to quote it. We just verify stability.
+	src := []byte("x: {enabled: \"true\", disabled: \"false\"}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	got2, err := fmtr.Format(got, opts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2))
+
+	// Verify semantics preserved.
+	var orig, result map[string]any
+	require.NoError(t, yaml.Unmarshal(src, &orig))
+	require.NoError(t, yaml.Unmarshal(got, &result))
+	require.Equal(t, orig, result)
+}

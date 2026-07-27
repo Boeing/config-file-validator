@@ -217,7 +217,7 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	// Keep short primitive arrays on one line.
 	// Note: inlined arrays intentionally omit trailing commas.
 	// A single-line array like [1, 2, 3] is cleaner without a trailing comma.
-	if isInlineArray(arr) {
+	if isInlineArray(arr, depth, len(fs.indent)) {
 		for i := range arr.Elements {
 			if i == 0 {
 				arr.Elements[i].BeforeExtra = nil
@@ -264,8 +264,10 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 
 // isInlineArray returns true if the array should stay on one line.
 // Short arrays of only primitive values (no nested objects/arrays, no comments)
-// are kept inline.
-func isInlineArray(arr *hujson.Array) bool {
+// that fit within 80 columns (accounting for current indentation) are kept inline.
+// The key width is not available at this call site, so indentation depth is used
+// as a conservative proxy — this prevents over-collapsing at deeper nesting levels.
+func isInlineArray(arr *hujson.Array, depth, indentLen int) bool {
 	if hasComment(arr.AfterExtra) {
 		return false
 	}
@@ -283,7 +285,11 @@ func isInlineArray(arr *hujson.Array) bool {
 		}
 		totalLen += len(el.Value.(hujson.Literal)) + 2
 	}
-	return totalLen < 80
+	// Account for current indentation depth. Does not include key width
+	// (not available at this call site), so this is a conservative proxy —
+	// may still over-collapse when the key itself is very long.
+	lineLen := depth*indentLen + totalLen
+	return lineLen < 80
 }
 
 // hasComment returns true if the extra contains a comment.

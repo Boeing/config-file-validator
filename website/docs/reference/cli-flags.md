@@ -46,6 +46,7 @@ All flags below apply to the `check` subcommand.
 | `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |
 | `-no-config`          | bool   | `false`    | Disable automatic `.cfv.toml` discovery.                                                                           |
 | `-type-map`           | string | —          | Map a glob pattern to a file type. Format: `<pattern>:<type>`. Repeatable.                                         |
+| `-watch`              | bool   | `false`    | Watch search paths for file changes and re-run validation on each changed file.                                    |
 
 ## `format` Flags
 
@@ -65,6 +66,7 @@ Checks formatting of config files. With `--fix`, rewrites files in place. With `
 | `-sort-keys`  | bool   | `false` | Sort mapping keys alphabetically.                            |
 | `-no-editorconfig` | bool | `false` | Ignore `.editorconfig` files when resolving format options. |
 | `-no-taplo-config` | bool | `false` | Ignore `taplo.toml` files when resolving TOML format options. |
+| `-no-prettier-config` | bool | `false` | Ignore `.prettierrc` files when resolving format options. |
 
 ### Shared flags
 

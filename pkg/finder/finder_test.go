@@ -766,3 +766,148 @@ func Test_fsFinderExtensionCacheNoPoison(t *testing.T) {
 	require.Contains(t, names, "good.json")
 	require.Len(t, names, 2, "LICENSE should not be found (unrecognized)")
 }
+
+func TestMatchFileReturnsFileWhenItPassesFilters(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes(filetype.FileTypes),
+		WithExcludeDirs(nil),
+		WithExcludeFileTypes(nil),
+	)
+	files, err := fsFinder.MatchFile(path)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, filepath.Base(path), filepath.Base(files[0].Path))
+}
+
+func TestMatchFileReturnsEmptyForExcludedFileType(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "good.yaml", testhelper.ValidContent["yaml"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes(filetype.FileTypes),
+		WithExcludeDirs(nil),
+		WithExcludeFileTypes([]string{"yaml", "yml"}),
+	)
+	files, err := fsFinder.MatchFile(path)
+	require.NoError(t, err)
+	require.Empty(t, files)
+}
+
+func TestMatchFileReturnsEmptyForFileOutsideRoots(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	otherDir := t.TempDir()
+	path := testhelper.WriteFile(t, otherDir, "good.json", testhelper.ValidContent["json"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes(filetype.FileTypes),
+		WithExcludeDirs(nil),
+		WithExcludeFileTypes(nil),
+	)
+	files, err := fsFinder.MatchFile(path)
+	require.NoError(t, err)
+	require.Empty(t, files)
+}
+
+func TestMatchFileReturnsEmptyForDirectory(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes(filetype.FileTypes),
+	)
+	files, err := fsFinder.MatchFile(dir)
+	require.NoError(t, err)
+	require.Empty(t, files)
+}
+
+func TestMatchFileReturnsEmptyForExcludedDir(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	subdir := testhelper.CreateSubdir(t, dir, "vendor")
+	path := testhelper.WriteFile(t, subdir, "good.json", testhelper.ValidContent["json"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes(filetype.FileTypes),
+		WithExcludeDirs([]string{"vendor"}),
+		WithExcludeFileTypes(nil),
+	)
+	files, err := fsFinder.MatchFile(path)
+	require.NoError(t, err)
+	require.Empty(t, files)
+}
+
+func TestMatchFileErrorsOnNonExistentFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes(filetype.FileTypes),
+	)
+	_, err := fsFinder.MatchFile(filepath.Join(dir, "does_not_exist.json"))
+	require.Error(t, err)
+}
+
+func TestMatchFileWorksWithFilePathRoot(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	// PathRoot is a file, not a directory.
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(path),
+		WithFileTypes(filetype.FileTypes),
+	)
+	files, err := fsFinder.MatchFile(path)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+}
+
+func TestMatchFileRespectsGitignore(t *testing.T) {
+	t.Parallel()
+
+	// Only run if git is available — gitignore matching requires a repo root.
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	dir := t.TempDir()
+	// Init a git repo so newGitignoreMatcher finds a root.
+	cmd := exec.CommandContext(t.Context(), "git", "init", dir)
+	cmd.Stdout = nil
+	if err := cmd.Run(); err != nil {
+		t.Skip("git init failed:", err)
+	}
+
+	// Write a .gitignore that ignores *.log files.
+	testhelper.WriteFile(t, dir, ".gitignore", "*.log\n")
+	logFile := testhelper.WriteFile(t, dir, "debug.log", "log content")
+	jsonFile := testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithFileTypes(filetype.FileTypes),
+		WithGitignore(true),
+	)
+
+	// The .log file should be excluded.
+	files, err := fsFinder.MatchFile(logFile)
+	require.NoError(t, err)
+	require.Empty(t, files, "gitignored file should not match")
+
+	// The .json file should still match.
+	files, err = fsFinder.MatchFile(jsonFile)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+}

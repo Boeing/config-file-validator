@@ -85,11 +85,7 @@ cmp strict.json strict_expected.json
     "a": 1,
     "b": 2
   },
-  "items": [
-    1,
-    2,
-    3
-  ]
+  "items": [1, 2, 3]
 }
 -- cfv/preserve.toml --
 [format]

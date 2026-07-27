@@ -237,3 +237,45 @@ func TestZeroOptionsUsesJSONDefaults(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(got), "  \"a\"") // 2-space default indent
 }
+
+// TestTabsNormalizedToSpacesByDefault locks issue #584: without editorconfig,
+// tab-indented JSON is reformatted with spaces (prettier-compatible default).
+func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
+	t.Parallel()
+	src := []byte("{\n\t\"name\": \"my-app\",\n\t\"version\": \"1.0.0\"\n}\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.NotContains(t, string(got), "\t", "default format must not preserve tabs")
+	require.Contains(t, string(got), "  \"name\"")
+	// Explicit IndentTabs still uses tabs when requested.
+	tabOpts := defaultOpts
+	tabOpts.IndentStyle = formatter.IndentTabs
+	gotTabs, err := f.Format(src, tabOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(gotTabs), "\t")
+}
+
+// TestTabIndentCollapsesShortArrays verifies that IndentStyle=IndentTabs uses
+// tab characters for indentation.
+func TestTabIndentCollapsesShortArrays(t *testing.T) {
+	t.Parallel()
+	src := []byte(`{"key":"value","num":42}`)
+	opts := jsonfmt.DefaultOptions()
+	opts.IndentStyle = formatter.IndentTabs
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "\t\"key\"")
+	require.NotContains(t, string(got), "  \"key\"")
+}
+
+// TestPreserveBlankLinePrefixNoBlankLine verifies that a source with no blank
+// lines between members does not inject blank lines into the output.
+func TestPreserveBlankLinePrefixNoBlankLine(t *testing.T) {
+	t.Parallel()
+	// Single newline between members — no blank line — must not produce blank line in output.
+	src := []byte("{\n  \"a\": 1,\n  \"b\": 2\n}\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.NotContains(t, string(got), "\n\n", "no blank lines expected when source has none")
+}
