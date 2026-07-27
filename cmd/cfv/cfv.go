@@ -36,6 +36,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"maps"
 	"os"
 	"path/filepath"
@@ -86,6 +87,7 @@ type cfvConfig struct {
 	// Phase 1: --fix and --unsafe are reserved (no-op) until Phase 4.
 	fix    *bool
 	unsafe *bool
+	watch  *bool
 	// Format option flags (cfv format only).
 	fmtIndent         *int
 	fmtUseTabs        *bool
@@ -121,6 +123,8 @@ type resolvedConfig struct {
 	fix           bool
 	diff          bool
 	formatCfg     *configfile.FormatConfig
+	watch         bool
+	searchPaths   []string
 }
 
 // --- Repeatable flag types ---
@@ -330,6 +334,14 @@ func runCheck(args []string) int {
 		return 2
 	}
 
+	if resolved.watch {
+		exitStatus, err := runWatch(resolved)
+		if err != nil {
+			log.Printf("An error occurred during watch execution: %v", err)
+		}
+		return exitStatus
+	}
+
 	c := buildCLI(resolved)
 	exitStatus, err := c.Run()
 	if err != nil {
@@ -381,6 +393,7 @@ func parseCheckFlags(args []string) (cfvConfig, error) {
 		// Phase 1: --fix and --unsafe are reserved. No-op until Phase 4.
 		fixPtr    = fs.Bool("fix", false, "Apply safe fixes automatically (trailing commas, schema coercion, formatting)")
 		unsafePtr = fs.Bool("unsafe", false, "Apply unsafe fixes (requires --fix)")
+		watchPtr  = fs.Bool("watch", false, "Watch search paths for file changes and re-run validation.")
 	)
 
 	fs.Var(&reporterConfigFlags, "reporter",
@@ -452,6 +465,7 @@ func parseCheckFlags(args []string) (cfvConfig, error) {
 		ignoreFiles:      ignoreFileConfigFlags,
 		fix:              fixPtr,
 		unsafe:           unsafePtr,
+		watch:            watchPtr,
 	}, nil
 }
 
@@ -1145,6 +1159,8 @@ func resolveBaseConfig(cfg *cfvConfig) (*resolvedConfig, *configfile.ValidatorOp
 		fix:         cfg.fix != nil && *cfg.fix,
 		diff:        cfg.fmtDiff != nil && *cfg.fmtDiff,
 		formatCfg:   formatCfg,
+		watch:       cfg.watch != nil && *cfg.watch,
+		searchPaths: cfg.searchPaths,
 	}
 
 	// Handle stdin mode: single path of "-"
@@ -1261,6 +1277,24 @@ func buildCLI(rc *resolvedConfig) *cli.CLI {
 		opts = append(opts, cli.WithStdinData(rc.stdinData, rc.stdinFileType))
 	} else {
 		opts = append(opts, cli.WithFinder(finder.FileSystemFinderInit(rc.finderOpts...)))
+	}
+	return cli.Init(opts...)
+}
+
+// buildCLIWithFinder builds a CLI using the given finder instead of constructing
+// one from finderOpts. Used by watch mode to validate a single changed file.
+func buildCLIWithFinder(rc *resolvedConfig, f finder.FileFinder) *cli.CLI {
+	opts := []cli.Option{
+		cli.WithReporters(rc.reporters...),
+		cli.WithGroupOutput(rc.groupOutput),
+		cli.WithQuiet(rc.quiet),
+		cli.WithRequireSchema(rc.requireSchema),
+		cli.WithNoSchema(rc.noSchema),
+		cli.WithSchemaMap(rc.schemaMap),
+		cli.WithSchemaStore(rc.store),
+		cli.WithFix(rc.fix),
+		cli.WithDiff(rc.diff),
+		cli.WithFinder(f),
 	}
 	return cli.Init(opts...)
 }
@@ -1458,6 +1492,7 @@ func applyDefaultFlagsFromEnv(fs *flag.FlagSet) error {
 		"schemastore":        "CFV_SCHEMASTORE",
 		"schemastore-path":   "CFV_SCHEMASTORE_PATH",
 		"gitignore":          "CFV_GITIGNORE",
+		"watch":              "CFV_WATCH",
 	}
 	for flagName, envVar := range flagsEnvMap {
 		if err := setFlagFromEnvIfNotSet(fs, flagName, envVar); err != nil {

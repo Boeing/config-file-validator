@@ -7,7 +7,8 @@ import (
 
 	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/Boeing/config-file-validator/v3/pkg/tools")
+	"github.com/Boeing/config-file-validator/v3/pkg/tools"
+)
 
 // SourcePosition holds a 1-based line and column in the original source file.
 type SourcePosition struct {

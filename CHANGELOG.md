@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `cfv format` subcommand with `--fix` (rewrite in place) and `--diff` (print unified diff) modes
+- `--watch` flag for `cfv check`: watches search paths for file changes and re-runs validation on each changed file (closes #510).
 - Formatting support for 9 formats: JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV
 - AST-driven YAML formatter: indent normalization, inline mapping/sequence spacing, flow collection normalization, and alphabetical key sorting
 - CST-based formatters for TOML, Properties, and INI using custom tokenizers that preserve comments and structure

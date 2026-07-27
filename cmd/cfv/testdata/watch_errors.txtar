@@ -1,0 +1,11 @@
+# --watch cannot read stdin
+stdin valid.json
+! exec cfv check --watch --file-types=json -
+stderr '--watch cannot be used with stdin'
+
+# --watch reports missing search paths and exits
+! exec cfv check --watch missing_dir_that_does_not_exist
+stderr 'watch execution'
+
+-- valid.json --
+{"key": "value"}
