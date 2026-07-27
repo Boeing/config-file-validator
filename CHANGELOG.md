@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Docs: Make the list of supported formats dynamic in documentation and add CUE/KDL.
 - Refactored grouped standard and JSON output to support any number of `--groupby` levels.
 - Directory grouped output now uses slash-normalized directory keys without trailing separators; files in the current directory use an empty directory key.
 
