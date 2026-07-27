@@ -15,6 +15,8 @@ import (
 //
 // IndentStyle values: 0=IndentDefault, 1=IndentSpaces, 2=IndentTabs
 // LineEnding values:  0=LineEndingDefault, 1=LineEndingLF, 2=LineEndingCRLF
+// TrailingCommas values: 0=TrailingCommasPreserve, 1=TrailingCommasAll,
+// 2=TrailingCommasNone
 //
 // If the file does not exist, baseOpts is returned unchanged.
 func LoadFixtureOptions(path string, baseOpts Options) Options {
