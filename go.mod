@@ -11,7 +11,7 @@ require (
 	github.com/gurkankaymak/hocon v1.2.23
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.23.0
-	github.com/lestrrat-go/helium v0.5.1
+	github.com/lestrrat-go/helium v0.7.0
 	github.com/magiconair/properties v1.8.10
 	github.com/owenrumney/go-sarif/v3 v3.3.0
 	github.com/pelletier/go-toml/v2 v2.4.3
