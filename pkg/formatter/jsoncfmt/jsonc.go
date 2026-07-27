@@ -162,12 +162,16 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 
 	for i := range obj.Members {
 		m := &obj.Members[i]
+		preserveBlank := i > 0 && hasBlankLine(m.Name.BeforeExtra)
 
 		// Preserve comments from BeforeExtra, apply correct indentation.
 		if i == 0 {
 			m.Name.BeforeExtra = reindentCompactExtra(m.Name.BeforeExtra, childIndent)
 		} else {
 			m.Name.BeforeExtra = reindentExtra(m.Name.BeforeExtra, childIndent)
+			if preserveBlank {
+				m.Name.BeforeExtra = addBlankLine(m.Name.BeforeExtra)
+			}
 		}
 		m.Name.AfterExtra = nil
 
@@ -235,10 +239,14 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	closeIndent := "\n" + strings.Repeat(fs.indent, depth)
 
 	for i := range arr.Elements {
+		preserveBlank := i > 0 && hasBlankLine(arr.Elements[i].BeforeExtra)
 		if i == 0 {
 			arr.Elements[i].BeforeExtra = reindentCompactExtra(arr.Elements[i].BeforeExtra, childIndent)
 		} else {
 			arr.Elements[i].BeforeExtra = reindentExtra(arr.Elements[i].BeforeExtra, childIndent)
+			if preserveBlank {
+				arr.Elements[i].BeforeExtra = addBlankLine(arr.Elements[i].BeforeExtra)
+			}
 		}
 		arr.Elements[i].AfterExtra = clearWhitespace(arr.Elements[i].AfterExtra)
 		fs.formatValue(&arr.Elements[i], depth+1)
@@ -276,11 +284,14 @@ func isInlineArray(arr *hujson.Array, depth, indentLen int) bool {
 	// trailing comma+space. This conservative bias means arrays at exactly
 	// the line limit are expanded rather than compacted.
 	totalLen := 2 // [ and ]
-	for _, el := range arr.Elements {
+	for i, el := range arr.Elements {
 		if _, ok := el.Value.(hujson.Literal); !ok {
 			return false
 		}
 		if hasComment(el.BeforeExtra) || hasComment(el.AfterExtra) {
+			return false
+		}
+		if i > 0 && hasBlankLine(el.BeforeExtra) {
 			return false
 		}
 		totalLen += len(el.Value.(hujson.Literal)) + 2
@@ -311,7 +322,8 @@ func reindentClosingExtra(extra hujson.Extra, closeIndent string) hujson.Extra {
 }
 
 // reindentExtra normalizes indentation in Extra (comment/whitespace) content.
-// Blank lines between sibling members are preserved.
+// Blank lines between sibling members are preserved; collection callers reinsert
+// at most one intentional blank line between items.
 func reindentExtra(extra hujson.Extra, newIndent string) hujson.Extra {
 	if extra == nil {
 		return hujson.Extra(newIndent)
@@ -321,11 +333,6 @@ func reindentExtra(extra hujson.Extra, newIndent string) hujson.Extra {
 
 	// If extra is whitespace-only (no comments), replace entirely.
 	if !hasComment(extra) {
-		lineBreaks := strings.Count(s, "\n")
-		if lineBreaks > 1 {
-			indent := strings.TrimPrefix(newIndent, "\n")
-			return hujson.Extra(strings.Repeat("\n", lineBreaks) + indent)
-		}
 		return hujson.Extra(newIndent)
 	}
 
@@ -358,6 +365,29 @@ func reindentCompactExtra(extra hujson.Extra, newIndent string) hujson.Extra {
 		return hujson.Extra(newIndent)
 	}
 	return reindentExtra(extra, newIndent)
+}
+
+func hasBlankLine(extra hujson.Extra) bool {
+	for i := 0; i < len(extra); i++ {
+		if extra[i] != '\n' && extra[i] != '\r' {
+			continue
+		}
+		if extra[i] == '\r' && i+1 < len(extra) && extra[i+1] == '\n' {
+			i++
+		}
+		j := i + 1
+		for j < len(extra) && (extra[j] == ' ' || extra[j] == '\t') {
+			j++
+		}
+		if j < len(extra) && (extra[j] == '\n' || extra[j] == '\r') {
+			return true
+		}
+	}
+	return false
+}
+
+func addBlankLine(extra hujson.Extra) hujson.Extra {
+	return hujson.Extra("\n" + string(extra))
 }
 
 // clearWhitespace removes whitespace from Extra but preserves comments.

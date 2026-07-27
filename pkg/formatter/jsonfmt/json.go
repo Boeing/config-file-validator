@@ -46,6 +46,11 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 		return nil, errors.New("json: invalid JSON input")
 	}
 
+	original, err := hujson.Parse(src)
+	if err != nil {
+		return nil, err
+	}
+
 	resolved := resolveOptions(opts)
 
 	prettyOpts := &pretty.Options{
@@ -56,7 +61,12 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 	}
 
 	result := pretty.PrettyOptions(src, prettyOpts)
-	result = preserveMemberBlankLines(src, result)
+	formatted, err := hujson.Parse(result)
+	if err != nil {
+		return nil, err
+	}
+	restoreBlankLines(&original, &formatted, prettyOpts.Indent, 0)
+	result = formatted.Pack()
 
 	// pretty always appends a trailing newline. Strip it if FinalNewline is false.
 	if !resolved.FinalNewline && len(result) > 0 && result[len(result)-1] == '\n' {
@@ -64,103 +74,6 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 	}
 
 	return formatter.NormalizeLineEndings(result, resolved.LineEnding), nil
-}
-
-// preserveMemberBlankLines restores blank lines between sibling members and
-// elements after tidwall/pretty has normalized the JSON structure. Whitespace
-// before closing delimiters is intentionally not copied.
-func preserveMemberBlankLines(src, formatted []byte) []byte {
-	source, err := hujson.Parse(src)
-	if err != nil {
-		return formatted
-	}
-
-	output, err := hujson.Parse(formatted)
-	if err != nil {
-		return formatted
-	}
-
-	copyMemberBlankLines(&source, &output)
-	return output.Pack()
-}
-
-func copyMemberBlankLines(source, output *hujson.Value) {
-	switch sourceValue := source.Value.(type) {
-	case *hujson.Object:
-		outputValue, ok := output.Value.(*hujson.Object)
-		if !ok {
-			return
-		}
-
-		sourceMembers := make(map[string][]int, len(sourceValue.Members))
-		for i := range sourceValue.Members {
-			key := objectMemberKey(&sourceValue.Members[i])
-			sourceMembers[key] = append(sourceMembers[key], i)
-		}
-
-		for i := range outputValue.Members {
-			outputMember := &outputValue.Members[i]
-			key := objectMemberKey(outputMember)
-			matches := sourceMembers[key]
-			if len(matches) == 0 {
-				continue
-			}
-
-			sourceIndex := matches[0]
-			sourceMembers[key] = matches[1:]
-			sourceMember := &sourceValue.Members[sourceIndex]
-
-			if i > 0 && sourceIndex > 0 {
-				outputMember.Name.BeforeExtra = preserveBlankLinePrefix(
-					sourceMember.Name.BeforeExtra,
-					outputMember.Name.BeforeExtra,
-				)
-			}
-			copyMemberBlankLines(&sourceMember.Value, &outputMember.Value)
-		}
-	case *hujson.Array:
-		outputValue, ok := output.Value.(*hujson.Array)
-		if !ok {
-			return
-		}
-
-		count := min(len(sourceValue.Elements), len(outputValue.Elements))
-		for i := range count {
-			if i > 0 {
-				outputValue.Elements[i].BeforeExtra = preserveBlankLinePrefix(
-					sourceValue.Elements[i].BeforeExtra,
-					outputValue.Elements[i].BeforeExtra,
-				)
-			}
-			copyMemberBlankLines(&sourceValue.Elements[i], &outputValue.Elements[i])
-		}
-	default:
-		// Literals have no member whitespace to preserve.
-	}
-}
-
-func objectMemberKey(member *hujson.ObjectMember) string {
-	literal, ok := member.Name.Value.(hujson.Literal)
-	if !ok {
-		return ""
-	}
-	return string(literal)
-}
-
-func preserveBlankLinePrefix(source, output hujson.Extra) hujson.Extra {
-	lineBreaks := strings.Count(string(source), "\n")
-	if lineBreaks < 2 {
-		return output
-	}
-
-	outputString := string(output)
-	lastLineBreak := strings.LastIndexByte(outputString, '\n')
-	if lastLineBreak < 0 {
-		return output
-	}
-
-	indent := outputString[lastLineBreak+1:]
-	return hujson.Extra(strings.Repeat("\n", lineBreaks) + indent)
 }
 
 // resolveOptions fills zero-value options with JSON defaults.
@@ -188,4 +101,89 @@ func indentString(opts formatter.Options) string {
 		indent[i] = ' '
 	}
 	return string(indent)
+}
+
+// restoreBlankLines transfers blank-line boundaries from the original CST to
+// the canonical output while leaving all other whitespace under pretty's
+// control. Blank lines attach to the following object member or array element.
+func restoreBlankLines(original, formatted *hujson.Value, indent string, depth int) {
+	switch originalValue := original.Value.(type) {
+	case *hujson.Object:
+		formattedValue, ok := formatted.Value.(*hujson.Object)
+		if !ok {
+			return
+		}
+		originalIndexes := make(map[string][]int, len(originalValue.Members))
+		for i := range originalValue.Members {
+			key := objectMemberKey(&originalValue.Members[i])
+			originalIndexes[key] = append(originalIndexes[key], i)
+		}
+		occurrences := make(map[string]int, len(originalIndexes))
+		for i := range formattedValue.Members {
+			key := objectMemberKey(&formattedValue.Members[i])
+			sourceIndex := originalIndexes[key][occurrences[key]]
+			occurrences[key]++
+			sourceMember := &originalValue.Members[sourceIndex]
+			formattedMember := &formattedValue.Members[i]
+			if i > 0 && hasBlankLine(sourceMember.Name.BeforeExtra) {
+				formattedMember.Name.BeforeExtra = addBlankLine(formattedMember.Name.BeforeExtra)
+			}
+			restoreBlankLines(&sourceMember.Value, &formattedMember.Value, indent, depth+1)
+		}
+	case *hujson.Array:
+		formattedValue, ok := formatted.Value.(*hujson.Array)
+		if !ok {
+			return
+		}
+		hasBlankBoundary := false
+		for i := 1; i < len(originalValue.Elements); i++ {
+			if hasBlankLine(originalValue.Elements[i].BeforeExtra) {
+				hasBlankBoundary = true
+				break
+			}
+		}
+		if hasBlankBoundary {
+			childIndent := "\n" + strings.Repeat(indent, depth+1)
+			closeIndent := "\n" + strings.Repeat(indent, depth)
+			for i := range formattedValue.Elements {
+				formattedValue.Elements[i].BeforeExtra = hujson.Extra(childIndent)
+				if i > 0 && hasBlankLine(originalValue.Elements[i].BeforeExtra) {
+					formattedValue.Elements[i].BeforeExtra = addBlankLine(formattedValue.Elements[i].BeforeExtra)
+				}
+			}
+			formattedValue.AfterExtra = hujson.Extra(closeIndent)
+		}
+		for i := range originalValue.Elements {
+			restoreBlankLines(&originalValue.Elements[i], &formattedValue.Elements[i], indent, depth+1)
+		}
+	default:
+		// Literals have no collection boundaries to restore.
+	}
+}
+
+func objectMemberKey(member *hujson.ObjectMember) string {
+	return member.Name.Value.(hujson.Literal).String()
+}
+
+func hasBlankLine(extra hujson.Extra) bool {
+	for i := 0; i < len(extra); i++ {
+		if extra[i] != '\n' && extra[i] != '\r' {
+			continue
+		}
+		if extra[i] == '\r' && i+1 < len(extra) && extra[i+1] == '\n' {
+			i++
+		}
+		j := i + 1
+		for j < len(extra) && (extra[j] == ' ' || extra[j] == '\t') {
+			j++
+		}
+		if j < len(extra) && (extra[j] == '\n' || extra[j] == '\r') {
+			return true
+		}
+	}
+	return false
+}
+
+func addBlankLine(extra hujson.Extra) hujson.Extra {
+	return hujson.Extra("\n" + string(extra))
 }
