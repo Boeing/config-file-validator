@@ -1,0 +1,69 @@
+# YAML sequences under mapping keys are indented by default.
+cp manifest.yaml default.yaml
+exec cfv format --fix --no-config --no-editorconfig default.yaml
+cmp default.yaml default.expected.yaml
+
+# Per-format configuration restores the compact sequence style.
+cp manifest.yaml compact.yaml
+exec cfv format --fix --config=compact.toml --no-editorconfig compact.yaml
+cmp compact.yaml compact.expected.yaml
+
+# A top-level sequence is unaffected by the option.
+exec cfv format --fix --config=compact.toml --no-editorconfig root.yaml
+cmp root.yaml root.expected.yaml
+
+# Nested mapping sequences and lists of lists each lose only the optional
+# mapping-value indentation level.
+exec cfv format --fix --config=compact.toml --no-editorconfig nested.yaml
+cmp nested.yaml nested.expected.yaml
+
+-- manifest.yaml --
+spec:
+  containers:
+  - name: app
+    image: nginx
+  - name: sidecar
+    image: envoy
+-- default.expected.yaml --
+spec:
+  containers:
+    - name: app
+      image: nginx
+    - name: sidecar
+      image: envoy
+-- compact.expected.yaml --
+spec:
+  containers:
+  - name: app
+    image: nginx
+  - name: sidecar
+    image: envoy
+-- root.yaml --
+- one
+- two
+-- root.expected.yaml --
+- one
+- two
+-- nested.yaml --
+matrix:
+  include:
+    - os: linux
+      versions:
+        - one
+        - two
+groups:
+  - - a
+    - b
+-- nested.expected.yaml --
+matrix:
+  include:
+  - os: linux
+    versions:
+    - one
+    - two
+groups:
+- - a
+  - b
+-- compact.toml --
+[format.yaml]
+indent-sequences = false
