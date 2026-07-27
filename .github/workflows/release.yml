@@ -54,7 +54,7 @@ jobs:
             -ldflags="-w -s -extldflags '-static' -X github.com/Boeing/config-file-validator/v3.version=${{ github.event.release.tag_name }}" \
             -tags netgo \
             -o "$BINARY" \
-            cmd/cfv/cfv.go
+            ./cmd/cfv
 
       - name: Create archive
         id: archive
