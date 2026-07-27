@@ -79,6 +79,12 @@ func (p *Printer) Print(groups []Group) []byte {
 			}
 
 		case GroupComment:
+			// A comment block immediately before a later table belongs to that
+			// table. Put the section break before the comment, not between the
+			// comment and its header.
+			if started && nextNonCommentKind(groups, i+1).isTable() {
+				p.ensureBlankLine()
+			}
 			started = true
 			commentIndent := ""
 			if inTable && p.opts.Indent != "" {
@@ -89,10 +95,9 @@ func (p *Printer) Print(groups []Group) []byte {
 		case GroupTable, GroupArrayTable:
 			inTable = true
 			started = true
-			// Ensure blank line before table headers (except at start,
-			// and except when preceded by a comment which already provides
-			// visual separation).
-			if i > 0 && groups[i-1].Kind != GroupComment {
+			// Ensure one blank line before every table after the first section.
+			// If a leading comment block exists, its branch above owns the break.
+			if started && (i == 0 || groups[i-1].Kind != GroupComment) {
 				p.ensureBlankLine()
 			}
 			p.printTableHeader(group)
@@ -121,6 +126,19 @@ func (p *Printer) Print(groups []Group) []byte {
 	out = formatter.NormalizeLineEndings(out, p.opts.LineEnding)
 
 	return out
+}
+
+func (kind GroupKind) isTable() bool {
+	return kind == GroupTable || kind == GroupArrayTable
+}
+
+func nextNonCommentKind(groups []Group, start int) GroupKind {
+	for _, group := range groups[start:] {
+		if group.Kind != GroupComment {
+			return group.Kind
+		}
+	}
+	return GroupBlank
 }
 
 // printComment writes comment lines with preserved content.
