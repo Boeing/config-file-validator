@@ -29,3 +29,8 @@ ignoreUntil = "2026-10-16T00:00:00Z"
 id = "GO-2026-5856"
 reason = "Go stdlib — fixed in 1.26.5, MegaLinter container ships 1.26.3"
 ignoreUntil = "2026-10-16T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GHSA-mh99-v99m-4gvg"
+reason = "npm brace-expansion — pinned by @docusaurus/core@3.10.1 via serve-handler/minimatch@3.1.x, not user-addressable without breaking Docusaurus"
+ignoreUntil = "2027-01-01T00:00:00Z"
