@@ -87,15 +87,35 @@ differences (comment indent, flow spacing).
 
 ---
 
-## Current Parity: 96.1% (398/414)
+## Current Parity: 97.8% (405/414)
 
 **Breakdown:**
-- JSON: 97.2% (105/108) — 3 remaining (unfixable: 2 argo-cd .prettierrc, 1 number format)
-- TOML: 96.6% (144/149) — 5 remaining (complex edge cases)
-- YAML: 96.0% (144/150) — 6 remaining (3 AST depth bug, 3 other)
-- JSONC: 71.4% (5/7) — 2 remaining (hujson limitations)
+- TOML: 98.7% (147/149) — 2 remaining (blank lines in sub-table, isolated comment column)
+- YAML: 98.7% (148/150) — 2 remaining (flow sequence expansion, multiline wrapping)
+- JSON: 97.2% (105/108) — 3 remaining (2 unfixable .prettierrc, 1 number format)
+- JSONC: 71.4% (5/7) — 2 remaining (hujson library limitations)
 
-**Session progress: 77.3% → 96.1% (+18.8 pp, +60 files)**
+**Session progress: 77.3% → 97.8% (+20.5 percentage points, +67 files)**
+
+### Remaining Issues Classification
+
+**Unfixable (5 files):**
+- 2 argo-cd JSON: `.prettierrc` with `tabWidth: 4` — parity suite passes prettier's
+  config but cfv uses `--no-config`. Test limitation, not cfv bug.
+- 1 JSON number format: hujson preserves literal `-9876.543210` (trailing zero)
+- 2 JSONC: hujson can't parse unquoted keys / single-quote-to-double in hujson output
+
+**Major features needed (2 files):**
+- 1 YAML: flow sequence expansion when line > 80 (requires parsing opaque TokFlow
+  tokens, converting flow → block style)
+- 1 YAML: multiline scalar value wrapping (requires prose-wrap logic like prettier)
+
+**Minor edge cases (2 files):**
+- 1 TOML: blank lines between entries within sub-table groups (hugo.toml)
+- 1 TOML: isolated comment column preservation (hugo.toml)
+
+**Theoretical maximum: ~99.5% (411/414)** — achievable if flow expansion and the 2
+TOML edge cases are implemented. Remaining 3 (argo-cd + number) are truly unfixable.
 
 ### Additional Fix: JSONC MaxLineWidth Default Resolution ✅
 
