@@ -99,11 +99,21 @@ differences (comment indent, flow spacing).
 
 ### Remaining Issues Classification
 
-**Unfixable (5 files):**
-- 2 argo-cd JSON: `.prettierrc` with `tabWidth: 4` — parity suite passes prettier's
-  config but cfv uses `--no-config`. Test limitation, not cfv bug.
-- 1 JSON number format: hujson preserves literal `-9876.543210` (trailing zero)
-- 2 JSONC: hujson can't parse unquoted keys / single-quote-to-double in hujson output
+**Parity suite bugs (2 files — fix the suite):**
+- 2 argo-cd JSON: suite doesn't pass `--no-config` to prettier, so prettier picks
+  up argo-cd's `.prettierrc` with `tabWidth: 4`. Fix: add `--no-config` to prettier
+  invocation in `run.mjs`.
+
+**Fixable in cfv (2 files):**
+- 1 JSON number: hujson preserves literal `-9876.543210` (trailing zero). Fix:
+  post-process number literals to normalize trailing zeros.
+- 1 JSONC single-quote: hujson output preserves single quotes. Fix: add quote
+  conversion pass on hujson output bytes (same pattern as YAML flow quotes).
+
+**Truly unfixable (1 file):**
+- 1 JSONC unquoted keys: `{key: ""}` is JSON5 syntax, not JSONC. hujson correctly
+  rejects it. Prettier's JSONC parser accepts it (it uses a JS parser). This is a
+  parser capability difference, not a formatting bug.
 
 **Major features needed (2 files):**
 - 1 YAML: flow sequence expansion when line > 80 (requires parsing opaque TokFlow
@@ -112,10 +122,11 @@ differences (comment indent, flow spacing).
 
 **Minor edge cases (2 files):**
 - 1 TOML: blank lines between entries within sub-table groups (hugo.toml)
-- 1 TOML: isolated comment column preservation (hugo.toml)
+- 1 TOML: isolated comment column preservation (hugo.toml — same file)
 
-**Theoretical maximum: ~99.5% (411/414)** — achievable if flow expansion and the 2
-TOML edge cases are implemented. Remaining 3 (argo-cd + number) are truly unfixable.
+**Achievable maximum: 99.8% (413/414)** — fix suite (2), fix cfv (2), fix TOML edge
+cases (1 file with 2 issues), implement YAML flow expansion (1), implement YAML
+multiline wrap (1). Only the JSON5 unquoted-keys file is truly unfixable.
 
 ### Additional Fix: JSONC MaxLineWidth Default Resolution ✅
 
