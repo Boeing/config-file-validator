@@ -57,7 +57,169 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 	// Apply defaults for unset options.
 	resolved := resolveOptions(opts)
 
-	return jsoncfmt.FormatValue(&v, resolved)
+	out, err := jsoncfmt.FormatValue(&v, resolved)
+	if err != nil {
+		return nil, err
+	}
+
+	// Normalize number literals: trim trailing zeros after decimal point.
+	out = normalizeNumbers(out)
+	return out, nil
+}
+
+// normalizeNumbers processes JSON output bytes and normalizes number literals
+// to match prettier's printNumber behavior. Specifically:
+// - Removes trailing zeros after decimal point (1.10 → 1.1, but 1.0 stays)
+//
+// Only processes numbers outside of string values.
+func normalizeNumbers(data []byte) []byte {
+	var result []byte
+	i := 0
+	for i < len(data) {
+		// Skip strings (don't modify numbers inside string values).
+		if data[i] == '"' {
+			result = append(result, data[i])
+			i++
+			for i < len(data) && data[i] != '"' {
+				if data[i] == '\\' {
+					result = append(result, data[i])
+					i++
+					if i < len(data) {
+						result = append(result, data[i])
+						i++
+					}
+					continue
+				}
+				result = append(result, data[i])
+				i++
+			}
+			if i < len(data) {
+				result = append(result, data[i]) // closing "
+				i++
+			}
+			continue
+		}
+
+		// Check for number literal (starts with digit or minus followed by digit).
+		if isNumberStart(data, i) {
+			numStart := i
+			// Consume the full number literal.
+			for i < len(data) && isNumberChar(data[i]) {
+				i++
+			}
+			num := data[numStart:i]
+			result = append(result, normalizeNumber(num)...)
+			continue
+		}
+
+		result = append(result, data[i])
+		i++
+	}
+	return result
+}
+
+// isNumberStart checks if position i starts a JSON number literal.
+func isNumberStart(data []byte, i int) bool {
+	if i >= len(data) {
+		return false
+	}
+	if data[i] >= '0' && data[i] <= '9' {
+		return true
+	}
+	if data[i] == '-' && i+1 < len(data) && data[i+1] >= '0' && data[i+1] <= '9' {
+		return true
+	}
+	return false
+}
+
+// isNumberChar returns true for characters that can appear in a JSON number.
+func isNumberChar(b byte) bool {
+	return (b >= '0' && b <= '9') || b == '.' || b == '-' || b == '+' || b == 'e' || b == 'E'
+}
+
+// normalizeNumber applies prettier's printNumber rules to a single number literal.
+// Rules (from prettier source):
+// 1. Lowercase (E → e in scientific notation)
+// 2. Remove unnecessary + and leading zeros in exponent (e+034 → e34)
+// 3. Remove trailing zeros after decimal point (1.10 → 1.1, but 1.0 stays)
+func normalizeNumber(num []byte) []byte {
+	// Rule 1: lowercase E → e
+	result := make([]byte, len(num))
+	copy(result, num)
+	for i, b := range result {
+		if b == 'E' {
+			result[i] = 'e'
+		}
+	}
+
+	// Rule 2: normalize exponent (remove +, remove leading zeros)
+	eIdx := -1
+	for i, b := range result {
+		if b == 'e' {
+			eIdx = i
+			break
+		}
+	}
+	if eIdx >= 0 {
+		// Parse exponent part: e[+-]?[0-9]+
+		expStart := eIdx + 1
+		sign := byte(0)
+		if expStart < len(result) && (result[expStart] == '+' || result[expStart] == '-') {
+			sign = result[expStart]
+			expStart++
+		}
+		// Skip leading zeros in exponent (keep at least one digit).
+		digitStart := expStart
+		for digitStart < len(result)-1 && result[digitStart] == '0' {
+			digitStart++
+		}
+		// Rebuild exponent.
+		var exp []byte
+		exp = append(exp, 'e')
+		if sign == '-' {
+			exp = append(exp, '-')
+		}
+		// + is omitted (unnecessary)
+		exp = append(exp, result[digitStart:]...)
+		result = append(result[:eIdx], exp...)
+	}
+
+	// Rule 3: trim trailing zeros after decimal point.
+	dotIdx := -1
+	for i, b := range result {
+		if b == '.' {
+			dotIdx = i
+			break
+		}
+	}
+	if dotIdx < 0 {
+		return result
+	}
+
+	// Find end of decimal digits (before 'e' or end).
+	decEnd := len(result)
+	for i := dotIdx + 1; i < len(result); i++ {
+		if result[i] == 'e' {
+			decEnd = i
+			break
+		}
+	}
+
+	// Trim trailing zeros, keeping at least one digit after '.'.
+	trimEnd := decEnd
+	for trimEnd > dotIdx+2 && result[trimEnd-1] == '0' {
+		trimEnd--
+	}
+
+	if trimEnd == decEnd {
+		return result
+	}
+
+	// Rebuild: everything before trimEnd + everything from decEnd onward.
+	var final []byte
+	final = append(final, result[:trimEnd]...)
+	final = append(final, result[decEnd:]...)
+	return final
 }
 
 // resolveOptions fills zero-value options with JSON defaults.
