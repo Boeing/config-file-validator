@@ -348,6 +348,36 @@ Add `prefixLen int` parameter to `formatValue`, `formatObject`, `formatArray`.
 - `git stash` contains the refactor in progress
 - The architecture is correct: one parse, one walk, one pack
 - Object collapsing WORKS (short objects get collapsed)
-- Missing: recursive inline normalization (spaces inside nested `{}` and `[]`)
-- Missing: test fixture updates (expected outputs changed because prettier-matching behavior)
-- The `jsoncfmt` tests also need checking (the `isInlineArray` signature changed)
+- `parentHasBlankLines` flag correctly prevents collapsing in blank-line parents
+- `formatInlineValue` recursively normalizes nested `{}` and `[]` spacing
+- `FormatValue` exported from jsoncfmt, jsonfmt delegates to it
+- tidwall/pretty import removed from jsonfmt
+
+## Remaining Work (next session)
+
+### Problem: Tests use short inputs that now collapse
+
+Adding `MaxLineWidth: 80` + object collapsing changes behavior for ALL short inputs.
+~20 tests across jsonfmt and jsoncfmt use 2-3 member objects that fit on one line.
+Previously these expanded (tidwall/pretty never collapsed objects). Now they collapse (correct prettier behavior).
+
+### Approach: Bulk test update (NOT one-by-one)
+
+1. Pop the stash
+2. Run a script that:
+   - For each `.input.json` fixture: format with cfv, write to `.expected.json`
+   - For each `.input.jsonc` fixture: format with cfv, write to `.expected.jsonc`
+   - For fixtures with `.opts.json`: apply those options
+3. For standalone tests (TestDefaultTrailingCommas, etc.):
+   - Tests that verify EXPANSION behavior: make inputs longer (>80 chars)
+   - Tests that verify COLLAPSING behavior: keep short inputs, update expectations
+   - Tests that verify TRAILING COMMAS: make inputs longer so they expand
+4. Verify each updated fixture matches prettier output
+5. Run full suite — should pass
+6. Run parity suite — measure improvement
+
+### Key Rule
+
+Every test input that's meant to exercise expanded formatting MUST be >80 chars when collapsed.
+Every test input that's meant to exercise collapsed formatting MUST be ≤80 chars when collapsed.
+No test should accidentally test the wrong behavior because of input length.
