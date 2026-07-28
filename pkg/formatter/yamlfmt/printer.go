@@ -73,8 +73,15 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 		}
 	}
 
+	// Expand flow sequences that exceed print width.
+	// Per prettier: flow sequences that exceed printWidth get expanded to
+	// multi-line flow format with each element on its own line.
+	// Source: src/language-yaml/print/flow-mapping-sequence.js — group breaks at printWidth
+	if opts.MaxLineWidth > 0 {
+		expandLongFlowSequences(tokens, opts.MaxLineWidth, opts.IndentWidth)
+	}
+
 	// Collapse consecutive blank lines to at most 1 (matches prettier).
-	// This operates at token level so block scalar content is not affected.
 	tokens = collapseConsecutiveBlankLines(tokens)
 
 	// Serialize, stripping trailing whitespace from non-block-scalar lines.
@@ -1329,6 +1336,188 @@ func addFlowMappingPadding(raw []byte) []byte {
 // =============================================================================
 // Utilities
 // =============================================================================
+
+// expandLongFlowSequences finds TokFlow tokens (flow sequences starting with [)
+// that exceed maxLineWidth and expands them to multi-line flow format:
+//
+//	key:
+//	  [
+//	    "elem1",
+//	    "elem2",
+//	  ]
+//
+// Per prettier source (flow-mapping-sequence.js): when a flow sequence group
+// breaks at printWidth, elements go on separate lines indented by tabWidth,
+// with trailing comma on last element.
+func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
+	for i := range tokens {
+		if tokens[i].Kind != TokFlow {
+			continue
+		}
+		raw := tokens[i].Raw
+		if len(raw) == 0 || raw[0] != '[' {
+			continue // only flow sequences, not mappings
+		}
+
+		// Compute current line width: find the column where this token starts.
+		lineWidth := computeTokenLineStart(tokens, i) + len(raw)
+		if lineWidth <= maxWidth {
+			continue // fits, no expansion needed
+		}
+
+		// Parse flow sequence content into elements.
+		elements := splitFlowElements(raw)
+		if len(elements) == 0 {
+			continue
+		}
+
+		// Compute indentation for the expanded form.
+		// Parent indent = preceding TokIndent width.
+		parentIndent := 0
+		for j := i - 1; j >= 0; j-- {
+			if tokens[j].Kind == TokIndent {
+				parentIndent = len(tokens[j].Raw)
+				break
+			}
+			if tokens[j].Kind == TokNewline {
+				break
+			}
+		}
+
+		// Expanded format:
+		// \n{parentIndent + indentWidth}[\n{parentIndent + 2*indentWidth}elem,\n...\n{parentIndent + indentWidth}]
+		bracketIndent := strings.Repeat(" ", parentIndent+indentWidth)
+		elemIndent := strings.Repeat(" ", parentIndent+2*indentWidth)
+
+		var expanded []byte
+		expanded = append(expanded, '\n')
+		expanded = append(expanded, bracketIndent...)
+		expanded = append(expanded, '[')
+		for _, elem := range elements {
+			expanded = append(expanded, '\n')
+			expanded = append(expanded, elemIndent...)
+			expanded = append(expanded, bytes.TrimSpace(elem)...)
+			expanded = append(expanded, ',')
+		}
+		expanded = append(expanded, '\n')
+		expanded = append(expanded, bracketIndent...)
+		expanded = append(expanded, ']')
+
+		tokens[i].Raw = expanded
+	}
+}
+
+// computeTokenLineStart returns the column position where token i starts
+// on its current line (bytes since last newline).
+func computeTokenLineStart(tokens []Token, idx int) int {
+	col := 0
+	for j := idx - 1; j >= 0; j-- {
+		if tokens[j].Kind == TokNewline {
+			break
+		}
+		col += len(tokens[j].Raw)
+	}
+	return col
+}
+
+// splitFlowElements splits a flow sequence's raw bytes into individual element
+// byte slices. Splits on comma at depth 0, skipping the outer [ and ].
+func splitFlowElements(raw []byte) [][]byte {
+	if len(raw) < 2 || raw[0] != '[' {
+		return nil
+	}
+	// Find closing ].
+	inner := raw[1:]
+	closeIdx := -1
+	depth := 1
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '[', '{':
+			depth++
+		case ']', '}':
+			depth--
+			if depth == 0 {
+				closeIdx = i
+			}
+		case '"':
+			// Skip quoted string.
+			for i++; i < len(inner) && inner[i] != '"'; i++ {
+				if inner[i] == '\\' {
+					i++
+				}
+			}
+		case '\'':
+			// Skip single-quoted string.
+			for i++; i < len(inner) && inner[i] != '\''; i++ {
+				if inner[i] == '\\' {
+					i++
+				}
+			}
+		default:
+			// Other characters — no special handling.
+		}
+		if closeIdx >= 0 {
+			break
+		}
+	}
+	if closeIdx < 0 {
+		closeIdx = len(inner)
+	}
+	content := inner[:closeIdx]
+
+	// Split by comma at depth 0.
+	var elements [][]byte
+	var current []byte
+	depth = 0
+	for i := 0; i < len(content); i++ {
+		b := content[i]
+		switch b {
+		case '[', '{':
+			depth++
+			current = append(current, b)
+		case ']', '}':
+			depth--
+			current = append(current, b)
+		case ',':
+			if depth == 0 {
+				if len(bytes.TrimSpace(current)) > 0 {
+					elements = append(elements, current)
+				}
+				current = nil
+			} else {
+				current = append(current, b)
+			}
+		case '"':
+			current = append(current, b)
+			for i++; i < len(content) && content[i] != '"'; i++ {
+				if content[i] == '\\' {
+					current = append(current, content[i])
+					i++
+				}
+				if i < len(content) {
+					current = append(current, content[i])
+				}
+			}
+			if i < len(content) {
+				current = append(current, content[i])
+			}
+		case '\'':
+			current = append(current, b)
+			for i++; i < len(content) && content[i] != '\''; i++ {
+				current = append(current, content[i])
+			}
+			if i < len(content) {
+				current = append(current, content[i])
+			}
+		default:
+			current = append(current, b)
+		}
+	}
+	if len(bytes.TrimSpace(current)) > 0 {
+		elements = append(elements, current)
+	}
+	return elements
+}
 
 // collapseConsecutiveBlankLines removes excess blank lines from the token stream,
 // keeping at most 1 consecutive blank line between content. This matches prettier's

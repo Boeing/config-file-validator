@@ -41,6 +41,7 @@ func DefaultOptions() formatter.Options {
 		FinalNewline:    true,
 		QuoteStyle:      formatter.QuoteDouble,
 		IndentSequences: formatter.SequenceIndentEnabled,
+		MaxLineWidth:    80,
 	}
 }
 
@@ -117,6 +118,9 @@ func resolveOptions(opts formatter.Options) formatter.Options {
 	}
 	if opts.IndentSequences == formatter.SequenceIndentDefault {
 		opts.IndentSequences = defaults.IndentSequences
+	}
+	if opts.MaxLineWidth == 0 {
+		opts.MaxLineWidth = defaults.MaxLineWidth
 	}
 	return opts
 }
