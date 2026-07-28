@@ -542,38 +542,82 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 	wasExpanded := p.inExpandedArray
 	p.inExpandedArray = true
 
-	// Pre-compute max value width for trailing comment alignment.
-	// Only align if 2+ elements have trailing comments.
-	maxValueWidth := 0
-	trailingCommentCount := 0
-	for _, elem := range elements {
+	// Pre-compute alignment info per element using taplo's align_single_comments
+	// algorithm (format_rows in taplo/src/formatter/mod.rs):
+	//
+	// 1. Elements are grouped into alignment sub-groups. A new sub-group starts
+	//    when an element is preceded by a standalone comment or blank line.
+	//    (In taplo, standalone comments and blank lines flush the current
+	//    value_group via add_values before starting a new group.)
+	//
+	// 2. Within each sub-group, the max value width (indent + value + comma)
+	//    is computed across ALL entries (not just those with trailing comments).
+	//
+	// 3. Trailing comments are positioned at max_value_width + 1 space.
+	//    Only elements with trailing comments get padded (format_rows only
+	//    pads when item_idx < row.len() - 1).
+	//
+	// 4. Alignment is disabled if any formatted value in the group contains
+	//    a newline (format_rows: can_align check).
+	type elemAlignInfo struct {
+		valWidth int // indent + value content + comma
+		subGroup int
+	}
+	elemAlignInfos := make([]elemAlignInfo, len(elements))
+	currentGroup := 0
+	for i, elem := range elements {
+		// Detect group boundary: leading standalone comment or blank line.
+		// A standalone comment = Comment token before any value token.
+		// A blank line = 2+ consecutive Newline tokens before any value token.
+		hasLeadingComment := false
+		hasBlankLine := false
+		consecutiveNewlines := 0
 		seenVal := false
-		hasTrailing := false
-		valWidth := len(elemIndent)
 		for _, tok := range elem {
 			switch tok.Kind {
 			case Newline:
-				seenVal = false
+				if !seenVal {
+					consecutiveNewlines++
+					if consecutiveNewlines >= 2 {
+						hasBlankLine = true
+					}
+				}
 			case Comment:
-				if seenVal {
-					hasTrailing = true
+				if !seenVal {
+					hasLeadingComment = true
 				}
 			case Whitespace:
-				// don't count
+				// doesn't reset newline counter
 			default:
 				seenVal = true
+			}
+		}
+		if i > 0 && (hasLeadingComment || hasBlankLine) {
+			currentGroup++
+		}
+
+		// Compute value width: indent + all non-whitespace/non-comment/non-newline + comma.
+		valWidth := len(elemIndent)
+		for _, tok := range elem {
+			switch tok.Kind {
+			case Whitespace, Newline, Comment:
+				// skip
+			default:
 				valWidth += len(tok.Raw)
 			}
 		}
-		if hasTrailing {
-			trailingCommentCount++
+		if seenVal {
 			valWidth++ // for the comma
-			if valWidth > maxValueWidth {
-				maxValueWidth = valWidth
-			}
+		}
+		elemAlignInfos[i] = elemAlignInfo{valWidth: valWidth, subGroup: currentGroup}
+	}
+	// Compute max width per sub-group (across ALL entries, per taplo spec).
+	subGroupMaxWidth := make(map[int]int)
+	for _, info := range elemAlignInfos {
+		if info.valWidth > subGroupMaxWidth[info.subGroup] {
+			subGroupMaxWidth[info.subGroup] = info.valWidth
 		}
 	}
-	alignComments := trailingCommentCount >= 2
 
 	for i, elem := range elements {
 		p.writeNewline()
@@ -617,19 +661,18 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 				p.buf.WriteByte(',')
 			}
 			// Emit trailing comment on the same line.
+			// Per taplo format_rows: pad value to sub-group max width,
+			// then emit 1 space separator + comment.
 			if trailingComment != nil {
-				if alignComments {
-					// Pad to align with other trailing comments in this array.
-					lineStart := bytes.LastIndexByte(p.buf.Bytes(), '\n') + 1
-					currentCol := p.buf.Len() - lineStart
-					spaces := 1
-					if maxValueWidth+1 > currentCol {
-						spaces = maxValueWidth + 1 - currentCol
-					}
-					p.buf.WriteString(strings.Repeat(" ", spaces))
-				} else {
-					p.buf.WriteString("  ")
+				maxWidth := subGroupMaxWidth[elemAlignInfos[i].subGroup]
+				lineStart := bytes.LastIndexByte(p.buf.Bytes(), '\n') + 1
+				currentCol := p.buf.Len() - lineStart
+				// Pad to align: max_width + 1 space for the separator.
+				spaces := 1
+				if maxWidth+1 > currentCol {
+					spaces = maxWidth + 1 - currentCol
 				}
+				p.buf.WriteString(strings.Repeat(" ", spaces))
 				p.buf.Write(trailingComment.Raw)
 			}
 		}

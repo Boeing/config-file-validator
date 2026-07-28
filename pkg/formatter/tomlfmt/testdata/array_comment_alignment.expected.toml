@@ -1,0 +1,26 @@
+# Test: taplo align_single_comments behavior in arrays
+# Sub-groups are split by standalone comments; alignment uses max value width.
+
+[project]
+# Single trailing comment aligns to max width of its sub-group.
+dependencies = [
+  "poetry-core @ git+https://github.com/python-poetry/poetry-core.git",
+  "keyring (>=25.1.0,<26.0.0)",
+  # standalone comment splits group
+  "packaging (>=24.2)",                               # PEP 639 support
+  "pkginfo (>=1.12,<2.0)",
+  "tomli (>=2.0.1,<3.0.0) ; python_version < '3.11'",
+  "tomlkit (>=0.11.4,<1.0.0)",
+]
+
+# Multiple trailing comments align within their sub-group.
+[lint]
+ignore = [
+  "B904", # use 'raise ... from err'
+  "B905", # use explicit 'strict=' parameter
+]
+
+# Single element with trailing comment: 1 space separator.
+extend-safe-fixes = [
+  "TC", # move import from and to TYPE_CHECKING blocks
+]
