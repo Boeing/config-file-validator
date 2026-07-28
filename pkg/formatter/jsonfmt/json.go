@@ -138,9 +138,10 @@ func isNumberChar(b byte) bool {
 }
 
 // normalizeNumber applies prettier's printNumber rules to a single number literal.
-// Rules (from prettier source):
+// Rules (from prettier src/utilities/print-number.js):
 // 1. Lowercase (E → e in scientific notation)
-// 2. Remove unnecessary + and leading zeros in exponent (e+034 → e34)
+// 2a. Remove unnecessary + and leading zeros in exponent (e+034 → e34)
+// 2b. Remove unnecessary scientific notation when exponent is 0 (1e0 → 1)
 // 3. Remove trailing zeros after decimal point (1.10 → 1.1, but 1.0 stays)
 func normalizeNumber(num []byte) []byte {
 	// Rule 1: lowercase E → e
@@ -152,7 +153,7 @@ func normalizeNumber(num []byte) []byte {
 		}
 	}
 
-	// Rule 2: normalize exponent (remove +, remove leading zeros)
+	// Rule 2a: normalize exponent (remove +, remove leading zeros)
 	eIdx := -1
 	for i, b := range result {
 		if b == 'e' {
@@ -173,15 +174,31 @@ func normalizeNumber(num []byte) []byte {
 		for digitStart < len(result)-1 && result[digitStart] == '0' {
 			digitStart++
 		}
-		// Rebuild exponent.
-		var exp []byte
-		exp = append(exp, 'e')
-		if sign == '-' {
-			exp = append(exp, '-')
+
+		// Rule 2b: if the remaining exponent digits are all zeros, the
+		// scientific notation is unnecessary (e.g. 1e0 → 1, 2e-0 → 2).
+		// Matches prettier regex: /^([+-]?[\d.]+)e[+-]?0+$/ → "$1"
+		allZeros := true
+		for k := digitStart; k < len(result); k++ {
+			if result[k] != '0' {
+				allZeros = false
+				break
+			}
 		}
-		// + is omitted (unnecessary)
-		exp = append(exp, result[digitStart:]...)
-		result = append(result[:eIdx], exp...)
+		if allZeros && digitStart < len(result) {
+			// Drop the entire exponent — the mantissa is the result.
+			result = result[:eIdx]
+		} else {
+			// Rebuild exponent.
+			var exp []byte
+			exp = append(exp, 'e')
+			if sign == '-' {
+				exp = append(exp, '-')
+			}
+			// + is omitted (unnecessary)
+			exp = append(exp, result[digitStart:]...)
+			result = append(result[:eIdx], exp...)
+		}
 	}
 
 	// Rule 3: trim trailing zeros after decimal point.

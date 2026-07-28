@@ -290,3 +290,72 @@ func TestPreserveBlankLinePrefixNoBlankLine(t *testing.T) {
 	require.NoError(t, err)
 	require.NotContains(t, string(got), "\n\n", "no blank lines expected when source has none")
 }
+
+// TestNumberNormalization verifies prettier-compatible number normalization.
+// Rules from prettier src/utilities/print-number.js:
+// 1. Lowercase E → e
+// 2a. Remove unnecessary + and leading zeros in exponent (e+034 → e34)
+// 2b. Remove unnecessary scientific notation when exponent is 0 (1e0 → 1)
+// 3. Remove extraneous trailing decimal zeros (1.10 → 1.1, but 1.0 stays)
+func TestNumberNormalization(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		// Rule 1: lowercase
+		{"uppercase E", `1.5E10`, `1.5e10`},
+		{"uppercase E neg", `1.5E-10`, `1.5e-10`},
+
+		// Rule 2a: strip + and leading zeros from exponent
+		{"e+34", `1e+34`, `1e34`},
+		{"e034", `1e034`, `1e34`},
+		{"e+034", `1e+034`, `1e34`},
+		{"E+034", `1E+034`, `1e34`},
+
+		// Rule 2b: remove unnecessary scientific notation (exponent is 0)
+		{"1e0", `1e0`, `1`},
+		{"1e00", `1e00`, `1`},
+		{"2e+00", `2e+00`, `2`},
+		{"2e-00", `2e-00`, `2`},
+		{"1e-0", `1e-0`, `1`},
+		{"1e+0", `1e+0`, `1`},
+		{"1.5e0", `1.5e0`, `1.5`},
+		{"0.5e0", `0.5e0`, `0.5`},
+		{"1E0", `1E0`, `1`},
+		{"1E+00", `1E+00`, `1`},
+
+		// Rule 2b: negative number
+		{"-1e0", `-1e0`, `-1`},
+		{"-2e+00", `-2e+00`, `-2`},
+
+		// Rule 3: trim trailing decimal zeros
+		{"1.10", `1.10`, `1.1`},
+		{"1.100", `1.100`, `1.1`},
+		{"1.0 stays", `1.0`, `1.0`},
+		{"-9876.543210", `-9876.543210`, `-9876.54321`},
+
+		// Rules interact: lowercase + strip exponent + trim zeros
+		{"1.230E+00", `1.230E+00`, `1.23`},
+
+		// Non-zero exponent preserved
+		{"1e1 stays", `1e1`, `1e1`},
+		{"1e-1 stays", `1e-1`, `1e-1`},
+		{"0.1e1 stays", `0.1e1`, `0.1e1`},
+
+		// Single digit: unchanged
+		{"0 stays", `0`, `0`},
+		{"5 stays", `5`, `5`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			src := []byte(tc.input)
+			got, err := f.Format(src, defaultOpts)
+			require.NoError(t, err)
+			// Format wraps in trailing newline.
+			require.Equal(t, tc.want+"\n", string(got), "input: %s", tc.input)
+		})
+	}
+}
