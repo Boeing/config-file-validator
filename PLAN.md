@@ -97,36 +97,122 @@ differences (comment indent, flow spacing).
 
 **Session progress: 77.3% → 97.8% (+20.5 percentage points, +67 files)**
 
-### Remaining Issues Classification
+## Plan to 100% (414/414)
 
-**Parity suite bugs (2 files — fix the suite):**
-- 2 argo-cd JSON: suite doesn't pass `--no-config` to prettier, so prettier picks
-  up argo-cd's `.prettierrc` with `tabWidth: 4`. Fix: add `--no-config` to prettier
-  invocation in `run.mjs`.
+### Phase 1: Parity Suite Fixes (3 files → 0 code changes to cfv)
 
-**Fixable in cfv (2 files):**
-- 1 JSON number: hujson preserves literal `-9876.543210` (trailing zero). Fix:
-  post-process number literals to normalize trailing zeros.
-- 1 JSONC single-quote: hujson output preserves single quotes. Fix: add quote
-  conversion pass on hujson output bytes (same pattern as YAML flow quotes).
+**Task P1: Pass `--no-config` to prettier in parity suite**
+- File: `~/.cfv-parity/run.mjs`
+- Change: Add `config: false` to prettier format options (or CLI `--no-config`)
+- Fixes: 2 argo-cd JSON files (.prettierrc tabWidth:4 no longer affects comparison)
 
-**Truly unfixable (1 file):**
-- 1 JSONC unquoted keys: `{key: ""}` is JSON5 syntax, not JSONC. hujson correctly
-  rejects it. Prettier's JSONC parser accepts it (it uses a JS parser). This is a
-  parser capability difference, not a formatting bug.
+**Task P2: Skip JSONC files that hujson can't parse**
+- File: `~/.cfv-parity/run.mjs`
+- Change: In JSONC loop, try hujson parse (or attempt cfv format). If cfv returns
+  error, skip the file (same pattern as JSON.parse skip for invalid JSON).
+- Fixes: 1 JSONC file with JSON5 unquoted keys
 
-**Major features needed (2 files):**
-- 1 YAML: flow sequence expansion when line > 80 (requires parsing opaque TokFlow
-  tokens, converting flow → block style)
-- 1 YAML: multiline scalar value wrapping (requires prose-wrap logic like prettier)
+### Phase 2: Quick Fixes (2 files)
 
-**Minor edge cases (2 files):**
-- 1 TOML: blank lines between entries within sub-table groups (hugo.toml)
-- 1 TOML: isolated comment column preservation (hugo.toml — same file)
+**Task F1: JSON number trailing zero normalization**
+- Problem: hujson preserves literal `-9876.543210`. Prettier outputs `-9876.54321`.
+- Spec: JSON numbers should be normalized (no trailing zeros after decimal point).
+- Design: In `jsonfmt/json.go` after `FormatValue` returns, walk the output bytes
+  and normalize number literals. Or: in hujson CST, find Literal nodes that are
+  numbers with trailing zeros and trim them.
+- Approach: Post-process the output bytes with a regex or scanner that finds
+  decimal numbers with trailing zeros: `(\.\d*[1-9])0+([,\s\n\]\}])` → `$1$2`.
+  Must NOT affect numbers inside string values.
+- File: `pkg/formatter/jsonfmt/json.go`
 
-**Achievable maximum: 99.8% (413/414)** — fix suite (2), fix cfv (2), fix TOML edge
-cases (1 file with 2 issues), implement YAML flow expansion (1), implement YAML
-multiline wrap (1). Only the JSON5 unquoted-keys file is truly unfixable.
+**Task F2: JSONC single-quote to double-quote conversion**
+- Problem: hujson preserves single-quoted string literals in output.
+- Spec: JSONC uses double quotes (like JSON). Single quotes are technically not
+  valid JSONC but hujson accepts them.
+- Design: After `Format` returns, scan the output bytes for single-quoted strings
+  and convert to double quotes. Same algorithm as YAML `convertFlowQuotes` —
+  find quote boundaries, convert delimiters, handle escapes.
+- File: `pkg/formatter/jsoncfmt/jsonc.go`
+
+### Phase 3: TOML Edge Cases (1 file, 2 issues)
+
+**Task T1: Blank lines between entries in sub-table groups**
+- Problem: hugo.toml has blank lines between entries within `[[build.cachebusters]]`
+  sections. Taplo removes them (no blank lines between entries in repeated
+  array-table sections).
+- Design: In `Print()` loop, when processing `GroupBlank` between entries, suppress
+  blank lines when we're inside a sub-table group AND the previous table key equals
+  the parent's key (repeated array table). Track `lastTableKey` — if blank is between
+  two entries under the same array-table, suppress it.
+- File: `pkg/formatter/tomlfmt/printer.go`
+
+**Task T2: Isolated comment column preservation**
+- Problem: hugo.toml `date = ['date']` has a comment at column 53 in source. Taplo
+  preserves it. cfv normalizes to single space.
+- Spec: Taplo preserves source comment column for isolated entries (not in a group
+  of 2+) when the source column is wider than minimum.
+- Design: In `findAlignedCommentColumns`, for runs of length 1, preserve the source
+  column (from `inlineCommentColumn`) instead of returning 0.
+- CAUTION: Earlier attempt at this caused regression (many files got source columns
+  preserved that should be normalized). Need to understand EXACTLY when taplo
+  preserves vs normalizes. Hypothesis: taplo preserves when column > minimum AND
+  the column is "intentional" (not just random spacing from the original author).
+  May need to investigate taplo source code.
+- File: `pkg/formatter/tomlfmt/printer.go`
+
+### Phase 4: YAML Major Features (2 files)
+
+**Task Y1: Flow sequence line-width expansion**
+- Problem: Flow sequences (`[...]`) exceeding 80 chars stay on one line.
+- Spec: Prettier wraps them into multi-line flow (indented `[\n  elem,\n  ...\n]`).
+- Design:
+  1. In `printFormatted`, after all other passes, scan for TokFlow tokens that are
+     flow SEQUENCES (start with `[`) and exceed `maxLineWidth`.
+  2. Parse the flow sequence content into elements (split by comma at depth 0 —
+     same algorithm as TOML's `splitByComma`).
+  3. Replace the single-line TokFlow with multiple tokens: indent + `[\n` +
+     per-element `indent+2 + elem + ",\n"` + indent + `]`.
+  4. Alternatively: convert to block sequence (`- elem` style) which is what
+     prettier actually does for YAML.
+- Prettier's actual behavior: converts flow `[a, b, c]` to block:
+  ```yaml
+  - a
+  - b
+  - c
+  ```
+  This is a flow-to-block conversion, not multi-line flow.
+- Complexity: HIGH. Requires understanding the context (is this a mapping value?
+  what's the parent indent?). Must handle nested flows, quoted strings with commas,
+  etc.
+- File: `pkg/formatter/yamlfmt/printer.go`
+
+**Task Y2: Multiline scalar prose wrapping**
+- Problem: Long plain scalars stay on one line. Prettier wraps at 80 chars.
+- Spec: Prettier's `proseWrap: "preserve"` (default for YAML) does NOT wrap.
+  But `proseWrap: "always"` wraps at print width. Need to verify which mode
+  prettier uses for YAML by default.
+- Design: If prettier wraps by default, add a post-processing pass that finds
+  TokValue tokens exceeding line width and inserts line breaks at word boundaries.
+  The continuation lines get the same indent as the first line.
+- Complexity: MEDIUM. Must preserve YAML scalar semantics (newlines in plain scalars
+  become spaces when parsed). Must not break inside quoted strings.
+- File: `pkg/formatter/yamlfmt/printer.go`
+
+### Execution Order
+
+1. P1, P2 (suite fixes — 0 risk, instant gains)
+2. F1, F2 (quick cfv fixes — low risk, well-defined)
+3. T1, T2 (TOML edge cases — medium risk, 1 file)
+4. Y1 (YAML flow expansion — high complexity, most value)
+5. Y2 (YAML prose wrap — medium complexity, verify prettier default first)
+
+### Success Criteria
+
+- Overall parity: 414/414 (100%) or 413/414 (99.8% — if Y2 turns out to be
+  proseWrap:preserve which means prettier doesn't actually wrap)
+- All 22 test packages pass
+- golangci-lint: 0 issues
+- Each task: plan → implement → test → deep code review
 
 ### Additional Fix: JSONC MaxLineWidth Default Resolution ✅
 
