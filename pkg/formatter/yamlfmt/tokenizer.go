@@ -114,9 +114,10 @@ func (t *tokenizer) consumeLineStart() {
 	for t.pos < len(t.src) && t.src[t.pos] == ' ' {
 		t.pos++
 	}
-	if t.pos > start {
-		t.emit(TokIndent, start)
-	}
+	// Always emit a TokIndent at line start, even if zero-width.
+	// This ensures reindentTokens can add indentation to lines that
+	// originally had none (e.g., sequence items under mapping keys).
+	t.tokens = append(t.tokens, Token{Kind: TokIndent, Raw: t.src[start:t.pos]})
 
 	// End of input after indent.
 	if t.pos >= len(t.src) {
@@ -294,6 +295,28 @@ func (t *tokenizer) consumeRestOfLine() {
 	// But first check for block scalar, flow collection, or other special starts.
 	if t.pos >= len(t.src) || t.src[t.pos] == '\n' || t.src[t.pos] == '\r' {
 		return // no value on this line
+	}
+
+	// If the remaining content is only spaces followed by a comment or newline,
+	// emit the spaces as TokSpace and let the comment be consumed separately.
+	// This ensures the comment spacing normalizer can reduce "key:  # comment"
+	// to "key: # comment".
+	if t.src[t.pos] == ' ' {
+		spaceEnd := t.pos
+		for spaceEnd < len(t.src) && t.src[spaceEnd] == ' ' {
+			spaceEnd++
+		}
+		if spaceEnd >= len(t.src) || t.src[spaceEnd] == '#' || t.src[spaceEnd] == '\n' || t.src[spaceEnd] == '\r' {
+			if spaceEnd > t.pos {
+				start := t.pos
+				t.pos = spaceEnd
+				t.tokens = append(t.tokens, Token{Kind: TokSpace, Raw: t.src[start:t.pos]})
+			}
+			if t.pos < len(t.src) && t.src[t.pos] == '#' {
+				t.consumeComment()
+			}
+			return
+		}
 	}
 
 	// Check for special value types.

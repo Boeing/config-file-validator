@@ -10,4 +10,4 @@ indent = 8
 [format]
 indent = 3
 -- test.json --
-{"a":1}
+{"a":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}

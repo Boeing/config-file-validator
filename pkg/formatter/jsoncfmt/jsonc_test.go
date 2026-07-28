@@ -106,13 +106,13 @@ func TestDefaultTrailingCommas(t *testing.T) {
 	}{
 		{
 			"expanded object",
-			`{"a": 1, "b": 2}`,
-			"{\n  \"a\": 1,\n  \"b\": 2,\n}\n",
+			`{"alpha_setting": "value long enough to prevent this object from collapsing", "beta_setting": 2}`,
+			"{\n  \"alpha_setting\": \"value long enough to prevent this object from collapsing\",\n  \"beta_setting\": 2,\n}\n",
 		},
 		{
 			"expanded array",
-			`{"list": [{"id": 1}, {"id": 2}]}`,
-			"{\n  \"list\": [\n    {\n      \"id\": 1,\n    },\n    {\n      \"id\": 2,\n    },\n  ],\n}\n",
+			`{"list": [{"identifier": "first-item-with-a-sufficiently-long-name-to-exceed-eighty"}, {"identifier": "second-item-with-a-sufficiently-long-name-to-exceed-eighty"}]}`,
+			"{\n  \"list\": [\n    {\n      \"identifier\": \"first-item-with-a-sufficiently-long-name-to-exceed-eighty\",\n    },\n    {\n      \"identifier\": \"second-item-with-a-sufficiently-long-name-to-exceed-eighty\",\n    },\n  ],\n}\n",
 		},
 		{
 			"collapsed array",
@@ -120,9 +120,14 @@ func TestDefaultTrailingCommas(t *testing.T) {
 			"[1, 2, 3]\n",
 		},
 		{
+			"collapsed object",
+			`{"a": 1, "b": 2}`,
+			"{ \"a\": 1, \"b\": 2 }\n",
+		},
+		{
 			"empty collections",
-			`{"object": {}, "array": []}`,
-			"{\n  \"object\": {},\n  \"array\": [],\n}\n",
+			`{"object_key": {}, "array_key": [], "description": "long enough to prevent root from collapsing"}`,
+			"{\n  \"object_key\": {},\n  \"array_key\": [],\n  \"description\": \"long enough to prevent root from collapsing\",\n}\n",
 		},
 	}
 	for _, tc := range cases {
@@ -149,13 +154,13 @@ func TestTrailingCommasNoneWithFinalComment(t *testing.T) {
 	}{
 		{
 			"object",
-			`{"key": 1 /* final comment */,}`,
-			"{\n  \"key\": 1 /* final comment */\n}\n",
+			`{"alpha_setting_name": "value is long enough to prevent collapsing even without comment" /* final comment */,}`,
+			"{\n  \"alpha_setting_name\": \"value is long enough to prevent collapsing even without comment\" /* final comment */\n}\n",
 		},
 		{
 			"array",
-			`[{"key": 1} /* final comment */,]`,
-			"[\n  {\n    \"key\": 1\n  } /* final comment */\n]\n",
+			`[{"identifier": "first-item-with-enough-length-to-prevent-collapsing-this-obj"} /* final comment */,]`,
+			"[\n  {\n    \"identifier\": \"first-item-with-enough-length-to-prevent-collapsing-this-obj\"\n  } /* final comment */\n]\n",
 		},
 		{
 			"inline array",
@@ -164,14 +169,14 @@ func TestTrailingCommasNoneWithFinalComment(t *testing.T) {
 		},
 		{
 			"nested object",
-			`{"outer": {"key": 1 /* final comment */,},}`,
-			"{\n  \"outer\": {\n    \"key\": 1 /* final comment */\n  }\n}\n",
+			`{"outer_container": {"alpha_setting_name": "value is long enough to prevent collapsing even without the comment" /* final comment */,},}`,
+			"{\n  \"outer_container\": {\n    \"alpha_setting_name\": \"value is long enough to prevent collapsing even without the comment\" /* final comment */\n  }\n}\n",
 		},
 		{
 			"line comment",
-			`{"key": 1 // final comment
+			`{"alpha_setting_name": "value is long enough to prevent collapsing even without comment" // final comment
 ,}`,
-			"{\n  \"key\": 1 // final comment\n}\n",
+			"{\n  \"alpha_setting_name\": \"value is long enough to prevent collapsing even without comment\" // final comment\n}\n",
 		},
 	}
 
@@ -347,7 +352,7 @@ func FuzzFormatWithOptions(f *testing.F) {
 // indent style is spaces, so tab-indented input is reformatted with spaces.
 func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
 	t.Parallel()
-	src := []byte("{\n\t\"name\": \"my-app\"\n}\n")
+	src := []byte("{\n\t\"name\": \"my-application-service\",\n\t\"description\": \"a value long enough to prevent collapsing\"\n}\n")
 	got, err := f.Format(src, defaultOpts)
 	require.NoError(t, err)
 	require.NotContains(t, string(got), "\t", "default format must not preserve tabs")

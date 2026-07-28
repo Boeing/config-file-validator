@@ -49,19 +49,33 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	reindentTokens(tokens, targetWidth,
 		opts.IndentSequences != formatter.SequenceIndentDisabled)
 
+	// Trim trailing blank lines from clip-chomped block scalars.
+	trimBlockScalarTrailingBlanks(tokens)
+
 	// Apply quote style preference.
 	if opts.QuoteStyle != formatter.QuotePreserve {
 		applyQuoteStyle(tokens, opts.QuoteStyle)
 	}
 
 	// Normalize space before inline comments to exactly one space.
+	// When preceded by TokColon (which already includes a trailing space),
+	// the extra space is removed entirely to avoid double-spacing.
 	for i := range tokens {
 		if tokens[i].Kind == TokSpace && i+1 < len(tokens) && tokens[i+1].Kind == TokComment {
 			if i > 0 && tokens[i-1].Kind != TokIndent && tokens[i-1].Kind != TokNewline {
-				tokens[i].Raw = []byte(" ")
+				if tokens[i-1].Kind == TokColon {
+					// TokColon already has a trailing space — remove the extra.
+					tokens[i].Raw = nil
+				} else {
+					tokens[i].Raw = []byte(" ")
+				}
 			}
 		}
 	}
+
+	// Collapse consecutive blank lines to at most 1 (matches prettier).
+	// This operates at token level so block scalar content is not affected.
+	tokens = collapseConsecutiveBlankLines(tokens)
 
 	// Serialize, stripping trailing whitespace from non-block-scalar lines.
 	out := serializeWithStrip(tokens)
@@ -391,25 +405,45 @@ func reindentTokens(tokens []Token, targetWidth int, indentSequences bool) {
 				targetWidth, indentSequences)
 			lastDelta = newIndent - oldIndent
 		} else {
-			newIndent = oldIndent + lastDelta
-			if newIndent < 0 {
+			// Non-structural indent: shift by lastDelta.
+			// Exceptions that stay at column 0:
+			// - Blank-line indents (followed by TokNewline) — no visible whitespace on empty lines
+			// - Document markers (--- and ...) — YAML spec requires column 0
+			if i+1 < len(tokens) &&
+				(tokens[i+1].Kind == TokNewline || tokens[i+1].Kind == TokDocStart || tokens[i+1].Kind == TokDocEnd) {
 				newIndent = 0
+			} else {
+				newIndent = oldIndent + lastDelta
+				if newIndent < 0 {
+					newIndent = 0
+				}
 			}
 		}
 
 		tokens[i].Raw = []byte(strings.Repeat(" ", newIndent))
-		delta := newIndent - oldIndent
 
-		// Shift block scalar content by same delta.
-		if delta != 0 {
-			for j := i + 1; j < len(tokens); j++ {
-				if tokens[j].Kind == TokNewline {
-					break
+		// Normalize block scalar content indentation.
+		// Target: parentIndent (newIndent) + targetWidth.
+		for j := i + 1; j < len(tokens); j++ {
+			if tokens[j].Kind == TokNewline {
+				break
+			}
+			if tokens[j].Kind == TokBlockScalar {
+				if !hasExplicitIndentIndicator(tokens[j].Raw) {
+					targetContentIndent := newIndent + targetWidth
+					actualContentIndent := detectMinContentIndent(tokens[j].Raw)
+					if actualContentIndent >= 0 && actualContentIndent != targetContentIndent {
+						delta := targetContentIndent - actualContentIndent
+						tokens[j].Raw = shiftBlockScalarIndent(tokens[j].Raw, delta)
+					}
+				} else {
+					// Explicit indicator: just shift by the key's delta.
+					delta := newIndent - oldIndent
+					if delta != 0 {
+						tokens[j].Raw = shiftBlockScalarIndent(tokens[j].Raw, delta)
+					}
 				}
-				if tokens[j].Kind == TokBlockScalar {
-					tokens[j].Raw = shiftBlockScalarIndent(tokens[j].Raw, delta)
-					break
-				}
+				break
 			}
 		}
 	}
@@ -471,6 +505,218 @@ func shiftBlockScalarIndent(raw []byte, delta int) []byte {
 	}
 
 	return result
+}
+
+// hasExplicitIndentIndicator checks if a block scalar header contains a
+// digit (1-9) indicating an explicit indent level.
+func hasExplicitIndentIndicator(raw []byte) bool {
+	// Header is everything up to the first newline.
+	for _, b := range raw {
+		if b == '\n' || b == '\r' {
+			break
+		}
+		if b >= '1' && b <= '9' {
+			return true
+		}
+	}
+	return false
+}
+
+// trimBlockScalarTrailingBlanks removes trailing blank lines from clip-chomped
+// block scalars. For `|` (clip, the default), the scalar value ends with exactly
+// one newline — any trailing blank lines are excess. For `|+` (keep), trailing
+// blanks are preserved. For `|-` (strip), there are no trailing newlines at all.
+//
+// This matches prettier's behavior: clip-chomped scalars have trailing blanks removed.
+func trimBlockScalarTrailingBlanks(tokens []Token) {
+	for i := range tokens {
+		if tokens[i].Kind != TokBlockScalar {
+			continue
+		}
+		raw := tokens[i].Raw
+		if len(raw) == 0 {
+			continue
+		}
+		// Strip trailing whitespace from internal blank lines (whitespace-only
+		// lines within block scalar content). This whitespace is never
+		// semantically significant.
+		raw = stripBlankLineWhitespace(raw)
+		if blockScalarChomping(raw) == chompClip {
+			raw = trimTrailingBlankLines(raw)
+		}
+		tokens[i].Raw = raw
+	}
+}
+
+// chompMode represents YAML block scalar chomping behavior.
+type chompMode int
+
+const (
+	chompClip  chompMode = iota // | (default) — single trailing newline
+	chompStrip                  // |- — no trailing newline
+	chompKeep                   // |+ — preserve all trailing newlines
+)
+
+// blockScalarChomping determines the chomping mode from a block scalar header.
+func blockScalarChomping(raw []byte) chompMode {
+	for _, b := range raw {
+		if b == '\n' || b == '\r' {
+			break
+		}
+		if b == '+' {
+			return chompKeep
+		}
+		if b == '-' {
+			return chompStrip
+		}
+	}
+	return chompClip
+}
+
+// stripBlankLineWhitespace removes trailing spaces/tabs from blank lines
+// (lines containing only whitespace) within block scalar content.
+// Preserves content on non-blank lines. Skips the header line.
+func stripBlankLineWhitespace(raw []byte) []byte {
+	var result []byte
+	pos := 0
+	// Copy header line verbatim.
+	for pos < len(raw) && raw[pos] != '\n' {
+		result = append(result, raw[pos])
+		pos++
+	}
+	if pos < len(raw) {
+		result = append(result, raw[pos]) // include header \n
+		pos++
+	}
+	// Process content lines.
+	for pos < len(raw) {
+		lineStart := pos
+		// Scan to end of line.
+		for pos < len(raw) && raw[pos] != '\n' {
+			pos++
+		}
+		line := raw[lineStart:pos]
+		// Check if line is blank (only spaces/tabs).
+		isBlank := true
+		for _, b := range line {
+			if b != ' ' && b != '\t' {
+				isBlank = false
+				break
+			}
+		}
+		if !isBlank {
+			result = append(result, line...)
+		}
+		// Include the newline.
+		if pos < len(raw) {
+			result = append(result, raw[pos])
+			pos++
+		}
+	}
+	return result
+}
+
+// trimTrailingBlankLines removes excess trailing blank lines from a clip-chomped
+// block scalar, keeping at most ONE trailing blank line after the last content line.
+// The result has: ...lastContentLine\n\n (content newline + 1 blank line for separator).
+// If the original only had 1 trailing newline (no blank lines), it stays as-is.
+func trimTrailingBlankLines(raw []byte) []byte {
+	// Find the position of the last non-empty line's ending newline.
+	// Then keep at most one additional newline after it.
+	lastContentEnd := -1 // position AFTER the last content char's newline
+	pos := 0
+
+	// Skip header line.
+	for pos < len(raw) && raw[pos] != '\n' {
+		pos++
+	}
+	if pos < len(raw) {
+		pos++ // skip header \n
+	}
+
+	// Scan content lines, tracking the end of the last non-empty one.
+	for pos < len(raw) {
+		// Skip leading spaces.
+		for pos < len(raw) && raw[pos] == ' ' {
+			pos++
+		}
+		// Check if this is a non-empty line.
+		if pos < len(raw) && raw[pos] != '\n' && raw[pos] != '\r' {
+			// Non-empty line — advance to end of line.
+			for pos < len(raw) && raw[pos] != '\n' {
+				pos++
+			}
+			if pos < len(raw) {
+				pos++ // include the \n
+			}
+			lastContentEnd = pos
+		} else {
+			// Empty/blank line — advance past it.
+			if pos < len(raw) && raw[pos] == '\r' {
+				pos++
+			}
+			if pos < len(raw) && raw[pos] == '\n' {
+				pos++
+			}
+		}
+	}
+
+	if lastContentEnd < 0 {
+		return raw // no content lines found
+	}
+
+	// After lastContentEnd: any remaining bytes are trailing blank lines.
+	// Keep at most 1 additional newline (the inter-element blank line).
+	remaining := raw[lastContentEnd:]
+	if len(remaining) == 0 {
+		return raw // no trailing blanks
+	}
+	// Keep one \n from the remaining (the blank line separator).
+	return append(raw[:lastContentEnd], '\n')
+}
+
+// detectMinContentIndent returns the minimum leading-space count across
+// all non-empty content lines in a block scalar (skipping the header line).
+// Returns -1 if there are no non-empty content lines.
+func detectMinContentIndent(raw []byte) int {
+	// Skip header line.
+	pos := 0
+	for pos < len(raw) && raw[pos] != '\n' && raw[pos] != '\r' {
+		pos++
+	}
+	if pos < len(raw) {
+		pos++ // skip \n
+		if pos > 0 && raw[pos-1] == '\r' && pos < len(raw) && raw[pos] == '\n' {
+			pos++
+		}
+	}
+
+	minIndent := -1
+	for pos < len(raw) {
+		// Count leading spaces.
+		spaces := 0
+		for pos < len(raw) && raw[pos] == ' ' {
+			spaces++
+			pos++
+		}
+		// Check if line is non-empty.
+		if pos < len(raw) && raw[pos] != '\n' && raw[pos] != '\r' {
+			if minIndent < 0 || spaces < minIndent {
+				minIndent = spaces
+			}
+		}
+		// Skip to next line.
+		for pos < len(raw) && raw[pos] != '\n' && raw[pos] != '\r' {
+			pos++
+		}
+		if pos < len(raw) {
+			pos++
+			if pos > 0 && raw[pos-1] == '\r' && pos < len(raw) && raw[pos] == '\n' {
+				pos++
+			}
+		}
+	}
+	return minIndent
 }
 
 // =============================================================================
@@ -739,23 +985,27 @@ func reorderEntries(tokens []Token, entries []mappingEntry) []Token {
 
 func applyQuoteStyle(tokens []Token, style formatter.QuoteStyle) {
 	for i := range tokens {
-		if tokens[i].Kind != TokValue {
+		if tokens[i].Kind != TokValue && tokens[i].Kind != TokFlow {
 			continue
 		}
-		// Trim trailing horizontal whitespace for quote boundary detection.
-		// serializeWithStrip removes this from the final output anyway —
-		// trimming here ensures the quote decision is idempotent regardless of
-		// whether the input had trailing spaces/tabs after a quoted value.
-		raw := bytes.TrimRight(tokens[i].Raw, " \t")
-		if len(raw) < 2 {
+
+		if tokens[i].Kind == TokValue {
+			// Block scalar quote conversion.
+			raw := bytes.TrimRight(tokens[i].Raw, " \t")
+			if len(raw) < 2 {
+				continue
+			}
+			first, last := raw[0], raw[len(raw)-1]
+			if first == '"' && last == '"' && isSimpleQuoted(raw, '"') {
+				tokens[i].Raw = convertQuote(raw, style, '"')
+			} else if first == '\'' && last == '\'' && isSimpleQuoted(raw, '\'') {
+				tokens[i].Raw = convertQuote(raw, style, '\'')
+			}
 			continue
 		}
-		first, last := raw[0], raw[len(raw)-1]
-		if first == '"' && last == '"' && isSimpleQuoted(raw, '"') {
-			tokens[i].Raw = convertQuote(raw, style, '"')
-		} else if first == '\'' && last == '\'' && isSimpleQuoted(raw, '\'') {
-			tokens[i].Raw = convertQuote(raw, style, '\'')
-		}
+
+		// TokFlow: convert quoted scalars inside flow collections.
+		tokens[i].Raw = convertFlowQuotes(tokens[i].Raw, style)
 	}
 }
 
@@ -889,6 +1139,87 @@ func convertQuote(raw []byte, style formatter.QuoteStyle, currentQuote byte) []b
 	return out
 }
 
+// convertFlowQuotes converts quoted scalars inside a flow collection token
+// (TokFlow) to the target quote style. Walks the raw bytes, finds quoted
+// scalar boundaries, and applies convertQuote to each one individually.
+func convertFlowQuotes(raw []byte, style formatter.QuoteStyle) []byte {
+	var result []byte
+	i := 0
+	for i < len(raw) {
+		switch raw[i] {
+		case '\'':
+			// Find the end of this single-quoted scalar.
+			end := findSingleQuoteEnd(raw, i)
+			if end < 0 {
+				// Malformed — copy rest verbatim.
+				result = append(result, raw[i:]...)
+				return result
+			}
+			scalar := raw[i : end+1]
+			if isSimpleQuoted(scalar, '\'') {
+				converted := convertQuote(scalar, style, '\'')
+				result = append(result, converted...)
+			} else {
+				result = append(result, scalar...)
+			}
+			i = end + 1
+		case '"':
+			// Find the end of this double-quoted scalar.
+			end := findDoubleQuoteEnd(raw, i)
+			if end < 0 {
+				result = append(result, raw[i:]...)
+				return result
+			}
+			scalar := raw[i : end+1]
+			if isSimpleQuoted(scalar, '"') {
+				converted := convertQuote(scalar, style, '"')
+				result = append(result, converted...)
+			} else {
+				result = append(result, scalar...)
+			}
+			i = end + 1
+		default:
+			result = append(result, raw[i])
+			i++
+		}
+	}
+	return result
+}
+
+// findSingleQuoteEnd finds the closing ' of a single-quoted YAML scalar.
+// In single-quoted YAML, ” is an escape for a literal '.
+// Returns the index of the closing quote, or -1 if not found.
+func findSingleQuoteEnd(raw []byte, start int) int {
+	// start points to the opening '
+	for i := start + 1; i < len(raw); i++ {
+		if raw[i] == '\'' {
+			// Check if it's an escape ('')
+			if i+1 < len(raw) && raw[i+1] == '\'' {
+				i++ // skip the escape pair
+				continue
+			}
+			return i
+		}
+	}
+	return -1
+}
+
+// findDoubleQuoteEnd finds the closing " of a double-quoted YAML scalar.
+// Handles backslash escapes (\" is not the end).
+// Returns the index of the closing quote, or -1 if not found.
+func findDoubleQuoteEnd(raw []byte, start int) int {
+	for i := start + 1; i < len(raw); i++ {
+		if raw[i] == '\\' {
+			i++ // skip escaped character
+			continue
+		}
+		if raw[i] == '"' {
+			return i
+		}
+	}
+	return -1
+}
+
 // =============================================================================
 // Value spacing normalization
 // =============================================================================
@@ -923,8 +1254,9 @@ func normalizeValueSpacing(tokens []Token) {
 // =============================================================================
 
 // normalizeFlowTokens adds one space inside non-empty flow mapping braces.
-// It intentionally leaves flow sequence brackets and all spacing around
-// colons and commas untouched, matching Prettier's bracketSpacing option.
+// It normalizes flow mappings ({...}) with bracketSpacing (space after { and
+// before }) and flow sequences ([...]) without spacing (no space after [ or
+// before ]), matching Prettier's behavior.
 func normalizeFlowTokens(tokens []Token) {
 	for i := range tokens {
 		if tokens[i].Kind != TokFlow {
@@ -975,6 +1307,18 @@ func addFlowMappingPadding(raw []byte) []byte {
 				out = append(out, ' ')
 			}
 			out = append(out, b)
+		case '[':
+			out = append(out, b)
+			// Remove space after [ (prettier: no bracketSpacing for arrays).
+			for i+1 < len(raw) && raw[i+1] == ' ' {
+				i++
+			}
+		case ']':
+			// Remove space before ] (prettier: no bracketSpacing for arrays).
+			for len(out) > 0 && out[len(out)-1] == ' ' {
+				out = out[:len(out)-1]
+			}
+			out = append(out, b)
 		default:
 			out = append(out, b)
 		}
@@ -985,6 +1329,57 @@ func addFlowMappingPadding(raw []byte) []byte {
 // =============================================================================
 // Utilities
 // =============================================================================
+
+// collapseConsecutiveBlankLines removes excess blank lines from the token stream,
+// keeping at most 1 consecutive blank line between content. This matches prettier's
+// behavior. Block scalar content is unaffected because it's inside TokBlockScalar
+// tokens (opaque).
+func collapseConsecutiveBlankLines(tokens []Token) []Token {
+	result := make([]Token, 0, len(tokens))
+	consecutiveNewlines := 0
+
+	for _, tok := range tokens {
+		switch tok.Kind {
+		case TokNewline:
+			consecutiveNewlines++
+			if consecutiveNewlines <= 2 {
+				result = append(result, tok)
+			}
+		case TokIndent:
+			// Indent tokens are transparent for blank-line counting.
+			// A blank line is: newline + indent + newline.
+			// Only suppress zero-width indents on excess blank lines.
+			if consecutiveNewlines < 2 || len(tok.Raw) > 0 {
+				result = append(result, tok)
+			}
+		case TokBlockScalar:
+			// Block scalars end with newline(s). Count trailing newlines
+			// so the consecutive-newline counter reflects reality.
+			result = append(result, tok)
+			trailingNL := countTrailingNewlines(tok.Raw)
+			consecutiveNewlines = trailingNL
+		default:
+			consecutiveNewlines = 0
+			result = append(result, tok)
+		}
+	}
+	return result
+}
+
+// countTrailingNewlines counts how many newlines are at the end of a byte slice.
+func countTrailingNewlines(data []byte) int {
+	count := 0
+	for i := len(data) - 1; i >= 0; i-- {
+		if data[i] == '\n' {
+			count++
+		} else if data[i] == '\r' {
+			continue // part of \r\n
+		} else {
+			break
+		}
+	}
+	return count
+}
 
 // serializeWithStrip walks tokens, strips trailing whitespace from each line,
 // but emits TokBlockScalar tokens verbatim to preserve block scalar semantics

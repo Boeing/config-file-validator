@@ -2,7 +2,7 @@
     // comment
     "name": "test",
     "nested": {
-        "a": 1,
-        "b": 2,
+        "alpha_setting": "this value is long enough to prevent collapsing",
+        "beta_setting": 2,
     },
 }

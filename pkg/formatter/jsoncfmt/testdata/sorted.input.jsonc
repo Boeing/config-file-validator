@@ -4,7 +4,7 @@
   // Apple comment
   "apple": 2,
   "mango": {
-    "z_inner": true,
-    "a_inner": false,
+    "z_inner_setting_with_longer_name": true,
+    "a_inner_setting_with_longer_name": false,
   },
 }

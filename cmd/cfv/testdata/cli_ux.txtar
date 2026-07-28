@@ -30,7 +30,7 @@ stdout '~.*messy.json'
 stdout '--- .*messy.json'
 stdout '\+\+\+ .*messy.json'
 stdout '@@'
-stdout '-{"b":1,"a":2}'
+stdout '-{"b":"a_long_value_that_ensures_this_json_object_exceeds_eighty_columns_when_formatted_on_one_line","a":2}'
 stdout '\+  "a": 2'
 
 # File was NOT modified (--diff is read-only like format without --fix)
@@ -69,14 +69,11 @@ stdout '\+    "key": 1'
 # ============================================================
 
 -- work/messy.json --
-{"b":1,"a":2}
+{"b":"a_long_value_that_ensures_this_json_object_exceeds_eighty_columns_when_formatted_on_one_line","a":2}
 -- work/messy.json.orig --
-{"b":1,"a":2}
+{"b":"a_long_value_that_ensures_this_json_object_exceeds_eighty_columns_when_formatted_on_one_line","a":2}
 -- work/good.json --
-{
-  "a": 1,
-  "b": 2
-}
+{ "a": 1, "b": 2 }
 -- multi/messy.yaml --
 a:    1
 b:  2

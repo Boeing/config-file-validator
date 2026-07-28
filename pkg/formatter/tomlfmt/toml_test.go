@@ -134,7 +134,9 @@ func TestBlankLinesBeforeTables(t *testing.T) {
 func TestAlignedInlineComments(t *testing.T) {
 	t.Parallel()
 	src := []byte("allow-unsafe = true       # old default\ngenerate-hashes = false   # pip bug\nstrip-extras = true       # reduce churn\nsingle = true        # normalize me\n")
-	want := "allow-unsafe = true       # old default\ngenerate-hashes = false   # pip bug\nstrip-extras = true       # reduce churn\nsingle = true # normalize me\n"
+	// All 4 entries have inline comments → aligned to longest key=value width.
+	// "generate-hashes = false" is the longest (23 chars), so all align to col 24.
+	want := "allow-unsafe = true     # old default\ngenerate-hashes = false # pip bug\nstrip-extras = true     # reduce churn\nsingle = true           # normalize me\n"
 
 	got, err := f.Format(src, defaultOpts)
 	require.NoError(t, err)

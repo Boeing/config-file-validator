@@ -868,8 +868,8 @@ func Test_CLIStdinWithQuiet(t *testing.T) {
 
 func Test_FormatCleanFiles(t *testing.T) {
 	dir := t.TempDir()
-	// Already-formatted JSON (2-space, sorted keys)
-	testhelper.WriteFile(t, dir, "clean.json", "{\n  \"a\": 1,\n  \"b\": 2\n}\n")
+	// Already-formatted JSON (2-space, sorted keys, collapsed — fits on one line)
+	testhelper.WriteFile(t, dir, "clean.json", "{ \"a\": 1, \"b\": 2 }\n")
 
 	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
 	rep := &captureReporter{}
@@ -964,7 +964,7 @@ func Test_FormatWithDiff(t *testing.T) {
 func Test_FormatSkipsUnparseableFiles(t *testing.T) {
 	dir := t.TempDir()
 	testhelper.WriteFile(t, dir, "bad.json", `{"not valid json`)
-	testhelper.WriteFile(t, dir, "good.json", "{\n  \"a\": 1\n}\n")
+	testhelper.WriteFile(t, dir, "good.json", "{ \"a\": 1 }\n")
 
 	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
 	rep := &captureReporter{}
@@ -987,7 +987,7 @@ func Test_FormatSkipsUnparseableFiles(t *testing.T) {
 
 func Test_FormatBrokenSymlink(t *testing.T) {
 	dir := t.TempDir()
-	testhelper.WriteFile(t, dir, "good.json", "{\n  \"a\": 1\n}\n")
+	testhelper.WriteFile(t, dir, "good.json", "{ \"a\": 1 }\n")
 	err := os.Symlink("/nonexistent_target_xyz", filepath.Join(dir, "broken.json"))
 	require.NoError(t, err)
 

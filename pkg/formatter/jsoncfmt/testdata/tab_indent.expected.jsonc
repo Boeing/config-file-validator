@@ -1,4 +1,5 @@
 {
-	"name": "test",
+	"name": "my-application-service",
+	"description": "a configuration that exceeds eighty characters to force expansion",
 	"items": [1, 2, 3],
 }

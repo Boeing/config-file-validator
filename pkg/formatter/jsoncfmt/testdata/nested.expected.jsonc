@@ -1,14 +1,16 @@
 {
   // Top level config
   "database": {
-    "host": "localhost",
+    "host": "db-primary.internal.example.com",
     "port": 5432,
     "options": {
-      "timeout": 30,
-      "retries": 3,
+      "timeout_milliseconds": 30000,
+      "max_retries_on_failure": 3,
+      "connection_pool_size": 25,
     },
   },
   "logging": {
     "level": "info",
+    "output_directory": "/var/log/my-application-service/debug",
   },
 }

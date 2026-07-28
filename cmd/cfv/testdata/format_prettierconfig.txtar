@@ -61,7 +61,7 @@ exec cat jsskip/child/app.json
 stdout '^   "key"'
 
 -- orig.json --
-{"key":"value"}
+{"key":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}
 -- .prettierrc.json --
 {"tabWidth": 4}
 -- cfv/indent6.toml --
@@ -76,14 +76,14 @@ indent_size = 6
 -- ec/.prettierrc.json --
 {"tabWidth": 4}
 -- ec/orig.json --
-{"key":"value"}
+{"key":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}
 
 -- bare/.prettierrc --
 {"tabWidth": 5}
 -- bare/.prettierrc.yaml --
 tabWidth: 9
 -- bare/app.json --
-{"k":"v"}
+{"k":"value_that_is_definitely_long_enough_to_push_this_object_past_the_eighty_column_threshold_needed"}
 
 -- yamlcfg/.prettierrc.yaml --
 printWidth: 40
@@ -94,18 +94,18 @@ key: "value"
 -- tomlcfg/.prettierrc.toml --
 tabWidth = 3
 -- tomlcfg/app.jsonc --
-{"key":"value"}
+{"key":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}
 
 -- nested/.prettierrc.json --
 {"tabWidth": 8}
 -- nested/child/.prettierrc.json --
 {"tabWidth": 2}
 -- nested/child/app.json --
-{"key":"value"}
+{"key":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}
 
 -- jsskip/.prettierrc.json --
 {"tabWidth": 3}
 -- jsskip/child/.prettierrc.js --
 module.exports = { tabWidth: 4 };
 -- jsskip/child/app.json --
-{"key":"value"}
+{"key":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}

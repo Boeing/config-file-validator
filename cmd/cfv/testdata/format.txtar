@@ -7,10 +7,7 @@ stdout '✓.*good.json'
 cmp messy.json messy.json.orig
 
 -- good.json --
-{
-  "a": 1,
-  "b": 2
-}
+{ "a": 1, "b": 2 }
 -- messy.json --
 {"b":2,"a":1}
 -- messy.json.orig --

@@ -8,10 +8,10 @@
   },
 
   "items": [
-    "one",
+    "one-is-a-longer-string-value-that-prevents-collapsing-when-combined-with-two",
 
 
-    "two"
+    "two-is-also-a-longer-string-value-that-ensures-the-array-exceeds-eighty-cols"
 
 
   ]

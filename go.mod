@@ -27,9 +27,9 @@ require (
 require (
 	cuelang.org/go v0.17.1
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sblinch/kdl-go v0.0.0-20260121213736-8b7053306ca6
-	github.com/tidwall/pretty v1.2.1
 )
 
 require github.com/dlclark/regexp2 v1.12.0 // indirect
@@ -41,7 +41,6 @@ require (
 	github.com/cockroachdb/apd/v3 v3.2.3 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect

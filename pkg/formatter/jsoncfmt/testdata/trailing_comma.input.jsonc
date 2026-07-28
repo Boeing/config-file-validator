@@ -1,9 +1,10 @@
 {
-    "name":   "app",
+    "name":   "my-application-service",
     "items": [
-       "one",
-       "two",
-       "three",
+       "one-long-value",
+       "two-long-value",
+       "three-long-value",
     ],
+    "description": "this is a description string that makes the object exceed eighty columns",
     "enabled": true,
 }

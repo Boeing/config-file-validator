@@ -75,7 +75,7 @@ ports = ["aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc", "dddddddddd", "eeeeeeeeee", "
 -- array.toml --
 ports = []
 -- app.json --
-{"key":{"nested":"value"}}
+{"key":{"nested":"value"},"extra":"padding that pushes this past eighty columns for the formatter"}
 -- cfv/indent2.toml --
 [format]
 indent = 2

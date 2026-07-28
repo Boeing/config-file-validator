@@ -9,12 +9,12 @@
 
   "items": [
     {
-      "name": "one"
+      "name": "one-item-with-a-longer-name-that-prevents-the-object-from-collapsing"
 
     },
 
     {
-      "name": "two"
+      "name": "two-item-with-a-longer-name-that-prevents-the-object-from-collapsing"
 
     }
 

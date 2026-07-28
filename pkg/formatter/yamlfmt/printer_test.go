@@ -75,15 +75,15 @@ func TestReindent(t *testing.T) {
 			name:  "block scalar content shifted with parent indent",
 			input: "data:\n    script: |\n        line1\n        line2\n",
 			width: 2,
-			// key indent: 4→2 (delta=-2), block scalar content: 8→6
-			expect: "data:\n  script: |\n      line1\n      line2\n",
+			// key indent: 4→2, content normalized to parentIndent+width = 2+2 = 4
+			expect: "data:\n  script: |\n    line1\n    line2\n",
 		},
 		{
 			name:  "block scalar widened with parent indent",
 			input: "data:\n  script: |\n    line1\n    line2\n",
 			width: 4,
-			// key indent: 2→4 (delta=+2), block scalar content: 4→6
-			expect: "data:\n    script: |\n      line1\n      line2\n",
+			// key indent: 2→4, content normalized to parentIndent+width = 4+4 = 8
+			expect: "data:\n    script: |\n        line1\n        line2\n",
 		},
 	}
 

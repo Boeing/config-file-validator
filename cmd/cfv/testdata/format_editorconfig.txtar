@@ -60,9 +60,9 @@ indent_size = 6
 [*.yaml]
 indent_size = 3
 -- orig.json --
-{"key":{"nested":"value"}}
+{"key":{"nested":"value"},"extra":"padding that pushes this past eighty columns for the formatter"}
 -- indent.json --
-{"key":{"nested":"value"}}
+{"key":{"nested":"value"},"extra":"padding that pushes this past eighty columns for the formatter"}
 -- app.yaml --
 key:
     nested: value
@@ -72,7 +72,7 @@ host = "example"
 -- rooted/.editorconfig --
 root = true
 -- rooted/f.json --
-{"key":{"nested":"value"}}
+{"key":{"nested":"value"},"extra":"padding that pushes this past eighty columns for the formatter"}
 -- cfv/indent4.toml --
 [format]
 indent = 4

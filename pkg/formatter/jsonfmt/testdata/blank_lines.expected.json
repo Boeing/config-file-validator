@@ -5,9 +5,5 @@
     "build": "tsc"
   },
 
-  "items": [
-    "one",
-
-    "two"
-  ]
+  "items": ["one", "two"]
 }

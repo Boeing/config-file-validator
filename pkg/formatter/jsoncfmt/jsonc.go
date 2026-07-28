@@ -36,6 +36,7 @@ func DefaultOptions() formatter.Options {
 		FinalNewline:   true,
 		LineEnding:     formatter.LineEndingLF,
 		SortKeys:       false,
+		MaxLineWidth:   80,
 		TrailingCommas: formatter.TrailingCommasAll,
 	}
 }
@@ -49,10 +50,20 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 		return nil, err
 	}
 
+	// Resolve defaults for unset options.
+	defaults := DefaultOptions()
+	if opts.MaxLineWidth == 0 {
+		opts.MaxLineWidth = defaults.MaxLineWidth
+	}
+	if opts.IndentWidth == 0 {
+		opts.IndentWidth = defaults.IndentWidth
+	}
+
 	// Detect before sorting: sorting moves the trailing comma marker off the
 	// last member.
 	fs := &formatState{
 		indent:               buildIndent(opts),
+		maxLineWidth:         opts.MaxLineWidth,
 		trailingCommas:       wantTrailingCommas(&v, opts.TrailingCommas),
 		removeTrailingCommas: opts.TrailingCommas == formatter.TrailingCommasNone,
 	}
@@ -76,11 +87,42 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 	return out, nil
 }
 
+// FormatValue formats a pre-parsed hujson Value with the given options.
+// This is the shared format engine used by both the JSON and JSONC formatters.
+// The caller is responsible for parsing and validating the input.
+func FormatValue(v *hujson.Value, opts formatter.Options) ([]byte, error) {
+	fs := &formatState{
+		indent:               buildIndent(opts),
+		maxLineWidth:         opts.MaxLineWidth,
+		trailingCommas:       wantTrailingCommas(v, opts.TrailingCommas),
+		removeTrailingCommas: opts.TrailingCommas == formatter.TrailingCommasNone,
+	}
+
+	if opts.SortKeys {
+		sortObject(v)
+	}
+
+	fs.formatValue(v, 0)
+
+	out := v.Pack()
+
+	out = trimTrailingNewlines(out)
+	if opts.FinalNewline {
+		out = append(out, '\n')
+	}
+
+	out = formatter.NormalizeLineEndings(out, opts.LineEnding)
+
+	return out, nil
+}
+
 // formatState holds the configuration for a single format pass.
 type formatState struct {
 	indent               string // indent string (e.g., "  " or "\t")
+	maxLineWidth         int    // max line width for inline decisions (0 = unlimited)
 	trailingCommas       bool   // true if multiline collections get a trailing comma
 	removeTrailingCommas bool   // true if trailing commas must be explicitly removed
+	keyPrefixLen         int    // length of key + ": " on current line (set by formatObject before recursing)
 }
 
 // wantTrailingCommas resolves the trailing comma mode against the parsed input.
@@ -157,6 +199,21 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 		return
 	}
 
+	// Keep the object on one line if it was already inline in the source and
+	// fits within maxLineWidth. Objects that were multiline stay multiline.
+	if fs.isInlineObject(obj, depth*len(fs.indent)) {
+		for i := range obj.Members {
+			m := &obj.Members[i]
+			m.Name.BeforeExtra = hujson.Extra(" ")
+			m.Name.AfterExtra = nil
+			m.Value.BeforeExtra = hujson.Extra(" ")
+			m.Value.AfterExtra = nil
+			formatInlineValue(&m.Value)
+		}
+		obj.AfterExtra = hujson.Extra(" ")
+		return
+	}
+
 	childIndent := "\n" + strings.Repeat(fs.indent, depth+1)
 	closeIndent := "\n" + strings.Repeat(fs.indent, depth)
 
@@ -180,7 +237,11 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 		m.Value.AfterExtra = clearWhitespace(m.Value.AfterExtra)
 
 		// Recurse into nested structures.
+		// Set key prefix so inline checks account for the full line width:
+		// indent + "key": value
+		fs.keyPrefixLen = len(m.Name.Value.(hujson.Literal)) + 2 // key + ": "
 		fs.formatValue(&m.Value, depth+1)
+		fs.keyPrefixLen = 0
 	}
 
 	// Trailing comma on the last member, if enabled.
@@ -221,7 +282,7 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	// Keep short primitive arrays on one line.
 	// Note: inlined arrays intentionally omit trailing commas.
 	// A single-line array like [1, 2, 3] is cleaner without a trailing comma.
-	if isInlineArray(arr, depth, len(fs.indent)) {
+	if fs.isInlineArray(arr, depth*len(fs.indent)) {
 		for i := range arr.Elements {
 			if i == 0 {
 				arr.Elements[i].BeforeExtra = nil
@@ -229,6 +290,7 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 				arr.Elements[i].BeforeExtra = hujson.Extra(" ")
 			}
 			arr.Elements[i].AfterExtra = nil
+			formatInlineValue(&arr.Elements[i])
 		}
 		arr.AfterExtra = nil
 		return
@@ -249,7 +311,11 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 			}
 		}
 		arr.Elements[i].AfterExtra = clearWhitespace(arr.Elements[i].AfterExtra)
+		// Array elements are on their own lines — no key prefix.
+		savedKeyPrefix := fs.keyPrefixLen
+		fs.keyPrefixLen = 0
 		fs.formatValue(&arr.Elements[i], depth+1)
+		fs.keyPrefixLen = savedKeyPrefix
 	}
 
 	// Trailing comma on the last element, if enabled.
@@ -270,37 +336,142 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	}
 }
 
+// formatInlineValue recursively normalizes whitespace inside a value for
+// single-line display. Objects get { } padding, arrays get no padding,
+// and commas get a trailing space.
+func formatInlineValue(v *hujson.Value) {
+	switch val := v.Value.(type) {
+	case *hujson.Object:
+		for i := range val.Members {
+			m := &val.Members[i]
+			m.Name.BeforeExtra = hujson.Extra(" ")
+			m.Name.AfterExtra = nil
+			m.Value.BeforeExtra = hujson.Extra(" ")
+			m.Value.AfterExtra = nil
+			formatInlineValue(&m.Value)
+		}
+		if len(val.Members) > 0 {
+			val.AfterExtra = hujson.Extra(" ")
+		} else {
+			val.AfterExtra = nil
+		}
+	case *hujson.Array:
+		for i := range val.Elements {
+			if i == 0 {
+				val.Elements[i].BeforeExtra = nil
+			} else {
+				val.Elements[i].BeforeExtra = hujson.Extra(" ")
+			}
+			val.Elements[i].AfterExtra = nil
+			formatInlineValue(&val.Elements[i])
+		}
+		val.AfterExtra = nil
+	default:
+		// Literals need no formatting.
+	}
+}
+
+// inlineValueLength returns the single-line character length of a value,
+// or -1 if the value cannot be represented on one line (contains comments,
+// blank lines between elements, etc).
+func inlineValueLength(v *hujson.Value) int {
+	switch val := v.Value.(type) {
+	case hujson.Literal:
+		return len(val)
+	case *hujson.Object:
+		if len(val.Members) == 0 {
+			return 2 // {}
+		}
+		// If the object was multiline in the source (any member has a newline
+		// in BeforeExtra), it cannot be inlined. This matches prettier's behavior:
+		// expanded objects stay expanded.
+		for _, m := range val.Members {
+			if strings.ContainsAny(string(m.Name.BeforeExtra), "\n\r") {
+				return -1
+			}
+		}
+		total := 4 // "{ " + " }"
+		for i, m := range val.Members {
+			if i > 0 {
+				total += 2 // ", "
+			}
+			if hasComment(m.Name.BeforeExtra) || hasComment(m.Value.BeforeExtra) {
+				return -1
+			}
+			if i > 0 && hasBlankLine(m.Name.BeforeExtra) {
+				return -1
+			}
+			total += len(m.Name.Value.(hujson.Literal)) // key
+			total += 2                                  // ": "
+			inner := inlineValueLength(&m.Value)
+			if inner < 0 {
+				return -1
+			}
+			total += inner
+		}
+		return total
+	case *hujson.Array:
+		if len(val.Elements) == 0 {
+			return 2 // []
+		}
+		total := 2 // "[" + "]"
+		for i, e := range val.Elements {
+			if i > 0 {
+				total += 2 // ", "
+			}
+			if hasComment(e.BeforeExtra) || hasComment(e.AfterExtra) {
+				return -1
+			}
+			inner := inlineValueLength(&e)
+			if inner < 0 {
+				return -1
+			}
+			total += inner
+		}
+		return total
+	default:
+		return -1
+	}
+}
+
+// isInlineObject returns true if the object should be kept on one line.
+// Objects are only kept inline if they were ALREADY on a single line in the
+// input AND they fit within the max line width. This matches prettier's
+// behavior: it never collapses multiline objects, only expands inline objects
+// that exceed the print width.
+func (fs *formatState) isInlineObject(obj *hujson.Object, prefixLen int) bool {
+	if fs.maxLineWidth <= 0 {
+		return false
+	}
+	// If the object was multiline in the source (any member preceded by a
+	// newline), never collapse it.
+	for _, m := range obj.Members {
+		if strings.ContainsAny(string(m.Name.BeforeExtra), "\n\r") {
+			return false
+		}
+	}
+	valLen := inlineValueLength(&hujson.Value{Value: obj})
+	if valLen < 0 {
+		return false
+	}
+	return prefixLen+fs.keyPrefixLen+valLen <= fs.maxLineWidth
+}
+
 // isInlineArray returns true if the array should stay on one line.
-// Short arrays of only primitive values (no nested objects/arrays, no comments)
-// that fit within 80 columns (accounting for current indentation) are kept inline.
-// The key width is not available at this call site, so indentation depth is used
-// as a conservative proxy — this prevents over-collapsing at deeper nesting levels.
-func isInlineArray(arr *hujson.Array, depth, indentLen int) bool {
+// Arrays are always collapsed if they fit within the max line width,
+// regardless of their format in the input. This matches prettier's behavior.
+func (fs *formatState) isInlineArray(arr *hujson.Array, prefixLen int) bool {
+	if fs.maxLineWidth <= 0 {
+		return false
+	}
 	if hasComment(arr.AfterExtra) {
 		return false
 	}
-
-	// totalLen slightly over-counts (+2) because the last element has no
-	// trailing comma+space. This conservative bias means arrays at exactly
-	// the line limit are expanded rather than compacted.
-	totalLen := 2 // [ and ]
-	for i, el := range arr.Elements {
-		if _, ok := el.Value.(hujson.Literal); !ok {
-			return false
-		}
-		if hasComment(el.BeforeExtra) || hasComment(el.AfterExtra) {
-			return false
-		}
-		if i > 0 && hasBlankLine(el.BeforeExtra) {
-			return false
-		}
-		totalLen += len(el.Value.(hujson.Literal)) + 2
+	valLen := inlineValueLength(&hujson.Value{Value: arr})
+	if valLen < 0 {
+		return false
 	}
-	// Account for current indentation depth. Does not include key width
-	// (not available at this call site), so this is a conservative proxy —
-	// may still over-collapse when the key itself is very long.
-	lineLen := depth*indentLen + totalLen
-	return lineLen < 80
+	return prefixLen+fs.keyPrefixLen+valLen <= fs.maxLineWidth
 }
 
 // hasComment returns true if the extra contains a comment.

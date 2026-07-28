@@ -122,10 +122,10 @@ func TestShortArrayStaysOnOneLine(t *testing.T) {
 // width is expanded to multiple lines.
 func TestLongArrayIsExpanded(t *testing.T) {
 	t.Parallel()
-	src := []byte(`{"items":["aaaaaaaaaa","bbbbbbbbbb","cccccccccc","dddddddddd","eeeeeeeeee"]}`)
+	src := []byte(`{"items":["aaaaaaaaaa","bbbbbbbbbb","cccccccccc","dddddddddd","eeeeeeeeee","ffffffffff"]}`)
 	got, err := f.Format(src, defaultOpts)
 	require.NoError(t, err)
-	require.NotContains(t, string(got), `["aaaaaaaaaa",`)
+	require.Contains(t, string(got), "\n    \"aaaaaaaaaa\"")
 }
 
 // TestFinalNewlineFalse verifies that FinalNewline=false strips the trailing newline.
@@ -177,7 +177,7 @@ func TestCRLFPreservesBlankLines(t *testing.T) {
 // TestIndentWidth4 verifies 4-space indent produces correctly indented output.
 func TestIndentWidth4(t *testing.T) {
 	t.Parallel()
-	src := []byte(`{"key":"value"}`)
+	src := []byte(`{"key":"value","number":42,"description":"a somewhat longer value that definitely exceeds eighty"}`)
 	opts := jsonfmt.DefaultOptions()
 	opts.IndentWidth = 4
 
@@ -189,7 +189,7 @@ func TestIndentWidth4(t *testing.T) {
 // TestIsFormattedHelper verifies the IsFormatted convenience function.
 func TestIsFormattedHelper(t *testing.T) {
 	t.Parallel()
-	alreadyFormatted := []byte("{\n  \"a\": 1,\n  \"b\": 2\n}\n")
+	alreadyFormatted := []byte("{ \"a\": 1, \"b\": 2 }\n")
 	notFormatted := []byte(`{"b":2,"a":1}`)
 
 	ok, err := formatter.IsFormatted(f, alreadyFormatted, defaultOpts)
@@ -243,17 +243,17 @@ func isValidJSON(data []byte) bool {
 // TestZeroOptionsUsesJSONDefaults verifies that all-zero Options uses 2-space indent.
 func TestZeroOptionsUsesJSONDefaults(t *testing.T) {
 	t.Parallel()
-	src := []byte(`{"a":1}`)
+	src := []byte(`{"name":"my-application","version":"1.0.0","description":"a long enough value to force expansion past eighty columns total"}`)
 	got, err := f.Format(src, formatter.Options{})
 	require.NoError(t, err)
-	require.Contains(t, string(got), "  \"a\"") // 2-space default indent
+	require.Contains(t, string(got), "  \"name\"") // 2-space default indent
 }
 
 // TestTabsNormalizedToSpacesByDefault locks issue #584: without editorconfig,
 // tab-indented JSON is reformatted with spaces (prettier-compatible default).
 func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
 	t.Parallel()
-	src := []byte("{\n\t\"name\": \"my-app\",\n\t\"version\": \"1.0.0\"\n}\n")
+	src := []byte("{\n\t\"name\": \"my-app\",\n\t\"version\": \"1.0.0\",\n\t\"description\": \"a longer value to prevent collapsing\"\n}\n")
 	got, err := f.Format(src, defaultOpts)
 	require.NoError(t, err)
 	require.NotContains(t, string(got), "\t", "default format must not preserve tabs")
@@ -267,10 +267,10 @@ func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
 }
 
 // TestTabIndentCollapsesShortArrays verifies that IndentStyle=IndentTabs uses
-// tab characters for indentation.
+// tab characters for indentation when content is expanded.
 func TestTabIndentCollapsesShortArrays(t *testing.T) {
 	t.Parallel()
-	src := []byte(`{"key":"value","num":42}`)
+	src := []byte(`{"key":"value","num":42,"extra":"field","more":"data","another":"entry here"}`)
 	opts := jsonfmt.DefaultOptions()
 	opts.IndentStyle = formatter.IndentTabs
 

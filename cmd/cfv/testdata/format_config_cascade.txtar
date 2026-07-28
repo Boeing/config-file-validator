@@ -85,29 +85,29 @@ exec cat tabs_test.json
 stdout '\t"key"'
 
 -- indent_default.json --
-{"key":"value"}
+{"key":"value","extra":"padding that pushes this object beyond the eighty column threshold needed"}
 -- sortkeys_test.json --
-{"z":3,"a":1,"b":2}
+{"z":"zebra_value_long","a":"alpha_value_long","b":"bravo_value_long_enough_to_exceed_eighty"}
 -- sortkeys_orig.json --
-{"z":3,"a":1,"b":2}
+{"z":"zebra_value_long","a":"alpha_value_long","b":"bravo_value_long_enough_to_exceed_eighty"}
 -- sortkeys_sorted.json --
 {
-  "a": 1,
-  "b": 2,
-  "z": 3
+  "a": "alpha_value_long",
+  "b": "bravo_value_long_enough_to_exceed_eighty",
+  "z": "zebra_value_long"
 }
 -- sortkeys_unsorted.json --
 {
-  "z": 3,
-  "a": 1,
-  "b": 2
+  "z": "zebra_value_long",
+  "a": "alpha_value_long",
+  "b": "bravo_value_long_enough_to_exceed_eighty"
 }
 -- lineending_test.json --
-{"key":"value"}
+{"key":"value","extra":"padding that pushes this object beyond the eighty column threshold needed"}
 -- lineending_orig.json --
-{"key":"value"}
+{"key":"value","extra":"padding that pushes this object beyond the eighty column threshold needed"}
 -- tabs_test.json --
-{"key":"value"}
+{"key":"value","extra":"padding that pushes this object beyond the eighty column threshold needed"}
 -- cfv/indent_global.toml --
 [format]
 indent = 4

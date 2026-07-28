@@ -39,6 +39,13 @@ type Printer struct {
 	// inInlineTable is true while printing the contents of an inline table,
 	// where newlines are not allowed by the TOML spec.
 	inInlineTable bool
+	// inlineTableLineLen is the estimated single-line length of the current
+	// inline table (including key prefix). Used to decide whether nested arrays
+	// should be expanded to reduce line width.
+	inlineTableLineLen int
+	// inExpandedArray is true when printing elements of a multiline array.
+	// Nested arrays should also be expanded (taplo behavior).
+	inExpandedArray bool
 }
 
 // NewPrinter creates a Printer with the given options.
@@ -53,10 +60,11 @@ func (p *Printer) Print(groups []Group) []byte {
 	if p.opts.SortKeys {
 		groups = p.sortGroups(groups)
 	}
-	alignedCommentColumns := findAlignedCommentColumns(groups)
+	alignedCommentColumns := findAlignedCommentColumns(groups, p.opts.Indent)
 
 	inTable := false
 	started := false // tracks whether we've emitted any non-blank content
+	lastTableKey := ""
 	for i, group := range groups {
 		switch group.Kind {
 		case GroupBlank:
@@ -99,11 +107,25 @@ func (p *Printer) Print(groups []Group) []byte {
 		case GroupTable, GroupArrayTable:
 			inTable = true
 			started = true
-			// Ensure one blank line before every table after the first section.
-			// If a leading comment block exists, its branch above owns the break.
-			if started && (i == 0 || groups[i-1].Kind != GroupComment) {
+			// Blank line before tables — but not between a parent table and
+			// its immediate sub-tables (e.g., [build] → [build.buildStats]).
+			// This matches taplo's behavior.
+			currentKey := extractTableKey(group)
+			// No blank line between related tables: sub-tables, same-key array
+			// tables, or siblings under the same non-root parent. Top-level
+			// tables always get blank lines between them.
+			isRelated := false
+			if lastTableKey != "" {
+				parent := tableParent(currentKey)
+				isRelated = currentKey == lastTableKey ||
+					strings.HasPrefix(currentKey, lastTableKey+".") ||
+					strings.HasPrefix(lastTableKey, currentKey+".") ||
+					(parent != "" && parent == tableParent(lastTableKey))
+			}
+			if started && !isRelated && (i == 0 || groups[i-1].Kind != GroupComment) {
 				p.ensureBlankLine()
 			}
+			lastTableKey = currentKey
 			p.printTableHeader(group)
 
 		case GroupEntry:
@@ -230,33 +252,90 @@ func (p *Printer) printEntry(group Group, depth, commentColumn int) {
 	p.writeNewline()
 }
 
-// findAlignedCommentColumns returns the original comment column for runs of
-// two or more consecutive entries whose inline comments share that column.
-// Isolated comments deliberately get zero so arbitrary padding is normalized.
-func findAlignedCommentColumns(groups []Group) []int {
+// findAlignedCommentColumns computes the target column for aligned inline
+// comments in runs of consecutive entries. For groups of 2+ entries that all
+// have inline comments, comments are aligned to the column after the widest
+// key=value portion. This matches taplo's behavior.
+//
+// The formatted width of an entry is: indent + keyLen + " = " + valueLen.
+// For entries with inline comments, values are always simple scalars (you
+// can't have a multiline array and an inline comment on the same TOML line).
+func findAlignedCommentColumns(groups []Group, indent string) []int {
 	columns := make([]int, len(groups))
+
+	// Determine which entries are inside a table (and get indent in output).
+	insideTable := make([]bool, len(groups))
+	inTable := false
+	for i, g := range groups {
+		if g.Kind == GroupTable || g.Kind == GroupArrayTable {
+			inTable = true
+		}
+		if g.Kind == GroupEntry {
+			insideTable[i] = inTable
+		}
+	}
+
 	for start := 0; start < len(groups); {
-		column, ok := inlineCommentColumn(groups[start])
+		_, ok := inlineCommentColumn(groups[start])
 		if !ok {
 			start++
 			continue
 		}
+		// Find run of consecutive entries with inline comments.
 		end := start + 1
 		for end < len(groups) {
-			nextColumn, nextOK := inlineCommentColumn(groups[end])
-			if !nextOK || nextColumn != column {
+			if _, nextOK := inlineCommentColumn(groups[end]); !nextOK {
 				break
 			}
 			end++
 		}
 		if end-start >= 2 {
+			// Compute max formatted width (indent + key + " = " + value).
+			maxWidth := 0
 			for i := start; i < end; i++ {
-				columns[i] = column
+				w := entryKeyValueWidth(groups[i])
+				if insideTable[i] {
+					w += len(indent)
+				}
+				if w > maxWidth {
+					maxWidth = w
+				}
+			}
+			// Target = max width + 1 space padding before #.
+			for i := start; i < end; i++ {
+				columns[i] = maxWidth + 1
 			}
 		}
 		start = end
 	}
 	return columns
+}
+
+// entryKeyValueWidth computes the formatted width of an entry's key = value
+// portion (excluding comment). This is: keyLen + " = " + valueLen.
+// Does NOT include indent (that's added by the printer's Print loop).
+func entryKeyValueWidth(group Group) int {
+	if group.Kind != GroupEntry {
+		return 0
+	}
+	tokens := group.Tokens
+	keyEnd, equalsIdx, valueStart, valueEnd, _ := splitEntry(tokens)
+	if equalsIdx < 0 || valueStart < 0 {
+		return 0
+	}
+	// Key width (raw non-whitespace bytes).
+	width := 0
+	for i := 0; i <= keyEnd; i++ {
+		if tokens[i].Kind != Whitespace {
+			width += len(tokens[i].Raw)
+		}
+	}
+	width += 3 // " = "
+	// Value width (all raw bytes between valueStart and valueEnd).
+	for i := valueStart; i <= valueEnd; i++ {
+		width += len(tokens[i].Raw)
+	}
+	return width
 }
 
 func inlineCommentColumn(group Group) (int, bool) {
@@ -295,14 +374,17 @@ func (p *Printer) printValue(tokens []Token, depth int, prefixLen int) {
 		return
 	}
 
-	// If value contains comments, emit verbatim — normalizing around
-	// comments requires complex logic for each container type.
-	for _, tok := range tokens {
-		if tok.Kind == Comment {
-			for _, t := range tokens {
-				p.buf.Write(t.Raw)
+	// If value contains comments AND it's not an array, emit verbatim.
+	// Arrays handle comments correctly in printArrayMultiline.
+	// Inline tables and scalars with comments are too complex to normalize.
+	if tokens[0].Kind != BracketOpen {
+		for _, tok := range tokens {
+			if tok.Kind == Comment {
+				for _, t := range tokens {
+					p.buf.Write(t.Raw)
+				}
+				return
 			}
-			return
 		}
 	}
 
@@ -342,14 +424,24 @@ func (p *Printer) printArray(tokens []Token, depth int, prefixLen int) {
 	// Decision: multiline or single-line?
 	// - Has comments → always multiline (can't collapse comments into one line)
 	// - Exceeds column width (including key prefix) → multiline
-	// - Fits and was originally multiline → collapse (taplo array_auto_collapse default)
-	// - Fits and was originally inline → stay inline
-	// Inline tables must stay on one line, so an array nested in one can
-	// never be expanded regardless of width.
-	multiline := !p.inInlineTable && (hasComments || (prefixLen+singleLineLen) > p.opts.ColumnWidth)
+	// - Inside inline table that exceeds column width → expand arrays to reduce width
+	// - Fits → stay inline
+	effectivePrefix := prefixLen
+	if p.inInlineTable && p.inlineTableLineLen > p.opts.ColumnWidth {
+		// The inline table exceeds column width. Use the full line length as
+		// the effective prefix so any non-trivial array will be expanded.
+		effectivePrefix = p.inlineTableLineLen
+	}
+	multiline := hasComments || p.inExpandedArray || (effectivePrefix+singleLineLen) > p.opts.ColumnWidth
 
 	if multiline {
-		p.printArrayMultiline(elements, depth)
+		// When expanding an array inside an inline table, use depth 0 so
+		// elements indent relative to line start (matching taplo behavior).
+		arrayDepth := depth
+		if p.inInlineTable {
+			arrayDepth = 0
+		}
+		p.printArrayMultiline(elements, arrayDepth)
 	} else {
 		p.printArrayInline(elements, depth)
 	}
@@ -382,6 +474,8 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 	closeIndent := strings.Repeat(valueIndent, depth)
 
 	p.buf.WriteByte('[')
+	wasExpanded := p.inExpandedArray
+	p.inExpandedArray = true
 	for i, elem := range elements {
 		p.writeNewline()
 		// Separate comments from value tokens to avoid duplication.
@@ -414,6 +508,7 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 			}
 		}
 	}
+	p.inExpandedArray = wasExpanded
 	p.writeNewline()
 	p.buf.WriteString(closeIndent)
 	p.buf.WriteByte(']')
@@ -464,8 +559,15 @@ func (p *Printer) printInlineTable(tokens []Token, depth int) {
 
 	// Emit as single-line: { key = val, key2 = val2 }
 	wasInline := p.inInlineTable
+	prevLineLen := p.inlineTableLineLen
 	p.inInlineTable = true
-	defer func() { p.inInlineTable = wasInline }()
+	// Estimate the total line width of this inline table (from current column
+	// position). This allows nested arrays to expand when the line is too long.
+	p.inlineTableLineLen = p.column() + estimateInlineTableWidth(content)
+	defer func() {
+		p.inInlineTable = wasInline
+		p.inlineTableLineLen = prevLineLen
+	}()
 
 	p.buf.WriteString("{ ")
 	for i, pair := range pairs {
@@ -508,7 +610,7 @@ func (p *Printer) writeInlineTablePair(tokens []Token, depth int) {
 	// Emit value (skip leading whitespace, recurse for nested structures).
 	valueTokens := trimLeadingWhitespace(tokens[eqIdx+1:])
 	valueTokens = trimTrailingWhitespace(valueTokens)
-	p.printValue(valueTokens, depth+1, 0)
+	p.printValue(valueTokens, depth+1, p.column())
 }
 
 // trimValueTokens removes leading and trailing whitespace/newline tokens.
@@ -606,6 +708,21 @@ func estimateSingleLineArray(elements [][]Token) int {
 			if tok.Kind != Whitespace && tok.Kind != Newline && tok.Kind != Comment {
 				length += len(tok.Raw)
 			}
+		}
+	}
+	return length
+}
+
+// estimateInlineTableWidth estimates the single-line character width of an
+// inline table's content (excluding the key prefix). Used to determine whether
+// nested arrays should be expanded.
+func estimateInlineTableWidth(tokens []Token) int {
+	// { key = val, key2 = val2 } — count all non-whitespace/newline tokens
+	// plus normalized spacing: "{ " + pairs joined by ", " + " }"
+	length := 4 // "{ " + " }"
+	for _, tok := range tokens {
+		if tok.Kind != Whitespace && tok.Kind != Newline && tok.Kind != Comment {
+			length += len(tok.Raw)
 		}
 	}
 	return length
@@ -797,6 +914,33 @@ func (*Printer) sortGroups(groups []Group) []Group {
 // extractKey returns the key string for sorting from an entry group.
 // For dotted keys like a.b.c, returns "a.b.c".
 // For comment groups, returns "" (they stay with adjacent entries).
+// extractTableKey returns the dotted key path from a table header group.
+// For [build.buildStats], returns "build.buildStats".
+// For [[build.cachebusters]], returns "build.cachebusters".
+func extractTableKey(group Group) string {
+	var b strings.Builder
+	for _, tok := range group.Tokens {
+		switch tok.Kind {
+		case BareKey, BasicString, LiteralString:
+			_, _ = b.Write(tok.Raw)
+		case Dot:
+			_ = b.WriteByte('.')
+		default:
+			// Skip brackets, whitespace, newlines, comments.
+		}
+	}
+	return b.String()
+}
+
+// tableParent returns the parent key of a dotted table key.
+// "build.buildStats" → "build", "target.x86_64-msvc" → "target", "root" → ""
+func tableParent(key string) string {
+	if i := strings.LastIndex(key, "."); i >= 0 {
+		return key[:i]
+	}
+	return ""
+}
+
 func extractKey(group Group) string {
 	if group.Kind == GroupComment {
 		return ""

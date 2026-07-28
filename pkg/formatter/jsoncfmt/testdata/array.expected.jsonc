@@ -8,14 +8,8 @@
   ],
   // Array of objects always expands
   "servers": [
-    {
-      "host": "db1.example.com",
-      "port": 5432,
-    },
-    {
-      "host": "db2.example.com",
-      "port": 5433,
-    },
+    { "host": "db1.example.com", "port": 5432 },
+    { "host": "db2.example.com", "port": 5433 },
   ],
   // Empty array
   "empty": [],
