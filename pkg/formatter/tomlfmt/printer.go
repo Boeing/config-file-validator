@@ -229,6 +229,7 @@ func (p *Printer) printEntry(group Group, depth, commentColumn int) {
 
 	// Emit value.
 	// Calculate prefix length for column width check (indent + key + " = ").
+	// Include trailing comment width so arrays expand when the full line > 80.
 	keyLen := 0
 	for i := 0; i <= keyEnd; i++ {
 		if tokens[i].Kind != Whitespace {
@@ -236,6 +237,14 @@ func (p *Printer) printEntry(group Group, depth, commentColumn int) {
 		}
 	}
 	prefixLen := len(p.opts.Indent) + keyLen + 3 // 3 for " = "
+	if commentStart >= 0 {
+		// Add minimum spacing (1) + comment length to the width budget.
+		for i := commentStart; i < len(tokens); i++ {
+			if tokens[i].Kind == Comment {
+				prefixLen += 1 + len(tokens[i].Raw) // space + "# comment text"
+			}
+		}
+	}
 	p.printValue(tokens[valueStart:valueEnd+1], depth, prefixLen)
 
 	// Emit trailing comment if present.
@@ -476,25 +485,70 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 	p.buf.WriteByte('[')
 	wasExpanded := p.inExpandedArray
 	p.inExpandedArray = true
-	for i, elem := range elements {
-		p.writeNewline()
-		// Separate comments from value tokens to avoid duplication.
-		// Comments are emitted on their own lines above the value.
-		var comments []Token
-		var valueTokens []Token
+
+	// Pre-compute max value width for trailing comment alignment.
+	// Only align if 2+ elements have trailing comments.
+	maxValueWidth := 0
+	trailingCommentCount := 0
+	for _, elem := range elements {
+		seenVal := false
+		hasTrailing := false
+		valWidth := len(elemIndent)
 		for _, tok := range elem {
 			switch tok.Kind {
 			case Newline:
-				continue
+				seenVal = false
 			case Comment:
-				comments = append(comments, tok)
+				if seenVal {
+					hasTrailing = true
+				}
+			case Whitespace:
+				// don't count
 			default:
+				seenVal = true
+				valWidth += len(tok.Raw)
+			}
+		}
+		if hasTrailing {
+			trailingCommentCount++
+			valWidth++ // for the comma
+			if valWidth > maxValueWidth {
+				maxValueWidth = valWidth
+			}
+		}
+	}
+	alignComments := trailingCommentCount >= 2
+
+	for i, elem := range elements {
+		p.writeNewline()
+		// Separate comments into leading (own line) and trailing (after value).
+		// A comment is trailing if it appears AFTER value tokens with no
+		// intervening Newline (it was on the same source line as the value).
+		var leadingComments []Token
+		var trailingComment *Token
+		var valueTokens []Token
+		seenValue := false
+		for _, tok := range elem {
+			switch tok.Kind {
+			case Newline:
+				seenValue = false
+			case Comment:
+				if seenValue {
+					t := tok
+					trailingComment = &t
+				} else {
+					leadingComments = append(leadingComments, tok)
+				}
+			default:
+				if tok.Kind != Whitespace {
+					seenValue = true
+				}
 				valueTokens = append(valueTokens, tok)
 			}
 		}
 		valueTokens = trimValueTokens(valueTokens)
-		// Emit leading comments.
-		for _, c := range comments {
+		// Emit leading comments on their own lines.
+		for _, c := range leadingComments {
 			p.buf.WriteString(elemIndent)
 			p.buf.Write(c.Raw)
 			p.writeNewline()
@@ -505,6 +559,22 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 			p.printValue(valueTokens, depth+1, p.column())
 			if p.opts.TrailingComma || i < len(elements)-1 {
 				p.buf.WriteByte(',')
+			}
+			// Emit trailing comment on the same line.
+			if trailingComment != nil {
+				if alignComments {
+					// Pad to align with other trailing comments in this array.
+					lineStart := bytes.LastIndexByte(p.buf.Bytes(), '\n') + 1
+					currentCol := p.buf.Len() - lineStart
+					spaces := 1
+					if maxValueWidth+1 > currentCol {
+						spaces = maxValueWidth + 1 - currentCol
+					}
+					p.buf.WriteString(strings.Repeat(" ", spaces))
+				} else {
+					p.buf.WriteString("  ")
+				}
+				p.buf.Write(trailingComment.Raw)
 			}
 		}
 	}
@@ -669,7 +739,8 @@ func splitByComma(tokens []Token) [][]Token {
 	var current []Token
 	depth := 0
 
-	for _, tok := range tokens {
+	for i := 0; i < len(tokens); i++ {
+		tok := tokens[i]
 		switch tok.Kind {
 		case BracketOpen, BraceOpen:
 			depth++
@@ -679,6 +750,20 @@ func splitByComma(tokens []Token) [][]Token {
 			current = append(current, tok)
 		case Comma:
 			if depth == 0 {
+				// Include same-line trailing content (whitespace + comment
+				// before next newline) with this element. This keeps trailing
+				// comments attached to their value.
+				for i+1 < len(tokens) {
+					next := tokens[i+1]
+					if next.Kind == Newline || next.Kind == BracketClose || next.Kind == BraceClose {
+						break
+					}
+					if next.Kind != Whitespace && next.Kind != Comment {
+						break
+					}
+					current = append(current, next)
+					i++
+				}
 				if hasNonWhitespace(current) {
 					result = append(result, current)
 				}
@@ -717,12 +802,22 @@ func estimateSingleLineArray(elements [][]Token) int {
 // inline table's content (excluding the key prefix). Used to determine whether
 // nested arrays should be expanded.
 func estimateInlineTableWidth(tokens []Token) int {
-	// { key = val, key2 = val2 } — count all non-whitespace/newline tokens
-	// plus normalized spacing: "{ " + pairs joined by ", " + " }"
+	// Estimate: "{ " + key1 + " = " + val1 + ", " + key2 + " = " + val2 + " }"
+	// Count raw token bytes plus the normalized spacing that printInlineTable adds:
+	// - Each "=" becomes " = " (+2 chars)
+	// - Each "," becomes ", " (+1 char)
 	length := 4 // "{ " + " }"
 	for _, tok := range tokens {
-		if tok.Kind != Whitespace && tok.Kind != Newline && tok.Kind != Comment {
-			length += len(tok.Raw)
+		if tok.Kind == Whitespace || tok.Kind == Newline || tok.Kind == Comment {
+			continue
+		}
+		length += len(tok.Raw)
+		switch tok.Kind {
+		case Equals:
+			length += 2 // " = " instead of "="
+		case Comma:
+			length++ // ", " instead of ","
+		default:
 		}
 	}
 	return length
