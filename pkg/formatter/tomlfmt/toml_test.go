@@ -133,6 +133,40 @@ func TestBlankLinesBeforeTables(t *testing.T) {
 	require.Equal(t, string(got), string(gotAgain), "existing section breaks must not be doubled")
 }
 
+// TestBlankLinesInsideArrays verifies that blank lines separating groups
+// of elements inside arrays are preserved (matching taplo behavior). P4 fix.
+func TestBlankLinesInsideArrays(t *testing.T) {
+	t.Parallel()
+	src := []byte("[main]\nmy_array = [\n  \"a\",\n  \"b\",\n\n  # Other items\n  \"d\",\n  \"e\",\n\n  \"item\",\n]\n")
+	want := "[main]\nmy_array = [\n  \"a\",\n  \"b\",\n\n  # Other items\n  \"d\",\n  \"e\",\n\n  \"item\",\n]\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+
+	// Idempotent
+	gotAgain, err := f.Format(got, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(gotAgain))
+}
+
+// TestLeadingBlankLinesPreserved verifies that leading blank lines in a TOML
+// file are preserved (matching taplo behavior). P4 fix.
+func TestLeadingBlankLinesPreserved(t *testing.T) {
+	t.Parallel()
+	src := []byte("\n\n# hello\n[lib]\nincremental = true\n")
+	want := "\n\n# hello\n[lib]\nincremental = true\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+
+	// Idempotent
+	gotAgain, err := f.Format(got, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(gotAgain))
+}
+
 func TestAlignedInlineComments(t *testing.T) {
 	t.Parallel()
 	src := []byte("allow-unsafe = true       # old default\ngenerate-hashes = false   # pip bug\nstrip-extras = true       # reduce churn\nsingle = true        # normalize me\n")

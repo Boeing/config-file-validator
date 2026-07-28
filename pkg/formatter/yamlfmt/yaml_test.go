@@ -255,6 +255,41 @@ func TestCommentsPreserved(t *testing.T) {
 	require.Contains(t, string(got), "# footer")
 }
 
+// TestEndCommentIndentation verifies that "end comments" (comments after a
+// block's content but before a shallower sibling) retain their indentation.
+// P2 fix: these were previously moved to column 0.
+func TestEndCommentIndentation(t *testing.T) {
+	t.Parallel()
+	src := []byte("a:\n  123\n  # endComment\nb: 2\n")
+	want := "a:\n  123\n  # endComment\nb: 2\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestSequenceEndCommentIndentation verifies end comments after sequence items.
+func TestSequenceEndCommentIndentation(t *testing.T) {
+	t.Parallel()
+	src := []byte("d:\n  - 123\n  # seqEndComment\ne: 2\n")
+	want := "d:\n  - 123\n  # seqEndComment\ne: 2\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestSequenceItemEndCommentIndentation verifies comments at item-content level.
+func TestSequenceItemEndCommentIndentation(t *testing.T) {
+	t.Parallel()
+	src := []byte("f:\n  - a\n  - b\n    # itemEndComment\n  - c\n")
+	want := "f:\n  - a\n  - b\n    # itemEndComment\n  - c\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
 // TestMultiDocPartialDecodeReturnsError verifies that a broken second document
 // surfaces an error instead of silently dropping the broken doc.
 func TestMultiDocPartialDecodeReturnsError(t *testing.T) {
@@ -333,6 +368,55 @@ func TestZeroOptionsUsesDefaults(t *testing.T) {
 	got, err := f.Format(src, formatter.Options{}) // all zero
 	require.NoError(t, err)
 	require.Contains(t, string(got), "  b: 1") // 2-space default
+}
+
+// TestRootLevelFlowExpansionIndent verifies that expanding a root-level flow
+// sequence places brackets at column 0 and elements at indentWidth (2),
+// with no spurious leading blank line. (P3 fix)
+func TestRootLevelFlowExpansionIndent(t *testing.T) {
+	t.Parallel()
+	// 16 elements × 5 chars = well over 80 columns.
+	src := []byte("[aaaa, bbbb, cccc, dddd, eeee, ffff, gggg, hhhh, iiii, jjjj, kkkk, llll, mmmm, nnnn, oooo, pppp]\n")
+	want := "[\n  aaaa,\n  bbbb,\n  cccc,\n  dddd,\n  eeee,\n  ffff,\n  gggg,\n  hhhh,\n  iiii,\n  jjjj,\n  kkkk,\n  llll,\n  mmmm,\n  nnnn,\n  oooo,\n  pppp,\n]\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestNestedFlowExpansionIndent verifies that expanding a flow sequence after
+// a mapping key places brackets at parentIndent+indentWidth. Regression guard.
+func TestNestedFlowExpansionIndent(t *testing.T) {
+	t.Parallel()
+	src := []byte("items:\n  arr: [aaaa, bbbb, cccc, dddd, eeee, ffff, gggg, hhhh, iiii, jjjj, kkkk, llll, mmmm, nnnn, oooo, pppp]\n")
+	want := "items:\n  arr:\n    [\n      aaaa,\n      bbbb,\n      cccc,\n      dddd,\n      eeee,\n      ffff,\n      gggg,\n      hhhh,\n      iiii,\n      jjjj,\n      kkkk,\n      llll,\n      mmmm,\n      nnnn,\n      oooo,\n      pppp,\n    ]\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestFlowMappingExpansion verifies that long flow mappings { } are expanded
+// to multiline format at printWidth, matching prettier behavior. P1 fix.
+func TestFlowMappingExpansion(t *testing.T) {
+	t.Parallel()
+	src := []byte("key: { a: longlonglonglonglonglonglonglonglonglong, b: longlonglonglonglonglonglonglonglonglong, c: longlonglonglonglonglonglonglonglonglong }\n")
+	want := "key:\n  {\n    a: longlonglonglonglonglonglonglonglonglong,\n    b: longlonglonglonglonglonglonglonglonglong,\n    c: longlonglonglonglonglonglonglonglonglong,\n  }\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestShortFlowMappingStaysInline verifies short flow mappings stay on one line.
+func TestShortFlowMappingStaysInline(t *testing.T) {
+	t.Parallel()
+	src := []byte("key: { a: 1, b: 2, c: 3 }\n")
+	want := "key: { a: 1, b: 2, c: 3 }\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
 }
 
 // TestSortKeysAnchorSafety proves that SortKeys does not reorder entries when

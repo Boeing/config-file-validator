@@ -68,7 +68,21 @@ func (p *Printer) Print(groups []Group) []byte {
 		switch group.Kind {
 		case GroupBlank:
 			if !started {
-				continue // Skip leading blank lines.
+				// Preserve leading blank lines (matches taplo behavior).
+				nlCount := 0
+				for _, tok := range group.Tokens {
+					if tok.Kind == Newline {
+						nlCount++
+					}
+				}
+				emit := nlCount
+				if emit > p.opts.AllowedBlanks {
+					emit = p.opts.AllowedBlanks
+				}
+				for range emit {
+					p.writeNewline()
+				}
+				continue
 			}
 			// Count actual newlines in this blank region = number of blank lines.
 			nlCount := 0
@@ -560,41 +574,57 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 	// 4. Alignment is disabled if any formatted value in the group contains
 	//    a newline (format_rows: can_align check).
 	type elemAlignInfo struct {
-		valWidth int // indent + value content + comma
-		subGroup int
+		valWidth   int // indent + value content + comma
+		subGroup   int
+		blankCount int // number of source blank lines before this element (0 = none)
 	}
 	elemAlignInfos := make([]elemAlignInfo, len(elements))
 	currentGroup := 0
 	for i, elem := range elements {
 		// Detect group boundary: leading standalone comment or blank line.
 		// A standalone comment = Comment token before any value token.
-		// A blank line = 2+ consecutive Newline tokens before any value token.
+		// A blank line = 2+ consecutive Newline tokens before any content.
 		hasLeadingComment := false
 		hasBlankLine := false
+		blankLineCount := 0 // actual blank lines (runs of 2+ newlines before content)
 		consecutiveNewlines := 0
+		seenContent := false // true once we've seen a Comment or value token
 		seenVal := false
 		for _, tok := range elem {
 			switch tok.Kind {
 			case Newline:
 				if !seenVal {
 					consecutiveNewlines++
-					if consecutiveNewlines >= 2 {
+					if !seenContent && consecutiveNewlines >= 2 {
 						hasBlankLine = true
 					}
 				}
 			case Comment:
 				if !seenVal {
 					hasLeadingComment = true
+					// Count blank lines accumulated before this comment.
+					if !seenContent && consecutiveNewlines >= 2 {
+						blankLineCount = consecutiveNewlines - 1
+					}
+					seenContent = true
+					consecutiveNewlines = 0
 				}
 			case Whitespace:
-				// doesn't reset newline counter
+				// doesn't reset newline counter or set seenContent
 			default:
+				if !seenContent && consecutiveNewlines >= 2 {
+					// Blank lines before a value (no leading comment)
+					blankLineCount = consecutiveNewlines - 1
+				}
+				seenContent = true
 				seenVal = true
 			}
 		}
 		if i > 0 && (hasLeadingComment || hasBlankLine) {
 			currentGroup++
 		}
+
+		// Count actual blank lines before this element.
 
 		// Compute value width: indent + all non-whitespace/non-comment/non-newline + comma.
 		valWidth := len(elemIndent)
@@ -609,7 +639,7 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 		if seenVal {
 			valWidth++ // for the comma
 		}
-		elemAlignInfos[i] = elemAlignInfo{valWidth: valWidth, subGroup: currentGroup}
+		elemAlignInfos[i] = elemAlignInfo{valWidth: valWidth, subGroup: currentGroup, blankCount: blankLineCount}
 	}
 	// Compute max width per sub-group (across ALL entries, per taplo spec).
 	subGroupMaxWidth := make(map[int]int)
@@ -620,38 +650,87 @@ func (p *Printer) printArrayMultiline(elements [][]Token, depth int) {
 	}
 
 	for i, elem := range elements {
+		// Blank lines between elements are emitted via leadingComments and
+		// blanksBeforeValue below (which track per-comment and pre-value blanks).
 		p.writeNewline()
 		// Separate comments into leading (own line) and trailing (after value).
 		// A comment is trailing if it appears AFTER value tokens with no
 		// intervening Newline (it was on the same source line as the value).
-		var leadingComments []Token
+		type commentWithBlank struct {
+			comment      Token
+			blanksBefore int // blank lines preceding this comment (or value)
+		}
+		var leadingComments []commentWithBlank
 		var trailingComment *Token
 		var valueTokens []Token
+		var blanksBeforeValue int // blank lines between last comment and value
 		seenValue := false
+		localNewlines := 0
+		localSeenComment := false
 		for _, tok := range elem {
 			switch tok.Kind {
 			case Newline:
-				seenValue = false
+				if !seenValue {
+					localNewlines++
+				} else {
+					seenValue = false
+				}
 			case Comment:
 				if seenValue {
 					t := tok
 					trailingComment = &t
 				} else {
-					leadingComments = append(leadingComments, tok)
+					blanks := 0
+					if localNewlines >= 2 {
+						blanks = localNewlines - 1
+					}
+					leadingComments = append(leadingComments, commentWithBlank{
+						comment: tok, blanksBefore: blanks,
+					})
+					localNewlines = 0
+					localSeenComment = true
 				}
+			case Whitespace:
+				// no state change
 			default:
 				if tok.Kind != Whitespace {
+					// Track blank lines between last comment and value.
+					if localSeenComment && localNewlines >= 2 {
+						blanksBeforeValue = localNewlines - 1
+					}
 					seenValue = true
 				}
 				valueTokens = append(valueTokens, tok)
 			}
 		}
 		valueTokens = trimValueTokens(valueTokens)
-		// Emit leading comments on their own lines.
+		// Emit leading comments on their own lines, with blank lines between groups.
 		for _, c := range leadingComments {
+			blanks := c.blanksBefore
+			if blanks > p.opts.AllowedBlanks {
+				blanks = p.opts.AllowedBlanks
+			}
+			for range blanks {
+				p.writeNewline()
+			}
 			p.buf.WriteString(elemIndent)
-			p.buf.Write(c.Raw)
+			p.buf.Write(c.comment.Raw)
 			p.writeNewline()
+		}
+		// Emit blank lines between last comment and value (if any).
+		// Also handles the case where blank lines appear at element start
+		// with no leading comments (blankCount from detection phase).
+		emitBlanks := blanksBeforeValue
+		if emitBlanks == 0 && i > 0 && len(leadingComments) == 0 && elemAlignInfos[i].blankCount > 0 {
+			emitBlanks = elemAlignInfos[i].blankCount
+		}
+		if emitBlanks > 0 {
+			if emitBlanks > p.opts.AllowedBlanks {
+				emitBlanks = p.opts.AllowedBlanks
+			}
+			for range emitBlanks {
+				p.writeNewline()
+			}
 		}
 		// Emit value.
 		if len(valueTokens) > 0 {

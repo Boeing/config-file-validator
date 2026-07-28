@@ -245,7 +245,16 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 	}
 
 	// Pass 3: Propagate metadata to standalone comment lines.
-	// A comment gets the same ASTDepth/InSeq/SeqOffset as the next structural indent.
+	// A comment's indentation is determined by context:
+	// - "Leading" comments (before content at the same or deeper level) inherit
+	//   from the NEXT structural indent.
+	// - "End" comments (trailing after deeper content, before shallower content)
+	//   inherit from the PREVIOUS structural indent.
+	//
+	// We use the comment's SOURCE indent as the discriminator:
+	// - If the comment's source indent >= previous structural line's source indent
+	//   AND > next structural line's source indent, it's an end comment.
+	// - Otherwise it's a leading comment.
 	for i := range tokens {
 		if tokens[i].Kind != TokIndent || !tokens[i].Structural || tokens[i].ASTDepth >= 0 {
 			continue
@@ -254,18 +263,115 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 		if i+1 >= len(tokens) || tokens[i+1].Kind != TokComment {
 			continue
 		}
-		// Find the next structural indent with assigned ASTDepth.
-		for j := i + 1; j < len(tokens); j++ {
+
+		commentSourceIndent := len(tokens[i].Raw)
+
+		// Find the previous structural indent with assigned ASTDepth.
+		// Skip other comment lines to avoid cascading (only look at key/dash lines).
+		var prevFound bool
+		var prevSourceIndent int
+		var prevASTDepth int
+		var prevInSeq bool
+		var prevSeqOffset int
+		var prevSeqIndentDepth int
+		for j := i - 1; j >= 0; j-- {
 			if tokens[j].Kind == TokIndent && tokens[j].Structural && tokens[j].ASTDepth >= 0 {
-				tokens[i].ASTDepth = tokens[j].ASTDepth
-				tokens[i].InSeq = tokens[j].InSeq
-				tokens[i].SeqOffset = tokens[j].SeqOffset
-				tokens[i].SequenceIndentDepth = tokens[j].SequenceIndentDepth
-				// When the comment precedes a sequence-item dash, it should align
-				// with the dash (item indent), not the item's content (base + 2).
-				tokens[i].AtSeqItem = lineHasDash(tokens, j)
+				// Skip if this indent precedes a comment (another comment line).
+				if j+1 < len(tokens) && tokens[j+1].Kind == TokComment {
+					continue
+				}
+				prevFound = true
+				prevSourceIndent = len(tokens[j].Raw)
+				prevASTDepth = tokens[j].ASTDepth
+				prevInSeq = tokens[j].InSeq
+				prevSeqOffset = tokens[j].SeqOffset
+				prevSeqIndentDepth = tokens[j].SequenceIndentDepth
 				break
 			}
+		}
+
+		// Find the next structural indent with assigned ASTDepth.
+		// Skip other comment lines.
+		var nextFound bool
+		var nextSourceIndent int
+		var nextASTDepth int
+		var nextInSeq bool
+		var nextSeqOffset int
+		var nextSeqIndentDepth int
+		var nextIdx int
+		for j := i + 1; j < len(tokens); j++ {
+			if tokens[j].Kind == TokIndent && tokens[j].Structural && tokens[j].ASTDepth >= 0 {
+				// Skip if this indent precedes a comment.
+				if j+1 < len(tokens) && tokens[j+1].Kind == TokComment {
+					continue
+				}
+				nextFound = true
+				nextSourceIndent = len(tokens[j].Raw)
+				nextASTDepth = tokens[j].ASTDepth
+				nextInSeq = tokens[j].InSeq
+				nextSeqOffset = tokens[j].SeqOffset
+				nextSeqIndentDepth = tokens[j].SequenceIndentDepth
+				nextIdx = j
+				break
+			}
+		}
+
+		// Determine if this is an end comment or leading comment.
+		isEndComment := false
+		if prevFound && nextFound {
+			// End comment: source indent is deeper than the next structural line.
+			if commentSourceIndent > nextSourceIndent {
+				isEndComment = true
+			}
+		} else if prevFound && !nextFound {
+			// Comment at end of file: if indented deeper than root, it's an end comment.
+			if commentSourceIndent > 0 {
+				isEndComment = true
+			}
+		}
+
+		if isEndComment {
+			// End comment: inherit from the previous context.
+			// If the comment's source indent matches the prev line's source indent
+			// and prev is a sequence item (has dash), the comment is at dash level.
+			if commentSourceIndent <= prevSourceIndent && prevInSeq {
+				// Dash-level end comment (e.g. `# sequence` after `- 123`).
+				// Set AtSeqItem so it computes to dash level (inSeq + hasDash).
+				tokens[i].ASTDepth = prevASTDepth
+				tokens[i].InSeq = prevInSeq
+				tokens[i].SeqOffset = prevSeqOffset
+				tokens[i].SequenceIndentDepth = prevSeqIndentDepth
+				tokens[i].AtSeqItem = true
+			} else if commentSourceIndent > prevSourceIndent {
+				// Comment is deeper than prev structural line (it belongs to
+				// the value block, one level deeper than the key/dash).
+				tokens[i].ASTDepth = prevASTDepth + 1
+				tokens[i].InSeq = false
+				tokens[i].SeqOffset = prevSeqOffset
+				tokens[i].SequenceIndentDepth = prevSeqIndentDepth
+			} else {
+				// Same indent as prev (non-sequence): inherit directly.
+				tokens[i].ASTDepth = prevASTDepth
+				tokens[i].InSeq = prevInSeq
+				tokens[i].SeqOffset = prevSeqOffset
+				tokens[i].SequenceIndentDepth = prevSeqIndentDepth
+				tokens[i].AtSeqItem = false
+			}
+		} else if nextFound {
+			// Leading comment: inherit from next structural line.
+			tokens[i].ASTDepth = nextASTDepth
+			tokens[i].InSeq = nextInSeq
+			tokens[i].SeqOffset = nextSeqOffset
+			tokens[i].SequenceIndentDepth = nextSeqIndentDepth
+			// When the comment precedes a sequence-item dash, it should align
+			// with the dash (item indent), not the item's content (base + 2).
+			tokens[i].AtSeqItem = lineHasDash(tokens, nextIdx)
+		} else if prevFound {
+			// Only previous exists (end of file) — root level.
+			tokens[i].ASTDepth = 0
+			tokens[i].InSeq = false
+			tokens[i].SeqOffset = 0
+			tokens[i].SequenceIndentDepth = 0
 		}
 	}
 }
@@ -1337,8 +1443,8 @@ func addFlowMappingPadding(raw []byte) []byte {
 // Utilities
 // =============================================================================
 
-// expandLongFlowSequences finds TokFlow tokens (flow sequences starting with [)
-// that exceed maxLineWidth and expands them to multi-line flow format:
+// expandLongFlowSequences finds TokFlow tokens (flow collections starting
+// with [ or {) that exceed maxLineWidth and expands them to multi-line format:
 //
 //	key:
 //	  [
@@ -1346,7 +1452,7 @@ func addFlowMappingPadding(raw []byte) []byte {
 //	    "elem2",
 //	  ]
 //
-// Per prettier source (flow-mapping-sequence.js): when a flow sequence group
+// Per prettier source (flow-mapping-sequence.js): when a flow collection group
 // breaks at printWidth, elements go on separate lines indented by tabWidth,
 // with trailing comma on last element.
 func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
@@ -1355,8 +1461,20 @@ func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
 			continue
 		}
 		raw := tokens[i].Raw
-		if len(raw) == 0 || raw[0] != '[' {
-			continue // only flow sequences, not mappings
+		if len(raw) == 0 {
+			continue
+		}
+
+		// Determine bracket type.
+		openBracket := raw[0]
+		var closeBracket byte
+		switch openBracket {
+		case '[':
+			closeBracket = ']'
+		case '{':
+			closeBracket = '}'
+		default:
+			continue // unknown flow type
 		}
 
 		// Compute current line width: find the column where this token starts.
@@ -1365,7 +1483,7 @@ func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
 			continue // fits, no expansion needed
 		}
 
-		// Parse flow sequence content into elements.
+		// Parse flow collection content into elements.
 		elements := splitFlowElements(raw)
 		if len(elements) == 0 {
 			continue
@@ -1374,6 +1492,11 @@ func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
 		// Compute indentation for the expanded form.
 		// Parent indent = preceding TokIndent width.
 		parentIndent := 0
+		// Check if the flow follows a TokColon or TokDash on the same line.
+		// If so, the expansion goes on the next line (value-position expansion).
+		// If not, the flow is inline (root-level or bare sequence item) and
+		// the bracket stays at the current column.
+		afterColon := false
 		for j := i - 1; j >= 0; j-- {
 			if tokens[j].Kind == TokIndent {
 				parentIndent = len(tokens[j].Raw)
@@ -1382,26 +1505,49 @@ func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
 			if tokens[j].Kind == TokNewline {
 				break
 			}
+			if tokens[j].Kind == TokColon {
+				afterColon = true
+			}
 		}
-
-		// Expanded format:
-		// \n{parentIndent + indentWidth}[\n{parentIndent + 2*indentWidth}elem,\n...\n{parentIndent + indentWidth}]
-		bracketIndent := strings.Repeat(" ", parentIndent+indentWidth)
-		elemIndent := strings.Repeat(" ", parentIndent+2*indentWidth)
 
 		var expanded []byte
-		expanded = append(expanded, '\n')
-		expanded = append(expanded, bracketIndent...)
-		expanded = append(expanded, '[')
-		for _, elem := range elements {
+		if afterColon {
+			// Value-position: key: [long] → key:\n  [\n    elem,\n  ]
+			// Bracket on next line at parentIndent + indentWidth,
+			// elements at parentIndent + 2*indentWidth.
+			bracketIndent := strings.Repeat(" ", parentIndent+indentWidth)
+			elemIndent := strings.Repeat(" ", parentIndent+2*indentWidth)
+
 			expanded = append(expanded, '\n')
-			expanded = append(expanded, elemIndent...)
-			expanded = append(expanded, bytes.TrimSpace(elem)...)
-			expanded = append(expanded, ',')
+			expanded = append(expanded, bracketIndent...)
+			expanded = append(expanded, openBracket)
+			for _, elem := range elements {
+				expanded = append(expanded, '\n')
+				expanded = append(expanded, elemIndent...)
+				expanded = append(expanded, bytes.TrimSpace(elem)...)
+				expanded = append(expanded, ',')
+			}
+			expanded = append(expanded, '\n')
+			expanded = append(expanded, bracketIndent...)
+			expanded = append(expanded, closeBracket)
+		} else {
+			// Inline-position: root-level or after dash.
+			// Bracket stays at parentIndent (current column),
+			// elements at parentIndent + indentWidth.
+			bracketIndent := strings.Repeat(" ", parentIndent)
+			elemIndent := strings.Repeat(" ", parentIndent+indentWidth)
+
+			expanded = append(expanded, openBracket)
+			for _, elem := range elements {
+				expanded = append(expanded, '\n')
+				expanded = append(expanded, elemIndent...)
+				expanded = append(expanded, bytes.TrimSpace(elem)...)
+				expanded = append(expanded, ',')
+			}
+			expanded = append(expanded, '\n')
+			expanded = append(expanded, bracketIndent...)
+			expanded = append(expanded, closeBracket)
 		}
-		expanded = append(expanded, '\n')
-		expanded = append(expanded, bracketIndent...)
-		expanded = append(expanded, ']')
 
 		tokens[i].Raw = expanded
 	}
@@ -1423,10 +1569,10 @@ func computeTokenLineStart(tokens []Token, idx int) int {
 // splitFlowElements splits a flow sequence's raw bytes into individual element
 // byte slices. Splits on comma at depth 0, skipping the outer [ and ].
 func splitFlowElements(raw []byte) [][]byte {
-	if len(raw) < 2 || raw[0] != '[' {
+	if len(raw) < 2 || (raw[0] != '[' && raw[0] != '{') {
 		return nil
 	}
-	// Find closing ].
+	// Find closing bracket.
 	inner := raw[1:]
 	closeIdx := -1
 	depth := 1
