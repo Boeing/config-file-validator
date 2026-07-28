@@ -119,8 +119,10 @@ func TestInlineCommentPreserved(t *testing.T) {
 
 func TestBlankLinesBeforeTables(t *testing.T) {
 	t.Parallel()
+	// Taplo preserves source blank lines but does NOT add them.
+	// Input has no blank lines between tables → output has none.
 	src := []byte("[package]\nname = \"app\"\n[dependencies]\nserde = \"1\"\n# binaries\n[[bin]]\nname = \"app\"\n")
-	want := "[package]\nname = \"app\"\n\n[dependencies]\nserde = \"1\"\n\n# binaries\n[[bin]]\nname = \"app\"\n"
+	want := "[package]\nname = \"app\"\n[dependencies]\nserde = \"1\"\n# binaries\n[[bin]]\nname = \"app\"\n"
 
 	got, err := f.Format(src, defaultOpts)
 	require.NoError(t, err)

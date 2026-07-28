@@ -64,7 +64,6 @@ func (p *Printer) Print(groups []Group) []byte {
 
 	inTable := false
 	started := false // tracks whether we've emitted any non-blank content
-	lastTableKey := ""
 	for i, group := range groups {
 		switch group.Kind {
 		case GroupBlank:
@@ -91,12 +90,6 @@ func (p *Printer) Print(groups []Group) []byte {
 			}
 
 		case GroupComment:
-			// A comment block immediately before a later table belongs to that
-			// table. Put the section break before the comment, not between the
-			// comment and its header.
-			if started && nextNonCommentKind(groups, i+1).isTable() {
-				p.ensureBlankLine()
-			}
 			started = true
 			commentIndent := ""
 			if inTable && p.opts.Indent != "" {
@@ -107,25 +100,9 @@ func (p *Printer) Print(groups []Group) []byte {
 		case GroupTable, GroupArrayTable:
 			inTable = true
 			started = true
-			// Blank line before tables — but not between a parent table and
-			// its immediate sub-tables (e.g., [build] → [build.buildStats]).
-			// This matches taplo's behavior.
-			currentKey := extractTableKey(group)
-			// No blank line between related tables: sub-tables, same-key array
-			// tables, or siblings under the same non-root parent. Top-level
-			// tables always get blank lines between them.
-			isRelated := false
-			if lastTableKey != "" {
-				parent := tableParent(currentKey)
-				isRelated = currentKey == lastTableKey ||
-					strings.HasPrefix(currentKey, lastTableKey+".") ||
-					strings.HasPrefix(lastTableKey, currentKey+".") ||
-					(parent != "" && parent == tableParent(lastTableKey))
-			}
-			if started && !isRelated && (i == 0 || groups[i-1].Kind != GroupComment) {
-				p.ensureBlankLine()
-			}
-			lastTableKey = currentKey
+			// Taplo does NOT add blank lines before tables — it preserves
+			// source blank lines (which are already handled as GroupBlank above).
+			// Per taplo spec: allowed_blank_lines controls preservation, not insertion.
 			p.printTableHeader(group)
 
 		case GroupEntry:
@@ -152,19 +129,6 @@ func (p *Printer) Print(groups []Group) []byte {
 	out = formatter.NormalizeLineEndings(out, p.opts.LineEnding)
 
 	return out
-}
-
-func (kind GroupKind) isTable() bool {
-	return kind == GroupTable || kind == GroupArrayTable
-}
-
-func nextNonCommentKind(groups []Group, start int) GroupKind {
-	for _, group := range groups[start:] {
-		if group.Kind != GroupComment {
-			return group.Kind
-		}
-	}
-	return GroupBlank
 }
 
 // printComment writes comment lines with preserved content.
@@ -1012,29 +976,9 @@ func (*Printer) sortGroups(groups []Group) []Group {
 // extractTableKey returns the dotted key path from a table header group.
 // For [build.buildStats], returns "build.buildStats".
 // For [[build.cachebusters]], returns "build.cachebusters".
-func extractTableKey(group Group) string {
-	var b strings.Builder
-	for _, tok := range group.Tokens {
-		switch tok.Kind {
-		case BareKey, BasicString, LiteralString:
-			_, _ = b.Write(tok.Raw)
-		case Dot:
-			_ = b.WriteByte('.')
-		default:
-			// Skip brackets, whitespace, newlines, comments.
-		}
-	}
-	return b.String()
-}
 
 // tableParent returns the parent key of a dotted table key.
 // "build.buildStats" → "build", "target.x86_64-msvc" → "target", "root" → ""
-func tableParent(key string) string {
-	if i := strings.LastIndex(key, "."); i >= 0 {
-		return key[:i]
-	}
-	return ""
-}
 
 func extractKey(group Group) string {
 	if group.Kind == GroupComment {
@@ -1070,39 +1014,4 @@ func (p *Printer) writeNewline() {
 	} else {
 		p.buf.WriteByte('\n')
 	}
-}
-
-// Pre-computed double newline sequences to avoid allocation in ensureBlankLine.
-var (
-	doubleLF   = []byte("\n\n")
-	doubleCRLF = []byte("\r\n\r\n")
-)
-
-// ensureBlankLine ensures there's at least one blank line at the current
-// position in the output buffer.
-func (p *Printer) ensureBlankLine() {
-	out := p.buf.Bytes()
-	if len(out) == 0 {
-		return
-	}
-
-	var nl []byte
-	var doubleNL []byte
-	if p.opts.LineEnding == formatter.LineEndingCRLF {
-		nl = []byte("\r\n")
-		doubleNL = doubleCRLF
-	} else {
-		nl = []byte("\n")
-		doubleNL = doubleLF
-	}
-
-	if bytes.HasSuffix(out, doubleNL) {
-		return
-	}
-	if bytes.HasSuffix(out, nl) {
-		p.writeNewline()
-		return
-	}
-	p.writeNewline()
-	p.writeNewline()
 }
