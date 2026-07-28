@@ -5,5 +5,5 @@ title = "My App"
 [database]
 # Server host
 server = "192.168.1.1"
-port = 5432 # default port
+port = 5432            # default port
 enabled = true

@@ -60,7 +60,7 @@ func (p *Printer) Print(groups []Group) []byte {
 	if p.opts.SortKeys {
 		groups = p.sortGroups(groups)
 	}
-	alignedCommentColumns := findAlignedCommentColumns(groups, p.opts.Indent)
+	alignedCommentColumns := findAlignedCommentColumns(groups, p.opts.Indent, p.opts.ColumnWidth)
 
 	inTable := false
 	started := false // tracks whether we've emitted any non-blank content
@@ -226,14 +226,13 @@ func (p *Printer) printEntry(group Group, depth, commentColumn int) {
 }
 
 // findAlignedCommentColumns computes the target column for aligned inline
-// comments in runs of consecutive entries. For groups of 2+ entries that all
-// have inline comments, comments are aligned to the column after the widest
-// key=value portion. This matches taplo's behavior.
+// comments. Per taplo's format_rows algorithm: the max key=value width is
+// computed across ALL entries in a section (between table headers), and
+// comments are aligned to that max + 1. This applies when 2+ entries in the
+// section have comments, or when align_single_comments is true (1 entry).
 //
-// The formatted width of an entry is: indent + keyLen + " = " + valueLen.
-// For entries with inline comments, values are always simple scalars (you
-// can't have a multiline array and an inline comment on the same TOML line).
-func findAlignedCommentColumns(groups []Group, indent string) []int {
+// Source: taplo-0.14.0/src/formatter/mod.rs format_rows() + should_align_comments()
+func findAlignedCommentColumns(groups []Group, indent string, columnWidth int) []int {
 	columns := make([]int, len(groups))
 
 	// Determine which entries are inside a table (and get indent in output).
@@ -248,39 +247,72 @@ func findAlignedCommentColumns(groups []Group, indent string) []int {
 		}
 	}
 
-	for start := 0; start < len(groups); {
-		_, ok := inlineCommentColumn(groups[start])
-		if !ok {
-			start++
-			continue
-		}
-		// Find run of consecutive entries with inline comments.
-		end := start + 1
-		for end < len(groups) {
-			if _, nextOK := inlineCommentColumn(groups[end]); !nextOK {
+	// Process sections: a section is a run of entries NOT separated by blank
+	// lines or table headers. Per taplo: blank lines break alignment groups.
+	// Within each group, comments align to the max value-end width of ALL entries.
+	sectionStart := 0
+	for sectionStart < len(groups) {
+		// Find the extent of this alignment group (entries with no blank lines
+		// or table headers between them).
+		sectionEnd := sectionStart
+		for sectionEnd < len(groups) {
+			kind := groups[sectionEnd].Kind
+			if kind == GroupTable || kind == GroupArrayTable {
 				break
 			}
-			end++
+			if kind == GroupBlank && sectionEnd > sectionStart {
+				break // blank line ends the alignment group
+			}
+			sectionEnd++
 		}
-		if end-start >= 2 {
-			// Compute max formatted width (indent + key + " = " + value).
-			maxWidth := 0
-			for i := start; i < end; i++ {
-				w := entryKeyValueWidth(groups[i])
-				if insideTable[i] {
-					w += len(indent)
+
+		// Compute max entry width across ALL entries in this group.
+		// Per taplo: if ANY entry has a multiline value (contains \n),
+		// alignment is disabled for the entire group (format_rows can_align check).
+		maxWidth := 0
+		commentCount := 0
+		hasMultiline := false
+		for i := sectionStart; i < sectionEnd; i++ {
+			if groups[i].Kind != GroupEntry {
+				continue
+			}
+			if entryHasMultilineValue(groups[i], columnWidth) {
+				hasMultiline = true
+				break
+			}
+			w := entryKeyValueWidth(groups[i])
+			if insideTable[i] {
+				w += len(indent)
+			}
+			if w > maxWidth {
+				maxWidth = w
+			}
+			if _, hasComment := inlineCommentColumn(groups[i]); hasComment {
+				commentCount++
+			}
+		}
+
+		// Per taplo: should_align_comments(count) = (count != 1 || align_single_comments) && align_comments
+		// With defaults (both true): always align if any comments exist AND no multiline values.
+		if commentCount > 0 && !hasMultiline {
+			targetColumn := maxWidth + 1
+			for i := sectionStart; i < sectionEnd; i++ {
+				if groups[i].Kind != GroupEntry {
+					continue
 				}
-				if w > maxWidth {
-					maxWidth = w
+				if _, hasComment := inlineCommentColumn(groups[i]); hasComment {
+					columns[i] = targetColumn
 				}
 			}
-			// Target = max width + 1 space padding before #.
-			for i := start; i < end; i++ {
-				columns[i] = maxWidth + 1
-			}
 		}
-		start = end
+
+		// Move past the table header to the next section.
+		if sectionEnd < len(groups) {
+			sectionEnd++ // skip the table header itself
+		}
+		sectionStart = sectionEnd
 	}
+
 	return columns
 }
 
@@ -309,6 +341,66 @@ func entryKeyValueWidth(group Group) int {
 		width += len(tokens[i].Raw)
 	}
 	return width
+}
+
+// entryHasMultilineValue checks if an entry's value is (or will become)
+// multiline. This includes:
+// - Values that already contain newlines in source
+// - Arrays that will be expanded by the formatter (exceed column width)
+// Per taplo: alignment is disabled for groups containing any multiline values.
+func entryHasMultilineValue(group Group, columnWidth int) bool {
+	if group.Kind != GroupEntry {
+		return false
+	}
+	tokens := group.Tokens
+	keyEnd, _, valueStart, valueEnd, commentStart := splitEntry(tokens)
+	if valueStart < 0 {
+		return false
+	}
+
+	// Check 1: source already contains newline.
+	for i := valueStart; i <= valueEnd; i++ {
+		for _, b := range tokens[i].Raw {
+			if b == '\n' {
+				return true
+			}
+		}
+	}
+
+	// Check 2: array that will be expanded (prefix + array + comment > columnWidth).
+	if tokens[valueStart].Kind == BracketOpen {
+		// Compute prefix: key + " = "
+		keyLen := 0
+		for i := 0; i <= keyEnd; i++ {
+			if tokens[i].Kind != Whitespace {
+				keyLen += len(tokens[i].Raw)
+			}
+		}
+		prefixLen := keyLen + 3
+
+		// Add trailing comment width if present.
+		if commentStart >= 0 {
+			for i := commentStart; i < len(tokens); i++ {
+				if tokens[i].Kind == Comment {
+					prefixLen += 1 + len(tokens[i].Raw)
+				}
+			}
+		}
+
+		// Estimate array single-line length.
+		arrayLen := 0
+		for i := valueStart; i <= valueEnd; i++ {
+			if tokens[i].Kind != Whitespace && tokens[i].Kind != Newline {
+				arrayLen += len(tokens[i].Raw)
+			}
+		}
+
+		if prefixLen+arrayLen > columnWidth {
+			return true
+		}
+	}
+
+	return false
 }
 
 func inlineCommentColumn(group Group) (int, bool) {
