@@ -14,7 +14,7 @@ Run `cfv check` with no arguments to validate all recognized config files in the
 cfv check
 ```
 
-cfv finds files by extension (`.json`, `.yaml`, `.toml`, `.xml`, etc.) and by known filename (`.gitconfig`, `Pipfile`, `tsconfig.json`, etc.). It parses each file and reports pass or fail.
+cfv finds files by extension (`.json`, `.yaml`, `.toml`, `.xml`, etc.) and by known filename (`.gitconfig`, `Pipfile`, `tsconfig.json`, etc.). It checks syntax, applies any declared schemas, and verifies formatting. Files that pass all three get ✓. Files with errors get ×. Files that are valid but not formatted get ~.
 
 ## Validate a specific path
 
@@ -24,9 +24,19 @@ Pass one or more paths as arguments:
 cfv check ./config ./deploy/manifests
 ```
 
+## Fix everything in one pass
+
+To fix all safe issues at once (trailing commas, schema type coercion, and formatting):
+
+```shell
+cfv check --fix .
+```
+
+Files that can't be auto-fixed (missing required schema fields, unparseable syntax) are reported as errors.
+
 ## Check the results
 
-A successful run exits with code `0`. If any file fails, the exit code is `1` and the output shows the parse error.
+A successful run exits with code `0`. If any file fails or needs formatting, the exit code is `1` and the output shows what went wrong.
 
 ## Common options
 
@@ -48,17 +58,27 @@ Enable automatic schema validation via [SchemaStore](https://www.schemastore.org
 cfv check --schemastore .
 ```
 
-Suppress all output (useful in scripts — check the exit code instead):
+Suppress all output (useful in scripts where you only check the exit code):
 
 ```shell
 cfv check --quiet .
 ```
 
+## Preview formatting changes
+
+To see what cfv would change without modifying files:
+
+```shell
+cfv format --diff .
+```
+
+This prints a unified diff for each file that needs formatting. Nothing is written.
+
 ## Schema validation
 
 Files that declare a `$schema` (JSON, TOML) or `yaml-language-server` comment (YAML) are validated against their schema automatically. No flags required.
 
-To also validate files that *don't* declare a schema, use `--schemastore`. This looks up schemas by filename from the [SchemaStore](https://www.schemastore.org/) catalog — covering `package.json`, GitHub Actions workflows, `tsconfig.json`, and hundreds more:
+To also validate files that *don't* declare a schema, use `--schemastore`. This looks up schemas by filename from the [SchemaStore](https://www.schemastore.org/) catalog, covering `package.json`, GitHub Actions workflows, `tsconfig.json`, and hundreds more:
 
 ```shell
 cfv check --schemastore .
@@ -84,6 +104,8 @@ Flags can also be set via environment variables. See [Environment Variables](./r
 ## Next steps
 
 - [Schema Validation](./guides/schema-validation.md) — declare schemas, use SchemaStore, map schemas to files
+- [Formatting Guide](./guides/formatting.md) — configure formatting options
+- [Using cfv with Existing Tools](./guides/existing-tools.md) — how cfv reads your .prettierrc, taplo.toml, and .editorconfig
 - [Reporters](./guides/output-reporters.md) — JSON, JUnit, SARIF output for CI
 - [GitHub Actions](./integrations/github-actions.md) — run validation in your pipeline
 - [CLI Reference](./reference/cli-flags.md) — complete list of flags

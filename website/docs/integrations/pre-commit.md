@@ -3,7 +3,7 @@
 
 # Pre-commit Hook
 
-The validator has a ready-made [pre-commit](https://pre-commit.com/) hook that runs `cfv check` on every commit.
+cfv provides a [pre-commit](https://pre-commit.com/) hook that validates and formats config files on every commit.
 
 ## Setup
 
@@ -12,14 +12,15 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/Boeing/config-file-validator
-    rev: v2.2.0
+    rev: v3.0.0
     hooks:
       - id: config-file-validator
+        args: ['--fix']
 ```
 
-## Available hooks
+With `--fix`, cfv corrects formatting and applies safe fixes (trailing commas, schema type coercion) before the commit completes. Files that can't be auto-fixed cause the hook to fail.
 
-Two hooks are provided:
+## Available hooks
 
 | Hook                         | Behavior                                                                   |
 |------------------------------|----------------------------------------------------------------------------|
@@ -33,25 +34,17 @@ Add flags via the `args` key:
 ```yaml
 hooks:
   - id: config-file-validator
-    args: ['--schemastore']
+    args: ['--fix', '--schemastore']
 ```
+
+Without `--fix`, the hook reports issues but does not modify files:
 
 ```yaml
 hooks:
   - id: config-file-validator
-    args: ['--exclude-dirs=node_modules,vendor', '--schemastore']
+    args: ['--schemastore']
 ```
 
 ## Pinning a version
 
-The `rev` field should point to a release tag. Update it when you upgrade:
-
-```yaml
-repos:
-  - repo: https://github.com/Boeing/config-file-validator
-    rev: v2.2.0
-    hooks:
-      - id: config-file-validator
-```
-
-Run `pre-commit autoupdate` to bump to the latest release automatically.
+The `rev` field should point to a release tag. Run `pre-commit autoupdate` to bump to the latest release.

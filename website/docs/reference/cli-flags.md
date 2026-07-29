@@ -9,7 +9,7 @@ cfv check [flags] [<search_path>...]
 
 Bare `cfv [flags] [<search_path>...]` also works and is equivalent to `cfv check`.
 
-If no search path is provided, `cfv check` searches the current directory. Use `-` to read from stdin (requires `--file-types`).
+If no search path is provided, cfv searches the current directory. Use `-` to read from stdin (requires `--file-types`).
 
 ## Subcommands
 
@@ -20,7 +20,7 @@ If no search path is provided, `cfv check` searches the current directory. Use `
 | `version`     | Print the version and exit.                      |
 | `help`        | Show help for a subcommand.                      |
 
-## `check` Flags
+## `check` flags
 
 All flags below apply to the `check` subcommand.
 
@@ -30,6 +30,8 @@ All flags below apply to the `check` subcommand.
 | `-exclude-dirs`       | string | —          | Comma-separated list of directory names to skip.                                                                   |
 | `-exclude-file-types` | string | —          | Comma-separated list of file types to ignore. Cannot be used with `-file-types`.                                   |
 | `-file-types`         | string | all        | Comma-separated list of file types to validate. Cannot be used with `-exclude-file-types`.                         |
+| `-fix`                | bool   | `false`    | Apply safe fixes automatically (trailing commas, schema coercion, formatting).                                     |
+| `-unsafe`             | bool   | `false`    | Apply unsafe fixes. Requires `-fix`.                                                                               |
 | `-gitignore`          | bool   | `false`    | Skip files matched by `.gitignore` patterns. Only active inside a Git repository.                                  |
 | `--ignore-file`       | string | —          | Apply gitignore-style patterns from a file relative to each search path. Repeatable.                               |
 | `-globbing`           | bool   | `false`    | Treat positional arguments as glob patterns.                                                                       |
@@ -44,11 +46,11 @@ All flags below apply to the `check` subcommand.
 | `-schemastore`        | bool   | `false`    | Enable automatic schema lookup by filename using the SchemaStore catalog.                                          |
 | `-schemastore-path`   | string | —          | Path to a local SchemaStore clone. Implies `-schemastore`.                                                         |
 | `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |
-| `-no-config`          | bool   | `false`    | Disable automatic `.cfv.toml` discovery.                                                                           |
+| `-no-config`          | bool   | `false`    | Disable all config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`).         |
 | `-type-map`           | string | —          | Map a glob pattern to a file type. Format: `<pattern>:<type>`. Repeatable.                                         |
 | `-watch`              | bool   | `false`    | Watch search paths for file changes and re-run validation on each changed file.                                    |
 
-## `format` Flags
+## `format` flags
 
 ```
 cfv format [flags] [<search_path>...]
@@ -58,16 +60,19 @@ Checks formatting of config files. With `--fix`, rewrites files in place. With `
 
 ### Format-specific flags
 
-| Flag          | Type   | Default | Description                                                   |
-|---------------|--------|---------|---------------------------------------------------------------|
-| `-fix`        | bool   | `false` | Rewrite files in place. Mutually exclusive with `-diff`.      |
-| `-diff`       | bool   | `false` | Print unified diff of formatting changes. Mutually exclusive with `-fix`. |
-| `-indent`     | int    | `2`     | Override indent width (number of spaces per level).           |
-| `-sort-keys`  | bool   | `false` | Sort mapping keys alphabetically.                            |
-| `-no-editorconfig` | bool | `false` | Ignore `.editorconfig` files when resolving format options. |
-| `-no-taplo-config` | bool | `false` | Ignore `taplo.toml` files when resolving TOML format options. |
-| `-no-prettier-config` | bool | `false` | Ignore `.prettierrc` files when resolving format options. |
-| `-no-yamlfmt-config` | bool | `false` | Ignore `.yamlfmt` / `.yamlfmt.yaml` files when resolving YAML format options. |
+| Flag                  | Type   | Default | Description                                                   |
+|-----------------------|--------|---------|---------------------------------------------------------------|
+| `-fix`                | bool   | `false` | Rewrite files in place. Mutually exclusive with `-diff`.      |
+| `-diff`               | bool   | `false` | Print unified diff of formatting changes. Mutually exclusive with `-fix`. |
+| `-indent`             | int    | `2`     | Override indent width (number of spaces per level).           |
+| `-use-tabs`           | bool   | `false` | Use tabs for indentation.                                    |
+| `-sort-keys`          | bool   | `false` | Sort mapping keys alphabetically.                            |
+| `-no-sort-keys`       | bool   | `false` | Disable key sorting (overrides config file setting).         |
+| `-line-ending`        | string | —       | Line ending style: `lf` or `crlf`.                           |
+| `-max-line-width`     | int    | `0`     | Max line width hint. `0` uses format default (80 for JSON/YAML/TOML). |
+| `-quote-style`        | string | —       | Quote style: `double`, `single`, or `preserve` (YAML only).  |
+| `-no-config`          | bool   | `false` | Disable all config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`). |
+| `-no-editorconfig`    | bool   | `false` | Ignore `.editorconfig` files when resolving format options.   |
 
 ### Shared flags
 
@@ -83,4 +88,4 @@ These flags work the same as in `check`.
 | `-reporter`           | string | `standard` | Output format and optional path. Format: `<type>:<path>`. Types: `standard`, `json`, `junit`, `sarif`, `github`. Repeatable. |
 | `-quiet`              | bool   | `false`    | Suppress stdout output when writing to file.                                                                       |
 | `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |
-| `-no-config`          | bool   | `false`    | Disable automatic `.cfv.toml` discovery.                                                                           |
+| `-type-map`           | string | —          | Map a glob pattern to a file type. Format: `<pattern>:<type>`. Repeatable.                                         |

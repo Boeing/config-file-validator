@@ -4,22 +4,20 @@ sidebar_position: 7
 
 # Formatting
 
-`cfv format` checks whether config files match their canonical format. It reports files that need changes and exits with code 1 if any are found.
+`cfv check` includes formatting as part of its validation. Files that are syntactically valid and schema-correct but not formatted get reported with ~ and cause exit code 1.
+
+To fix formatting (and all other safe fixes) in one pass:
 
 ```shell
-cfv format .
+cfv check --fix .
 ```
 
-To rewrite files in-place:
+The `cfv format` subcommand is also available for format-only workflows:
 
 ```shell
-cfv format --fix .
-```
-
-To see what would change as a unified diff without modifying files:
-
-```shell
-cfv format --diff .
+cfv format .          # Report files that need formatting (exit 1 if any)
+cfv format --fix .    # Rewrite files in-place
+cfv format --diff .   # Show what would change as a unified diff
 ```
 
 ## Supported formats
@@ -44,125 +42,15 @@ All other formats supported by cfv (HOCON, CSV, KDL, etc.) are validation-only.
 
 ## Idempotency
 
-Running `cfv format --fix` twice always produces the same output. If a file is already formatted, it is left untouched.
+Running `cfv format --fix` twice produces the same output. If a file is already formatted, it is left untouched.
 
 ## Configuration
 
-Format settings are resolved per file, lowest priority first:
+cfv resolves format settings differently depending on whether your project has a `.cfv.toml`.
 
-`.editorconfig` → `taplo.toml` / `.prettierrc` → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
+### Projects with `.cfv.toml`
 
-`taplo.toml` only applies to TOML files and `.prettierrc` only applies to JSON/JSONC/YAML files, so the two never compete for the same file.
-`.editorconfig` → format-specific config (`.yamlfmt` or `taplo.toml`) → `.cfv.toml [format]` → `.cfv.toml [format.<type>]` → CLI flags
-
-### `.editorconfig`
-
-If your project has an `.editorconfig`, cfv reads it and uses it as the baseline,
-so formatted output matches what your editors already produce without any cfv
-configuration. The properties cfv understands:
-
-| EditorConfig property  | cfv option       |
-|------------------------|------------------|
-| `indent_style`         | Spaces or tabs   |
-| `indent_size`          | Indent width     |
-| `end_of_line`          | Line ending      |
-| `insert_final_newline` | Trailing newline |
-
-Resolution follows the EditorConfig spec: glob sections are matched against each
-file individually, `.editorconfig` files in parent directories apply to nested
-files, and `root = true` stops the upward search. Other properties are ignored,
-and an unreadable or malformed `.editorconfig` is skipped rather than failing the
-run.
-
-Pass `--no-editorconfig` to ignore `.editorconfig` entirely.
-
-### `taplo.toml`
-
-Rust projects usually configure TOML formatting with [taplo](https://taplo.tamasfe.dev/).
-cfv reads the nearest `taplo.toml` (or `.taplo.toml`), searching the current
-directory and its parents, and applies it to TOML files only:
-
-| Taplo option                   | cfv option       |
-|--------------------------------|------------------|
-| `formatting.indent_string`     | Indent width, or tabs |
-| `formatting.column_width`      | Max line width   |
-| `formatting.trailing_newline`  | Trailing newline |
-| `formatting.reorder_keys`      | Sort keys        |
-| `formatting.crlf`              | Line ending      |
-| `formatting.array_trailing_comma` | Trailing commas |
-
-Everything else is ignored, including `[[rule]]` sections and the options cfv
-has no equivalent for: `align_entries`, `align_comments`, `compact_arrays`,
-`compact_inline_tables`, `array_auto_expand`, and `array_auto_collapse`. A
-project that relies on those may still see cfv diverge from taplo on those
-specific behaviors. An unreadable or malformed `taplo.toml` is skipped rather
-than failing the run.
-
-Pass `--no-taplo-config` to ignore `taplo.toml` entirely.
-
-### `.prettierrc`
-
-If your project has a `.prettierrc` (or one of its static variants), cfv reads
-it and layers it on top of `.editorconfig`, so JSON, JSONC, and YAML files
-format to match your existing Prettier settings without duplicating them in
-`.cfv.toml`. The options cfv understands:
-
-| Prettier option | cfv option        | Notes                                |
-|------------------|-------------------|---------------------------------------|
-| `tabWidth`       | Indent width      |                                       |
-| `useTabs`        | Spaces or tabs    |                                       |
-| `printWidth`     | Max line width    |                                       |
-| `endOfLine`      | Line ending       | `lf` / `crlf` map; `auto`/`cr` are ignored |
-| `trailingComma`  | Trailing commas   | JSONC only; `all` / `none`            |
-| `singleQuote`    | Quote style       | YAML only                             |
-
-Supported file formats, checked in this order in each directory (first match wins):
-
-1. `.prettierrc` (JSON content tried first, then YAML)
-2. `.prettierrc.json`
-3. `.prettierrc.yaml` / `.prettierrc.yml`
-4. `.prettierrc.toml`
-
-cfv walks up from each file's directory and uses the nearest directory that
-has a supported config; unlike `.editorconfig`, prettier configs are not
-merged across directory levels — the closest one found fully determines the
-result.
-
-**Known limitations (v1):**
-
-- `.prettierrc.js`, `.prettierrc.cjs`, `.prettierrc.mjs`, and
-  `prettier.config.*` require JS evaluation and are not supported. They are
-  skipped silently (not an error), and the search continues upward for a
-  supported config.
-- A `"prettier"` key in `package.json` is not yet read.
-- The `overrides` array is not supported — only top-level options apply.
-- A malformed config file is skipped rather than failing the run.
-
-Pass `--no-prettier-config` to ignore `.prettierrc` entirely.
-### `.yamlfmt`
-
-Projects that already configure Google's [yamlfmt](https://github.com/google/yamlfmt)
-via `.yamlfmt` or `.yamlfmt.yaml` get those settings applied to YAML formatting
-automatically. The options cfv understands:
-
-| yamlfmt option              | cfv option      |
-|-----------------------------|-----------------|
-| `formatter.indent`          | Indent width    |
-| `formatter.line_ending`     | Line ending     |
-| `formatter.max_line_length` | Max line width  |
-
-Other yamlfmt options (`include_document_start`, `retain_line_breaks`,
-`pad_line_comments`, …) are ignored. Discovery walks up from the working
-directory and prefers `.yamlfmt` over `.yamlfmt.yaml`. A malformed file is
-skipped rather than failing the run.
-
-Pass `--no-yamlfmt-config` to ignore yamlfmt config files entirely.
-
-### `.cfv.toml`
-
-Format settings live in `.cfv.toml` at the root of your project.
-
-Global defaults apply to all formats. Per-format sections override them:
+If `.cfv.toml` exists, it is the sole source of formatting configuration. External tool configs (`.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`) are not read.
 
 ```toml
 [format]
@@ -177,40 +65,91 @@ indent = 2
 sort-keys = true
 ```
 
-With this config, all formats use 2-space indent with keys unsorted, except TOML which sorts keys alphabetically.
+Global `[format]` settings apply to all formats. Per-format sections override them. CLI flags override both.
+
+This means: once you adopt `.cfv.toml`, all formatting behavior is defined in one place. No interaction with other config files.
+
+See [Configuration Keys](../reference/configuration-keys.md) for all available format options.
+
+### Projects without `.cfv.toml`
+
+Without a `.cfv.toml`, cfv reads your existing tool configs so that formatting matches what those tools already produce. Each format has one owner:
+
+| Format    | Config read             | Fallback         |
+|-----------|-------------------------|------------------|
+| JSON      | `.prettierrc`           | `.editorconfig`  |
+| JSONC     | `.prettierrc`           | `.editorconfig`  |
+| YAML      | `.yamlfmt`, then `.prettierrc` | `.editorconfig` |
+| TOML      | `taplo.toml`            | `.editorconfig`  |
+| HCL       | —                       | `.editorconfig`  |
+| XML       | —                       | `.editorconfig`  |
+| INI       | —                       | `.editorconfig`  |
+| Properties | —                      | `.editorconfig`  |
+| ENV       | —                       | `.editorconfig`  |
+
+`.editorconfig` always applies as a baseline. If a format-specific config exists, it takes precedence over `.editorconfig` for the properties they share.
+
+For YAML: if `.yamlfmt` is found, it owns YAML formatting. If not, cfv falls back to `.prettierrc`. The two are never combined.
+
+See [Using cfv with Existing Tools](./existing-tools.md) for details on what cfv reads from each config format.
+
+### Disabling config discovery
+
+To format using only built-in defaults (ignoring all config files):
+
+```shell
+cfv format --no-config .
+```
+
+To keep tool configs but ignore `.editorconfig`:
+
+```shell
+cfv format --no-editorconfig .
+```
+
+### `.editorconfig`
+
+cfv reads `.editorconfig` following the standard spec: glob sections matched per file, parent directories apply to nested files, `root = true` stops the upward search.
+
+| EditorConfig property  | Effect           |
+|------------------------|------------------|
+| `indent_style`         | Spaces or tabs   |
+| `indent_size`          | Indent width     |
+| `end_of_line`          | Line ending      |
+| `insert_final_newline` | Trailing newline |
+
+Other properties are ignored. A malformed `.editorconfig` is skipped.
 
 ### JSONC trailing commas
 
-By default, JSONC formatting adds a trailing comma to expanded objects and
-arrays, matching Prettier's `trailingComma: "all"` behavior. Collapsed
-single-line collections do not receive a trailing comma, and strict JSON is
-unchanged.
+By default, JSONC formatting adds a trailing comma to expanded objects and arrays, matching Prettier's `trailingComma: "all"` behavior. Collapsed single-line collections never get a trailing comma, and strict JSON is unchanged.
 
-Use `trailing-commas` to override the JSONC behavior:
+Override this in `.cfv.toml`:
 
 ```toml
 [format.jsonc]
-trailing-commas = "none" # "all" (default), "none", or "preserve"
+trailing-commas = "none"
 ```
 
-The `"preserve"` mode applies the trailing-comma style already present in the
-file to all expanded collections.
+Options: `"all"` (default), `"none"`, or `"preserve"` (keep whatever style the file already uses).
 
 ## CLI flags
 
-These flags override `.cfv.toml`, `taplo.toml`, `.prettierrc`, and `.editorconfig` settings for a single invocation:
+These flags override all config file settings for a single invocation:
 
 | Flag | Effect |
 |------|--------|
 | `--indent <n>` | Set indent width |
 | `--sort-keys` | Sort keys alphabetically |
-| `--no-final-newline` | Omit trailing newline |
-| `--no-editorconfig` | Ignore `.editorconfig` files |
-| `--no-taplo-config` | Ignore `taplo.toml` files |
-| `--no-prettier-config` | Ignore `.prettierrc` files |
-| `--no-yamlfmt-config` | Ignore `.yamlfmt` / `.yamlfmt.yaml` files |
+| `--no-sort-keys` | Disable key sorting (overrides config) |
+| `--use-tabs` | Use tab indentation |
+| `--line-ending <lf\|crlf>` | Set line ending style |
+| `--max-line-width <n>` | Set max line width hint |
+| `--quote-style <double\|single\|preserve>` | Set quote style (YAML) |
+| `--no-config` | Ignore all config files |
+| `--no-editorconfig` | Ignore `.editorconfig` only |
 
-Example: check formatting with 4-space indent regardless of config file:
+Example: check formatting with 4-space indent regardless of config:
 
 ```shell
 cfv format --indent 4 .
@@ -218,14 +157,20 @@ cfv format --indent 4 .
 
 ## CI usage
 
-`cfv format` (without `--fix`) is designed for CI. It exits 0 if all files are formatted correctly, exits 1 if any file needs changes. Combine with `--reporter json` or `--reporter github` for structured output:
+For most CI pipelines, `cfv check` is all you need. It validates syntax, schema, and formatting in one command:
 
 ```shell
-cfv format --reporter github .
+cfv check --reporter github .
+```
+
+If you want a format-only gate (without schema or syntax checking), use `cfv format` directly:
+
+```shell
+cfv format --reporter json:results.json .
 ```
 
 In a pre-commit hook, use `--fix` so files are corrected before commit:
 
 ```shell
-cfv format --fix .
+cfv check --fix .
 ```

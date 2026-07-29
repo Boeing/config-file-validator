@@ -5,14 +5,15 @@ slug: /introduction
 
 # Introduction
 
-cfv validates syntax, enforces schemas, and formats configuration files across 18 formats. One static binary replaces the collection of per-format tools you maintain today.
+cfv validates syntax, enforces schemas, and checks formatting of configuration files across 18 formats. One static binary replaces the collection of per-format tools you maintain today.
 
 ```shell
-cfv check .          # Validate syntax and schema
-cfv check --fix .    # Fix what it can: trailing commas, type coercion
-cfv format .         # Report files that need formatting (exit 1 if any)
-cfv format --fix .   # Fix formatting in-place
+cfv check .          # Validate syntax + schema + formatting
+cfv check --fix .    # Fix everything: trailing commas, type coercion, formatting
+cfv format --diff .  # Preview formatting changes as a diff
 ```
+
+`cfv check` is the single CI gate. If any file has a syntax error, a schema violation, or inconsistent formatting, it exits 1.
 
 ## Supported formats
 
@@ -52,8 +53,8 @@ All in one binary, zero runtime dependencies.
 
 ## When to use it
 
-- **CI pipelines** — `cfv check` and `cfv format` as gate checks. Use JSON, JUnit, SARIF, or GitHub output for machine-readable results.
-- **Pre-commit hooks** — validate and format changed config files on every commit.
+- **CI pipelines** — `cfv check` as a single gate catches syntax, schema, and formatting issues. Use JSON, JUnit, SARIF, or GitHub output for machine-readable results.
+- **Pre-commit hooks** — `cfv check --fix` validates and formats changed config files before every commit.
 - **Monorepos** — one tool handles all config formats in a single pass. No per-format tooling to install.
 - **Schema enforcement** — catch wrong field names, invalid values, and missing required keys via JSON Schema, XSD, or automatic SchemaStore lookup.
 
@@ -61,6 +62,6 @@ All in one binary, zero runtime dependencies.
 
 - [Installation](./installation.md) — Homebrew, Winget, `go install`, or binary download
 - [Quick Start](./quick-start.md) — validate your first directory
-- [Formatting Guide](./guides/formatting.md) — configure and use `cfv format`
+- [Formatting Guide](./guides/formatting.md) — configure and use formatting
 - [Schema Validation](./guides/schema-validation.md) — enforce schemas beyond syntax
 - [CLI Reference](./reference/cli-flags.md) — all flags and options
