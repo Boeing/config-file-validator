@@ -32,7 +32,7 @@ const (
 type Token struct {
 	Kind       TokenKind
 	Raw        []byte
-	Structural bool // true if this indent precedes a tag (reindent); false for text content
+	Structural bool // true = structural whitespace (between tags, safe to remove); false = content whitespace (adjacent to text, must keep)
 	Depth      int  // structural depth for TokIndent tokens; -1 for others
 }
 

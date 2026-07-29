@@ -65,6 +65,9 @@ func buildIndentString(opts formatter.Options) string {
 // =============================================================================
 
 // annotate sets Depth on TokIndent tokens based on tag nesting.
+// Does NOT set Structural — that is determined by markContentWhitespace
+// which uses surrounding context to distinguish structural whitespace
+// (between tags) from content whitespace (adjacent to text).
 func annotate(tokens []Token, _ []byte) {
 	depth := 0
 	for i := range tokens {
@@ -72,7 +75,6 @@ func annotate(tokens []Token, _ []byte) {
 		switch tokens[i].Kind {
 		case TokIndent:
 			tokens[i].Depth = depth
-			tokens[i].Structural = true
 		case TokOpenTag:
 			depth++
 		case TokCloseTag:
@@ -82,6 +84,81 @@ func annotate(tokens []Token, _ []byte) {
 		default:
 		}
 	}
+
+	// Second pass: adjust depth for indents that precede close tags.
+	// An indent before a close tag should be at the PARENT's depth (one less
+	// than the element's interior depth) since the close tag belongs to the
+	// parent context.
+	for i := range tokens {
+		if tokens[i].Kind != TokIndent || tokens[i].Depth < 0 {
+			continue
+		}
+		next := nextNonWhitespace(tokens, i)
+		if next >= 0 && tokens[next].Kind == TokCloseTag && tokens[i].Depth > 0 {
+			tokens[i].Depth--
+		}
+	}
+}
+
+// =============================================================================
+// Content whitespace classification
+// =============================================================================
+
+// markContentWhitespace classifies each TokNewline and TokIndent token as either
+// structural (between tags — safe to remove during reformatting) or content
+// (adjacent to text content — must be preserved to avoid data loss).
+//
+// A whitespace token is content whitespace if:
+//   - Its previous non-whitespace token is a non-empty TokText, OR
+//   - Its next non-whitespace token is a non-empty TokText
+//
+// Exception: whitespace immediately before a TokCloseTag is always structural,
+// even if preceded by text. The close tag's position is determined by
+// insertFormattingWhitespace, not by source whitespace.
+func markContentWhitespace(tokens []Token) {
+	for i := range tokens {
+		if tokens[i].Kind != TokNewline && tokens[i].Kind != TokIndent {
+			continue
+		}
+
+		prev := prevNonWhitespace(tokens, i)
+		next := nextNonWhitespace(tokens, i)
+
+		prevIsText := prev >= 0 && isNonEmptyText(tokens[prev])
+		nextIsText := next >= 0 && isNonEmptyText(tokens[next])
+		nextIsCloseTag := next >= 0 && tokens[next].Kind == TokCloseTag
+
+		// Structural if: not adjacent to any text, OR immediately before a close tag.
+		// Content (Structural=false) if: adjacent to text AND not before a close tag.
+		tokens[i].Structural = (!prevIsText && !nextIsText) || nextIsCloseTag
+	}
+}
+
+// prevNonWhitespace returns the index of the nearest preceding token that is
+// not TokNewline or TokIndent. Returns -1 if none found.
+func prevNonWhitespace(tokens []Token, idx int) int {
+	for j := idx - 1; j >= 0; j-- {
+		if tokens[j].Kind != TokNewline && tokens[j].Kind != TokIndent {
+			return j
+		}
+	}
+	return -1
+}
+
+// nextNonWhitespace returns the index of the nearest following token that is
+// not TokNewline or TokIndent. Returns -1 if none found.
+func nextNonWhitespace(tokens []Token, idx int) int {
+	for j := idx + 1; j < len(tokens); j++ {
+		if tokens[j].Kind != TokNewline && tokens[j].Kind != TokIndent {
+			return j
+		}
+	}
+	return -1
+}
+
+// isNonEmptyText returns true if the token is TokText with non-whitespace content.
+func isNonEmptyText(tok Token) bool {
+	return tok.Kind == TokText && strings.TrimSpace(string(tok.Raw)) != ""
 }
 
 // =============================================================================
@@ -93,13 +170,18 @@ func annotate(tokens []Token, _ []byte) {
 // Mixed-content elements (containing both text and child elements) are emitted
 // inline — no formatting whitespace is inserted within them.
 func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
-	// First: remove whitespace-only text tokens between tags.
+	// First: remove structural whitespace, preserving content whitespace.
 	cleaned := removeInsignificantWhitespace(tokens)
 
 	// Second: insert newlines and indentation.
 	var result []Token
 	depth := 0
 	i := 0
+
+	// Track which depths have content newlines (for close tag formatting).
+	// When a content TokNewline is emitted inside an element, that element's
+	// close tag needs its own line (not inline after the last text).
+	multilineAtDepth := make(map[int]bool)
 
 	for i < len(cleaned) {
 		tok := cleaned[i]
@@ -128,11 +210,14 @@ func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 
 		case TokCloseTag:
 			depth--
-			// Newline + indent before close tag if previous was a tag (not text).
-			if i > 0 && prevIsTag(cleaned, i) {
+			// Newline + indent before close tag if:
+			// - previous meaningful token was a tag (element-only content), OR
+			// - the element had multiline text content (content newlines emitted).
+			if i > 0 && (prevIsTag(cleaned, i) || multilineAtDepth[depth+1]) {
 				result = appendNewlineIndent(result, depth, indentUnit)
 			}
 			result = append(result, tok)
+			delete(multilineAtDepth, depth+1) // clean up
 
 		case TokSelfClose:
 			if depth > 0 || (i > 0 && needsNewlineBefore(cleaned, i)) {
@@ -153,10 +238,15 @@ func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 			// Keep text inline (no newline before it).
 			result = append(result, tok)
 
-		case TokIndent, TokNewline:
-			// Skip old whitespace — we're inserting new.
-			i++
-			continue
+		case TokNewline:
+			// Content newline (inside text-only element) — emit as-is.
+			result = append(result, tok)
+			multilineAtDepth[depth] = true
+
+		case TokIndent:
+			// Content indent (inside text-only element) — reindent to current depth.
+			tok.Raw = []byte(strings.Repeat(indentUnit, depth))
+			result = append(result, tok)
 
 		default:
 			result = append(result, tok)
@@ -221,15 +311,23 @@ func isMixedContent(tokens []Token, openIdx, closeIdx int) bool {
 	return false
 }
 
-// removeInsignificantWhitespace removes TokText tokens that are whitespace-only
-// (old indentation between tags), and all TokIndent/TokNewline tokens.
+// removeInsignificantWhitespace removes structural whitespace (between tags)
+// while preserving content whitespace (adjacent to text). Also removes
+// whitespace-only TokText tokens (indentation artifacts between tags).
+//
+// Must be called AFTER annotate() so that Depth is set on TokIndent tokens.
 func removeInsignificantWhitespace(tokens []Token) []Token {
+	// Classify each whitespace token as structural or content.
+	markContentWhitespace(tokens)
+
 	var result []Token
 	for _, tok := range tokens {
 		switch tok.Kind {
 		case TokIndent, TokNewline:
-			// Remove old formatting whitespace.
-			continue
+			if tok.Structural {
+				continue // structural whitespace — remove
+			}
+			result = append(result, tok) // content whitespace — preserve
 		case TokText:
 			// Keep only non-whitespace text.
 			if strings.TrimSpace(string(tok.Raw)) != "" {
@@ -282,13 +380,10 @@ func prevIsTag(tokens []Token, idx int) bool {
 // =============================================================================
 
 // reindentExisting modifies existing TokIndent tokens based on their depth.
-// Does not insert or remove any tokens.
+// Does not insert or remove any tokens. Used in preserve mode.
 func reindentExisting(tokens []Token, indentUnit string) {
 	for i := range tokens {
-		if tokens[i].Kind != TokIndent || !tokens[i].Structural {
-			continue
-		}
-		if tokens[i].Depth < 0 {
+		if tokens[i].Kind != TokIndent || tokens[i].Depth < 0 {
 			continue
 		}
 		tokens[i].Raw = []byte(strings.Repeat(indentUnit, tokens[i].Depth))
