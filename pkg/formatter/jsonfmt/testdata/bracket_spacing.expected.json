@@ -1,0 +1,6 @@
+{
+  "short": { "a": 1 },
+  "medium": { "key": "val", "two": "items" },
+  "empty": {},
+  "nested": { "inner": { "deep": true } }
+}

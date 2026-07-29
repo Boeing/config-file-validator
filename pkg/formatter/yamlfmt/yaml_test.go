@@ -2,6 +2,7 @@ package yamlfmt_test
 
 import (
 	"encoding/json"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/yamlfmt"
 )
+
+var update = flag.Bool("update", false, "update .expected.* golden files")
 
 var f = yamlfmt.Formatter{}
 var defaultOpts = yamlfmt.DefaultOptions()
@@ -47,14 +50,21 @@ func TestFixtures(t *testing.T) {
 
 			src, err := os.ReadFile(input)
 			require.NoError(t, err)
-			want, err := os.ReadFile(expected)
-			require.NoError(t, err)
 
 			optsFile := "testdata/" + name + ".opts.json"
 			opts := formatter.LoadFixtureOptions(optsFile, defaultOpts)
 
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
+
+			if *update {
+				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
+					"failed to update golden file %s", expected)
+				return
+			}
+
+			want, err := os.ReadFile(expected)
+			require.NoError(t, err)
 			require.Equal(t, string(want), string(got), "unexpected output for %s", name)
 		})
 	}

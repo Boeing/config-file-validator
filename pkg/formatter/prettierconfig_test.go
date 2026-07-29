@@ -41,6 +41,19 @@ func TestPrettierConfigApply_JSON(t *testing.T) {
 	require.Equal(t, formatter.QuoteSingle, opts.QuoteStyle)
 }
 
+func TestPrettierConfigApply_TrailingCommaES5MapsToAll(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writePrettierRC(t, dir, ".prettierrc.json", `{"trailingComma": "es5"}`)
+
+	opts := formatter.Options{}
+	formatter.NewPrettierConfig().Apply(&opts, filepath.Join(dir, "app.jsonc"))
+
+	// "es5" adds trailing commas wherever ES5 allows — for JSON/JSONC that
+	// means every array/object position, identical to "all".
+	require.Equal(t, formatter.TrailingCommasAll, opts.TrailingCommas)
+}
+
 func TestPrettierConfigApply_BareFileAutoDetectsJSON(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

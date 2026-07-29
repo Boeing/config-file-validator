@@ -1,3 +1,4 @@
 # recommended by https://github.com/golangci/golangci-lint-action
 # this will force line ending to be lf on windows
 *.go text eol=lf
+*.txtar text eol=lf

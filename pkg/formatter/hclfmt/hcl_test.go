@@ -1,6 +1,7 @@
 package hclfmt_test
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,10 +13,13 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/hclfmt"
 )
 
+var update = flag.Bool("update", false, "update .expected.* golden files")
+
 var f = hclfmt.Formatter{}
 var defaultOpts = formatter.Options{}
 
 // TestFixtures runs all .input.hcl -> .expected.hcl fixture pairs.
+// Pass -update to regenerate golden files from current formatter output.
 func TestFixtures(t *testing.T) {
 	t.Parallel()
 	inputs, err := filepath.Glob("testdata/*.input.hcl")
@@ -30,11 +34,18 @@ func TestFixtures(t *testing.T) {
 
 			src, err := os.ReadFile(input)
 			require.NoError(t, err)
-			want, err := os.ReadFile(expected)
-			require.NoError(t, err)
 
 			got, err := f.Format(src, defaultOpts)
 			require.NoError(t, err, "Format(%s) should not error", name)
+
+			if *update {
+				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
+					"failed to update golden file %s", expected)
+				return
+			}
+
+			want, err := os.ReadFile(expected)
+			require.NoError(t, err)
 			require.Equal(t, string(want), string(got), "unexpected output for %s", name)
 		})
 	}
@@ -135,6 +146,33 @@ func FuzzHCLFormatter(f *testing.F) {
 		}
 		if string(result) != string(result2) {
 			t.Fatalf("not idempotent: %q -> %q -> %q", data, result, result2)
+		}
+	})
+}
+
+// FuzzHCLFormatterFixtures seeds from fixture files and checks idempotency.
+func FuzzHCLFormatterFixtures(f *testing.F) {
+	inputs, _ := filepath.Glob("testdata/*.input.hcl")
+	for _, path := range inputs {
+		data, _ := os.ReadFile(path)
+		f.Add(data)
+	}
+
+	fmter := hclfmt.Formatter{}
+	opts := formatter.Options{}
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		result, err := fmter.Format(data, opts)
+		if err != nil {
+			return
+		}
+
+		result2, err := fmter.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format pass failed: %v\nfirst output: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent:\ninput:  %q\nfirst:  %q\nsecond: %q", data, result, result2)
 		}
 	})
 }

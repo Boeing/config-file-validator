@@ -2,6 +2,7 @@ package tomlfmt_test
 
 import (
 	"encoding/json"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/tomlfmt"
 )
+
+var update = flag.Bool("update", false, "update .expected.* golden files")
 
 var f = tomlfmt.Formatter{}
 var defaultOpts = tomlfmt.DefaultOptions()
@@ -32,14 +35,21 @@ func TestFixtures(t *testing.T) {
 
 			src, err := os.ReadFile(input)
 			require.NoError(t, err)
-			want, err := os.ReadFile(expected)
-			require.NoError(t, err)
 
 			optsFile := "testdata/" + name + ".opts.json"
 			opts := formatter.LoadFixtureOptions(optsFile, defaultOpts)
 
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
+
+			if *update {
+				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
+					"failed to update golden file %s", expected)
+				return
+			}
+
+			want, err := os.ReadFile(expected)
+			require.NoError(t, err)
 			require.Equal(t, string(want), string(got), "unexpected output for %s", name)
 		})
 	}
@@ -320,6 +330,40 @@ func FuzzFormatWithOptions(f *testing.F) {
 			if string(origJSON) != string(fmtJSON) {
 				t.Fatalf("semantics changed:\n  input:  %s\n  output: %s", origJSON, fmtJSON)
 			}
+		}
+	})
+}
+
+// FuzzTOMLFormatter seeds from fixtures and verifies no panics, idempotency, and output validity.
+func FuzzTOMLFormatter(f *testing.F) {
+	inputs, _ := filepath.Glob("testdata/*.input.toml")
+	for _, path := range inputs {
+		data, _ := os.ReadFile(path)
+		f.Add(data)
+	}
+
+	fmter := tomlfmt.Formatter{}
+	opts := tomlfmt.DefaultOptions()
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		result, err := fmter.Format(data, opts)
+		if err != nil {
+			return // rejected input
+		}
+
+		// Idempotency
+		result2, err := fmter.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format pass failed: %v\nfirst output: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent:\ninput:  %q\nfirst:  %q\nsecond: %q", data, result, result2)
+		}
+
+		// Validity: output must be parseable TOML
+		var v any
+		if err := toml.Unmarshal(result, &v); err != nil {
+			t.Fatalf("output is not valid TOML: %v\ninput: %q\noutput: %q", err, data, result)
 		}
 	})
 }

@@ -21,6 +21,16 @@ type Formatter struct{}
 
 var _ formatter.Formatter = Formatter{}
 
+// DefaultOptions returns the default formatting options for HCL files.
+// HCL has one canonical style — all options are ignored by Format().
+// This exists for consistency with other formatter packages.
+func DefaultOptions() formatter.Options {
+	return formatter.Options{
+		FinalNewline: true,
+		LineEnding:   formatter.LineEndingLF,
+	}
+}
+
 // Format returns the canonically formatted version of src.
 // Returns an error if src is not valid HCL.
 // Options are ignored — HCL has one canonical style (2-space indent,

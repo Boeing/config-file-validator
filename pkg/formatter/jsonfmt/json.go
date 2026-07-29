@@ -34,6 +34,7 @@ func DefaultOptions() formatter.Options {
 		IndentStyle:  formatter.IndentSpaces,
 		IndentWidth:  2,
 		FinalNewline: true,
+		LineEnding:   formatter.LineEndingLF,
 		SortKeys:     false,
 		MaxLineWidth: 80,
 	}

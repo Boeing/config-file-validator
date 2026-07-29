@@ -1,0 +1,9 @@
+{
+  "items": [
+    {
+      "name": "first",
+      "description": "a longer value that makes this object span multiple lines when expanded"
+    },
+    { "name": "second", "value": 2 }
+  ]
+}

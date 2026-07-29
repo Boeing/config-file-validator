@@ -3,6 +3,7 @@ package xmlfmt_test
 import (
 	"bytes"
 	"encoding/xml"
+	"flag"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,10 +16,13 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/xmlfmt"
 )
 
+var update = flag.Bool("update", false, "update .expected.* golden files")
+
 var f = xmlfmt.Formatter{}
 var defaultOpts = xmlfmt.DefaultOptions()
 
 // TestFixtures runs all .input.xml -> .expected.xml fixture pairs.
+// Pass -update to regenerate golden files from current formatter output.
 func TestFixtures(t *testing.T) {
 	t.Parallel()
 	inputs, err := filepath.Glob("testdata/*.input.xml")
@@ -33,14 +37,21 @@ func TestFixtures(t *testing.T) {
 
 			src, err := os.ReadFile(input)
 			require.NoError(t, err)
-			want, err := os.ReadFile(expected)
-			require.NoError(t, err)
 
 			optsFile := "testdata/" + name + ".opts.json"
 			opts := formatter.LoadFixtureOptions(optsFile, defaultOpts)
 
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
+
+			if *update {
+				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
+					"failed to update golden file %s", expected)
+				return
+			}
+
+			want, err := os.ReadFile(expected)
+			require.NoError(t, err)
 			require.Equal(t, string(want), string(got), "unexpected output for %s", name)
 		})
 	}
@@ -465,4 +476,31 @@ func TestTextFollowedByElement(t *testing.T) {
 	got2, err := f.Format(got, opts)
 	require.NoError(t, err)
 	require.Equal(t, string(got), string(got2))
+}
+
+// FuzzXMLFormatter seeds from fixture files and checks idempotency.
+func FuzzXMLFormatter(f *testing.F) {
+	inputs, _ := filepath.Glob("testdata/*.input.xml")
+	for _, path := range inputs {
+		data, _ := os.ReadFile(path)
+		f.Add(data)
+	}
+
+	fmter := xmlfmt.Formatter{}
+	opts := xmlfmt.DefaultOptions()
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		result, err := fmter.Format(data, opts)
+		if err != nil {
+			return
+		}
+
+		result2, err := fmter.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format pass failed: %v\nfirst output: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent:\ninput:  %q\nfirst:  %q\nsecond: %q", data, result, result2)
+		}
+	})
 }

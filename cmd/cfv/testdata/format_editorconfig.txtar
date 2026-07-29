@@ -1,22 +1,22 @@
 # ============================================================
-# .editorconfig auto-detection
-# Proves: CLI flags > .cfv.toml > .editorconfig > defaults,
-# per-file globs, root = true, and --no-editorconfig.
+# .editorconfig auto-detection (Tier 2)
+# Proves: .editorconfig applies in Tier 2, per-file globs,
+# root = true, --no-editorconfig, and .cfv.toml overrides EC.
 # ============================================================
 
 # .editorconfig indent_size = 6 replaces the default 2
 cp orig.json indent.json
-exec cfv format --fix --no-config indent.json
+exec cfv format --fix indent.json
 exec cat indent.json
 stdout '      "key"'
 
 # --no-editorconfig falls back to the default 2
 cp orig.json indent.json
-exec cfv format --fix --no-config --no-editorconfig indent.json
+exec cfv format --fix --no-editorconfig indent.json
 exec cat indent.json
 stdout '^  "key"'
 
-# .cfv.toml overrides .editorconfig
+# .cfv.toml overrides .editorconfig (Tier 1 — EC not read)
 cp orig.json indent.json
 exec cfv format --fix --config=cfv/indent4.toml indent.json
 exec cat indent.json
@@ -29,26 +29,32 @@ exec cat indent.json
 stdout '        "key"'
 
 # Globs are matched per file: [*.yaml] wins over [*] for YAML only
-exec cfv format --fix --no-config app.yaml
+exec cfv format --fix app.yaml
 exec cat app.yaml
 stdout '^   nested:'
 
 # Formats that default to no indentation stay unindented: a project-wide
 # indent_size must not indent keys under a TOML table header
-exec cfv format --fix --no-config app.toml
+exec cfv format --fix app.toml
 exec cat app.toml
 stdout '^host'
 
 # an explicit --indent still wins over that
-exec cfv format --fix --no-config --indent=2 app.toml
+exec cfv format --fix --indent=2 app.toml
 exec cat app.toml
 stdout '^  host'
 
 # root = true stops the upward search, so the parent's indent_size = 6
 # does not apply and JSON falls back to the default 2
 cp orig.json rooted/f.json
-exec cfv format --fix --no-config rooted/f.json
+exec cfv format --fix rooted/f.json
 exec cat rooted/f.json
+stdout '^  "key"'
+
+# --no-config disables ALL config including editorconfig
+cp orig.json indent.json
+exec cfv format --fix --no-config indent.json
+exec cat indent.json
 stdout '^  "key"'
 
 -- .editorconfig --

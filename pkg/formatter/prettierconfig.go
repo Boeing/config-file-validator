@@ -104,7 +104,10 @@ func (p *PrettierConfig) Apply(opts *Options, path string) {
 	}
 	if rc.TrailingComma != nil {
 		switch *rc.TrailingComma {
-		case "all":
+		case "all", "es5":
+			// "es5" adds trailing commas wherever ES5 allows them. For
+			// JSON/JSONC (the only formats cfv applies this to), every
+			// array/object position is valid ES5, so es5 ≡ all.
 			opts.TrailingCommas = TrailingCommasAll
 		case "none":
 			opts.TrailingCommas = TrailingCommasNone

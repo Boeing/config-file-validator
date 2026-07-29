@@ -84,6 +84,11 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	// Collapse consecutive blank lines to at most 1 (matches prettier).
 	tokens = collapseConsecutiveBlankLines(tokens)
 
+	// Strip blank lines between a mapping key's colon and its first value.
+	// Prettier rule: no blank line allowed between key: and its value.
+	// Only between siblings (between sequence items, between mapping entries).
+	tokens = stripBlankLinesAfterColon(tokens)
+
 	// Serialize, stripping trailing whitespace from non-block-scalar lines.
 	out := serializeWithStrip(tokens)
 
@@ -1699,6 +1704,59 @@ func collapseConsecutiveBlankLines(tokens []Token) []Token {
 		}
 	}
 	return result
+}
+
+// stripBlankLinesAfterColon removes blank lines that appear between a mapping
+// key's colon and its first child value. Prettier strips these unconditionally:
+// a blank line is only valid between siblings, not between a key and its value.
+//
+// Pattern detected: TokColon → TokNewline → (blank: TokIndent? + TokNewline)+ → value
+// The blank-line tokens (TokIndent + TokNewline pairs) are removed.
+func stripBlankLinesAfterColon(tokens []Token) []Token {
+	result := make([]Token, 0, len(tokens))
+	i := 0
+	for i < len(tokens) {
+		result = append(result, tokens[i])
+
+		if tokens[i].Kind != TokColon {
+			i++
+			continue
+		}
+
+		// Skip optional TokSpace between colon and newline.
+		j := i + 1
+		for j < len(tokens) && tokens[j].Kind == TokSpace {
+			result = append(result, tokens[j])
+			j++
+		}
+		// Must have a TokNewline after the colon.
+		if j >= len(tokens) || tokens[j].Kind != TokNewline {
+			i++
+			continue
+		}
+		result = append(result, tokens[j])
+		j++
+
+		// Skip blank lines (TokNewline or TokIndent+TokNewline pairs).
+		j = skipBlankLines(tokens, j)
+		i = j
+	}
+	return result
+}
+
+// skipBlankLines advances past consecutive blank lines starting at position i.
+// A blank line is either a bare TokNewline or a TokIndent followed by TokNewline.
+func skipBlankLines(tokens []Token, i int) int {
+	for i < len(tokens) {
+		if tokens[i].Kind == TokNewline {
+			i++
+		} else if tokens[i].Kind == TokIndent && i+1 < len(tokens) && tokens[i+1].Kind == TokNewline {
+			i += 2
+		} else {
+			break
+		}
+	}
+	return i
 }
 
 // countTrailingNewlines counts how many newlines are at the end of a byte slice.

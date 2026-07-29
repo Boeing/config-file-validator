@@ -1,0 +1,7 @@
+[deps]
+short = "val" # comment a
+multiline = """
+long
+value
+""" # comment b
+another = "x" # comment c

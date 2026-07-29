@@ -1,22 +1,23 @@
 # ============================================================
-# .yamlfmt auto-detection
-# Proves: CLI flags > .cfv.toml > .yamlfmt > defaults,
-# YAML-only scope, .yamlfmt.yaml, and --no-yamlfmt-config.
+# .yamlfmt auto-detection (Tier 2)
+# Proves: .yamlfmt applies in Tier 2 (owns YAML over .prettierrc),
+# .cfv.toml overrides (Tier 1), YAML-only scope, .yamlfmt.yaml
+# variant, and --no-config disables all.
 # ============================================================
 
 # formatter.indent = 4 replaces the YAML default of 2
 cp orig.yaml app.yaml
-exec cfv format --fix --no-config app.yaml
+exec cfv format --fix app.yaml
 exec cat app.yaml
 stdout '^    nested:'
 
-# --no-yamlfmt-config falls back to the default 2
+# --no-config disables all config (falls back to default 2)
 cp orig.yaml app.yaml
-exec cfv format --fix --no-config --no-yamlfmt-config app.yaml
+exec cfv format --fix --no-config app.yaml
 exec cat app.yaml
 stdout '^  nested:'
 
-# .cfv.toml overrides .yamlfmt
+# .cfv.toml overrides .yamlfmt (Tier 1 — yamlfmt NOT read)
 cp orig.yaml app.yaml
 exec cfv format --fix --config=cfv/indent2.toml app.yaml
 exec cat app.yaml
@@ -29,13 +30,13 @@ exec cat app.yaml
 stdout '^        nested:'
 
 # .yamlfmt configures YAML only, so JSON keeps the default 2-space indent
-exec cfv format --fix --no-config app.json
+exec cfv format --fix app.json
 exec cat app.json
 stdout '^  "key"'
 
-# .yamlfmt.yaml is discovered too
+# .yamlfmt.yaml variant is discovered too
 cd dotted
-exec cfv format --fix --no-config app.yaml
+exec cfv format --fix app.yaml
 exec cat app.yaml
 stdout '^   nested:'
 

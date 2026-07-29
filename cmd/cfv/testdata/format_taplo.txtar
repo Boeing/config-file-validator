@@ -1,23 +1,22 @@
 # ============================================================
-# taplo.toml auto-detection
-# Proves: CLI flags > .cfv.toml > taplo.toml > defaults,
-# TOML-only scope, .taplo.toml, and --no-taplo-config.
-# The taplo.toml is servo's, verbatim.
+# taplo.toml auto-detection (Tier 2)
+# Proves: taplo.toml applies in Tier 2, .cfv.toml overrides (Tier 1),
+# TOML-only scope, .taplo.toml variant, and --no-config disables all.
 # ============================================================
 
 # indent_string = "    " indents entries under a table header
 cp orig.toml app.toml
-exec cfv format --fix --no-config app.toml
+exec cfv format --fix app.toml
 exec cat app.toml
 stdout '^    host'
 
-# --no-taplo-config falls back to the TOML default of no indentation
+# --no-config disables all config (falls back to TOML default of no indentation)
 cp orig.toml app.toml
-exec cfv format --fix --no-config --no-taplo-config app.toml
+exec cfv format --fix --no-config app.toml
 exec cat app.toml
 stdout '^host'
 
-# .cfv.toml overrides taplo.toml
+# .cfv.toml overrides taplo.toml (Tier 1 — taplo NOT read)
 cp orig.toml app.toml
 exec cfv format --fix --config=cfv/indent2.toml app.toml
 exec cat app.toml
@@ -31,26 +30,26 @@ stdout '^        host'
 
 # column_width = 120 keeps an 80-column array on one line
 cp orig-array.toml array.toml
-exec cfv format --fix --no-config array.toml
+exec cfv format --fix array.toml
 exec cat array.toml
 stdout '^ports = \["aaaaaaaaaa"'
 
-# without taplo.toml the width is taplo's default of 80, so it expands
+# without taplo.toml (--no-config) the width is the default of 80, so it expands
 cp orig-array.toml array.toml
-exec cfv format --fix --no-config --no-taplo-config array.toml
+exec cfv format --fix --no-config array.toml
 exec cat array.toml
 stdout '^  "aaaaaaaaaa",'
 
 # taplo.toml configures TOML only, so JSON keeps the default 2-space indent
-exec cfv format --fix --no-config app.json
+exec cfv format --fix app.json
 exec cat app.json
 stdout '^  "key"'
 
-# .taplo.toml is discovered too
+# .taplo.toml (dotted variant) is discovered too
 cd dotted
-exec cfv format --fix --no-config app.toml
+exec cfv format --fix app.toml
 exec cat app.toml
-stdout '^	host'
+stdout '^\thost'
 
 -- taplo.toml --
 # upstream files we should not format
