@@ -42,4 +42,4 @@ stderr 'multiple reporters target the same output file: same.json'
 ! exec cfv check --reporter=json:/nonexistent/dir/out.json good.json
 
 -- good.json --
-{"key": "value"}
+{ "key": "value" }

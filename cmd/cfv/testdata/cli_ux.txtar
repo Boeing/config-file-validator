@@ -87,5 +87,5 @@ indent = 4
 -- cfgtest/settings.jsonc --
 {
   // comment
-  "key":1
+  "key": 1,
 }

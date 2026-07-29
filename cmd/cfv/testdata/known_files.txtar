@@ -84,7 +84,7 @@ stdout '✓'
 BasedOnStyle: LLVM
 IndentWidth: 4
 -- .clang-tidy --
-Checks: '-*,readability-*'
+Checks: "-*,readability-*"
 -- .clangd --
 CompileFlags:
   Add: [-Wall]
@@ -92,33 +92,34 @@ CompileFlags:
 gem: --no-document
 -- .gitconfig --
 [user]
-name=test
-email=test@example.com
+name = test
+email = test@example.com
 -- .npmrc --
-registry=https://registry.npmjs.org/
+registry = https://registry.npmjs.org/
 -- .shellcheckrc --
-disable=SC2034
+disable = SC2034
 -- .arcconfig --
-{"project_id": "myproject"}
+{ "project_id": "myproject" }
 -- composer.lock --
-{"packages": [], "_readme": ["This file locks the dependencies"]}
+{ "packages": [], "_readme": ["This file locks the dependencies"] }
 -- .babelrc --
-{"presets": ["env"]}
+{ "presets": ["env"] }
 -- tsconfig.json --
 // TypeScript config
-{"compilerOptions": {"strict": true}}
+{ "compilerOptions": { "strict": true } }
 -- Pipfile --
 [packages]
 requests = "*"
 -- pom.xml --
-<project><modelVersion>4.0.0</modelVersion></project>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+</project>
 -- unknown --
 this is not a config file
 
 # ============================================================
 # Invalid known files
 # ============================================================
-
 -- invalid/.clang-format --
 BasedOnStyle: LLVM
   bad indentation:
@@ -130,14 +131,12 @@ BasedOnStyle: LLVM
 # ============================================================
 # SchemaStore invalid files
 # ============================================================
-
 -- invalid-schema/.babelrc --
 {"presets": ["env"], "unknown_field": true}
 
 # ============================================================
 # Mini SchemaStore bundle with extensionless entries
 # ============================================================
-
 -- schemastore/src/api/json/catalog.json --
 {
   "schemas": [

@@ -354,14 +354,14 @@ stdout '✓.*gitconfig'
   "compilerOptions": {
     "target": "es2020",
     "strict": true,
-  }
+  },
 }
 -- project/jsconfig.json --
 // JavaScript config
 {
   "compilerOptions": {
     "target": "es2020",
-  }
+  },
 }
 -- project/.eslintrc.json --
 // ESLint config
@@ -375,24 +375,28 @@ stdout '✓.*gitconfig'
   "image": "node:18",
 }
 -- project/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- project/bad_strict.json --
 // This comment makes it invalid JSON
 {"key": "value"}
 -- project/pom.xml --
-<project><modelVersion>4.0.0</modelVersion></project>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+</project>
 -- project/.classpath --
-<classpath><classpathentry kind="src" path="src"/></classpath>
+<classpath>
+  <classpathentry kind="src" path="src"/>
+</classpath>
 -- project/package.json --
-{"name": "test", "version": "1.0.0"}
+{ "name": "test", "version": "1.0.0" }
 -- dotfiles/.babelrc --
-{"presets": ["env"]}
+{ "presets": ["env"] }
 -- dotfiles/.swcrc --
-{"jsc": {"parser": {"syntax": "ecmascript"}}}
+{ "jsc": { "parser": { "syntax": "ecmascript" } } }
 -- dotfiles/.arcconfig --
-{"project_id": "myproject"}
+{ "project_id": "myproject" }
 -- dotfiles/.watchmanconfig --
-{"settle": 20}
+{ "settle": 20 }
 -- dotfiles/.clang-format --
 BasedOnStyle: LLVM
 IndentWidth: 4
@@ -403,24 +407,24 @@ CompileFlags:
 gem: --no-document
 -- dotfiles/.gitconfig --
 [user]
-name=test
-email=test@example.com
+name = test
+email = test@example.com
 -- dotfiles/.npmrc --
-registry=https://registry.npmjs.org/
+registry = https://registry.npmjs.org/
 -- dotfiles/.shellcheckrc --
-disable=SC2034
+disable = SC2034
 -- dotfiles/.curlrc --
 max-time = 30
 -- dotfiles/.pylintrc --
 [MASTER]
-load-plugins=pylint_django
+load-plugins = pylint_django
 -- dotfiles/.flake8 --
 [flake8]
 max-line-length = 120
 -- lockfiles/composer.lock --
-{"packages": [], "_readme": ["This file locks the dependencies"]}
+{ "packages": [], "_readme": ["This file locks the dependencies"] }
 -- lockfiles/bun.lock --
-{"lockfileVersion": 1, "packages": {}}
+{ "lockfileVersion": 1, "packages": {} }
 -- lockfiles/Pipfile --
 [packages]
 requests = "*"
@@ -445,26 +449,26 @@ key = 123__456
 -- invalid/composer.lock --
 {"bad": }
 -- invalid-schema/.babelrc --
-{"presets": ["env"], "unknown_field": true}
+{ "presets": ["env"], "unknown_field": true }
 -- invalid-schema/package.json --
-{"name": "test", "version": 123}
+{ "name": "test", "version": 123 }
 -- mixed/root.json --
-{"key": "value"}
+{ "key": "value" }
 -- mixed/nested/.clang-format --
 BasedOnStyle: Google
 -- mixed/nested/.babelrc --
-{"presets": ["env"]}
+{ "presets": ["env"] }
 -- mixed/nested/.gitconfig --
 [core]
-autocrlf=true
+autocrlf = true
 -- mixed/excluded/secret.json --
-{"secret": "value"}
+{ "secret": "value" }
 -- edge/unknown_file --
 this is not a config file
 -- edge/.hidden_no_ext --
 not a known file
 -- edge/sub/.babelrc --
-{"presets": ["env"]}
+{ "presets": ["env"] }
 -- strict_schema.json --
 {
   "type": "object",
@@ -496,8 +500,8 @@ not a known file
 {
   "type": "object",
   "properties": {
-    "presets": {"type": "array", "items": {"type": "string"}},
-    "plugins": {"type": "array"}
+    "presets": { "type": "array", "items": { "type": "string" } },
+    "plugins": { "type": "array" }
   },
   "additionalProperties": false
 }
@@ -505,17 +509,17 @@ not a known file
 {
   "type": "object",
   "properties": {
-    "CompileFlags": {"type": "object"},
-    "Diagnostics": {"type": "object"},
-    "InlayHints": {"type": "object"}
+    "CompileFlags": { "type": "object" },
+    "Diagnostics": { "type": "object" },
+    "InlayHints": { "type": "object" }
   }
 }
 -- schemastore/src/schemas/json/package.json --
 {
   "type": "object",
   "properties": {
-    "name": {"type": "string"},
-    "version": {"type": "string"},
-    "description": {"type": "string"}
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" }
   }
 }

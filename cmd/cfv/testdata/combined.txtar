@@ -34,11 +34,11 @@ exec cfv check --type-map='**/inventory:ini' --exclude-dirs=vendor --depth=3 --q
 
 -- inventory --
 [servers]
-host=10.0.0.1
+host = 10.0.0.1
 -- project/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- project/configs/inventory --
 [servers]
-host=10.0.0.1
+host = 10.0.0.1
 -- project/vendor/dep.json --
-{"dep": true}
+{ "dep": true }

@@ -205,7 +205,6 @@ stdout '✓'
 # ============================================================
 # Test data files
 # ============================================================
-
 -- valid_package.json --
 {
   "$schema": "package_schema.json",
@@ -252,9 +251,7 @@ stdout '✓'
   "jobs": {
     "build": {
       "runs-on": "ubuntu-latest",
-      "steps": [
-        {"uses": "actions/checkout@v4"}
-      ]
+      "steps": [{ "uses": "actions/checkout@v4" }]
     }
   }
 }
@@ -325,7 +322,7 @@ stdout '✓'
   "items": ["valid", 123, "also_valid"]
 }
 -- no_schema.json --
-{"key": "value"}
+{ "key": "value" }
 -- good.ini --
 [section]
-key=value
+key = value

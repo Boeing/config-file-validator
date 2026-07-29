@@ -12,6 +12,6 @@ exec cfv check --quiet --reporter=json:out.json good.json
 exists out.json
 
 -- good.json --
-{"key": "value"}
+{ "key": "value" }
 -- bad.json --
 {"bad":}

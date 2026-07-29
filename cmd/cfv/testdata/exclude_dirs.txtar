@@ -14,8 +14,8 @@ exec cfv check --exclude-dirs=nonexistent project
 stdout '✓.*src.good.json'
 
 -- project/src/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- project/vendor/dep.json --
-{"dep": true}
+{ "dep": true }
 -- project/test/fixture.json --
-{"test": true}
+{ "test": true }

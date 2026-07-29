@@ -350,7 +350,7 @@ func runCheck(args []string) int {
 		return exitStatus
 	}
 
-	c := buildCLI(resolved)
+	c := buildCLI(resolved, cli.WithFormatOptions(buildFormatOptionsResolver(&cfg, resolved)))
 	exitStatus, err := c.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
@@ -1298,7 +1298,7 @@ func resolveFormatConfig(cfg *cfvConfig) (*resolvedConfig, error) {
 	return resolved, nil
 }
 
-func buildCLI(rc *resolvedConfig) *cli.CLI {
+func buildCLI(rc *resolvedConfig, extra ...cli.Option) *cli.CLI {
 	opts := []cli.Option{
 		cli.WithReporters(rc.reporters...),
 		cli.WithGroupOutput(rc.groupOutput),
@@ -1315,6 +1315,7 @@ func buildCLI(rc *resolvedConfig) *cli.CLI {
 	} else {
 		opts = append(opts, cli.WithFinder(finder.FileSystemFinderInit(rc.finderOpts...)))
 	}
+	opts = append(opts, extra...)
 	return cli.Init(opts...)
 }
 

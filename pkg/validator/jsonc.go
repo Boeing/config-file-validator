@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,7 +31,7 @@ func (JSONCValidator) ValidateSyntax(b []byte) (bool, error) {
 }
 
 func (JSONCValidator) MarshalToJSON(b []byte) ([]byte, error) {
-	standardized, err := hujson.Standardize(b)
+	standardized, err := hujson.Standardize(bytes.Clone(b))
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +47,7 @@ func (JSONCValidator) MarshalToJSON(b []byte) ([]byte, error) {
 }
 
 func (JSONCValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
-	standardized, err := hujson.Standardize(b)
+	standardized, err := hujson.Standardize(bytes.Clone(b))
 	if err != nil {
 		return false, err
 	}

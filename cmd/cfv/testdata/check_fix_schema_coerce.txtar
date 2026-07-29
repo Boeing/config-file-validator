@@ -7,8 +7,8 @@ stdout '✓'
 cmp config.json expected.json
 
 -- config.json --
-{"port": "8080", "host": "localhost"}
+{ "port": "8080", "host": "localhost" }
 -- schema.json --
 {"type": "object", "properties": {"port": {"type": "integer"}, "host": {"type": "string"}}}
 -- expected.json --
-{"port": 8080, "host": "localhost"}
+{ "port": 8080, "host": "localhost" }

@@ -8,4 +8,4 @@ stderr '--watch cannot be used with stdin'
 stderr 'watch execution'
 
 -- valid.json --
-{"key": "value"}
+{ "key": "value" }

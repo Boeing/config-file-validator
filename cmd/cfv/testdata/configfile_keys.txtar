@@ -39,31 +39,22 @@ stdout '✓'
 
 -- cfv/exclude_types.toml --
 exclude-file-types = ["yaml"]
-
 -- cfv/file_types.toml --
 file-types = ["yaml"]
-
 -- cfv/reporter.toml --
 reporter = ["json:-"]
-
 -- cfv/groupby.toml --
 groupby = ["filetype"]
-
 -- cfv/require_schema.toml --
 require-schema = true
-
 -- cfv/no_schema.toml --
 no-schema = true
-
 -- cfv/schemastore.toml --
 schemastore = true
-
 -- cfv/schema_map.toml --
 [schema-map]
 "nonexistent_pattern.json" = "schema.json"
-
 -- project/good.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- project/config.yaml --
 key: value

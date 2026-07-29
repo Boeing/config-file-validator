@@ -37,17 +37,17 @@ stdout '✓.*keep.json'
 ignored.json
 build/
 -- project/keep.json --
-{"key": "value"}
+{ "key": "value" }
 -- project/keep.yaml --
 key: value
 -- project/ignored.json --
-{"ignored": true}
+{ "ignored": true }
 -- project/build/output.json --
-{"build": true}
+{ "build": true }
 -- norepo/a.json --
-{"a": 1}
+{ "a": 1 }
 -- norepo/b.json --
-{"b": 2}
+{ "b": 2 }
 -- norepo/.gitignore --
 b.json
 -- cfvproject/.gitignore --
@@ -55,6 +55,6 @@ gen/
 -- cfvproject/.cfv.toml --
 gitignore = true
 -- cfvproject/app.json --
-{"app": true}
+{ "app": true }
 -- cfvproject/gen/out.json --
-{"gen": true}
+{ "gen": true }

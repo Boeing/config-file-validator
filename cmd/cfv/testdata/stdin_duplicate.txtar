@@ -7,4 +7,4 @@ stderr 'stdin \(-\) can only be specified once'
 stderr 'stdin \(-\) cannot be combined'
 
 -- good.json --
-{"key": "value"}
+{ "key": "value" }

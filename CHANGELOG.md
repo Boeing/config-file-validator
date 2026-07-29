@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `cfv check` now detects formatting issues alongside syntax and schema errors in a single pass. Files that are valid but not canonically formatted are reported as unformatted (`~`) and cause exit code 1.
+- `cfv check --fix` now fixes formatting in addition to trailing commas and schema coercion — one command to fix everything.
+- Two-tier config resolution for `cfv check` format checking: `.cfv.toml` (Tier 1, sole authority) or per-format tool config auto-detection (Tier 2: `.prettierrc` for JSON/JSONC, `.yamlfmt` for YAML, `taplo.toml` for TOML, `.editorconfig` as base layer).
 - `cfv format` subcommand with `--fix` (rewrite in place) and `--diff` (print unified diff) modes
 - `--watch` flag for `cfv check`: watches search paths for file changes and re-runs validation on each changed file (closes #510).
 - Formatting support for 9 formats: JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV
@@ -51,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- JSONC validator no longer mutates the input byte slice during schema validation. `ValidateSchema` and `MarshalToJSON` now clone the input before calling `hujson.Standardize`, which modifies data in-place.
 - JSONC `trailing-commas = "none"` formatting now removes trailing commas next to final-value comments while preserving the comments.
 - JSON and JSONC formatting removes blank lines before closing braces and brackets while preserving blank lines between members (closes #581).
 - JSON and JSONC formatting now preserves a single blank line between object properties and array elements while removing blank lines before closing delimiters (closes #588).
@@ -83,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** `--no-config` now disables ALL config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`), matching prettier's `--no-config` semantics. Previously it only disabled `.cfv.toml`.
+- **Breaking:** Removed `--no-prettier-config`, `--no-taplo-config`, and `--no-yamlfmt-config` flags. Use `--no-config` to disable all config, or `.cfv.toml` to take explicit control.
 - JSONC formatting now adds trailing commas to expanded objects and arrays by default, matching Prettier; collapsed collections and strict JSON remain unchanged (closes #589).
 - Refactored grouped standard and JSON output to support any number of `--groupby` levels.
 - Directory grouped output now uses slash-normalized directory keys without trailing separators; files in the current directory use an empty directory key.

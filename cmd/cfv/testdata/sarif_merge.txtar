@@ -26,14 +26,11 @@ stdout '"name": "external-tool"'
 ! exec cfv check --reporter=sarif:- --merge-sarif=bad.sarif good.json
 
 -- good.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- cfv/sarif.toml --
 reporter = ["sarif:-"]
-
 -- bad.sarif --
 {"not": "sarif"}
-
 -- external.sarif --
 {
   "version": "2.1.0",
@@ -65,7 +62,6 @@ reporter = ["sarif:-"]
     }
   ]
 }
-
 -- reports/one.sarif --
 {
   "version": "2.1.0",
@@ -81,7 +77,6 @@ reporter = ["sarif:-"]
     }
   ]
 }
-
 -- reports/two.sarif --
 {
   "version": "2.1.0",

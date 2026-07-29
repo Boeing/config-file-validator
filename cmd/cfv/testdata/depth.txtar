@@ -19,7 +19,7 @@ stdout '✓.*deep.good.toml'
 ! exec cfv check -depth=-1 .
 
 -- root/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- root/sub/good.yaml --
 key: value
 -- root/sub/deep/good.toml --

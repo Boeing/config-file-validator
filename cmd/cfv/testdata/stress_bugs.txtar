@@ -236,101 +236,98 @@ key: value
 {"bad": }
 -- cache2/tsconfig.json --
 // TypeScript config
-{"compilerOptions": {}}
-
+{ "compilerOptions": {} }
 -- priority/tsconfig.json --
 // TypeScript config
-{"compilerOptions": {"strict": true}}
+{ "compilerOptions": { "strict": true } }
 -- priority/.babelrc --
-{"presets": ["env"], "nested": {"key": [1,2,3]}}
-
+{ "presets": ["env"], "nested": { "key": [1, 2, 3] } }
 -- edge/.a --
-{"key": "value"}
+{ "key": "value" }
 -- edge/.eslintrc.json --
 // ESLint config
-{"extends": ["eslint:recommended"]}
+{ "extends": ["eslint:recommended"] }
 -- edge/.hidden --
 not a config file
 -- edge/.unknown --
 not a config file
-
 -- editorconfig_test/.editorconfig --
 root = true
 [*]
 indent_style = space
 -- editorconfig_test/custom.editorconfig --
 root = true
-
 -- case/TSCONFIG.JSON --
 // uppercase
 {"compilerOptions": {}}
 -- case/good.JSON --
-{"key": "value"}
+{ "key": "value" }
 -- case/tsconfig.json --
 // lowercase
-{"compilerOptions": {}}
-
+{ "compilerOptions": {} }
 -- dedup/a/tsconfig.json --
 // dedup test
-{"compilerOptions": {}}
-
+{ "compilerOptions": {} }
 -- excluded_test/root.json --
-{"key": "value"}
+{ "key": "value" }
 -- excluded_test/excluded/tsconfig.json --
 // should not be found
-{"compilerOptions": {}}
-
+{ "compilerOptions": {} }
 -- depth_test/.gitconfig --
 [user]
-name=test
+name = test
 -- depth_test/nested/.babelrc --
-{"presets": ["env"]}
-
+{ "presets": ["env"] }
 -- conflict/.eslintrc.json --
 // ESLint with comments
-{"extends": ["eslint:recommended"]}
+{ "extends": ["eslint:recommended"] }
 -- conflict/devcontainer.json --
-{"name": "dev", "image": "node:18",}
+{ "name": "dev", "image": "node:18" }
 -- conflict/ant.xml --
-<project><target name="build"/></project>
-
+<project>
+  <target name="build"/>
+</project>
 -- ext_exclude/.gitconfig --
 [user]
-name=test
+name = test
 -- ext_exclude/config.ini --
 [section]
-key=value
-
+key = value
 -- glob_test/tsconfig.json --
 // glob test
-{"compilerOptions": {}}
+{ "compilerOptions": {} }
 -- glob_test/good.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- jsonc_stdin.jsonc --
 // comment
-{"key": "value"}
+{ "key": "value" }
 -- json_stdin.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- multi_known/.babelrc --
-{"presets": ["env"]}
+{ "presets": ["env"] }
 -- multi_known/.gitconfig --
 [user]
-name=test
+name = test
 -- multi_known/.clang-format --
 BasedOnStyle: LLVM
 -- multi_known/Pipfile --
 [packages]
 requests = "*"
 -- multi_known/.arcconfig --
-{"project_id": "test"}
+{ "project_id": "test" }
 -- multi_known/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- multi_known/config.yaml --
 key: value
-
 -- schemastore_edge/src/api/json/catalog.json --
-{"schemas":[{"name":"dotA","fileMatch":[".a"],"url":"https://www.schemastore.org/dota.json"}]}
+{
+  "schemas": [
+    {
+      "name": "dotA",
+      "fileMatch": [".a"],
+      "url": "https://www.schemastore.org/dota.json"
+    }
+  ]
+}
 -- schemastore_edge/src/schemas/json/dota.json --
-{"type":"object"}
+{ "type": "object" }

@@ -30,7 +30,7 @@ stdout '✓.*good.yaml'
 ! exec cfv check --file-types=json --exclude-file-types=yaml files
 
 -- files/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- files/good.yaml --
 key: value
 -- files/good.toml --

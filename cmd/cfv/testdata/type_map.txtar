@@ -37,10 +37,10 @@ exec cfv check --type-map='**/nomatch:ini' inventory
 
 -- inventory --
 [servers]
-host=10.0.0.1
+host = 10.0.0.1
 -- configs/app --
-key=value
+key = value
 -- configs/db --
-host=localhost
+host = localhost
 -- data.json --
-{"key": "value"}
+{ "key": "value" }

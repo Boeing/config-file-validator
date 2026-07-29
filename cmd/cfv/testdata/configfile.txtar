@@ -51,47 +51,36 @@ stdout '✓'
 [type-map]
 "**/tsconfig.json" = "jsonc"
 "**/custom.cfg" = "json"
-
 -- cfv/excludedir.toml --
 exclude-dirs = ["excluded"]
 
 [type-map]
 "**/tsconfig.json" = "jsonc"
-
 -- cfv/quiet.toml --
 quiet = true
-
 -- cfv/depth.toml --
 depth = 0
 
 [type-map]
 "**/tsconfig.json" = "jsonc"
-
 -- cfv/bad_key.toml --
 unknown_key = true
-
 -- cfv/bad_type.toml --
 quiet = "yes"
-
 -- cfv/bad_syntax.toml --
 quiet = [broken
-
 -- project/tsconfig.json --
 // TypeScript config
 {
   "compilerOptions": {
     "target": "es2020",
-  }
+  },
 }
-
 -- project/good.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- project/excluded/config.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- project/sub/nested.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- project/custom.cfg --
-{"key": "value"}
+{ "key": "value" }

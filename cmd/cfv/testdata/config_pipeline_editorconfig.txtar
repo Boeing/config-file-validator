@@ -1,0 +1,42 @@
+# ============================================================
+# Config pipeline: .editorconfig → cfv check
+# Proves that .editorconfig options flow through as the base layer.
+# .editorconfig is per-file (walks up from file directory).
+# ============================================================
+
+# indent_style=tab → tab-indented JSON passes
+exec cfv check tabs/app.json
+stdout '✓'
+
+# indent_size=4 for YAML → 4-space passes
+exec cfv check indent/app.yaml
+stdout '✓'
+
+# 2-space YAML fails when editorconfig says 4
+! exec cfv check indent/wrong.yaml
+stdout '~'
+
+# --no-config disables editorconfig too → falls back to default 2-space
+exec cfv check --no-config indent/wrong.yaml
+stdout '✓'
+
+-- tabs/.editorconfig --
+root = true
+
+[*.json]
+indent_style = tab
+-- tabs/app.json --
+{
+	"key": "value"
+}
+-- indent/.editorconfig --
+root = true
+
+[*.yaml]
+indent_size = 4
+-- indent/app.yaml --
+parent:
+    child: value
+-- indent/wrong.yaml --
+parent:
+  child: value

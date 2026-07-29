@@ -5,8 +5,8 @@ stdout '✓.*root.good.json'
 ! stdout 'sub'
 
 -- good.json --
-{"key": "value"}
+{ "key": "value" }
 -- root/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- root/sub/good.yaml --
 key: value

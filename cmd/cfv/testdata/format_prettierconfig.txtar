@@ -67,7 +67,6 @@ stdout '^   "key"'
 -- cfv/indent6.toml --
 [format]
 indent = 6
-
 -- ec/.editorconfig --
 root = true
 
@@ -77,32 +76,27 @@ indent_size = 6
 {"tabWidth": 4}
 -- ec/orig.json --
 {"key":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}
-
 -- bare/.prettierrc --
 {"tabWidth": 5}
 -- bare/.prettierrc.yaml --
 tabWidth: 9
 -- bare/app.json --
 {"k":"value_that_is_definitely_long_enough_to_push_this_object_past_the_eighty_column_threshold_needed"}
-
 -- yamlcfg/.prettierrc.yaml --
 printWidth: 40
 singleQuote: true
 -- yamlcfg/app.yaml --
 key: "value"
-
 -- tomlcfg/.prettierrc.toml --
 tabWidth = 3
 -- tomlcfg/app.jsonc --
 {"key":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}
-
 -- nested/.prettierrc.json --
 {"tabWidth": 8}
 -- nested/child/.prettierrc.json --
 {"tabWidth": 2}
 -- nested/child/app.json --
 {"key":"value_that_is_long_enough_to_exceed_the_eighty_column_limit_for_formatting_purposes_here"}
-
 -- jsskip/.prettierrc.json --
 {"tabWidth": 3}
 -- jsskip/child/.prettierrc.js --

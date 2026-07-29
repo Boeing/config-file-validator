@@ -15,12 +15,10 @@ name: "config-file-validator"
 port: 8080
 debug: false
 tags: ["go", "validation"]
-
 -- bad.cue --
 name: "unterminated
 port: {
   missing close
-
 -- pkg.cue --
 package myapp
 

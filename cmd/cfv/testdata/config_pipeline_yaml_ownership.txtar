@@ -1,0 +1,40 @@
+# ============================================================
+# Config pipeline: YAML ownership (.yamlfmt wins over .prettierrc)
+# Proves that when .yamlfmt exists, prettier is NOT consulted for YAML.
+# JSON still uses .prettierrc.
+# ============================================================
+
+# .yamlfmt indent:4 → YAML at 4-space passes
+exec cfv check app.yaml
+stdout '✓'
+
+# .prettierrc singleQuote:true does NOT affect YAML (yamlfmt owns it)
+# Double-quoted YAML passes because yamlfmt has no singleQuote option
+exec cfv check quoted.yaml
+stdout '✓'
+
+# JSON still uses .prettierrc tabWidth:4
+exec cfv check app.json
+stdout '✓'
+
+# 2-space YAML fails (yamlfmt says 4)
+! exec cfv check wrong.yaml
+stdout '~'
+
+-- .yamlfmt --
+formatter:
+  indent: 4
+-- .prettierrc.json --
+{ "tabWidth": 4, "singleQuote": true }
+-- app.yaml --
+parent:
+    child: value
+-- quoted.yaml --
+key: "value"
+-- app.json --
+{
+    "key": "value"
+}
+-- wrong.yaml --
+parent:
+  child: value

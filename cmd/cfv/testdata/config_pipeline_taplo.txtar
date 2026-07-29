@@ -1,0 +1,41 @@
+# ============================================================
+# Config pipeline: taplo.toml → cfv check
+# Proves that taplo.toml [formatting] options flow through to TOML format checking.
+# taplo.toml is resolved from CWD (not per-file), so tests use a single config.
+# ============================================================
+
+# indent_string = "    " (4 spaces) → 4-space indent passes
+exec cfv check app.toml
+stdout '✓'
+
+# reorder_keys = true → sorted keys pass
+exec cfv check sorted.toml
+stdout '✓'
+
+# reorder_keys = true → unsorted keys fail
+! exec cfv check unsorted.toml
+stdout '~'
+
+# array_trailing_comma = false → no trailing comma passes
+exec cfv check nocomma.toml
+stdout '✓'
+
+-- taplo.toml --
+[formatting]
+indent_string = "    "
+reorder_keys = true
+array_trailing_comma = false
+-- app.toml --
+[section]
+    key = "value"
+-- sorted.toml --
+[section]
+    alpha = 1
+    beta = 2
+-- unsorted.toml --
+[section]
+    beta = 2
+    alpha = 1
+-- nocomma.toml --
+[section]
+    arr = ["a", "b"]

@@ -16,6 +16,6 @@ exec cfv check --globbing 'files/*.nomatch'
 ! exec cfv check --globbing --file-types=json 'files/*.json'
 
 -- files/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- files/good.yaml --
 key: value

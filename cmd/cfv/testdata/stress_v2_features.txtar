@@ -323,7 +323,6 @@ stdout '✓.*root.json'
 {"type":"object","properties":{"host":{"type":"string"},"port":{"type":"integer"}},"additionalProperties":false}
 -- schemas/tsconfig.schema.json --
 {"type":"object","properties":{"compilerOptions":{"type":"object"}},"additionalProperties":false}
-
 -- valid_schema.json --
 {"$schema":"schemas/simple.schema.json","host":"db","port":5432}
 -- invalid_schema.json --
@@ -333,75 +332,66 @@ stdout '✓.*root.json'
 host: db
 port: 5432
 -- valid_schema.jsonc --
-{"$schema":"schemas/simple.schema.json","host":"db","port":5432}
+{ "$schema": "schemas/simple.schema.json", "host": "db", "port": 5432 }
 -- plain.json --
-{"key": "value"}
+{ "key": "value" }
 -- bad.json --
 {"bad": }
-
 -- jsonc/valid_with_schema.jsonc --
-{"$schema":"../schemas/simple.schema.json","host":"db","port":5432}
+{ "$schema": "../schemas/simple.schema.json", "host": "db", "port": 5432 }
 -- jsonc/invalid_with_schema.jsonc --
 {"$schema":"../schemas/simple.schema.json","host":"db","port":"bad"}
 -- jsonc/tsconfig.json --
 // TypeScript config
-{"compilerOptions": {"strict": true}}
+{ "compilerOptions": { "strict": true } }
 -- jsonc/bad_tsconfig.json --
 // Bad tsconfig
 {"compilerOptions": "not_an_object"}
 -- jsonc/plain.jsonc --
 // no schema
-{"key": "value"}
-
+{ "key": "value" }
 -- mixed_errors/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- mixed_errors/bad_syntax.json --
 {"bad": }
 -- mixed_errors/invalid_schema.json --
 {"$schema":"../schemas/simple.schema.json","host":"db","port":"bad"}
-
 -- schemastore_project/package.json --
-{"name": "test", "version": "1.0.0"}
+{ "name": "test", "version": "1.0.0" }
 -- schemastore_project/vendor/dep.json --
-{"dep": true}
-
+{ "dep": true }
 -- schema_project/config.json --
-{"host": "db", "port": 5432}
+{ "host": "db", "port": 5432 }
 -- schema_project/bad_config.json --
 {"host": "db", "port": "bad"}
 -- schema_project/plain.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- combined_project/inventory --
 [servers]
-host=10.0.0.1
+host = 10.0.0.1
 -- combined_project/config.json --
-{"host": "db", "port": 5432}
-
+{ "host": "db", "port": 5432 }
 -- csv_project/data.csv --
 a;b;c
 1;2;3
 -- csv_project/.gitconfig --
 [user]
-name=test
-
+name = test
 -- glob_project/.babelrc --
-{"presets": ["env"]}
+{ "presets": ["env"] }
 -- glob_project/.gitconfig --
 [user]
-name=test
+name = test
 -- glob_project/package.json --
-{"name": "test", "version": "1.0.0"}
-
+{ "name": "test", "version": "1.0.0" }
 -- dup/dup.json --
-{"key": "one", "key": "two"}
+{ "key": "one", "key": "two" }
 -- dup/good.json --
-{"key": "one", "other": "two"}
+{ "key": "one", "other": "two" }
 -- dup/.gitconfig --
 [user]
-name=alice
-name=bob
-
+name = alice
+name = bob
 -- sarif/good.sarif --
 {
   "version": "2.1.0",
@@ -414,15 +404,16 @@ name=bob
   "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
   "runs": [{"tool": {"driver": {"name": "test"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
 }
-
 -- xml/good_dtd.xml --
-<?xml version="1.0"?>
-<!DOCTYPE note [
+<?xml version="1.0"?><!DOCTYPE note [
   <!ELEMENT note (to,body)>
   <!ELEMENT to (#PCDATA)>
   <!ELEMENT body (#PCDATA)>
 ]>
-<note><to>User</to><body>Hello</body></note>
+<note>
+  <to>User</to>
+  <body>Hello</body>
+</note>
 -- xml/bad_dtd.xml --
 <?xml version="1.0"?>
 <!DOCTYPE note [
@@ -450,7 +441,6 @@ name=bob
     </xs:complexType>
   </xs:element>
 </xs:schema>
-
 -- hcl/main.tf --
 variable "region" {
   default = "us-east-1"
@@ -460,20 +450,17 @@ region = "us-west-2"
 -- hcl/bad.tf --
 variable "region" {
   default = "us-east-1"
-
 -- family_project/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- family_project/tsconfig.json --
 // ts config
-{"compilerOptions": {}}
+{ "compilerOptions": {} }
 -- family_project/config.yaml --
 key: value
-
 -- depth_project/root.json --
-{"key": "value"}
+{ "key": "value" }
 -- depth_project/nested/deep.json --
-{"key": "value"}
-
+{ "key": "value" }
 -- cfv/schemastore.toml --
 schemastore = true
 schemastore-path = "schemastore"
@@ -505,7 +492,6 @@ forbid-duplicate-keys = true
 forbid-duplicate-keys = true
 -- cfv/exclude_json.toml --
 exclude-file-types = ["json"]
-
 -- schemastore/src/api/json/catalog.json --
 {
   "schemas": [
@@ -522,6 +508,16 @@ exclude-file-types = ["json"]
   ]
 }
 -- schemastore/src/schemas/json/package.json --
-{"type":"object","properties":{"name":{"type":"string"},"version":{"type":"string"}}}
+{
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" }
+  }
+}
 -- schemastore/src/schemas/json/tsconfig.json --
-{"type":"object","properties":{"compilerOptions":{"type":"object"}},"additionalProperties":false}
+{
+  "type": "object",
+  "properties": { "compilerOptions": { "type": "object" } },
+  "additionalProperties": false
+}

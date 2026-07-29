@@ -1,0 +1,33 @@
+# ============================================================
+# Config pipeline: Tier 1 (.cfv.toml suppresses external configs)
+# Proves that when .cfv.toml exists, .prettierrc is NOT read.
+# ============================================================
+
+# .cfv.toml [format] indent=2 → 2-space passes
+# .prettierrc says tabWidth:8 but should be IGNORED (Tier 1)
+exec cfv check --config=.cfv.toml app.json
+stdout '✓'
+
+# .cfv.toml per-format override: [format.yaml] indent=4
+exec cfv check --config=.cfv.toml app.yaml
+stdout '✓'
+
+# Without --config, .cfv.toml is discovered from CWD and still works
+exec cfv check app.json
+stdout '✓'
+
+-- .cfv.toml --
+[format]
+indent = 2
+
+[format.yaml]
+indent = 4
+-- .prettierrc.json --
+{ "tabWidth": 8 }
+-- app.json --
+{
+  "key": "value"
+}
+-- app.yaml --
+parent:
+    child: value

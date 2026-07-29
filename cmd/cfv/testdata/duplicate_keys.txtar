@@ -39,24 +39,19 @@ forbid-duplicate-keys = true
 
 [validators.ini]
 forbid-duplicate-keys = true
-
 -- dup.json --
-{"host": "localhost", "port": 8080, "host": "production"}
-
+{ "host": "localhost", "port": 8080, "host": "production" }
 -- good.json --
-{"host": "localhost", "port": 8080}
-
+{ "host": "localhost", "port": 8080 }
 -- dup.yaml --
 host: localhost
 port: 8080
 host: production
-
 -- dup.ini --
 [server]
-host=localhost
-host=production
-
+host = localhost
+host = production
 -- good.ini --
 [server]
-host=localhost
-port=8080
+host = localhost
+port = 8080

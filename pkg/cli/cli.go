@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v3/pkg/finder"
 	"github.com/Boeing/config-file-validator/v3/pkg/fixer"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
 	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
 	"github.com/Boeing/config-file-validator/v3/pkg/tools"
@@ -40,6 +42,10 @@ type CLI struct {
 	// When true, Format prints diffs to stdout instead of the normal report.
 	// Mutually exclusive with fix.
 	diff bool
+	// formatOptsFunc resolves format options per file during check.
+	// When non-nil, Run() checks formatting after syntax+schema validation.
+	// When nil, format checking is skipped (backward compatibility).
+	formatOptsFunc FormatOptionsFunc
 }
 
 // Option configures a CLI instance.
@@ -116,6 +122,17 @@ func WithDiff(diff bool) Option {
 	}
 }
 
+// WithFormatOptions enables format checking in the check pipeline.
+// When set, Run() checks formatting after syntax+schema validation passes.
+// Files that are valid but not canonically formatted are reported as
+// StatusUnformatted. When --fix is also enabled, the formatted output is
+// written back to disk.
+func WithFormatOptions(f FormatOptionsFunc) Option {
+	return func(c *CLI) {
+		c.formatOptsFunc = f
+	}
+}
+
 func Init(opts ...Option) *CLI {
 	c := &CLI{
 		finder:    finder.FileSystemFinderInit(),
@@ -170,7 +187,15 @@ func (c *CLI) Run() (int, error) {
 			}
 		}
 
-		if report.HasErrors() {
+		// Format checking: only on files that pass all validation (syntax + schema).
+		// If a file has errors, the user should fix those first — format issues
+		// are secondary noise. With --fix, the fixer may resolve errors AND then
+		// formatting is checked on the fixed content.
+		if !report.HasErrors() && c.formatOptsFunc != nil && f.FileType.Formatter != nil {
+			report = c.checkFormatting(report, content, f.FileType, f.Path)
+		}
+
+		if report.HasErrors() || report.Status == reporter.StatusUnformatted {
 			c.errorFound = true
 		}
 		reports = append(reports, report)
@@ -522,4 +547,65 @@ func (c *CLI) resolveSchemaBytes(v validator.Validator, filePath string) []byte 
 	// For now, only support explicitly mapped schemas.
 
 	return nil
+}
+
+// checkFormatting checks whether content is canonically formatted and updates
+// the report accordingly. If --fix is enabled and the file is unformatted,
+// the formatted output is written to disk.
+//
+// When the fixer has already written a new version of the file, content will
+// be stale — we re-read from disk in that case (detected by fix notes on the report).
+func (c *CLI) checkFormatting(report reporter.Report, content []byte, ft filetype.FileType, path string) reporter.Report {
+	// If the fixer applied changes and wrote a new file, re-read for formatting.
+	if len(report.Notes) > 0 {
+		updated, err := os.ReadFile(path)
+		if err == nil {
+			content = updated
+		}
+	}
+
+	opts := c.formatOptsFunc(ft.Name, path)
+	formatted, err := formatContent(ft.Formatter, content, opts)
+	if err != nil {
+		// Formatter can't parse the file — shouldn't happen since syntax
+		// validation passed, but skip format checking gracefully.
+		return report
+	}
+
+	if bytes.Equal(content, formatted) {
+		// File is already formatted — no change to report.
+		return report
+	}
+
+	// File is valid but not formatted.
+	if c.fix {
+		if err := writeFileAtomic(path, formatted); err == nil {
+			// Successfully formatted — keep report as pass, add a note.
+			report.Notes = append(report.Notes, "fixed: formatting")
+			return report
+		}
+		// Write failed — fall through to report as unformatted.
+	}
+
+	report.Status = reporter.StatusUnformatted
+	report.Issues = append(report.Issues, reporter.Issue{
+		Type:    reporter.IssueTypeFormat,
+		Message: "file is not formatted",
+	})
+	return report
+}
+
+// formatContent invokes the formatter, handling ErrSkipped gracefully.
+func formatContent(fmter formatter.Formatter, content []byte, opts formatter.Options) ([]byte, error) {
+	formatted, err := fmter.Format(content, opts)
+	if err != nil {
+		var skipped *formatter.ErrSkipped
+		if errors.As(err, &skipped) {
+			// Formatter explicitly skipped this file — treat as already
+			// formatted (no issue to report).
+			return content, nil
+		}
+		return nil, err
+	}
+	return formatted, nil
 }

@@ -4,4 +4,4 @@ exec cfv check good.json
 ! stdout .
 
 -- good.json --
-{"key": "value"}
+{ "key": "value" }

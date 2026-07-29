@@ -28,6 +28,6 @@ exec cfv check
 cd ..
 
 -- good.json --
-{"key": "value"}
+{ "key": "value" }
 -- bad.json --
 {"bad":}

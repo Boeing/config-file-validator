@@ -9,4 +9,4 @@ cmp bad.json expected.json
 -- bad.json --
 {"key": "value", "port": 8080,}
 -- expected.json --
-{"key": "value", "port": 8080}
+{ "key": "value", "port": 8080 }

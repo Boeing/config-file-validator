@@ -46,33 +46,26 @@ stdout '✓'
 
 -- valid.jsonc --
 // comment
-{"key": "value"}
-
+{ "key": "value" }
 -- line_comments.jsonc --
 {
-  "host": "localhost", // server
-  "port": 8080
+  "host": "localhost",
+  // server
+  "port": 8080,
 }
-
 -- block_comments.jsonc --
 /* config */
-{"key": "value"}
-
+{ "key": "value" }
 -- trailing.jsonc --
-{"a": 1, "b": 2,}
-
+{ "a": 1, "b": 2 }
 -- bad.jsonc --
 {"key": ,}
-
 -- json_with_comments.json --
 // this is JSONC
-{"key": "value"}
-
+{ "key": "value" }
 -- bad.json --
 {"key": }
-
 -- main.tf --
 resource "null_resource" "test" {}
-
 -- vars.tfvars --
 region = "us-east-1"

@@ -71,7 +71,7 @@ port = "not_a_number"
 -- bad_syntax.json --
 {"bad": }
 -- good.json --
-{"key": "value"}
+{ "key": "value" }
 -- bad_with_xsd.xml --
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

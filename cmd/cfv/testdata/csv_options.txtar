@@ -30,39 +30,31 @@ stderr 'schema validation failed'
 -- cfv/semicolon.toml --
 [validators.csv]
 delimiter = ";"
-
 -- cfv/comment.toml --
 [validators.csv]
 comment = "#"
-
 -- cfv/tab.toml --
 [validators.csv]
 delimiter = "\t"
-
 -- cfv/bad_option.toml --
 [validators.csv]
 unknown_option = true
-
 -- good_semicolon.csv --
 name;age;city
 Alice;30;NYC
 Bob;25;LA
-
 -- bad_semicolon.csv --
 name;age;city
 Alice;30;NYC
 Bob;25
-
 -- commented.csv --
 # this is a comment
 name,age
 Alice,30
-
 -- tab.csv --
 name	age	city
 Alice	30	NYC
 Bob	25	LA
-
 -- comma.csv --
 name,age,city
 Alice,30,NYC

@@ -54,10 +54,10 @@ stdout '"Passed"'
 ! exec cfv check -groupby=filetype --reporter=sarif files
 
 -- files/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- files/good.yaml --
 key: value
 -- mixed/good.json --
-{"key": "value"}
+{ "key": "value" }
 -- mixed/bad.json --
 {"key": value}

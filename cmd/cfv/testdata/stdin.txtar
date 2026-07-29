@@ -43,7 +43,7 @@ stdin valid.json
 stderr 'exactly one file type'
 
 -- valid.json --
-{"key": "value"}
+{ "key": "value" }
 -- invalid.json --
 {"key": }
 -- valid.yaml --
@@ -52,4 +52,4 @@ key: value
 key = "value"
 -- valid.jsonc --
 // comment
-{"key": "value"}
+{ "key": "value" }
