@@ -46,6 +46,9 @@ type CLI struct {
 	// When non-nil, Run() checks formatting after syntax+schema validation.
 	// When nil, format checking is skipped (backward compatibility).
 	formatOptsFunc FormatOptionsFunc
+	// formatIgnores holds per-format ignore patterns from external tool configs.
+	// When non-nil, files matching ignore patterns are skipped from format checking.
+	formatIgnores *formatter.FormatIgnores
 }
 
 // Option configures a CLI instance.
@@ -130,6 +133,14 @@ func WithDiff(diff bool) Option {
 func WithFormatOptions(f FormatOptionsFunc) Option {
 	return func(c *CLI) {
 		c.formatOptsFunc = f
+	}
+}
+
+// WithFormatIgnores sets the format-ignore matcher for the CLI.
+// Files matching ignore patterns are skipped from format checking and formatting.
+func WithFormatIgnores(fi *formatter.FormatIgnores) Option {
+	return func(c *CLI) {
+		c.formatIgnores = fi
 	}
 }
 
@@ -556,6 +567,14 @@ func (c *CLI) resolveSchemaBytes(v validator.Validator, filePath string) []byte 
 // When the fixer has already written a new version of the file, content will
 // be stale — we re-read from disk in that case (detected by fix notes on the report).
 func (c *CLI) checkFormatting(report reporter.Report, content []byte, ft filetype.FileType, path string) reporter.Report {
+	// Skip if file is format-ignored by external tool config.
+	if c.formatIgnores != nil {
+		absPath, err := filepath.Abs(path)
+		if err == nil && c.formatIgnores.ShouldSkipFormat(absPath, ft.Name) {
+			return report
+		}
+	}
+
 	// If the fixer applied changes and wrote a new file, re-read for formatting.
 	if len(report.Notes) > 0 {
 		updated, err := os.ReadFile(path)

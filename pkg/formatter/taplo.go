@@ -29,7 +29,9 @@ type TaploFormatting struct {
 
 // Taplo is a parsed taplo.toml. It only applies to TOML files.
 type Taplo struct {
+	Exclude    []string        `toml:"exclude"`
 	Formatting TaploFormatting `toml:"formatting"`
+	ConfigDir  string          `toml:"-"` // directory containing the config file (not serialized)
 }
 
 // LoadTaplo returns the taplo configuration found by walking up from startDir,
@@ -53,6 +55,7 @@ func LoadTaplo(startDir string) *Taplo {
 			if err := toml.Unmarshal(data, &t); err != nil {
 				return nil
 			}
+			t.ConfigDir = dir
 			return &t
 		}
 		parent := filepath.Dir(dir)

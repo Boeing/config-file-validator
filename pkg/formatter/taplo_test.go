@@ -129,3 +129,37 @@ func TestTaploApply_NilIsNoOp(t *testing.T) {
 
 	require.Equal(t, want, got)
 }
+
+func TestTaploExcludeFieldParsed(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaplo(t, dir, "taplo.toml", `exclude = ["tests/**", "**/fixtures/**"]
+
+[formatting]
+column_width = 80
+`)
+
+	taplo := formatter.LoadTaplo(dir)
+	require.NotNil(t, taplo)
+	require.Equal(t, []string{"tests/**", "**/fixtures/**"}, taplo.Exclude)
+}
+
+func TestTaploConfigDirSet(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaplo(t, dir, "taplo.toml", "[formatting]\n")
+
+	taplo := formatter.LoadTaplo(dir)
+	require.NotNil(t, taplo)
+	require.Equal(t, dir, taplo.ConfigDir)
+}
+
+func TestTaploExcludeEmpty(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTaplo(t, dir, "taplo.toml", "[formatting]\ncolumn_width = 80\n")
+
+	taplo := formatter.LoadTaplo(dir)
+	require.NotNil(t, taplo)
+	require.Empty(t, taplo.Exclude)
+}

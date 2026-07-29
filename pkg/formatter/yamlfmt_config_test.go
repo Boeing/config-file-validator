@@ -127,3 +127,38 @@ func TestYamlfmtApply_IgnoresNonPositiveIndent(t *testing.T) {
 
 	require.Equal(t, 2, opts.IndentWidth)
 }
+
+func TestYamlfmtExcludeFieldParsed(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeYamlfmt(t, dir, ".yamlfmt", `exclude:
+  - "vendor/**"
+  - "**/testdata/**"
+formatter:
+  indent: 2
+`)
+
+	y := formatter.LoadYamlfmt(dir)
+	require.NotNil(t, y)
+	require.Equal(t, []string{"vendor/**", "**/testdata/**"}, y.Exclude)
+}
+
+func TestYamlfmtConfigDirSet(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeYamlfmt(t, dir, ".yamlfmt", "formatter:\n  indent: 2\n")
+
+	y := formatter.LoadYamlfmt(dir)
+	require.NotNil(t, y)
+	require.Equal(t, dir, y.ConfigDir)
+}
+
+func TestYamlfmtExcludeEmpty(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeYamlfmt(t, dir, ".yamlfmt", "formatter:\n  indent: 2\n")
+
+	y := formatter.LoadYamlfmt(dir)
+	require.NotNil(t, y)
+	require.Empty(t, y.Exclude)
+}

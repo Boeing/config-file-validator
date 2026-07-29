@@ -53,6 +53,13 @@ func (c *CLI) Format(optsFunc FormatOptionsFunc) (int, error) {
 		if f.FileType.Formatter == nil {
 			continue
 		}
+		// Skip files that are format-ignored by external tool config.
+		if c.formatIgnores != nil {
+			absPath, err := filepath.Abs(f.Path)
+			if err == nil && c.formatIgnores.ShouldSkipFormat(absPath, f.FileType.Name) {
+				continue
+			}
+		}
 		jobs = append(jobs, job{
 			path:       f.Path,
 			name:       f.Name,

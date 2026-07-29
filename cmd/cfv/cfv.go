@@ -350,7 +350,10 @@ func runCheck(args []string) int {
 		return exitStatus
 	}
 
-	c := buildCLI(resolved, cli.WithFormatOptions(buildFormatOptionsResolver(&cfg, resolved)))
+	c := buildCLI(resolved,
+		cli.WithFormatOptions(buildFormatOptionsResolver(&cfg, resolved)),
+		cli.WithFormatIgnores(buildFormatIgnores(&cfg, resolved)),
+	)
 	exitStatus, err := c.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
@@ -500,7 +503,7 @@ func runFormat(args []string) int {
 		return 2
 	}
 
-	c := buildCLI(resolved)
+	c := buildCLI(resolved, cli.WithFormatIgnores(buildFormatIgnores(&cfg, resolved)))
 
 	// Build the per-format options resolver. This implements the cascade:
 	// CLI flags > [format.<type>] > [format] > format-specific defaults.
@@ -748,6 +751,27 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 		applyCLIFormatFlags(&opts, cfg)
 		return opts
 	}
+}
+
+// buildFormatIgnores constructs the format-ignore matcher from external tool configs.
+// Returns nil in Tier 1 (.cfv.toml exists) or when --no-config is set.
+// In Tier 2, loads .prettierignore, taplo exclude, and yamlfmt exclude/.yamlfmtignore.
+func buildFormatIgnores(cfg *cfvConfig, rc *resolvedConfig) *formatter.FormatIgnores {
+	// --no-config: no config discovery at all.
+	if cfg.noConfig != nil && *cfg.noConfig {
+		return nil
+	}
+
+	// Tier 1: .cfv.toml exists — external ignores not read.
+	if rc.formatCfg != nil {
+		return nil
+	}
+
+	// Tier 2: load ignores from the same tool configs used for formatting.
+	taploCfg := formatter.LoadTaplo(".")
+	yamlfmtCfg := formatter.LoadYamlfmt(".")
+
+	return formatter.BuildFormatIgnores(".", taploCfg, yamlfmtCfg)
 }
 
 // formatDefaults returns the hardcoded default options for a specific format.

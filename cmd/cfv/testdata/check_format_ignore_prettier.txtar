@@ -1,0 +1,41 @@
+# ============================================================
+# cfv check format-ignore: .prettierignore support
+# Verifies that files matching .prettierignore patterns are
+# skipped from format checking but still syntax-validated.
+# ============================================================
+
+# Unformatted file in ignored path → ✓ (format not checked)
+# Overall exit is 1 because broken.json has syntax error and src/unformatted.json is unformatted.
+! exec cfv check .
+stdout '✓.*fixtures/generated.json'
+! stdout '~.*fixtures/generated.json'
+
+# Unformatted file NOT in ignored path → ~ (format checked)
+! exec cfv check src/unformatted.json
+stdout '~.*src/unformatted.json'
+
+# Syntax error in ignored file → × (still syntax-validated)
+! exec cfv check fixtures/broken.json
+stdout '×.*fixtures/broken.json'
+
+# cfv format also respects .prettierignore — ignored file not modified
+cp fixtures/generated.json fixtures/generated_backup.json
+exec cfv format --fix .
+cmp fixtures/generated.json fixtures/generated_backup.json
+
+-- .prettierrc --
+{}
+-- .prettierignore --
+fixtures/**
+-- src/app.json --
+{
+  "key": "value"
+}
+-- src/unformatted.json --
+{"key":"value","other":"thing"}
+-- fixtures/generated.json --
+{"ugly":    "but valid",   "not":"formatted"}
+-- fixtures/generated_backup.json --
+{"ugly":    "but valid",   "not":"formatted"}
+-- fixtures/broken.json --
+{invalid json

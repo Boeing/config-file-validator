@@ -24,7 +24,9 @@ type YamlfmtFormatter struct {
 
 // Yamlfmt is a parsed .yamlfmt config. It only applies to YAML files.
 type Yamlfmt struct {
+	Exclude   []string         `yaml:"exclude"`
 	Formatter YamlfmtFormatter `yaml:"formatter"`
+	ConfigDir string           `yaml:"-"` // directory containing the config file (not serialized)
 }
 
 // LoadYamlfmt returns the yamlfmt configuration found by walking up from
@@ -48,6 +50,7 @@ func LoadYamlfmt(startDir string) *Yamlfmt {
 			if err := yaml.Unmarshal(data, &y); err != nil {
 				return nil
 			}
+			y.ConfigDir = dir
 			return &y
 		}
 		parent := filepath.Dir(dir)
