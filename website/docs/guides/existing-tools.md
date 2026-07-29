@@ -76,6 +76,24 @@ Applies to all formats as a baseline. Format-specific tool configs take preceden
 | `end_of_line`          | Line ending      |
 | `insert_final_newline` | Trailing newline |
 
+## Ignore files
+
+cfv also reads each tool's ignore/exclude mechanism. Files that match are skipped from format checking but still syntax-validated.
+
+| Tool | Mechanism | Applies to |
+|------|-----------|-----------|
+| prettier | `.prettierignore` (gitignore syntax) | JSON, JSONC, YAML |
+| taplo | `exclude` array in `taplo.toml` | TOML |
+| yamlfmt | `exclude` list in `.yamlfmt` + `.yamlfmtignore` file | YAML |
+
+`.prettierignore` is found by walking up from the search directory (same as prettier's own behavior). Patterns are relative to the directory containing the file.
+
+taplo's `exclude` uses glob patterns relative to `taplo.toml`'s location.
+
+yamlfmt's `exclude` and `.yamlfmtignore` are both relative to `.yamlfmt`'s location. If both specify patterns, they're combined (union).
+
+Ignore files are NOT read when `.cfv.toml` exists or when `--no-config` is set. In those cases, use cfv's own mechanisms (`--exclude-dirs`, `--ignore-file`, `--gitignore`) to skip files.
+
 ## When to add `.cfv.toml`
 
 You don't need `.cfv.toml` if your existing tool configs already describe the formatting you want. cfv reads them and does the right thing.
@@ -86,7 +104,7 @@ Add `.cfv.toml` when you want:
 - **cfv-specific options.** Some settings (like `indent-sequences` for YAML or per-format sort-keys) exist only in `.cfv.toml`.
 - **Validation options.** Schema maps, exclude directories, and reporter settings go in `.cfv.toml`.
 
-Once `.cfv.toml` exists, cfv stops reading `.prettierrc`, `taplo.toml`, and `.yamlfmt`. It becomes the sole formatting authority. `.editorconfig` support under `.cfv.toml` is planned for v3.1.
+Once `.cfv.toml` exists, cfv stops reading `.prettierrc`, `taplo.toml`, `.yamlfmt`, AND their ignore files. It becomes the sole formatting authority. `.editorconfig` support under `.cfv.toml` is planned for v3.1.
 
 ## Handling conflicts
 

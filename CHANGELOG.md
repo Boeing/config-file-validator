@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cfv check` now detects formatting issues alongside syntax and schema errors in a single pass. Files that are valid but not canonically formatted are reported as unformatted (`~`) and cause exit code 1.
 - `cfv check --fix` now fixes formatting in addition to trailing commas and schema coercion — one command to fix everything.
 - Two-tier config resolution for `cfv check` format checking: `.cfv.toml` (Tier 1, sole authority) or per-format tool config auto-detection (Tier 2: `.prettierrc` for JSON/JSONC, `.yamlfmt` for YAML, `taplo.toml` for TOML, `.editorconfig` as base layer).
+- Format-ignore file support in Tier 2: cfv reads `.prettierignore` (JSON/JSONC/YAML), taplo `exclude` array (TOML), and `.yamlfmtignore` + yamlfmt `exclude` (YAML). Matched files are skipped from format checking but still syntax-validated.
 - `cfv format` subcommand with `--fix` (rewrite in place) and `--diff` (print unified diff) modes
 - `--watch` flag for `cfv check`: watches search paths for file changes and re-runs validation on each changed file (closes #510).
 - Formatting support for 9 formats: JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV
@@ -54,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- XML formatter no longer collapses multi-line text content into a single line. Elements containing text (like `<description>` with paragraphs) now preserve newlines and get correctly reindented. Previously, `removeInsignificantWhitespace` stripped all newlines unconditionally, causing sentences to concatenate without separators — data corruption.
+- XML formatter preserve mode (`xml-whitespace-sensitivity = "preserve"`) now indents close tags at the correct depth (matching the open tag) instead of one level too deep.
 - JSONC validator no longer mutates the input byte slice during schema validation. `ValidateSchema` and `MarshalToJSON` now clone the input before calling `hujson.Standardize`, which modifies data in-place.
 - JSONC `trailing-commas = "none"` formatting now removes trailing commas next to final-value comments while preserving the comments.
 - JSON and JSONC formatting removes blank lines before closing braces and brackets while preserving blank lines between members (closes #581).
