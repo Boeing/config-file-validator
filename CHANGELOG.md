@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- YAML formatting now normalizes extra spaces after sequence indicators so mapping keys remain aligned with their siblings (closes #622).
 - YAML formatter no longer produces unparseable output when a long flow collection is expanded inside a block sequence item. The sequence indicator was not counted towards the key's column, so `- key: [...]` put the bracket at the key's own column, where it is no longer that key's value — `cfv format --fix` rewrote valid documents into invalid ones while reporting success. Affects both `[` and `{`; the corrected layout matches Prettier byte for byte.
 - XML formatter no longer collapses multi-line text content into a single line. Elements containing text (like `<description>` with paragraphs) now preserve newlines and get correctly reindented. Previously, `removeInsignificantWhitespace` stripped all newlines unconditionally, causing sentences to concatenate without separators — data corruption.
 - XML formatter preserve mode (`xml-whitespace-sensitivity = "preserve"`) now indents close tags at the correct depth (matching the open tag) instead of one level too deep.

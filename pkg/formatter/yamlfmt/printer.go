@@ -73,6 +73,8 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 		}
 	}
 
+	normalizeSequenceSpacing(tokens)
+
 	// Expand flow sequences that exceed print width.
 	// Per prettier: flow sequences that exceed printWidth get expanded to
 	// multi-line flow format with each element on its own line.
@@ -1371,6 +1373,14 @@ func normalizeValueSpacing(tokens []Token) {
 			if len(colon) == 0 || colon[len(colon)-1] != ' ' {
 				tokens[i-1].Raw = append(colon, ' ')
 			}
+		}
+	}
+}
+
+func normalizeSequenceSpacing(tokens []Token) {
+	for i := 1; i < len(tokens); i++ {
+		if tokens[i].Kind == TokSpace && tokens[i-1].Kind == TokDash {
+			tokens[i].Raw = nil
 		}
 	}
 }
