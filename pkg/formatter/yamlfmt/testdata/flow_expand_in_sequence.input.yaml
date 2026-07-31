@@ -1,0 +1,7 @@
+relabel_configs:
+  - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label: service
+  - values: ["first_long_element_value_aaaaaaaaaaaaaaaa", "second_long_element_value_bbbbbbbbbbbb", "third_long_element_cccccc"]
+    action: keep
+  - options: {region: "us-east-1", bucket: "a-fairly-long-bucket-name-for-tests", prefix: "another-long-value-here"}
+    action: replace
