@@ -1,11 +1,9 @@
-# TOON $schema is inert data — schema resolution requires --schema-map
-
-# TOON with schema-map passes
-exec cfv check --schema-map=valid.toon:schema.json valid.toon
+# TOON with "$schema" validates against local schema
+exec cfv check valid.toon
 stdout '✓'
 
-# TOON with invalid data fails schema validation via schema-map
-! exec cfv check --schema-map=invalid.toon:schema.json invalid.toon
+# TOON with invalid data fails schema validation
+! exec cfv check invalid.toon
 stdout '×'
 stdout 'error:'
 
@@ -18,13 +16,8 @@ stdout '✓'
 stdout '×'
 stdout 'no schema declared'
 
-# TOON with $schema + --require-schema FAILS without schema-map (inert)
-! exec cfv check --require-schema valid.toon
-stdout '×'
-stdout 'no schema declared'
-
-# TOON with $schema + --require-schema + --schema-map passes
-exec cfv check --require-schema --schema-map=valid.toon:schema.json valid.toon
+# TOON with $schema + --require-schema passes
+exec cfv check --require-schema valid.toon
 stdout '✓'
 
 -- schema.json --
@@ -32,7 +25,6 @@ stdout '✓'
   "type": "object",
   "required": ["host", "port"],
   "properties": {
-    "$schema": { "type": "string" },
     "host": { "type": "string" },
     "port": { "type": "integer" },
     "debug": { "type": "boolean" }

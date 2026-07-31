@@ -1,11 +1,9 @@
-# TOML $schema is inert data — schema resolution requires --schema-map
-
-# TOML with schema-map passes
-exec cfv check --schema-map=valid.toml:schema.json valid.toml
+# TOML with $schema validates against local schema
+exec cfv check valid.toml
 stdout '✓'
 
-# TOML with invalid data fails schema validation via schema-map
-! exec cfv check --schema-map=invalid.toml:schema.json invalid.toml
+# TOML with invalid data fails schema validation
+! exec cfv check invalid.toml
 stdout '×'
 stdout 'error:'
 
@@ -18,13 +16,8 @@ stdout '✓'
 stdout '×'
 stdout 'no schema declared'
 
-# TOML with $schema + --require-schema FAILS without schema-map (inert)
-! exec cfv check --require-schema valid.toml
-stdout '×'
-stdout 'no schema declared'
-
-# TOML with $schema + --require-schema + --schema-map passes
-exec cfv check --require-schema --schema-map=valid.toml:schema.json valid.toml
+# TOML with $schema + --require-schema passes
+exec cfv check --require-schema valid.toml
 stdout '✓'
 
 -- schema.json --
@@ -32,7 +25,6 @@ stdout '✓'
   "type": "object",
   "required": ["host", "port"],
   "properties": {
-    "$schema": { "type": "string" },
     "host": { "type": "string" },
     "port": { "type": "integer" },
     "debug": { "type": "boolean" }
