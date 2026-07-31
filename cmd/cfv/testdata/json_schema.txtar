@@ -1,90 +1,92 @@
 # ============================================================
 # JSON $schema validation tests (all local, no network)
+# $schema in documents is inert data — schema resolution
+# requires --schema-map or --schemastore.
 # ============================================================
 
 # --- package.json schema ---
 
-# Valid package.json
-exec cfv check valid_package.json
+# Valid package.json via schema-map
+exec cfv check --schema-map=valid_package.json:package_schema.json valid_package.json
 stdout '✓'
 
 # Invalid package.json (version must be string)
-! exec cfv check invalid_package.json
+! exec cfv check --schema-map=invalid_package.json:package_schema.json invalid_package.json
 stdout '×'
 stdout 'error:'
 
 # --- tsconfig.json schema ---
 
-# Valid tsconfig.json
-exec cfv check valid_tsconfig.json
+# Valid tsconfig.json via schema-map
+exec cfv check --schema-map=valid_tsconfig.json:tsconfig_schema.json valid_tsconfig.json
 stdout '✓'
 
 # Invalid tsconfig.json (target must be string)
-! exec cfv check invalid_tsconfig.json
+! exec cfv check --schema-map=invalid_tsconfig.json:tsconfig_schema.json invalid_tsconfig.json
 stdout '×'
 stdout 'error:'
 
 # --- eslintrc schema ---
 
-# Valid eslintrc
-exec cfv check valid_eslintrc.json
+# Valid eslintrc via schema-map
+exec cfv check --schema-map=valid_eslintrc.json:eslintrc_schema.json valid_eslintrc.json
 stdout '✓'
 
 # --- workflow schema ---
 
-# Valid workflow
-exec cfv check valid_workflow.json
+# Valid workflow via schema-map
+exec cfv check --schema-map=valid_workflow.json:workflow_schema.json valid_workflow.json
 stdout '✓'
 
 # Invalid workflow (missing required jobs)
-! exec cfv check invalid_workflow.json
+! exec cfv check --schema-map=invalid_workflow.json:workflow_schema.json invalid_workflow.json
 stdout '×'
 stdout 'error:'
 
 # --- Strict config schema ---
 
 # Valid
-exec cfv check valid_strict.json
+exec cfv check --schema-map=valid_strict.json:strict_schema.json valid_strict.json
 stdout '✓'
 
 # Missing required field
-! exec cfv check missing_required.json
+! exec cfv check --schema-map=missing_required.json:strict_schema.json missing_required.json
 stdout '×'
 stdout 'error:'
 
 # Wrong type
-! exec cfv check wrong_type.json
+! exec cfv check --schema-map=wrong_type.json:strict_schema.json wrong_type.json
 stdout '×'
 stdout 'error:'
 
 # Extra property not allowed
-! exec cfv check extra_property.json
+! exec cfv check --schema-map=extra_property.json:strict_schema.json extra_property.json
 stdout '×'
 stdout 'error:'
 
 # Value out of range
-! exec cfv check out_of_range.json
+! exec cfv check --schema-map=out_of_range.json:strict_schema.json out_of_range.json
 stdout '×'
 stdout 'error:'
 
 # Enum violation
-! exec cfv check bad_enum.json
+! exec cfv check --schema-map=bad_enum.json:strict_schema.json bad_enum.json
 stdout '×'
 stdout 'error:'
 
 # --- Array schema ---
 
 # Valid array
-exec cfv check valid_array.json
+exec cfv check --schema-map=valid_array.json:array_schema.json valid_array.json
 stdout '✓'
 
 # Too few items
-! exec cfv check too_few_items.json
+! exec cfv check --schema-map=too_few_items.json:array_schema.json too_few_items.json
 stdout '×'
 stdout 'error:'
 
 # Wrong item type
-! exec cfv check wrong_item_type.json
+! exec cfv check --schema-map=wrong_item_type.json:array_schema.json wrong_item_type.json
 stdout '×'
 stdout 'error:'
 
@@ -98,18 +100,22 @@ stdout '✓'
 ! exec cfv check --require-schema no_schema.json
 stdout 'no schema declared'
 
-# --require-schema passes file with $schema
-exec cfv check --require-schema valid_strict.json
+# --require-schema FAILS file with $schema but no schema-map (inert)
+! exec cfv check --require-schema valid_strict.json
+stdout 'no schema declared'
+
+# --require-schema passes with --schema-map
+exec cfv check --require-schema --schema-map=valid_strict.json:strict_schema.json valid_strict.json
 stdout '✓'
 
-# Multiple files: one with schema, one without
-exec cfv check valid_strict.json no_schema.json
+# Multiple files: one with schema-map, one without
+exec cfv check --schema-map=valid_strict.json:strict_schema.json valid_strict.json no_schema.json
 stdout '✓.*valid_strict'
 stdout '✓.*no_schema'
 
-# Multiple files with --require-schema: one fails
+# Multiple files with --require-schema: both fail without schema-map
 ! exec cfv check --require-schema valid_strict.json no_schema.json
-stdout '✓.*valid_strict'
+stdout '×.*valid_strict'
 stdout '×.*no_schema'
 
 # --- Non-JSON files without SchemaValidator unaffected ---
@@ -128,6 +134,7 @@ stdout '✓'
 {
   "type": "object",
   "properties": {
+    "$schema": { "type": "string" },
     "name": { "type": "string" },
     "version": { "type": "string" },
     "description": { "type": "string" },
@@ -142,6 +149,7 @@ stdout '✓'
 {
   "type": "object",
   "properties": {
+    "$schema": { "type": "string" },
     "compilerOptions": {
       "type": "object",
       "properties": {
@@ -158,6 +166,7 @@ stdout '✓'
 {
   "type": "object",
   "properties": {
+    "$schema": { "type": "string" },
     "env": { "type": "object" },
     "extends": {},
     "rules": { "type": "object" },
@@ -170,6 +179,7 @@ stdout '✓'
   "type": "object",
   "required": ["on", "jobs"],
   "properties": {
+    "$schema": { "type": "string" },
     "name": { "type": "string" },
     "on": {},
     "jobs": { "type": "object" }
@@ -181,6 +191,7 @@ stdout '✓'
   "type": "object",
   "required": ["host", "port", "database"],
   "properties": {
+    "$schema": { "type": "string" },
     "host": { "type": "string", "minLength": 1 },
     "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
     "database": { "type": "string" },
@@ -194,6 +205,7 @@ stdout '✓'
   "type": "object",
   "required": ["items"],
   "properties": {
+    "$schema": { "type": "string" },
     "items": {
       "type": "array",
       "minItems": 1,

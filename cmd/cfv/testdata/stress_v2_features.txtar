@@ -22,28 +22,27 @@
 # PART 1: Stdin + schema validation
 # ============================================================
 
-# Stdin JSON with inline $schema passes
+# Stdin JSON passes syntax-only ($schema is inert, no external schema source)
 stdin valid_schema.json
 exec cfv check --file-types=json -
 stdout '✓'
 
-# Stdin JSON with inline $schema fails validation
+# Stdin JSON with invalid schema data passes syntax-only ($schema is inert)
 stdin invalid_schema.json
-! exec cfv check --file-types=json -
-stdout '×'
-stdout 'error:'
+exec cfv check --file-types=json -
+stdout '✓'
 
 # Stdin YAML with schema comment
 stdin valid_schema.yaml
 exec cfv check --file-types=yaml -
 stdout '✓'
 
-# Stdin JSONC with schema
+# Stdin JSONC passes syntax-only ($schema is inert)
 stdin valid_schema.jsonc
 exec cfv check --file-types=jsonc -
 stdout '✓'
 
-# Stdin + --no-schema skips schema
+# Stdin + --no-schema skips schema (no-op for JSON without external source)
 stdin invalid_schema.json
 exec cfv check --file-types=json --no-schema -
 stdout '✓'
@@ -74,12 +73,12 @@ stdout '"status": "failed"'
 # PART 2: JSONC schema validation
 # ============================================================
 
-# JSONC with $schema passes
-exec cfv check jsonc/valid_with_schema.jsonc
+# JSONC with schema-map passes
+exec cfv check --schema-map='valid_with_schema.jsonc:schemas/simple.schema.json' jsonc/valid_with_schema.jsonc
 stdout '✓'
 
-# JSONC with $schema fails
-! exec cfv check jsonc/invalid_with_schema.jsonc
+# JSONC with schema-map fails (port is wrong type)
+! exec cfv check --schema-map='invalid_with_schema.jsonc:schemas/simple.schema.json' jsonc/invalid_with_schema.jsonc
 stdout '×'
 stdout 'error:'
 
@@ -105,13 +104,13 @@ stdout 'no schema declared'
 # ============================================================
 
 # error-type groupby separates syntax and schema errors
-! exec cfv check -groupby=error-type mixed_errors
+! exec cfv check --schema-map='invalid_schema.json:schemas/simple.schema.json' -groupby=error-type mixed_errors
 stdout 'syntax'
 stdout 'schema'
 stdout 'Passed'
 
 # Triple groupby: error-type + filetype + pass-fail
-! exec cfv check -groupby=error-type,filetype,pass-fail mixed_errors
+! exec cfv check --schema-map='invalid_schema.json:schemas/simple.schema.json' -groupby=error-type,filetype,pass-fail mixed_errors
 stdout 'syntax'
 stdout 'Passed'
 
@@ -120,13 +119,13 @@ stdout 'Passed'
 # ============================================================
 
 # Multiple reporters: JSON to file + standard to stdout
-! exec cfv check --reporter=json:report.json --reporter=standard:- mixed_errors
+! exec cfv check --schema-map='invalid_schema.json:schemas/simple.schema.json' --reporter=json:report.json --reporter=standard:- mixed_errors
 stdout '✓'
 stdout '×'
 exists report.json
 
 # Multiple reporters: SARIF + JUnit to files
-! exec cfv check --reporter=sarif:report.sarif --reporter=junit:report.xml mixed_errors
+! exec cfv check --schema-map='invalid_schema.json:schemas/simple.schema.json' --reporter=sarif:report.sarif --reporter=junit:report.xml mixed_errors
 exists report.sarif
 exists report.xml
 
@@ -320,9 +319,9 @@ stdout '✓.*root.json'
 # ============================================================
 
 -- schemas/simple.schema.json --
-{"type":"object","properties":{"host":{"type":"string"},"port":{"type":"integer"}},"additionalProperties":false}
+{"type":"object","properties":{"$schema":{"type":"string"},"host":{"type":"string"},"port":{"type":"integer"}},"additionalProperties":false}
 -- schemas/tsconfig.schema.json --
-{"type":"object","properties":{"compilerOptions":{"type":"object"}},"additionalProperties":false}
+{"type":"object","properties":{"$schema":{"type":"string"},"compilerOptions":{"type":"object"}},"additionalProperties":false}
 -- valid_schema.json --
 {"$schema":"schemas/simple.schema.json","host":"db","port":5432}
 -- invalid_schema.json --

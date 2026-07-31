@@ -26,8 +26,13 @@ stdout '×'
 stdout 'error: schema: --schema-map matched this file'
 ! stdout 'note: --schema-map matched this file'
 
-# Document $schema takes priority over --schema-map
-exec cfv check --schema-map=with_schema.json:strict_schema.json with_schema.json
+# $schema in document is validated as data — fails strict schema (additionalProperties: false)
+! exec cfv check --schema-map=with_schema.json:strict_schema.json with_schema.json
+stdout '×'
+stdout 'error:'
+
+# $schema in document passes when schema allows it
+exec cfv check --schema-map=with_schema.json:permissive_schema.json with_schema.json
 stdout '✓'
 
 # Invalid --schema-map format
@@ -50,6 +55,17 @@ stderr 'invalid schema-map format'
   "required": ["host"],
   "properties": {
     "host": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+-- permissive_schema.json --
+{
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "string" }
   },
   "additionalProperties": false
 }

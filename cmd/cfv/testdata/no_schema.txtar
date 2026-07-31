@@ -1,18 +1,25 @@
-# --no-schema skips document-declared $schema validation
-# This file would fail schema validation (port is string, not integer)
+# --no-schema skips document-declared schema validation
+# For JSON/TOML/TOON, $schema is inert — no schema runs without external sources.
+# --no-schema only matters for YAML (comment) and XML (XSD).
+
+# JSON: --no-schema is a no-op (no schema runs anyway without external sources)
 exec cfv check --no-schema bad_with_schema.json
 stdout '✓'
 
-# Without --no-schema it fails
-! exec cfv check bad_with_schema.json
-stdout '×'
-stdout 'error:'
+# JSON: passes without --no-schema too ($schema is inert, syntax-only)
+exec cfv check bad_with_schema.json
+stdout '✓'
 
 # --no-schema with YAML schema comment — skips validation
 exec cfv check --no-schema bad_with_schema.yaml
 stdout '✓'
 
-# --no-schema with TOML $schema — skips validation
+# YAML without --no-schema still fails (comment-based schema is active)
+! exec cfv check bad_with_schema.yaml
+stdout '×'
+stdout 'error:'
+
+# TOML: --no-schema is a no-op ($schema is inert)
 exec cfv check --no-schema bad_with_schema.toml
 stdout '✓'
 
@@ -24,7 +31,7 @@ stdout '✓'
 ! exec cfv check --no-schema bad_dtd.xml
 stdout '×'
 
-# --no-schema with TOON $schema — skips validation
+# TOON: --no-schema is a no-op ($schema is inert)
 exec cfv check --no-schema bad_with_schema.toon
 stdout '✓'
 

@@ -2,7 +2,6 @@ package validator
 
 import (
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -333,55 +332,6 @@ func Test_SarifValidateSchema(t *testing.T) {
 	}
 }
 
-func Test_JSONValidateSchemaNoSchema(t *testing.T) {
-	t.Parallel()
-	// JSON without $schema should return ErrNoSchema
-	valid, err := JSONValidator{}.ValidateSchema([]byte(`{"key": "value"}`), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
-}
-
-func Test_JSONValidateSchemaEmptySchema(t *testing.T) {
-	t.Parallel()
-	valid, err := JSONValidator{}.ValidateSchema([]byte(`{"$schema": "", "key": "value"}`), "")
-	require.False(t, valid)
-	require.ErrorContains(t, err, "$schema must not be empty")
-}
-
-func Test_JSONValidateSchemaInvalidJSON(t *testing.T) {
-	t.Parallel()
-	// Invalid JSON should fail
-	valid, err := JSONValidator{}.ValidateSchema([]byte(`{bad`), "")
-	require.False(t, valid)
-	require.Error(t, err)
-}
-
-func Test_JSONValidateSchemaArrayRoot(t *testing.T) {
-	t.Parallel()
-	// JSON array (not object) has no $schema — should return ErrNoSchema
-	valid, err := JSONValidator{}.ValidateSchema([]byte(`[1, 2, 3]`), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
-}
-
-func Test_JSONValidateSchemaValid(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	doc := `{"$schema": "schema.json", "host": "db.example.com", "port": 5432, "database": "mydb"}`
-	valid, err := JSONValidator{}.ValidateSchema([]byte(doc), filepath.Join(filepath.Dir(schema), "config.json"))
-	require.True(t, valid)
-	require.NoError(t, err)
-}
-
-func Test_JSONValidateSchemaInvalidDoc(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	doc := `{"$schema": "schema.json", "host": "db.example.com", "port": "not_a_number", "database": "mydb"}`
-	valid, err := JSONValidator{}.ValidateSchema([]byte(doc), filepath.Join(filepath.Dir(schema), "config.json"))
-	require.False(t, valid)
-	require.ErrorContains(t, err, "schema validation failed")
-}
-
 func Test_YAMLValidateSchemaNoSchema(t *testing.T) {
 	t.Parallel()
 	valid, err := YAMLValidator{}.ValidateSchema([]byte("key: value\n"), "")
@@ -425,64 +375,6 @@ func Test_YAMLValidateSchemaCommentAfterContent(t *testing.T) {
 	require.ErrorIs(t, err, ErrNoSchema)
 }
 
-func Test_TomlValidateSchemaNoSchema(t *testing.T) {
-	t.Parallel()
-	valid, err := TomlValidator{}.ValidateSchema([]byte("key = \"value\"\n"), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
-}
-
-func Test_TomlValidateSchemaValid(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	toml := `"$schema" = "schema.json"` + "\nhost = \"db.example.com\"\nport = 5432\ndatabase = \"mydb\"\n"
-	valid, err := TomlValidator{}.ValidateSchema([]byte(toml), filepath.Join(filepath.Dir(schema), "test.toml"))
-	require.True(t, valid)
-	require.NoError(t, err)
-}
-
-func Test_TomlValidateSchemaInvalid(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	toml := `"$schema" = "schema.json"` + "\nhost = \"db.example.com\"\nport = \"not_a_number\"\ndatabase = \"mydb\"\n"
-	valid, err := TomlValidator{}.ValidateSchema([]byte(toml), filepath.Join(filepath.Dir(schema), "test.toml"))
-	require.False(t, valid)
-	require.ErrorContains(t, err, "schema validation failed")
-}
-
-func Test_ToonValidateSchemaNoSchema(t *testing.T) {
-	t.Parallel()
-	valid, err := ToonValidator{}.ValidateSchema([]byte("key: value\n"), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
-}
-
-func Test_ToonValidateSchemaValid(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	toonDoc := "\"$schema\": schema.json\nhost: db.example.com\nport: 5432\ndatabase: mydb\n"
-	valid, err := ToonValidator{}.ValidateSchema([]byte(toonDoc), filepath.Join(filepath.Dir(schema), "test.toon"))
-	require.True(t, valid)
-	require.NoError(t, err)
-}
-
-func Test_ToonValidateSchemaInvalid(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	toonDoc := "\"$schema\": schema.json\nhost: db.example.com\nport: \"not_a_number\"\ndatabase: mydb\n"
-	valid, err := ToonValidator{}.ValidateSchema([]byte(toonDoc), filepath.Join(filepath.Dir(schema), "test.toon"))
-	require.False(t, valid)
-	require.ErrorContains(t, err, "schema validation failed")
-}
-
-func Test_ToonValidateSchemaNotObject(t *testing.T) {
-	t.Parallel()
-	// TOON that decodes to a non-object should return ErrNoSchema
-	valid, err := ToonValidator{}.ValidateSchema([]byte("items[3]: 1, 2, 3\n"), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
-}
-
 func Test_extractYAMLSchemaComment(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -513,7 +405,7 @@ func Test_JSONMarshalToJSON(t *testing.T) {
 	t.Parallel()
 	out, err := JSONValidator{}.MarshalToJSON([]byte(`{"$schema": "x", "key": "val"}`))
 	require.NoError(t, err)
-	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "$schema")
 	require.Contains(t, string(out), "key")
 }
 
@@ -548,7 +440,7 @@ func Test_TomlMarshalToJSON(t *testing.T) {
 	t.Parallel()
 	out, err := TomlValidator{}.MarshalToJSON([]byte("\"$schema\" = \"x\"\nkey = \"val\"\n"))
 	require.NoError(t, err)
-	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "$schema")
 	require.Contains(t, string(out), "key")
 }
 
@@ -562,7 +454,7 @@ func Test_ToonMarshalToJSON(t *testing.T) {
 	t.Parallel()
 	out, err := ToonValidator{}.MarshalToJSON([]byte("\"$schema\": x\nkey: val\n"))
 	require.NoError(t, err)
-	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "$schema")
 	require.Contains(t, string(out), "key")
 }
 
@@ -600,73 +492,6 @@ func Test_resolveSchemaURLRelative(t *testing.T) {
 	filePath := filepath.Join(dir, "config", "file.json")
 	got := resolveSchemaURL("schema.json", filePath)
 	require.Equal(t, tools.FileURL(filepath.Join(dir, "config", "schema.json")), got)
-}
-
-func Test_JSONValidateSchemaAbsoluteLocalPath(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	doc, err := json.Marshal(map[string]any{
-		"$schema":  schema,
-		"host":     "db.example.com",
-		"port":     5432,
-		"database": "mydb",
-	})
-	require.NoError(t, err)
-
-	valid, err := JSONValidator{}.ValidateSchema(doc, filepath.Join(filepath.Dir(schema), "config.json"))
-	require.NoError(t, err)
-	require.True(t, valid)
-}
-
-func Test_JSONValidateSchemaEscapedRelativePath(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	schemaDir := filepath.Join(dir, "schemas #1")
-	require.NoError(t, os.Mkdir(schemaDir, 0700))
-	schema := filepath.Join(schemaDir, "schema file.json")
-	require.NoError(t, os.WriteFile(schema, []byte(`{"type":"object"}`), 0600))
-	doc := []byte(`{"$schema":"schemas #1/schema file.json"}`)
-
-	valid, err := JSONValidator{}.ValidateSchema(doc, filepath.Join(dir, "config.json"))
-	require.NoError(t, err)
-	require.True(t, valid)
-}
-
-// --- ValidateSchema edge cases ---
-
-func Test_JSONValidateSchemaNonStringSchema(t *testing.T) {
-	t.Parallel()
-	valid, err := JSONValidator{}.ValidateSchema([]byte(`{"$schema": 123}`), "")
-	require.False(t, valid)
-	require.ErrorContains(t, err, "$schema must be a string")
-}
-
-func Test_TomlValidateSchemaEmptySchema(t *testing.T) {
-	t.Parallel()
-	valid, err := TomlValidator{}.ValidateSchema([]byte("\"$schema\" = \"\"\nkey = \"val\"\n"), "")
-	require.False(t, valid)
-	require.ErrorContains(t, err, "$schema must not be empty")
-}
-
-func Test_TomlValidateSchemaInvalidToml(t *testing.T) {
-	t.Parallel()
-	valid, err := TomlValidator{}.ValidateSchema([]byte("key = 123__456"), "")
-	require.False(t, valid)
-	require.Error(t, err)
-}
-
-func Test_ToonValidateSchemaEmptySchema(t *testing.T) {
-	t.Parallel()
-	valid, err := ToonValidator{}.ValidateSchema([]byte("\"$schema\": \"\"\nkey: val\n"), "")
-	require.False(t, valid)
-	require.ErrorContains(t, err, "$schema must not be empty")
-}
-
-func Test_ToonValidateSchemaInvalidToon(t *testing.T) {
-	t.Parallel()
-	valid, err := ToonValidator{}.ValidateSchema([]byte("users2]{id}:\n  1,Alice\n"), "")
-	require.False(t, valid)
-	require.Error(t, err)
 }
 
 func Test_YAMLValidateSchemaInvalidYAML(t *testing.T) {
@@ -886,44 +711,6 @@ func writeTestXSD(t *testing.T) string {
 	return p
 }
 
-func Test_JSONCValidateSchemaNoSchema(t *testing.T) {
-	t.Parallel()
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(`// comment
-{"key": "value"}`), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
-}
-
-func Test_JSONCValidateSchemaValid(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	doc := `// server config
-{
-  "$schema": "schema.json",
-  "host": "db.example.com",
-  "port": 5432,
-  "database": "mydb",
-}`
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), filepath.Join(filepath.Dir(schema), "config.json"))
-	require.True(t, valid)
-	require.NoError(t, err)
-}
-
-func Test_JSONCValidateSchemaInvalidDoc(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	doc := `// server config
-{
-  "$schema": "schema.json",
-  "host": "db.example.com",
-  "port": "not_a_number", // wrong type
-  "database": "mydb"
-}`
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(doc), filepath.Join(filepath.Dir(schema), "config.json"))
-	require.False(t, valid)
-	require.ErrorContains(t, err, "schema validation failed")
-}
-
 func Test_JSONCMarshalToJSON(t *testing.T) {
 	t.Parallel()
 	input := []byte(`// comment
@@ -933,36 +720,8 @@ func Test_JSONCMarshalToJSON(t *testing.T) {
 }`)
 	out, err := JSONCValidator{}.MarshalToJSON(input)
 	require.NoError(t, err)
-	require.NotContains(t, string(out), "$schema")
+	require.Contains(t, string(out), "$schema")
 	require.Contains(t, string(out), "key")
-}
-
-func Test_JSONCValidateSchemaEmptySchema(t *testing.T) {
-	t.Parallel()
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{"$schema": "", "key": "value"}`), "")
-	require.False(t, valid)
-	require.ErrorContains(t, err, "$schema must not be empty")
-}
-
-func Test_JSONCValidateSchemaArrayRoot(t *testing.T) {
-	t.Parallel()
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(`[1, 2, 3]`), "")
-	require.True(t, valid)
-	require.ErrorIs(t, err, ErrNoSchema)
-}
-
-func Test_JSONCValidateSchemaInvalidSyntax(t *testing.T) {
-	t.Parallel()
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{bad`), "")
-	require.False(t, valid)
-	require.Error(t, err)
-}
-
-func Test_JSONCValidateSchemaNonStringSchema(t *testing.T) {
-	t.Parallel()
-	valid, err := JSONCValidator{}.ValidateSchema([]byte(`{"$schema": 123}`), "")
-	require.False(t, valid)
-	require.ErrorContains(t, err, "$schema must be a string")
 }
 
 func Test_JSONCMarshalToJSONArrayRoot(t *testing.T) {
@@ -1097,35 +856,6 @@ func Test_ININoDuplicatesPasses(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_buildJSONPositionMap(t *testing.T) {
-	t.Parallel()
-	doc := []byte("{\n  \"name\": \"app\",\n  \"port\": 8080,\n  \"nested\": {\n    \"key\": \"val\"\n  }\n}")
-	positions := buildJSONPositionMap(doc)
-
-	require.Contains(t, positions, "(root)")
-	require.Contains(t, positions, "(root).name")
-	require.Contains(t, positions, "(root).port")
-	require.Contains(t, positions, "(root).nested")
-	require.Contains(t, positions, "(root).nested.key")
-
-	require.Equal(t, 2, positions["(root).name"].Line)
-	require.Equal(t, 4, positions["(root).nested"].Line)
-	require.Equal(t, 5, positions["(root).nested.key"].Line)
-}
-
-func Test_buildJSONPositionMapArray(t *testing.T) {
-	t.Parallel()
-	doc := []byte(`{"items": [1, 2, 3]}`)
-	positions := buildJSONPositionMap(doc)
-	require.Contains(t, positions, "(root).items")
-}
-
-func Test_buildJSONPositionMapEmpty(t *testing.T) {
-	t.Parallel()
-	positions := buildJSONPositionMap([]byte(`{}`))
-	require.Contains(t, positions, "(root)")
-}
-
 func Test_buildYAMLPositionMap(t *testing.T) {
 	t.Parallel()
 	doc := []byte("name: app\nserver:\n  host: example.local\n  port: 8080\n")
@@ -1161,24 +891,6 @@ func Test_buildYAMLPositionMapInvalidYAML(t *testing.T) {
 	require.Nil(t, positions)
 }
 
-func Test_JSONSchemaErrorPositions(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	doc := []byte("{\n  \"$schema\": \"schema.json\",\n  \"host\": \"db.example.com\",\n  \"port\": \"not_a_number\",\n  \"database\": \"mydb\"\n}")
-	valid, err := JSONValidator{}.ValidateSchema(doc, filepath.Join(filepath.Dir(schema), "config.json"))
-	require.False(t, valid)
-
-	var se *SchemaErrors
-	require.ErrorAs(t, err, &se)
-	require.NotEmpty(t, se.Positions)
-	// port error should have a line > 0
-	for i, item := range se.Items {
-		if item == "port: Invalid type. Expected: integer, given: string" {
-			require.Positive(t, se.Positions[i].Line)
-		}
-	}
-}
-
 func Test_YAMLSchemaErrorPositions(t *testing.T) {
 	t.Parallel()
 	schema := writeTestSchema(t)
@@ -1194,21 +906,6 @@ func Test_YAMLSchemaErrorPositions(t *testing.T) {
 			require.Equal(t, 3, se.Positions[i].Line)
 		}
 	}
-}
-
-func Test_SchemaErrorPositionZeroWhenNoMatch(t *testing.T) {
-	t.Parallel()
-	schema := writeTestSchema(t)
-	// Missing required field "host" — no position since the key doesn't exist
-	doc := []byte("{\n  \"$schema\": \"schema.json\",\n  \"port\": 5432,\n  \"database\": \"mydb\"\n}")
-	valid, err := JSONValidator{}.ValidateSchema(doc, filepath.Join(filepath.Dir(schema), "config.json"))
-	require.False(t, valid)
-
-	var se *SchemaErrors
-	require.ErrorAs(t, err, &se)
-	// "host is required" error is on (root) which should have a position
-	// but the missing field itself has no position — (root) maps to line 1
-	require.NotEmpty(t, se.Positions)
 }
 
 func Test_JustfileValidateSyntaxError(t *testing.T) {
@@ -1249,4 +946,121 @@ func Test_XMLValidatorValidateXSDMethod(t *testing.T) {
 	valid, err := v.ValidateXSD([]byte(xml), xsdFile)
 	require.True(t, valid)
 	require.NoError(t, err)
+}
+
+// --- #618 Regression Tests ---
+
+func Test_JSONMarshalToJSON_PreservesSchema(t *testing.T) {
+	// Regression: $schema must be preserved in marshaled output
+	input := []byte(`{"$schema": "http://example.com/schema.json", "name": "test"}`)
+	out, err := JSONValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.Contains(t, string(out), `"$schema"`)
+	require.Contains(t, string(out), `http://example.com/schema.json`)
+}
+
+func Test_JSONCMarshalToJSON_PreservesSchema(t *testing.T) {
+	input := []byte(`{"$schema": "http://example.com/schema.json", /* comment */ "name": "test"}`)
+	out, err := JSONCValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.Contains(t, string(out), `"$schema"`)
+	require.Contains(t, string(out), `http://example.com/schema.json`)
+}
+
+func Test_TomlMarshalToJSON_PreservesSchema(t *testing.T) {
+	input := []byte("\"$schema\" = \"http://example.com/schema.json\"\nname = \"test\"\n")
+	out, err := TomlValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.Contains(t, string(out), `"$schema"`)
+	require.Contains(t, string(out), `http://example.com/schema.json`)
+}
+
+func Test_ToonMarshalToJSON_PreservesSchema(t *testing.T) {
+	input := []byte("\"$schema\": http://example.com/schema.json\nname: test\n")
+	out, err := ToonValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.Contains(t, string(out), `"$schema"`)
+	require.Contains(t, string(out), `http://example.com/schema.json`)
+}
+
+func Test_JSONDoesNotImplementSchemaValidator(t *testing.T) {
+	var v Validator = JSONValidator{}
+	_, ok := v.(SchemaValidator)
+	require.False(t, ok, "JSON must not implement SchemaValidator")
+}
+
+func Test_JSONCDoesNotImplementSchemaValidator(t *testing.T) {
+	var v Validator = JSONCValidator{}
+	_, ok := v.(SchemaValidator)
+	require.False(t, ok, "JSONC must not implement SchemaValidator")
+}
+
+func Test_TomlDoesNotImplementSchemaValidator(t *testing.T) {
+	var v Validator = TomlValidator{}
+	_, ok := v.(SchemaValidator)
+	require.False(t, ok, "TOML must not implement SchemaValidator")
+}
+
+func Test_ToonDoesNotImplementSchemaValidator(t *testing.T) {
+	var v Validator = ToonValidator{}
+	_, ok := v.(SchemaValidator)
+	require.False(t, ok, "TOON must not implement SchemaValidator")
+}
+
+func Test_YAMLMarshalToJSON_InfReturnsError(t *testing.T) {
+	input := []byte("value: .inf\n")
+	_, err := YAMLValidator{}.MarshalToJSON(input)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".inf cannot be represented in JSON")
+}
+
+func Test_YAMLMarshalToJSON_NegInfReturnsError(t *testing.T) {
+	input := []byte("value: -.inf\n")
+	_, err := YAMLValidator{}.MarshalToJSON(input)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "-.inf cannot be represented in JSON")
+}
+
+func Test_YAMLMarshalToJSON_NaNReturnsError(t *testing.T) {
+	input := []byte("value: .nan\n")
+	_, err := YAMLValidator{}.MarshalToJSON(input)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".nan cannot be represented in JSON")
+}
+
+func Test_YAMLMarshalToJSON_NestedInfReturnsError(t *testing.T) {
+	input := []byte("outer:\n  inner: .inf\n")
+	_, err := YAMLValidator{}.MarshalToJSON(input)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".inf")
+}
+
+func Test_YAMLMarshalToJSON_InfInArrayReturnsError(t *testing.T) {
+	input := []byte("values:\n  - 1.0\n  - .inf\n  - 3.0\n")
+	_, err := YAMLValidator{}.MarshalToJSON(input)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".inf")
+}
+
+func Test_YAMLMarshalToJSON_NormalFloatsPass(t *testing.T) {
+	input := []byte("value: 3.14\n")
+	out, err := YAMLValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.Contains(t, string(out), "3.14")
+}
+
+func Test_JSONMarshalToJSON_ArrayRoot(t *testing.T) {
+	// Array-rooted JSON has no $schema field to worry about
+	input := []byte(`[1, 2, 3]`)
+	out, err := JSONValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.Equal(t, `[1,2,3]`, string(out))
+}
+
+func Test_JSONMarshalToJSON_NestedSchema(t *testing.T) {
+	// $schema nested inside objects should be preserved (it's just data)
+	input := []byte(`{"definitions": {"foo": {"$schema": "nested"}}}`)
+	out, err := JSONValidator{}.MarshalToJSON(input)
+	require.NoError(t, err)
+	require.Contains(t, string(out), `"$schema":"nested"`)
 }
