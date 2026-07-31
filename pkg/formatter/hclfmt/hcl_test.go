@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
@@ -38,6 +40,10 @@ func TestFixtures(t *testing.T) {
 			got, err := f.Format(src, defaultOpts)
 			require.NoError(t, err, "Format(%s) should not error", name)
 
+			_, diags := hclsyntax.ParseConfig(got, name, hcl.Pos{Line: 1, Column: 1})
+			require.False(t, diags.HasErrors(),
+				"Format output is not valid HCL for %s: %s", name, diags.Error())
+
 			if *update {
 				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
 					"failed to update golden file %s", expected)
@@ -67,6 +73,11 @@ func TestIdempotency(t *testing.T) {
 
 			first, err := f.Format(src, defaultOpts)
 			require.NoError(t, err)
+
+			_, diags := hclsyntax.ParseConfig(first, name, hcl.Pos{Line: 1, Column: 1})
+			require.False(t, diags.HasErrors(),
+				"Format output is not valid HCL for %s: %s", name, diags.Error())
+
 			second, err := f.Format(first, defaultOpts)
 			require.NoError(t, err)
 

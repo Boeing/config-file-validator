@@ -41,6 +41,10 @@ func TestFixtures(t *testing.T) {
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
 
+			_, parseErr := properties.Load(got, properties.UTF8)
+			require.NoError(t, parseErr,
+				"Format output is not valid properties for %s", name)
+
 			if *update {
 				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
 					"failed to update golden file %s", expected)
@@ -74,6 +78,11 @@ func TestIdempotency(t *testing.T) {
 
 			first, err := f.Format(src, opts)
 			require.NoError(t, err)
+
+			_, parseErr := properties.Load(first, properties.UTF8)
+			require.NoError(t, parseErr,
+				"Format output is not valid properties for %s", name)
+
 			second, err := f.Format(first, opts)
 			require.NoError(t, err)
 

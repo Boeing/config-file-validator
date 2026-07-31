@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"flag"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -44,6 +45,17 @@ func TestFixtures(t *testing.T) {
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
 
+			dec := xml.NewDecoder(bytes.NewReader(got))
+			for {
+				if _, tokErr := dec.Token(); tokErr != nil {
+					if tokErr == io.EOF {
+						break
+					}
+					require.NoError(t, tokErr,
+						"Format output is not valid XML for %s", name)
+				}
+			}
+
 			if *update {
 				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
 					"failed to update golden file %s", expected)
@@ -77,6 +89,18 @@ func TestIdempotency(t *testing.T) {
 
 			first, err := f.Format(src, opts)
 			require.NoError(t, err)
+
+			dec := xml.NewDecoder(bytes.NewReader(first))
+			for {
+				if _, tokErr := dec.Token(); tokErr != nil {
+					if tokErr == io.EOF {
+						break
+					}
+					require.NoError(t, tokErr,
+						"Format output is not valid XML for %s", name)
+				}
+			}
+
 			second, err := f.Format(first, opts)
 			require.NoError(t, err)
 
