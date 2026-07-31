@@ -1516,6 +1516,14 @@ func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
 		// If not, the flow is inline (root-level or bare sequence item) and
 		// the bracket stays at the current column.
 		afterColon := false
+
+		// A value has to be indented past its key, and anything between the
+		// line indent and the key — a sequence indicator, say — moves the key
+		// to the right. Track the key so its real column is used instead of the
+		// line indent; otherwise a value expanded inside a sequence item lands
+		// on the key's own column, where it is no longer that key's value and
+		// the document stops parsing.
+		keyIdx := -1
 		for j := i - 1; j >= 0; j-- {
 			if tokens[j].Kind == TokIndent {
 				parentIndent = len(tokens[j].Raw)
@@ -1524,18 +1532,24 @@ func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
 			if tokens[j].Kind == TokNewline {
 				break
 			}
-			if tokens[j].Kind == TokColon {
+			if tokens[j].Kind == TokColon && !afterColon {
 				afterColon = true
+				keyIdx = j - 1
 			}
+		}
+
+		keyIndent := parentIndent
+		if keyIdx >= 0 && tokens[keyIdx].Kind != TokIndent && tokens[keyIdx].Kind != TokNewline {
+			keyIndent = computeTokenLineStart(tokens, keyIdx)
 		}
 
 		var expanded []byte
 		if afterColon {
 			// Value-position: key: [long] → key:\n  [\n    elem,\n  ]
-			// Bracket on next line at parentIndent + indentWidth,
-			// elements at parentIndent + 2*indentWidth.
-			bracketIndent := strings.Repeat(" ", parentIndent+indentWidth)
-			elemIndent := strings.Repeat(" ", parentIndent+2*indentWidth)
+			// Bracket on next line at keyIndent + indentWidth,
+			// elements at keyIndent + 2*indentWidth.
+			bracketIndent := strings.Repeat(" ", keyIndent+indentWidth)
+			elemIndent := strings.Repeat(" ", keyIndent+2*indentWidth)
 
 			expanded = append(expanded, '\n')
 			expanded = append(expanded, bracketIndent...)
