@@ -279,6 +279,7 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 		var prevInSeq bool
 		var prevSeqOffset int
 		var prevSeqIndentDepth int
+		var prevIdx int
 		for j := i - 1; j >= 0; j-- {
 			if tokens[j].Kind == TokIndent && tokens[j].Structural && tokens[j].ASTDepth >= 0 {
 				// Skip if this indent precedes a comment (another comment line).
@@ -286,6 +287,7 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 					continue
 				}
 				prevFound = true
+				prevIdx = j
 				prevSourceIndent = len(tokens[j].Raw)
 				prevASTDepth = tokens[j].ASTDepth
 				prevInSeq = tokens[j].InSeq
@@ -322,10 +324,16 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 		}
 
 		// Determine if this is an end comment or leading comment.
+		// Use AST depth as the primary signal (stable across passes).
+		// Source indentation is only a tiebreaker when depths are equal.
 		isEndComment := false
 		if prevFound && nextFound {
-			// End comment: source indent is deeper than the next structural line.
-			if commentSourceIndent > nextSourceIndent {
+			// End comment when:
+			// - Structure is descoping (prev deeper than next), OR
+			// - Same depth but comment indented deeper than next (trailing after value block).
+			// If prevASTDepth < nextASTDepth: structure is deepening → leading comment.
+			if prevASTDepth > nextASTDepth ||
+				(prevASTDepth == nextASTDepth && commentSourceIndent > nextSourceIndent) {
 				isEndComment = true
 			}
 		} else if prevFound && !nextFound {
@@ -339,7 +347,7 @@ func assignASTMetadata(tokens []Token, meta map[int]lineMetadata) {
 			// End comment: inherit from the previous context.
 			// If the comment's source indent matches the prev line's source indent
 			// and prev is a sequence item (has dash), the comment is at dash level.
-			if commentSourceIndent <= prevSourceIndent && prevInSeq {
+			if commentSourceIndent <= prevSourceIndent && prevInSeq && lineHasDash(tokens, prevIdx) {
 				// Dash-level end comment (e.g. `# sequence` after `- 123`).
 				// Set AtSeqItem so it computes to dash level (inSeq + hasDash).
 				tokens[i].ASTDepth = prevASTDepth
@@ -1432,10 +1440,16 @@ func addFlowMappingPadding(raw []byte) []byte {
 				i++
 			}
 		case ']':
-			// Remove space before ] (prettier: no bracketSpacing for arrays).
-			for len(out) > 0 && out[len(out)-1] == ' ' {
-				out = out[:len(out)-1]
+			// Remove bracketSpacing before ]. Don't strip indentation after newline.
+			trimEnd := len(out)
+			for trimEnd > 0 && out[trimEnd-1] == ' ' {
+				trimEnd--
 			}
+			if trimEnd == 0 || out[trimEnd-1] != '\n' {
+				// Spaces preceded by non-newline: bracketSpacing, strip them.
+				out = out[:trimEnd]
+			}
+			// Else: spaces preceded by \n: indentation, preserve them.
 			out = append(out, b)
 		default:
 			out = append(out, b)

@@ -429,6 +429,91 @@ func TestShortFlowMappingStaysInline(t *testing.T) {
 	require.Equal(t, want, string(got))
 }
 
+// TestFlowBracketIndentIdempotent verifies that multi-line expanded flow
+// sequences preserve bracket indentation on re-format (Bug 1 regression).
+func TestFlowBracketIndentIdempotent(t *testing.T) {
+	t.Parallel()
+	// Flow sequence that exceeds printWidth → expands to multi-line.
+	src := []byte("key: [longlonglonglonglonglonglonglongvalue1, longlonglonglonglonglonglonglongvalue2, longlonglonglonglonglonglonglongvalue3]\n")
+
+	first, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	// The expanded flow should have indented closing bracket.
+	require.Contains(t, string(first), "\n  ]", "expanded flow bracket should be indented")
+
+	second, err := f.Format(first, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, string(first), string(second),
+		"multi-line flow bracket indent must be idempotent")
+}
+
+// TestBlockScalarExtraSpaceIdempotent verifies that a block scalar preceded by
+// extra spaces after colon (key:  !tag |) is correctly tokenized on the first
+// pass and produces stable output (Bug 3 regression).
+func TestBlockScalarExtraSpaceIdempotent(t *testing.T) {
+	t.Parallel()
+	// Two spaces between colon and tag — triggers the mis-tokenization bug.
+	src := []byte("symlink:  !vault |\n          secret content here\n")
+
+	first, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+
+	second, err := f.Format(first, defaultOpts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"block scalar with extra space must be idempotent")
+}
+
+// TestCommentAfterKeyInSequenceIdempotent verifies that a comment following
+// a key inside a sequence item (not a dash line) maintains stable indentation
+// across formatting passes (Bug 2 regression).
+func TestCommentAfterKeyInSequenceIdempotent(t *testing.T) {
+	t.Parallel()
+	// Comment follows `relabel_configs:` which is a key inside a sequence item.
+	// The comment should stay at key-level indent, not oscillate to dash-level.
+	src := []byte("scrape_configs:\n  - job_name: prometheus\n    relabel_configs:\n      # This comment is at key indent level\n      - source_labels: [__name__]\n")
+
+	first, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+
+	second, err := f.Format(first, defaultOpts)
+	require.NoError(t, err)
+
+	third, err := f.Format(second, defaultOpts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"comment after key in sequence must be idempotent pass 1→2")
+	require.Equal(t, string(second), string(third),
+		"comment after key in sequence must be idempotent pass 2→3")
+}
+
+// TestCommentClassificationStableAcrossPasses verifies that a comment with
+// "wrong" source indentation (deeper than next) doesn't oscillate when the
+// structural relationship (AST depth) says it's a leading comment (Bug 2 Defect 1).
+func TestCommentClassificationStableAcrossPasses(t *testing.T) {
+	t.Parallel()
+	// Comment at 8sp (deeper than next's 6sp) but structurally it LEADS the
+	// sequence items. AST: rules: is depth N, - record: is depth N+1.
+	// Source indent should NOT determine classification when depths differ.
+	src := []byte("groups:\n  - name: features\n    rules:\n        # leading comment for the sequence items below\n      - record: foo\n        expr: up\n")
+
+	first, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+
+	second, err := f.Format(first, defaultOpts)
+	require.NoError(t, err)
+
+	third, err := f.Format(second, defaultOpts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"comment classification must be stable across passes (1→2)")
+	require.Equal(t, string(second), string(third),
+		"comment classification must be stable across passes (2→3)")
+}
+
 // TestSortKeysAnchorSafety proves that SortKeys does not reorder entries when
 // doing so would break anchor/alias references (producing invalid YAML).
 func TestSortKeysAnchorSafety(t *testing.T) {

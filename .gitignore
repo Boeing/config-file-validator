@@ -22,6 +22,5 @@ vendor/
 .idea
 megalinter-reports/
 .kiro/
-.kiro/
 PLAN.md
-PLAN.md
+.cfv-realworld/

@@ -337,6 +337,68 @@ func TestSelfClosingSpaceAdded(t *testing.T) {
 	require.Contains(t, string(got), `host="localhost" />`)
 }
 
+// TestMultiLineSelfCloseIdempotent verifies that multi-line self-closing tags
+// with /> on its own indented line don't lose indentation on re-format (Bug 6).
+func TestMultiLineSelfCloseIdempotent(t *testing.T) {
+	t.Parallel()
+	// Multi-line self-closing tag with /> on its own line.
+	src := []byte("<?xml version=\"1.0\"?>\n<assembly>\n  <assemblyIdentity\n      type=\"win32\"\n      name=\"app\"\n      />\n</assembly>\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.XMLSelfClosingSpace = false
+
+	first, err := f.Format(src, opts)
+	require.NoError(t, err)
+	// The /> should remain indented (not lose spaces each pass).
+	second, err := f.Format(first, opts)
+	require.NoError(t, err)
+	third, err := f.Format(second, opts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"multi-line self-close must be idempotent pass 1→2")
+	require.Equal(t, string(second), string(third),
+		"multi-line self-close must be idempotent pass 2→3")
+}
+
+// TestMultiSpaceSelfCloseStrippedInOnePass verifies that multiple spaces before />
+// are all removed in a single pass, not one-at-a-time (Bug 8).
+func TestMultiSpaceSelfCloseStrippedInOnePass(t *testing.T) {
+	t.Parallel()
+	// Triple space before />
+	src := []byte("<?xml version=\"1.0\"?>\n<doc>\n  <e1   />\n  <e3   name=\"elem3\"   id=\"elem3\"  />\n</doc>\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.XMLSelfClosingSpace = false
+
+	first, err := f.Format(src, opts)
+	require.NoError(t, err)
+	second, err := f.Format(first, opts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"multi-space self-close must be idempotent (all spaces removed in one pass)")
+	require.Contains(t, string(first), "<e1/>")
+	require.Contains(t, string(first), `id="elem3"/>`)
+}
+
+// TestMultiSpaceSelfCloseCollapsedToOne verifies that multiple spaces before />
+// are collapsed to exactly one when XMLSelfClosingSpace=true (Bug 8).
+func TestMultiSpaceSelfCloseCollapsedToOne(t *testing.T) {
+	t.Parallel()
+	src := []byte("<?xml version=\"1.0\"?>\n<doc>\n  <e1   />\n</doc>\n")
+	opts := xmlfmt.DefaultOptions()
+	opts.XMLSelfClosingSpace = true
+
+	first, err := f.Format(src, opts)
+	require.NoError(t, err)
+	second, err := f.Format(first, opts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"multi-space self-close must be idempotent (collapsed to single space in one pass)")
+	require.Contains(t, string(first), "<e1 />")
+	require.NotContains(t, string(first), "<e1  />")
+}
+
 // TestTrailingWhitespaceStripped verifies that trailing spaces on lines are removed.
 func TestTrailingWhitespaceStripped(t *testing.T) {
 	t.Parallel()

@@ -350,9 +350,17 @@ func entryKeyValueWidth(group Group) int {
 		}
 	}
 	width += 3 // " = "
-	// Value width (all raw bytes between valueStart and valueEnd).
-	for i := valueStart; i <= valueEnd; i++ {
-		width += len(tokens[i].Raw)
+	// Value width. For arrays and inline tables, use estimated normalized width
+	// to avoid width changes between passes due to spacing normalization.
+	if valueStart <= valueEnd && tokens[valueStart].Kind == BracketOpen {
+		elements := splitArrayElements(tokens[valueStart : valueEnd+1])
+		width += estimateSingleLineArray(elements)
+	} else if valueStart <= valueEnd && tokens[valueStart].Kind == BraceOpen {
+		width += estimateInlineTableWidth(tokens[valueStart : valueEnd+1])
+	} else {
+		for i := valueStart; i <= valueEnd; i++ {
+			width += len(tokens[i].Raw)
+		}
 	}
 	return width
 }
@@ -372,11 +380,16 @@ func entryHasMultilineValue(group Group, columnWidth int) bool {
 		return false
 	}
 
-	// Check 1: source already contains newline.
-	for i := valueStart; i <= valueEnd; i++ {
-		for _, b := range tokens[i].Raw {
-			if b == '\n' {
-				return true
+	// Check 1: source already contains newline (non-array, non-inline-table values only).
+	// For arrays and inline tables, skip this check — the source may have newlines
+	// that get collapsed by formatting, or the formatter may expand them.
+	// Check 2 will determine the post-format width correctly.
+	if tokens[valueStart].Kind != BracketOpen && tokens[valueStart].Kind != BraceOpen {
+		for i := valueStart; i <= valueEnd; i++ {
+			for _, b := range tokens[i].Raw {
+				if b == '\n' {
+					return true
+				}
 			}
 		}
 	}
@@ -401,15 +414,29 @@ func entryHasMultilineValue(group Group, columnWidth int) bool {
 			}
 		}
 
-		// Estimate array single-line length.
-		arrayLen := 0
-		for i := valueStart; i <= valueEnd; i++ {
-			if tokens[i].Kind != Whitespace && tokens[i].Kind != Newline {
-				arrayLen += len(tokens[i].Raw)
-			}
-		}
+		// Estimate array single-line length (normalized spacing).
+		elements := splitArrayElements(tokens[valueStart : valueEnd+1])
+		arrayLen := estimateSingleLineArray(elements)
 
 		if prefixLen+arrayLen > columnWidth {
+			return true
+		}
+	}
+
+	// Check 3: inline table that will be expanded (contains nested array exceeding width).
+	// When an inline table's single-line width exceeds columnWidth, nested arrays
+	// within it get expanded, making the inline table value multiline.
+	if tokens[valueStart].Kind == BraceOpen {
+		keyLen := 0
+		for i := 0; i <= keyEnd; i++ {
+			if tokens[i].Kind != Whitespace {
+				keyLen += len(tokens[i].Raw)
+			}
+		}
+		prefixLen := keyLen + 3
+
+		inlineWidth := estimateInlineTableWidth(tokens[valueStart : valueEnd+1])
+		if prefixLen+inlineWidth > columnWidth {
 			return true
 		}
 	}

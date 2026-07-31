@@ -224,3 +224,53 @@ func Test_TOML_SortKeysAlphabetical(t *testing.T) {
 	require.Less(t, aPos, mPos, "alpha must come before mango")
 	require.Less(t, mPos, zPos, "mango must come before zebra")
 }
+
+// Test_TOML_CommentAlignmentStableAfterArrayCollapse verifies that comment
+// alignment is stable after a multiline array collapses to single-line (Bug 5).
+// The alignment decision must be based on the POST-format width, not source newlines.
+func Test_TOML_CommentAlignmentStableAfterArrayCollapse(t *testing.T) {
+	t.Parallel()
+	// Array starts multiline in source but fits on one line after formatting.
+	src := "[tool.mypy]\nuntyped_calls_exclude = [\n    \"twisted\",\n] # some comment\nshort = \"val\" # another\n"
+	opts := tomlfmt.DefaultOptions()
+
+	first, err := tomlfmt.Formatter{}.Format([]byte(src), opts)
+	require.NoError(t, err)
+
+	second, err := tomlfmt.Formatter{}.Format(first, opts)
+	require.NoError(t, err)
+
+	third, err := tomlfmt.Formatter{}.Format(second, opts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"comment alignment must be stable after array collapse pass 1→2")
+	require.Equal(t, string(second), string(third),
+		"comment alignment must be stable after array collapse pass 2→3")
+}
+
+// Test_TOML_CommentAlignmentStableAfterInlineTableExpansion verifies that comment
+// alignment is stable when an inline table containing a long array gets expanded (Bug 7).
+// The alignment decision must treat inline tables the same as arrays — predict
+// whether the value WILL be multiline after formatting.
+func Test_TOML_CommentAlignmentStableAfterInlineTableExpansion(t *testing.T) {
+	t.Parallel()
+	// Inline table with array that exceeds 80 cols — will be expanded by formatter.
+	// Another entry in the same group has a trailing comment.
+	src := "[dependencies]\nbiome_languages = { workspace = true, features = [\"lang_css\", \"lang_html\", \"lang_js\"] }\nonce_cell = \"1.21.4\" # Use std::sync::OnceLock\nshort = { workspace = true }\n"
+	opts := tomlfmt.DefaultOptions()
+
+	first, err := tomlfmt.Formatter{}.Format([]byte(src), opts)
+	require.NoError(t, err)
+
+	second, err := tomlfmt.Formatter{}.Format(first, opts)
+	require.NoError(t, err)
+
+	third, err := tomlfmt.Formatter{}.Format(second, opts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"comment alignment must be stable after inline table expansion pass 1→2")
+	require.Equal(t, string(second), string(third),
+		"comment alignment must be stable after inline table expansion pass 2→3")
+}

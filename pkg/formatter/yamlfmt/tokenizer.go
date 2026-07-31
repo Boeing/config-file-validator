@@ -317,6 +317,10 @@ func (t *tokenizer) consumeRestOfLine() {
 			}
 			return
 		}
+		// Content follows the extra spaces. Skip them silently — the colon
+		// token already includes the required single trailing space, and extra
+		// spaces between colon and value are insignificant in YAML.
+		t.pos = spaceEnd
 	}
 
 	// Check for special value types.

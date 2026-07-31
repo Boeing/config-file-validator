@@ -211,3 +211,27 @@ func TestTextContentWithTabIndent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(got), string(got2))
 }
+
+// TestCommentInTextContentNoBlankLineGrowth verifies that a comment after text
+// content does not gain a blank line on each formatting pass (Bug 4).
+func TestCommentInTextContentNoBlankLineGrowth(t *testing.T) {
+	t.Parallel()
+	fmter := xmlfmt.Formatter{}
+	opts := xmlfmt.DefaultOptions()
+
+	src := "<?xml version=\"1.0\"?>\n<config>\n  <arg>86400\n    <!-- seconds -->\n  </arg>\n</config>\n"
+
+	first, err := fmter.Format([]byte(src), opts)
+	require.NoError(t, err)
+
+	second, err := fmter.Format(first, opts)
+	require.NoError(t, err)
+
+	third, err := fmter.Format(second, opts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"comment in text content must not grow blank lines pass 1→2")
+	require.Equal(t, string(second), string(third),
+		"comment in text content must not grow blank lines pass 2→3")
+}

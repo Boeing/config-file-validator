@@ -226,7 +226,9 @@ func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 			result = append(result, tok)
 
 		case TokComment, TokProcInst, TokCDATA:
-			if depth > 0 || (i > 0 && needsNewlineBefore(cleaned, i)) {
+			// Skip newline insertion if content whitespace already positioned this token.
+			lastIsIndent := len(result) > 0 && result[len(result)-1].Kind == TokIndent
+			if !lastIsIndent && (depth > 0 || (i > 0 && needsNewlineBefore(cleaned, i))) {
 				result = appendNewlineIndent(result, depth, indentUnit)
 			}
 			result = append(result, tok)
@@ -413,16 +415,51 @@ func applySelfClosingSpace(tokens []Token, wantSpace bool) {
 		}
 		hasSpace := len(raw) >= 3 && raw[len(raw)-3] == ' '
 
-		if wantSpace && !hasSpace {
-			// Insert space: <tag/> → <tag />
-			newRaw := make([]byte, 0, len(raw)+1)
-			newRaw = append(newRaw, raw[:len(raw)-2]...)
-			newRaw = append(newRaw, ' ', '/', '>')
-			tokens[i].Raw = newRaw
-		} else if !wantSpace && hasSpace {
-			// Remove space: <tag /> → <tag/>
-			newRaw := make([]byte, 0, len(raw)-1)
-			newRaw = append(newRaw, raw[:len(raw)-3]...)
+		// Check if /> is on its own line (preceded by newline + indentation).
+		// If so, the space is indentation, not a self-closing space — don't modify.
+		isIndented := false
+		if hasSpace {
+			for j := len(raw) - 3; j >= 0; j-- {
+				if raw[j] == '\n' || raw[j] == '\r' {
+					isIndented = true
+					break
+				}
+				if raw[j] != ' ' && raw[j] != '\t' {
+					break
+				}
+			}
+		}
+
+		if wantSpace && !isIndented {
+			// Ensure exactly one space before />: <tag  /> → <tag /> or <tag/> → <tag />
+			trimEnd := len(raw) - 2 // position of '/'
+			for trimEnd > 0 && raw[trimEnd-1] == ' ' {
+				trimEnd--
+			}
+			// trimEnd now points past the last non-space before />.
+			if trimEnd == len(raw)-2 {
+				// No space at all — insert one.
+				newRaw := make([]byte, 0, len(raw)+1)
+				newRaw = append(newRaw, raw[:trimEnd]...)
+				newRaw = append(newRaw, ' ', '/', '>')
+				tokens[i].Raw = newRaw
+			} else if trimEnd == len(raw)-3 {
+				// Exactly one space — already correct.
+			} else {
+				// Multiple spaces — collapse to one.
+				newRaw := make([]byte, 0, trimEnd+3)
+				newRaw = append(newRaw, raw[:trimEnd]...)
+				newRaw = append(newRaw, ' ', '/', '>')
+				tokens[i].Raw = newRaw
+			}
+		} else if !wantSpace && hasSpace && !isIndented {
+			// Remove all spaces before />: <tag   /> → <tag/>
+			trimEnd := len(raw) - 2 // position of '/'
+			for trimEnd > 0 && raw[trimEnd-1] == ' ' {
+				trimEnd--
+			}
+			newRaw := make([]byte, 0, trimEnd+2)
+			newRaw = append(newRaw, raw[:trimEnd]...)
 			newRaw = append(newRaw, '/', '>')
 			tokens[i].Raw = newRaw
 		}
