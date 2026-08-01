@@ -1472,8 +1472,9 @@ func addFlowMappingPadding(raw []byte) []byte {
 //	  ]
 //
 // Per prettier source (flow-mapping-sequence.js): when a flow collection group
-// breaks at printWidth, elements go on separate lines indented by tabWidth,
-// with trailing comma on last element.
+// breaks after a mapping key, first try the whole collection on the value's
+// next line. If it still exceeds printWidth, put each element on a separate
+// line indented by tabWidth, with a trailing comma on the last element.
 func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
 	for i := range tokens {
 		if tokens[i].Kind != TokFlow {
@@ -1541,6 +1542,21 @@ func expandLongFlowSequences(tokens []Token, maxWidth, indentWidth int) {
 		keyIndent := parentIndent
 		if keyIdx >= 0 && tokens[keyIdx].Kind != TokIndent && tokens[keyIdx].Kind != TokNewline {
 			keyIndent = computeTokenLineStart(tokens, keyIdx)
+		}
+
+		// Prettier gives a value-position flow collection the extra room gained
+		// by moving it below the key before deciding to split its elements.
+		// Preserve already-multiline collections instead of trying to compact
+		// them through this single-line layout path.
+		if afterColon && !bytes.ContainsAny(raw, "\r\n") &&
+			keyIndent+indentWidth+len(raw) <= maxWidth {
+			bracketIndent := strings.Repeat(" ", keyIndent+indentWidth)
+			moved := make([]byte, 0, 1+len(bracketIndent)+len(raw))
+			moved = append(moved, '\n')
+			moved = append(moved, bracketIndent...)
+			moved = append(moved, raw...)
+			tokens[i].Raw = moved
+			continue
 		}
 
 		var expanded []byte
