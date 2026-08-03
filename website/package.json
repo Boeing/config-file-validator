@@ -15,9 +15,9 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@docusaurus/core": "3.10.1",
+    "@docusaurus/core": "^3.10.2",
     "@docusaurus/faster": "3.10.1",
-    "@docusaurus/preset-classic": "3.10.1",
+    "@docusaurus/preset-classic": "^3.10.2",
     "@easyops-cn/docusaurus-search-local": "^0.48.5",
     "@mdx-js/react": "^3.0.0",
     "clsx": "^2.0.0",
