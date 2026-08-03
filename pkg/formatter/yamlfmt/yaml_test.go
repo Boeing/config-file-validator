@@ -30,6 +30,17 @@ func TestDefaultQuoteStyleMatchesPrettier(t *testing.T) {
 	require.Equal(t, want, string(got))
 }
 
+func TestSequenceIndicatorSpacing(t *testing.T) {
+	t.Parallel()
+	src := []byte("items:\n  -   key: short\n      other: x\n")
+	want := "items:\n  - key: short\n    other: x\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+	require.NoError(t, yamlUnmarshal(got, &map[string]any{}))
+}
+
 // yamlUnmarshal is a test helper that validates output is parseable YAML.
 func yamlUnmarshal(data []byte, v any) error {
 	return yaml.Unmarshal(data, v)
