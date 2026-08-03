@@ -3,6 +3,7 @@ package xmlfmt_test
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"io"
 	"os"
@@ -48,7 +49,7 @@ func TestFixtures(t *testing.T) {
 			dec := xml.NewDecoder(bytes.NewReader(got))
 			for {
 				if _, tokErr := dec.Token(); tokErr != nil {
-					if tokErr == io.EOF {
+					if errors.Is(tokErr, io.EOF) {
 						break
 					}
 					require.NoError(t, tokErr,
@@ -93,7 +94,7 @@ func TestIdempotency(t *testing.T) {
 			dec := xml.NewDecoder(bytes.NewReader(first))
 			for {
 				if _, tokErr := dec.Token(); tokErr != nil {
-					if tokErr == io.EOF {
+					if errors.Is(tokErr, io.EOF) {
 						break
 					}
 					require.NoError(t, tokErr,
