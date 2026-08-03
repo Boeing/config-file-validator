@@ -23,4 +23,6 @@ vendor/
 megalinter-reports/
 .kiro/
 PLAN.md
+PLAN-*.md
+docs/design/
 .cfv-realworld/

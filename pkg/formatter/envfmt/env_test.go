@@ -1,12 +1,14 @@
 package envfmt_test
 
 import (
+	"bytes"
 	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-envparse"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
@@ -39,6 +41,10 @@ func TestFixtures(t *testing.T) {
 
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
+
+			_, parseErr := envparse.Parse(bytes.NewReader(got))
+			require.NoError(t, parseErr,
+				"Format output is not valid env for %s", name)
 
 			if *update {
 				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
@@ -73,6 +79,11 @@ func TestIdempotency(t *testing.T) {
 
 			first, err := f.Format(src, opts)
 			require.NoError(t, err)
+
+			_, parseErr := envparse.Parse(bytes.NewReader(first))
+			require.NoError(t, parseErr,
+				"Format output is not valid env for %s", name)
+
 			second, err := f.Format(first, opts)
 			require.NoError(t, err)
 

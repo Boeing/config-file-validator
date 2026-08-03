@@ -5,12 +5,12 @@ go 1.26.3
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/fatih/color v1.19.0
-	github.com/go-git/go-billy/v5 v5.9.0
+	github.com/go-git/go-billy/v5 v5.9.1
 	github.com/go-git/go-git/v5 v5.19.1
-	github.com/gurkankaymak/hocon v1.2.23
+	github.com/gurkankaymak/hocon v1.3.0
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.23.0
-	github.com/lestrrat-go/helium v0.5.1
+	github.com/lestrrat-go/helium v0.7.0
 	github.com/magiconair/properties v1.8.10
 	github.com/owenrumney/go-sarif/v3 v3.3.0
 	github.com/pelletier/go-toml/v2 v2.4.3

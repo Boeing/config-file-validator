@@ -42,6 +42,10 @@ func TestFixtures(t *testing.T) {
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
 
+			_, parseErr := hujson.Parse(got)
+			require.NoError(t, parseErr,
+				"Format output is not valid JSONC for %s", name)
+
 			if *update {
 				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
 					"failed to update golden file %s", expected)
@@ -75,6 +79,11 @@ func TestIdempotency(t *testing.T) {
 
 			first, err := f.Format(src, opts)
 			require.NoError(t, err)
+
+			_, parseErr := hujson.Parse(first)
+			require.NoError(t, parseErr,
+				"Format output is not valid JSONC for %s", name)
+
 			second, err := f.Format(first, opts)
 			require.NoError(t, err)
 

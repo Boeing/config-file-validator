@@ -68,6 +68,10 @@ func TestFixtures(t *testing.T) {
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
 
+			var parsed yaml.Node
+			require.NoError(t, yaml.Unmarshal(got, &parsed),
+				"Format output is not valid YAML for %s", name)
+
 			if *update {
 				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
 					"failed to update golden file %s", expected)
@@ -103,6 +107,11 @@ func TestIdempotency(t *testing.T) {
 
 			first, err := f.Format(src, opts)
 			require.NoError(t, err)
+
+			var parsed yaml.Node
+			require.NoError(t, yaml.Unmarshal(first, &parsed),
+				"Format output is not valid YAML for %s", name)
+
 			second, err := f.Format(first, opts)
 			require.NoError(t, err)
 
@@ -415,6 +424,23 @@ func TestNestedFlowExpansionIndent(t *testing.T) {
 	got, err := f.Format(src, defaultOpts)
 	require.NoError(t, err)
 	require.Equal(t, want, string(got))
+}
+
+// TestLongFlowValueStaysWholeOnOwnLine verifies that a flow collection which
+// only exceeds the width while following its key moves to the value's next
+// line without unnecessarily expanding one element per line.
+func TestLongFlowValueStaysWholeOnOwnLine(t *testing.T) {
+	t.Parallel()
+	src := []byte("items:\n  - labels: [\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"]\n    name: x\n")
+	want := "items:\n  - labels:\n      [\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"]\n    name: x\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+
+	second, err := f.Format(got, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, got, second)
 }
 
 // TestFlowMappingExpansion verifies that long flow mappings { } are expanded

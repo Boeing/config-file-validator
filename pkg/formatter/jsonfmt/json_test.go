@@ -42,6 +42,9 @@ func TestFixtures(t *testing.T) {
 			got, err := f.Format(src, opts)
 			require.NoError(t, err, "Format(%s) should not error", name)
 
+			require.True(t, stdjson.Valid(got),
+				"Format output is not valid JSON for %s", name)
+
 			if *update {
 				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
 					"failed to update golden file %s", expected)
@@ -70,6 +73,10 @@ func TestIdempotency(t *testing.T) {
 
 			first, err := f.Format(src, defaultOpts)
 			require.NoError(t, err)
+
+			require.True(t, stdjson.Valid(first),
+				"Format output is not valid JSON for %s", name)
+
 			second, err := f.Format(first, defaultOpts)
 			require.NoError(t, err)
 
