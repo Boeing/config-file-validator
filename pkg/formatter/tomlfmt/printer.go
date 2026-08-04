@@ -39,10 +39,6 @@ type Printer struct {
 	// inInlineTable is true while printing the contents of an inline table,
 	// where newlines are not allowed by the TOML spec.
 	inInlineTable bool
-	// inlineTableLineLen is the estimated single-line length of the current
-	// inline table (including key prefix). Used to decide whether nested arrays
-	// should be expanded to reduce line width.
-	inlineTableLineLen int
 	// inExpandedArray is true when printing elements of a multiline array.
 	// Nested arrays should also be expanded (taplo behavior).
 	inExpandedArray bool
@@ -530,15 +526,16 @@ func (p *Printer) printArray(tokens []Token, depth int, prefixLen int) {
 	// Decision: multiline or single-line?
 	// - Has comments → always multiline (can't collapse comments into one line)
 	// - Exceeds column width (including key prefix) → multiline
-	// - Inside inline table that exceeds column width → expand arrays to reduce width
 	// - Fits → stay inline
-	effectivePrefix := prefixLen
-	if p.inInlineTable && p.inlineTableLineLen > p.opts.ColumnWidth {
-		// The inline table exceeds column width. Use the full line length as
-		// the effective prefix so any non-trivial array will be expanded.
-		effectivePrefix = p.inlineTableLineLen
+	multiline := hasComments || p.inExpandedArray || (prefixLen+singleLineLen) > p.opts.ColumnWidth
+
+	// An inline table has to stay on a single line (TOML v1.0 §5.2), so a
+	// nested array must not be expanded no matter how wide the line gets.
+	// Comments are the one exception: folding them onto a single line would
+	// comment out the remainder of the table.
+	if p.inInlineTable && !hasComments {
+		multiline = false
 	}
-	multiline := hasComments || p.inExpandedArray || (effectivePrefix+singleLineLen) > p.opts.ColumnWidth
 
 	if multiline {
 		// When expanding an array inside an inline table, use depth 0 so
@@ -834,14 +831,9 @@ func (p *Printer) printInlineTable(tokens []Token, depth int) {
 
 	// Emit as single-line: { key = val, key2 = val2 }
 	wasInline := p.inInlineTable
-	prevLineLen := p.inlineTableLineLen
 	p.inInlineTable = true
-	// Estimate the total line width of this inline table (from current column
-	// position). This allows nested arrays to expand when the line is too long.
-	p.inlineTableLineLen = p.column() + estimateInlineTableWidth(content)
 	defer func() {
 		p.inInlineTable = wasInline
-		p.inlineTableLineLen = prevLineLen
 	}()
 
 	p.buf.WriteString("{ ")
