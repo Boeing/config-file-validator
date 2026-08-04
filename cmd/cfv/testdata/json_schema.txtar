@@ -168,7 +168,10 @@ stdout '✓'
 -- workflow_schema.json --
 {
   "type": "object",
-  "required": ["on", "jobs"],
+  "required": [
+    "on",
+    "jobs"
+  ],
   "properties": {
     "name": { "type": "string" },
     "on": {},
@@ -179,13 +182,25 @@ stdout '✓'
 -- strict_schema.json --
 {
   "type": "object",
-  "required": ["host", "port", "database"],
+  "required": [
+    "host",
+    "port",
+    "database"
+  ],
   "properties": {
     "host": { "type": "string", "minLength": 1 },
     "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
     "database": { "type": "string" },
     "ssl": { "type": "boolean" },
-    "log_level": { "type": "string", "enum": ["debug", "info", "warn", "error"] }
+    "log_level": {
+      "type": "string",
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ]
+    }
   },
   "additionalProperties": false
 }
@@ -251,7 +266,9 @@ stdout '✓'
   "jobs": {
     "build": {
       "runs-on": "ubuntu-latest",
-      "steps": [{ "uses": "actions/checkout@v4" }]
+      "steps": [
+        { "uses": "actions/checkout@v4" }
+      ]
     }
   }
 }
@@ -309,7 +326,11 @@ stdout '✓'
 -- valid_array.json --
 {
   "$schema": "array_schema.json",
-  "items": ["one", "two", "three"]
+  "items": [
+    "one",
+    "two",
+    "three"
+  ]
 }
 -- too_few_items.json --
 {
@@ -319,7 +340,11 @@ stdout '✓'
 -- wrong_item_type.json --
 {
   "$schema": "array_schema.json",
-  "items": ["valid", 123, "also_valid"]
+  "items": [
+    "valid",
+    123,
+    "also_valid"
+  ]
 }
 -- no_schema.json --
 { "key": "value" }

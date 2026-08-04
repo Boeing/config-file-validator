@@ -279,36 +279,6 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 		return
 	}
 
-	concise := isConciseArray(arr)
-	hasBlankLines := hasBlankLineBetweenElements(arr)
-
-	// Keep short primitive arrays on one line.
-	// Note: inlined arrays intentionally omit trailing commas.
-	// A single-line array like [1, 2, 3] is cleaner without a trailing comma.
-	// Exception: concise arrays with source blank lines always expand (prettier
-	// behavior — blank lines force the group to break in fill layout).
-	if (!concise || !hasBlankLines) && fs.isInlineArray(arr, depth*len(fs.indent)) {
-		for i := range arr.Elements {
-			if i == 0 {
-				arr.Elements[i].BeforeExtra = nil
-			} else {
-				arr.Elements[i].BeforeExtra = hujson.Extra(" ")
-			}
-			arr.Elements[i].AfterExtra = nil
-			formatInlineValue(&arr.Elements[i])
-		}
-		arr.AfterExtra = nil
-		return
-	}
-
-	// Concise arrays (all numeric) use fill layout: pack multiple items per
-	// line up to maxLineWidth, preserving source blank lines.
-	// Matches prettier's isConciselyPrintedArray + printArrayElementsConcisely.
-	if concise {
-		fs.formatArrayFill(arr, depth)
-		return
-	}
-
 	// Expand to multiline (one element per line).
 	childIndent := "\n" + strings.Repeat(fs.indent, depth+1)
 	closeIndent := "\n" + strings.Repeat(fs.indent, depth)
@@ -327,7 +297,12 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 		// Array elements are on their own lines — no key prefix.
 		savedKeyPrefix := fs.keyPrefixLen
 		fs.keyPrefixLen = 0
-		fs.formatValue(&arr.Elements[i], depth+1)
+		if nested, ok := arr.Elements[i].Value.(*hujson.Array); ok &&
+			fs.isInlineArrayElement(nested, (depth+1)*len(fs.indent)) {
+			formatInlineValue(&arr.Elements[i])
+		} else {
+			fs.formatValue(&arr.Elements[i], depth+1)
+		}
 		fs.keyPrefixLen = savedKeyPrefix
 	}
 
@@ -349,117 +324,8 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	}
 }
 
-// isConciseArray returns true if all elements are numeric literals (possibly
-// signed). Concise arrays use fill layout when expanded, matching prettier's
-// isConciselyPrintedArray behavior (src/language-js/print/array.js).
-//
-// A numeric literal in JSON starts with an optional '-' followed by a digit.
-// Elements with comments are excluded from concise treatment. Arrays with
-// dangling comments (in AfterExtra) are also excluded.
-func isConciseArray(arr *hujson.Array) bool {
-	// Array-level comments (e.g., after trailing comma removal) prevent
-	// concise format — they require one-per-line for correct placement.
-	if hasComment(arr.AfterExtra) {
-		return false
-	}
-	for _, e := range arr.Elements {
-		lit, ok := e.Value.(hujson.Literal)
-		if !ok {
-			return false
-		}
-		s := string(lit)
-		// Strip optional leading minus for signed numbers.
-		if len(s) > 0 && s[0] == '-' {
-			s = s[1:]
-		}
-		if len(s) == 0 || s[0] < '0' || s[0] > '9' {
-			return false
-		}
-		// Comments on elements prevent concise format.
-		if hasComment(e.BeforeExtra) || hasComment(e.AfterExtra) {
-			return false
-		}
-	}
-	return true
-}
-
-// hasBlankLineBetweenElements reports whether any pair of adjacent elements
-// has a blank line between them in the source.
-func hasBlankLineBetweenElements(arr *hujson.Array) bool {
-	for i := 0; i < len(arr.Elements)-1; i++ {
-		if hasBlankLine(arr.Elements[i].AfterExtra) ||
-			hasBlankLine(arr.Elements[i+1].BeforeExtra) {
-			return true
-		}
-	}
-	return false
-}
-
-// formatArrayFill formats a concise (all-numeric) array using fill layout.
-// Elements are packed on lines up to maxLineWidth, with source blank lines
-// preserved. Matches prettier's printArrayElementsConcisely + fill() algorithm.
-//
-// Source: prettier src/language-js/print/array.js:168 (printArrayElementsConcisely)
-// and src/document/printer/printer.js:343 (fill layout engine).
-func (fs *formatState) formatArrayFill(arr *hujson.Array, depth int) {
-	childIndent := "\n" + strings.Repeat(fs.indent, depth+1)
-	closeIndent := "\n" + strings.Repeat(fs.indent, depth)
-	indentWidth := (depth + 1) * len(fs.indent)
-
-	// Track position on the current line (columns used so far).
-	linePos := indentWidth
-
-	for i := range arr.Elements {
-		elemLen := len(arr.Elements[i].Value.(hujson.Literal))
-
-		if i == 0 {
-			// First element: starts after the indent on first line.
-			arr.Elements[i].BeforeExtra = reindentCompactExtra(arr.Elements[i].BeforeExtra, childIndent)
-			linePos += elemLen
-		} else {
-			// Check for source blank line between previous element and this one.
-			blankBefore := hasBlankLine(arr.Elements[i-1].AfterExtra) ||
-				hasBlankLine(arr.Elements[i].BeforeExtra)
-
-			if blankBefore {
-				// Blank line: always break with preserved blank line.
-				arr.Elements[i].BeforeExtra = hujson.Extra("\n" + childIndent)
-				linePos = indentWidth + elemLen
-			} else if linePos+2+elemLen > fs.maxLineWidth {
-				// Would exceed width: wrap to next line.
-				// The +2 accounts for ", " separator that Pack() emits
-				// (comma auto-added + space from BeforeExtra).
-				arr.Elements[i].BeforeExtra = hujson.Extra(childIndent)
-				linePos = indentWidth + elemLen
-			} else {
-				// Fits on current line: space separator.
-				arr.Elements[i].BeforeExtra = hujson.Extra(" ")
-				linePos += 2 + elemLen // ", " + value
-			}
-		}
-		arr.Elements[i].AfterExtra = nil
-	}
-
-	// Trailing comma on the last element, if enabled.
-	last := &arr.Elements[len(arr.Elements)-1]
-	if fs.trailingCommas {
-		last.AfterExtra = ensureTrailingComma(last.AfterExtra)
-	} else if fs.removeTrailingCommas {
-		arr.AfterExtra = removeTrailingComma(&last.AfterExtra, arr.AfterExtra)
-	}
-
-	if fs.removeTrailingCommas {
-		arr.AfterExtra = reindentClosingExtra(arr.AfterExtra, closeIndent)
-	} else {
-		arr.AfterExtra = reindentCompactExtra(arr.AfterExtra, closeIndent)
-	}
-	if arr.AfterExtra == nil {
-		arr.AfterExtra = hujson.Extra(closeIndent)
-	}
-}
-
 // formatInlineValue recursively normalizes whitespace inside a value for
-// single-line display. Objects get { } padding, arrays get no padding,
+// single-line display. Objects get { } padding, empty arrays get no padding,
 // and commas get a trailing space.
 func formatInlineValue(v *hujson.Value) {
 	switch val := v.Value.(type) {
@@ -536,24 +402,43 @@ func inlineValueLength(v *hujson.Value) int {
 		if len(val.Elements) == 0 {
 			return 2 // []
 		}
-		total := 2 // "[" + "]"
-		for i, e := range val.Elements {
-			if i > 0 {
-				total += 2 // ", "
-			}
-			if hasComment(e.BeforeExtra) || hasComment(e.AfterExtra) {
-				return -1
-			}
-			inner := inlineValueLength(&e)
-			if inner < 0 {
-				return -1
-			}
-			total += inner
-		}
-		return total
+		return -1
 	default:
 		return -1
 	}
+}
+
+// inlineArrayValueLength returns the single-line length of an array used as an
+// array element. Property and root arrays never use this compact form.
+func inlineArrayValueLength(arr *hujson.Array) int {
+	if hasComment(arr.AfterExtra) {
+		return -1
+	}
+	total := 2 // "[" + "]"
+	for i := range arr.Elements {
+		if i > 0 {
+			total += 2 // ", "
+		}
+		element := &arr.Elements[i]
+		if hasComment(element.BeforeExtra) || hasComment(element.AfterExtra) {
+			return -1
+		}
+
+		var length int
+		switch value := element.Value.(type) {
+		case hujson.Literal, *hujson.Object:
+			length = inlineValueLength(element)
+		case *hujson.Array:
+			length = inlineArrayValueLength(value)
+		default:
+			return -1
+		}
+		if length < 0 {
+			return -1
+		}
+		total += length
+	}
+	return total
 }
 
 // isInlineObject returns true if the object should be kept on one line.
@@ -579,21 +464,12 @@ func (fs *formatState) isInlineObject(obj *hujson.Object, prefixLen int) bool {
 	return prefixLen+fs.keyPrefixLen+valLen <= fs.maxLineWidth
 }
 
-// isInlineArray returns true if the array should stay on one line.
-// Arrays are always collapsed if they fit within the max line width,
-// regardless of their format in the input. This matches prettier's behavior.
-func (fs *formatState) isInlineArray(arr *hujson.Array, prefixLen int) bool {
+func (fs *formatState) isInlineArrayElement(arr *hujson.Array, prefixLen int) bool {
 	if fs.maxLineWidth <= 0 {
 		return false
 	}
-	if hasComment(arr.AfterExtra) {
-		return false
-	}
-	valLen := inlineValueLength(&hujson.Value{Value: arr})
-	if valLen < 0 {
-		return false
-	}
-	return prefixLen+fs.keyPrefixLen+valLen <= fs.maxLineWidth
+	valLen := inlineArrayValueLength(arr)
+	return valLen >= 0 && prefixLen+valLen <= fs.maxLineWidth
 }
 
 // hasComment returns true if the extra contains a comment.

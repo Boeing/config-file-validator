@@ -126,14 +126,13 @@ func TestSortKeysFalse(t *testing.T) {
 	require.Less(t, aPos, mPos, "a should come before m when SortKeys=false")
 }
 
-// TestShortArrayStaysOnOneLine verifies that arrays fitting within the default
-// max line width are kept on a single line rather than expanded.
-func TestShortArrayStaysOnOneLine(t *testing.T) {
+// TestShortArrayIsExpanded verifies line width does not collapse non-empty arrays.
+func TestShortArrayIsExpanded(t *testing.T) {
 	t.Parallel()
 	src := []byte(`{"scripts":["pnpm install","pnpm build"]}`)
 	got, err := f.Format(src, defaultOpts)
 	require.NoError(t, err)
-	require.Contains(t, string(got), `["pnpm install", "pnpm build"]`)
+	require.Contains(t, string(got), "\n    \"pnpm install\",\n    \"pnpm build\"\n")
 }
 
 // TestLongArrayIsExpanded verifies that an array exceeding the default max line

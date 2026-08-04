@@ -202,37 +202,53 @@ stderr 'invalid schema-map format'
   "schemas": [
     {
       "name": "package.json",
-      "fileMatch": ["package.json"],
+      "fileMatch": [
+        "package.json"
+      ],
       "url": "https://www.schemastore.org/package.json"
     },
     {
       "name": "nodemon.json",
-      "fileMatch": ["nodemon.json"],
+      "fileMatch": [
+        "nodemon.json"
+      ],
       "url": "https://www.schemastore.org/nodemon.json"
     },
     {
       "name": "GitHub Workflow",
-      "fileMatch": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"],
+      "fileMatch": [
+        "**/.github/workflows/*.yml",
+        "**/.github/workflows/*.yaml"
+      ],
       "url": "https://www.schemastore.org/github-workflow.json"
     },
     {
       "name": "artifacthub-repo.yml",
-      "fileMatch": ["artifacthub-repo.yml"],
+      "fileMatch": [
+        "artifacthub-repo.yml"
+      ],
       "url": "https://www.schemastore.org/artifacthub-repo.json"
     },
     {
       "name": "StyLua",
-      "fileMatch": ["stylua.toml", ".stylua.toml"],
+      "fileMatch": [
+        "stylua.toml",
+        ".stylua.toml"
+      ],
       "url": "https://www.schemastore.org/stylua.json"
     },
     {
       "name": "App Config",
-      "fileMatch": ["app.toon"],
+      "fileMatch": [
+        "app.toon"
+      ],
       "url": "https://www.schemastore.org/app-config.json"
     },
     {
       "name": "External Only",
-      "fileMatch": ["external.json"],
+      "fileMatch": [
+        "external.json"
+      ],
       "url": "https://example.com/external.json"
     }
   ]
@@ -259,7 +275,12 @@ stderr 'invalid schema-map format'
     "watch": { "type": "array", "items": { "type": "string" } },
     "ext": { "type": "string" },
     "ignore": { "type": "array", "items": { "type": "string" } },
-    "delay": { "type": ["number", "string"] },
+    "delay": {
+      "type": [
+        "number",
+        "string"
+      ]
+    },
     "exec": { "type": "string" },
     "verbose": { "type": "boolean" }
   },
@@ -268,7 +289,10 @@ stderr 'invalid schema-map format'
 -- schemastore/src/schemas/json/github-workflow.json --
 {
   "type": "object",
-  "required": ["on", "jobs"],
+  "required": [
+    "on",
+    "jobs"
+  ],
   "properties": {
     "name": { "type": "string" },
     "on": {},
@@ -287,7 +311,10 @@ stderr 'invalid schema-map format'
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "email"],
+        "required": [
+          "name",
+          "email"
+        ],
         "properties": {
           "name": { "type": "string" },
           "email": { "type": "string" }
@@ -302,9 +329,19 @@ stderr 'invalid schema-map format'
   "type": "object",
   "properties": {
     "column_width": { "type": "integer" },
-    "indent_type": { "enum": ["Tabs", "Spaces"] },
+    "indent_type": {
+      "enum": [
+        "Tabs",
+        "Spaces"
+      ]
+    },
     "indent_width": { "type": "integer" },
-    "line_endings": { "enum": ["Unix", "Windows"] },
+    "line_endings": {
+      "enum": [
+        "Unix",
+        "Windows"
+      ]
+    },
     "quote_style": {
       "enum": [
         "AutoPreferDouble",
@@ -334,7 +371,11 @@ stderr 'invalid schema-map format'
 -- server_schema.json --
 {
   "type": "object",
-  "required": ["host", "port", "database"],
+  "required": [
+    "host",
+    "port",
+    "database"
+  ],
   "properties": {
     "host": { "type": "string" },
     "port": { "type": "integer" },
@@ -368,9 +409,13 @@ stderr 'invalid schema-map format'
 }
 -- valid/nodemon.json --
 {
-  "watch": ["src"],
+  "watch": [
+    "src"
+  ],
   "ext": "ts,json",
-  "ignore": ["dist"],
+  "ignore": [
+    "dist"
+  ],
   "delay": 1000,
   "exec": "ts-node src/index.ts",
   "verbose": true
@@ -450,7 +495,9 @@ key = value
 }
 -- invalid/nodemon.json --
 {
-  "watch": ["src"],
+  "watch": [
+    "src"
+  ],
   "ext": "ts",
   "delay": 1000,
   "unknown_field": true

@@ -241,12 +241,27 @@ key: value
 // TypeScript config
 { "compilerOptions": { "strict": true } }
 -- priority/.babelrc --
-{ "presets": ["env"], "nested": { "key": [1, 2, 3] } }
+{
+  "presets": [
+    "env",
+  ],
+  "nested": {
+    "key": [
+      1,
+      2,
+      3,
+    ],
+  },
+}
 -- edge/.a --
 { "key": "value" }
 -- edge/.eslintrc.json --
 // ESLint config
-{ "extends": ["eslint:recommended"] }
+{
+  "extends": [
+    "eslint:recommended",
+  ],
+}
 -- edge/.hidden --
 not a config file
 -- edge/.unknown --
@@ -277,10 +292,18 @@ root = true
 [user]
 name = test
 -- depth_test/nested/.babelrc --
-{ "presets": ["env"] }
+{
+  "presets": [
+    "env",
+  ],
+}
 -- conflict/.eslintrc.json --
 // ESLint with comments
-{ "extends": ["eslint:recommended"] }
+{
+  "extends": [
+    "eslint:recommended",
+  ],
+}
 -- conflict/devcontainer.json --
 { "name": "dev", "image": "node:18" }
 -- conflict/ant.xml --
@@ -304,7 +327,11 @@ key = value
 -- json_stdin.json --
 { "key": "value" }
 -- multi_known/.babelrc --
-{ "presets": ["env"] }
+{
+  "presets": [
+    "env",
+  ],
+}
 -- multi_known/.gitconfig --
 [user]
 name = test
@@ -324,7 +351,9 @@ key: value
   "schemas": [
     {
       "name": "dotA",
-      "fileMatch": [".a"],
+      "fileMatch": [
+        ".a"
+      ],
       "url": "https://www.schemastore.org/dota.json"
     }
   ]

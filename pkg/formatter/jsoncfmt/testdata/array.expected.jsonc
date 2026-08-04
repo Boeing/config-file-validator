@@ -1,6 +1,10 @@
 {
-  // Short array stays inline
-  "tags": ["alpha", "beta", "gamma"],
+  // Non-empty array expands
+  "tags": [
+    "alpha",
+    "beta",
+    "gamma",
+  ],
   // Long array expands to multiline
   "descriptions": [
     "this is a fairly long description string that pushes past the line limit",

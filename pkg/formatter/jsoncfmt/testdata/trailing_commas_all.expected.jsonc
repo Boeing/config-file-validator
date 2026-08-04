@@ -1,6 +1,10 @@
 // Config
 {
-  "extends": ["base-configuration", "shared-settings", "team-overrides"],
+  "extends": [
+    "base-configuration",
+    "shared-settings",
+    "team-overrides",
+  ],
   "nested": {
     "alpha_setting": "this value is long enough to prevent collapsing the object",
     "beta_setting": 2,

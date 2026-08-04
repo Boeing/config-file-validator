@@ -116,7 +116,7 @@ func TestInvalidJSONC(t *testing.T) {
 }
 
 // TestDefaultTrailingCommas verifies the JSONC default adds trailing commas to
-// expanded objects and arrays while leaving collapsed collections unchanged.
+// expanded objects and non-empty arrays while leaving empty collections unchanged.
 func TestDefaultTrailingCommas(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -135,9 +135,9 @@ func TestDefaultTrailingCommas(t *testing.T) {
 			"{\n  \"list\": [\n    {\n      \"identifier\": \"first-item-with-a-sufficiently-long-name-to-exceed-eighty\",\n    },\n    {\n      \"identifier\": \"second-item-with-a-sufficiently-long-name-to-exceed-eighty\",\n    },\n  ],\n}\n",
 		},
 		{
-			"collapsed array",
+			"non-empty array",
 			`[1, 2, 3]`,
-			"[1, 2, 3]\n",
+			"[\n  1,\n  2,\n  3,\n]\n",
 		},
 		{
 			"collapsed object",
@@ -183,7 +183,7 @@ func TestTrailingCommasNoneWithFinalComment(t *testing.T) {
 			"[\n  {\n    \"identifier\": \"first-item-with-enough-length-to-prevent-collapsing-this-obj\"\n  } /* final comment */\n]\n",
 		},
 		{
-			"inline array",
+			"array",
 			`[1, 2, 3 /* last */,]`,
 			"[\n  1,\n  2,\n  3 /* last */\n]\n",
 		},
@@ -379,139 +379,111 @@ func TestTabsNormalizedToSpacesByDefault(t *testing.T) {
 	require.Contains(t, string(got), "  \"name\"")
 }
 
-// TestInlineArrayDepthAware verifies that isInlineArray accounts for
-// indentation depth when deciding whether to collapse an array.
-func TestInlineArrayDepthAware(t *testing.T) {
+// TestNonEmptyArraysIgnoreLineWidth verifies array expansion is independent of
+// nesting depth and MaxLineWidth.
+func TestNonEmptyArraysIgnoreLineWidth(t *testing.T) {
 	t.Parallel()
+	opts := defaultOpts
+	opts.MaxLineWidth = 200
+	src := []byte(`{"shallow":["a","b"],"nested":{"items":["x","y"]}}`)
 
-	// depth=3: 6 spaces of indent + ~87 chars content = ~93 > 80 → must stay expanded.
-	deepSrc := []byte(`{"a":{"b":{"dependsOn":["rust-check-clippy","rust-check-doc","rust-check-fmt","rust-check-napi"]}}}`)
-	got, err := f.Format(deepSrc, defaultOpts)
+	got, err := f.Format(src, opts)
 	require.NoError(t, err)
-	// Each element must be on its own line.
-	require.Contains(t, string(got), "\"rust-check-clippy\",\n", "deep array must stay expanded")
-	// No line must exceed 80 chars.
-	for _, line := range strings.Split(string(got), "\n") {
-		require.LessOrEqual(t, len(line), 80, "line exceeds 80 chars: %q", line)
-	}
-	// Idempotent.
-	got2, err := f.Format(got, defaultOpts)
-	require.NoError(t, err)
-	require.Equal(t, string(got), string(got2), "deep expanded must be idempotent")
+	require.Contains(t, string(got), "\"shallow\": [\n    \"a\",\n    \"b\",\n  ]")
+	require.Contains(t, string(got), "\"items\": [\n      \"x\",\n      \"y\",\n    ]")
 
-	// depth=1: short array fits even including indent → must collapse.
-	shallowSrc := []byte(`{"items":["a","b","c"]}`)
-	gotShallow, err := f.Format(shallowSrc, defaultOpts)
+	second, err := f.Format(got, opts)
 	require.NoError(t, err)
-	require.Contains(t, string(gotShallow), `["a", "b", "c"]`, "shallow array must collapse")
-
-	// depth=3: very short array still fits even with indent → must collapse.
-	deepShortSrc := []byte(`{"a":{"b":{"c":["x","y"]}}}`)
-	gotDeepShort, err := f.Format(deepShortSrc, defaultOpts)
-	require.NoError(t, err)
-	require.Contains(t, string(gotDeepShort), `["x", "y"]`, "deep but short array must collapse")
+	require.Equal(t, got, second)
 }
 
-// TestConciseArrayFillFormat verifies the fill layout for all-numeric arrays.
-// Matches prettier's isConciselyPrintedArray + printArrayElementsConcisely behavior.
-func TestConciseArrayFillFormat(t *testing.T) {
+// TestNumericArraysExpand verifies numbers follow the same one-element-per-line
+// rule as other non-empty arrays.
+func TestNumericArraysExpand(t *testing.T) {
 	t.Parallel()
 
-	t.Run("short concise inline", func(t *testing.T) {
+	t.Run("nested arrays stay compact as elements", func(t *testing.T) {
 		t.Parallel()
-		// Short numeric array fits on one line → stays inline.
+		got, err := f.Format([]byte(`[[1, 2], [3, 4]]`), defaultOpts)
+		require.NoError(t, err)
+		require.Equal(t, "[\n  [1, 2],\n  [3, 4],\n]\n", string(got))
+	})
+
+	t.Run("short numeric array", func(t *testing.T) {
+		t.Parallel()
 		src := []byte(`[1, 2, 3, 4, 5]`)
 		got, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
-		require.Equal(t, "[1, 2, 3, 4, 5]\n", string(got))
+		require.Equal(t, "[\n  1,\n  2,\n  3,\n  4,\n  5,\n]\n", string(got))
 	})
 
-	t.Run("long concise fill wrap", func(t *testing.T) {
+	t.Run("long numeric array", func(t *testing.T) {
 		t.Parallel()
-		// Long numeric array exceeds 80 → fill layout packs per line.
-		// JSONC default adds trailing comma on last element.
 		src := []byte(`[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]`)
 		got, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
-		want := "[\n  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,\n  23, 24, 25,\n]\n"
-		require.Equal(t, want, string(got))
+		require.Contains(t, string(got), "  1,\n  2,\n  3,\n")
+		require.Contains(t, string(got), "  23,\n  24,\n  25,\n")
 	})
 
-	t.Run("blank line preservation forces expand", func(t *testing.T) {
+	t.Run("blank line preservation", func(t *testing.T) {
 		t.Parallel()
-		// Even a short concise array with blank lines must expand.
-		// JSONC default adds trailing comma.
 		src := []byte("[1, 2, 3,\n\n4, 5, 6, 7]")
 		got, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
-		want := "[\n  1, 2, 3,\n\n  4, 5, 6, 7,\n]\n"
+		want := "[\n  1,\n  2,\n  3,\n\n  4,\n  5,\n  6,\n  7,\n]\n"
 		require.Equal(t, want, string(got))
 	})
 
-	t.Run("nested concise respects depth", func(t *testing.T) {
+	t.Run("nested numeric array", func(t *testing.T) {
 		t.Parallel()
-		// Concise array nested in object: fill width accounts for deeper indent.
 		src := []byte(`{"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]}`)
 		got, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
-		// depth=2 (obj indent + arr indent) → 4 chars → 76 available
-		require.Contains(t, string(got), "    1, 2, 3, 4,")
-		// Verify no line exceeds 80 chars.
-		for _, line := range strings.Split(string(got), "\n") {
-			require.LessOrEqual(t, len(line), 80, "line exceeds 80: %q", line)
-		}
+		require.Contains(t, string(got), "    1,\n    2,\n    3,\n")
 	})
 
-	t.Run("negative numbers are concise", func(t *testing.T) {
+	t.Run("negative numbers", func(t *testing.T) {
 		t.Parallel()
-		// Signed numbers are included in concise detection.
 		src := []byte(`[-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16, -17, -18, -19, -20]`)
 		got, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
-		// Should use fill format (multiple per line), not one-per-line.
-		lines := strings.Split(strings.TrimSuffix(string(got), "\n"), "\n")
-		require.Less(t, len(lines), 20, "fill format should use fewer lines than one-per-line")
+		require.Contains(t, string(got), "  -1,\n  -2,\n  -3,\n")
 	})
 
-	t.Run("mixed types NOT concise", func(t *testing.T) {
+	t.Run("mixed types", func(t *testing.T) {
 		t.Parallel()
-		// Array with strings: NOT concise, uses one-per-line when expanded.
 		src := []byte(`[1, "two", 3, "four", 5, "six", 7, "eight", 9, "ten", 11, "twelve", 13, "fourteen"]`)
 		got, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
-		// Should be one-per-line (not fill).
 		require.Contains(t, string(got), "  1,\n  \"two\"")
 	})
 
-	t.Run("concise with comment NOT fill", func(t *testing.T) {
+	t.Run("comment preservation", func(t *testing.T) {
 		t.Parallel()
-		// Comments prevent concise treatment → one-per-line.
-		// The comment in AfterExtra of the array goes before closing bracket.
 		src := []byte("[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 /* comment */]")
 		got, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
-		// Must be one-per-line (not fill) because of the comment.
 		require.Contains(t, string(got), "  1,\n  2,\n")
-		// Comment preserved before closing bracket.
 		require.Contains(t, string(got), "/* comment */\n]")
 	})
 
-	t.Run("fill format is idempotent", func(t *testing.T) {
+	t.Run("expanded format is idempotent", func(t *testing.T) {
 		t.Parallel()
 		src := []byte("[1, 2, 3,\n\n4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]")
 		first, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
 		second, err := f.Format(first, defaultOpts)
 		require.NoError(t, err)
-		require.Equal(t, string(first), string(second), "fill format must be idempotent")
+		require.Equal(t, string(first), string(second), "expanded format must be idempotent")
 	})
 
-	t.Run("single element concise stays inline", func(t *testing.T) {
+	t.Run("single element expands", func(t *testing.T) {
 		t.Parallel()
 		src := []byte(`[42]`)
 		got, err := f.Format(src, defaultOpts)
 		require.NoError(t, err)
-		require.Equal(t, "[42]\n", string(got))
+		require.Equal(t, "[\n  42,\n]\n", string(got))
 	})
 }
 

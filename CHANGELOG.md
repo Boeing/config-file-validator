@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- JSON and JSONC formatters now expand non-empty root and property arrays to one element per line while keeping short nested array elements compact; empty arrays stay compact, and short objects still collapse within the configured line width (closes #630; supersedes the array behavior from #557).
 - YAML formatting now normalizes extra spaces after sequence indicators so mapping keys remain aligned with their siblings (closes #622).
 - YAML formatter now moves a long flow collection below its mapping key before expanding its elements, keeping the collection inline when it fits at the deeper value indentation (closes #623).
 - YAML formatter no longer produces unparseable output when a long flow collection is expanded inside a block sequence item. The sequence indicator was not counted towards the key's column, so `- key: [...]` put the bracket at the key's own column, where it is no longer that key's value — `cfv format --fix` rewrote valid documents into invalid ones while reporting success. Affects both `[` and `{`; the corrected layout matches Prettier byte for byte.
@@ -75,7 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local JSON Schema paths are encoded as file URLs on Windows (closes #550)
 - JSONC `trailing-commas = "preserve"` mode retains the trailing-comma style already used by the file (closes #559).
 - JSONC formatting no longer adds trailing commas to files that do not already use them (closes #559).
-- JSON formatter now keeps short arrays and objects on one line when they fit within 80 columns instead of always expanding them (closes #557).
 - Global `--help` now exits after printing usage instead of running validation on the current directory.
 - Update Go and npm dependencies to resolve 22 known vulnerabilities (CVE-2026-25680, CVE-2026-48779, and others).
 - TOML files with duplicate keys are now rejected as invalid (closes #504).
@@ -95,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking:** `--no-config` now disables ALL config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`), matching prettier's `--no-config` semantics. Previously it only disabled `.cfv.toml`.
 - **Breaking:** Removed `--no-prettier-config`, `--no-taplo-config`, and `--no-yamlfmt-config` flags. Use `--no-config` to disable all config, or `.cfv.toml` to take explicit control.
-- JSONC formatting now adds trailing commas to expanded objects and arrays by default, matching Prettier; collapsed collections and strict JSON remain unchanged (closes #589).
+- JSONC formatting now adds trailing commas to expanded objects and non-empty arrays by default, matching Prettier; inline objects, empty arrays, and strict JSON remain unchanged (closes #589).
 - Refactored grouped standard and JSON output to support any number of `--groupby` levels.
 - Directory grouped output now uses slash-normalized directory keys without trailing separators; files in the current directory use an empty directory key.
 

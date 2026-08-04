@@ -25,18 +25,17 @@ func Test_JSON_BracketSpacingOnInlineObjects(t *testing.T) {
 	require.Contains(t, out, `{ "b": 1 }`, "inline objects must have bracket spacing")
 }
 
-// Test_JSON_NoBracketSpacingOnArrays asserts that arrays never have
-// interior bracket spacing: ["a", "b"] not [ "a", "b" ].
-func Test_JSON_NoBracketSpacingOnArrays(t *testing.T) {
+// Test_JSON_NoBracketPaddingOnArrays asserts that array brackets never have
+// interior space padding, including when the array is multiline.
+func Test_JSON_NoBracketPaddingOnArrays(t *testing.T) {
 	t.Parallel()
 	src := []byte(`{"items":["a","b"]}`)
 	got, err := jsonfmt.Formatter{}.Format(src, jsonfmt.DefaultOptions())
 	require.NoError(t, err)
 	out := string(got)
 
-	require.Contains(t, out, `["a", "b"]`, "inline arrays must NOT have bracket spacing")
-	require.NotContains(t, out, `[ "a"`, "no space after opening bracket")
-	require.NotContains(t, out, `"b" ]`, "no space before closing bracket")
+	require.Contains(t, out, "[\n    \"a\",", "non-empty arrays must expand")
+	require.NotContains(t, out, `[ `, "no space after opening bracket")
 }
 
 // Test_JSON_EmptyObjectIsCompact asserts empty objects format as {} not { }.
@@ -61,6 +60,29 @@ func Test_JSON_EmptyArrayIsCompact(t *testing.T) {
 
 	require.Contains(t, out, `"empty": []`, "empty arrays must be compact")
 	require.NotContains(t, out, `[ ]`, "empty arrays must not have interior space")
+}
+
+// Test_JSON_NonEmptyArraysExpand verifies root and property arrays use one
+// element per line while short arrays used as elements stay compact.
+func Test_JSON_NonEmptyArraysExpand(t *testing.T) {
+	t.Parallel()
+	src := []byte(`{"brackets":[["{","}"],["[","]"],["(",")"]],"other":[1,2,3]}`)
+	want := "{\n" +
+		"  \"brackets\": [\n" +
+		"    [\"{\", \"}\"],\n" +
+		"    [\"[\", \"]\"],\n" +
+		"    [\"(\", \")\"]\n" +
+		"  ],\n" +
+		"  \"other\": [\n" +
+		"    1,\n" +
+		"    2,\n" +
+		"    3\n" +
+		"  ]\n" +
+		"}\n"
+
+	got, err := jsonfmt.Formatter{}.Format(src, jsonfmt.DefaultOptions())
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
 }
 
 // Test_JSON_MultilineObjectPreservesMultiline asserts that objects already on
@@ -90,9 +112,9 @@ func Test_JSON_InlineObjectPreservesInline(t *testing.T) {
 	require.Contains(t, out, `{ "a": 1, "b": 2 }`, "short inline object must stay inline")
 }
 
-// Test_JSON_MultilineObjectInArrayPreventsCollapse asserts that an array
-// containing a multiline child object does NOT collapse to a single line.
-func Test_JSON_MultilineObjectInArrayPreventsCollapse(t *testing.T) {
+// Test_JSON_ArrayElementsRetainMultilineObjects asserts multiline child
+// objects keep their structure after the containing array expands.
+func Test_JSON_ArrayElementsRetainMultilineObjects(t *testing.T) {
 	t.Parallel()
 	// This array has an object whose formatted form is multiline (description is long).
 	src := []byte(`{"items":[{"name":"first","description":"a value long enough to force the object to expand past the eighty column limit"}]}`)
@@ -100,26 +122,7 @@ func Test_JSON_MultilineObjectInArrayPreventsCollapse(t *testing.T) {
 	require.NoError(t, err)
 	out := string(got)
 
-	// The array must expand because its child is multiline.
-	require.Contains(t, out, "\n    {\n", "array with multiline child must not collapse")
-}
-
-// Test_JSON_KeyPrefixIncludedInWidthCalc asserts that the key + ": " prefix
-// is counted toward MaxLineWidth when deciding to collapse/expand an array.
-func Test_JSON_KeyPrefixIncludedInWidthCalc(t *testing.T) {
-	t.Parallel()
-	// Array content alone is ~67 chars. At depth 0 with "key": prefix (7 chars),
-	// total = 67 + 2(indent) + 7 = 76 → fits. But if nested deeply...
-	src := []byte(`{"config":{"deeply":{"nested":{"key":["short","array","that","fits","because","key","is","long"]}}}}`)
-	opts := jsonfmt.DefaultOptions()
-
-	got, err := jsonfmt.Formatter{}.Format(src, opts)
-	require.NoError(t, err)
-	out := string(got)
-
-	// At depth 4, prefix is 8(indent) + 7("key": ) = 15. Array = 67. Total = 82 > 80.
-	// So the array MUST expand despite being short in isolation.
-	require.Contains(t, out, "\n          \"short\"", "key prefix must be counted in width calculation")
+	require.Contains(t, out, "\n    {\n", "multiline array element must remain expanded")
 }
 
 // Test_JSON_NeverAddsTrailingCommas asserts that JSON (not JSONC) never
@@ -144,66 +147,52 @@ func Test_JSON_NeverAddsTrailingCommas(t *testing.T) {
 	}
 }
 
-// Test_JSON_ConciseArrayFillsLine asserts that all-numeric arrays use fill
-// layout: packing multiple elements per line up to MaxLineWidth.
-func Test_JSON_ConciseArrayFillsLine(t *testing.T) {
+// Test_JSON_NumericArraysUseOneElementPerLine asserts numeric arrays follow
+// the same expansion rule as every other non-empty array.
+func Test_JSON_NumericArraysUseOneElementPerLine(t *testing.T) {
 	t.Parallel()
-	src := []byte(`{"data":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]}`)
+	src := []byte(`{"data":[1,2,3]}`)
 	got, err := jsonfmt.Formatter{}.Format(src, jsonfmt.DefaultOptions())
 	require.NoError(t, err)
-	out := string(got)
-
-	// Fill layout packs multiple numbers per line, NOT one-per-line.
-	lines := strings.Split(out, "\n")
-	var dataLines []string
-	for _, l := range lines {
-		if strings.Contains(l, ",") && !strings.Contains(l, "\"data\"") {
-			dataLines = append(dataLines, l)
-		}
-	}
-	// With 20 small numbers and 80 col width, fill should pack them in far
-	// fewer lines than 20 (one-per-line would be 20 lines).
-	require.Less(t, len(dataLines), 10, "concise fill should pack multiple numbers per line, got %d data lines", len(dataLines))
+	require.Contains(t, string(got), "    1,\n    2,\n    3\n")
 }
 
 // Test_JSON_DefaultMaxLineWidthIs80 asserts that the default MaxLineWidth is 80
-// by testing a value that's exactly at the boundary.
+// for deciding whether inline objects need expansion.
 func Test_JSON_DefaultMaxLineWidthIs80(t *testing.T) {
 	t.Parallel()
 	opts := jsonfmt.DefaultOptions()
 
-	// This array + key + braces = ~70 chars inline → stays inline.
-	shortSrc := []byte(`{"k":["aaaa","bbbb","cccc","dddd","eeee","ffff","gggg"]}`)
+	shortSrc := []byte(`{"k":{"a":"aaaa","b":"bbbb"}}`)
 	shortGot, err := jsonfmt.Formatter{}.Format(shortSrc, opts)
 	require.NoError(t, err)
 	shortOut := string(shortGot)
-	require.Contains(t, shortOut, `["aaaa"`, "under-80 content should stay inline")
+	require.Contains(t, shortOut, `{ "a": "aaaa", "b": "bbbb" }`, "under-80 object should stay inline")
 
-	// This array + key + braces = ~90 chars inline → must expand.
-	longSrc := []byte(`{"k":["aaaaaa","bbbbbb","cccccc","dddddd","eeeeee","ffffff","gggggg","hhhhhh"]}`)
+	longSrc := []byte(`{"k":{"first_setting":"a value long enough to consume most of the line","second_setting":"another value"}}`)
 	longGot, err := jsonfmt.Formatter{}.Format(longSrc, opts)
 	require.NoError(t, err)
 	longOut := string(longGot)
-	require.Contains(t, longOut, "\n    \"aaaaaa\"", "over-80 content should expand")
+	require.Contains(t, longOut, "\n    \"first_setting\"", "over-80 object should expand")
 }
 
 // Test_JSON_MaxLineWidthRespectsOption asserts that MaxLineWidth option
-// changes where collapse/expand decisions happen.
+// changes where object collapse/expand decisions happen.
 func Test_JSON_MaxLineWidthRespectsOption(t *testing.T) {
 	t.Parallel()
-	src := []byte(`{"items":["aaaa","bbbb","cccc","dddd"]}`)
+	src := []byte(`{"items":{"a":"aaaa","b":"bbbb","c":"cccc"}}`)
 
 	// With width 30, this should expand.
 	narrow := jsonfmt.DefaultOptions()
 	narrow.MaxLineWidth = 30
 	got, err := jsonfmt.Formatter{}.Format(src, narrow)
 	require.NoError(t, err)
-	require.Contains(t, string(got), "\n    \"aaaa\"", "should expand at width 30")
+	require.Contains(t, string(got), "\n    \"a\"", "should expand at width 30")
 
 	// With width 200, this should stay inline.
 	wide := jsonfmt.DefaultOptions()
 	wide.MaxLineWidth = 200
 	got2, err := jsonfmt.Formatter{}.Format(src, wide)
 	require.NoError(t, err)
-	require.Contains(t, string(got2), `["aaaa"`, "should stay inline at width 200")
+	require.Contains(t, string(got2), `{ "a": "aaaa"`, "should stay inline at width 200")
 }

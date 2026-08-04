@@ -1,5 +1,5 @@
 {
-  // Short array stays inline
+  // Non-empty array expands
   "tags": ["alpha",   "beta",  "gamma"],
   // Long array expands to multiline
   "descriptions": [

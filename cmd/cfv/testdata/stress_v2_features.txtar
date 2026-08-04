@@ -378,7 +378,11 @@ a;b;c
 [user]
 name = test
 -- glob_project/.babelrc --
-{ "presets": ["env"] }
+{
+  "presets": [
+    "env",
+  ],
+}
 -- glob_project/.gitconfig --
 [user]
 name = test
@@ -396,13 +400,31 @@ name = bob
 {
   "version": "2.1.0",
   "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
-  "runs": [{"tool": {"driver": {"name": "test", "language": "en"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
+  "runs": [
+    {
+      "tool": { "driver": { "name": "test", "language": "en" } },
+      "results": [],
+      "language": "en",
+      "newlineSequences": [
+        "\n"
+      ]
+    }
+  ]
 }
 -- sarif/bad.sarif --
 {
   "version": "2.1.0",
   "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
-  "runs": [{"tool": {"driver": {"name": "test"}}, "results": [], "language": "en", "newlineSequences": ["\n"]}]
+  "runs": [
+    {
+      "tool": { "driver": { "name": "test" } },
+      "results": [],
+      "language": "en",
+      "newlineSequences": [
+        "\n"
+      ]
+    }
+  ]
 }
 -- xml/good_dtd.xml --
 <?xml version="1.0"?><!DOCTYPE note [
@@ -497,12 +519,17 @@ exclude-file-types = ["json"]
   "schemas": [
     {
       "name": "package.json",
-      "fileMatch": ["package.json"],
+      "fileMatch": [
+        "package.json"
+      ],
       "url": "https://www.schemastore.org/package.json"
     },
     {
       "name": "tsconfig",
-      "fileMatch": ["tsconfig.json", "tsconfig.*.json"],
+      "fileMatch": [
+        "tsconfig.json",
+        "tsconfig.*.json"
+      ],
       "url": "https://www.schemastore.org/tsconfig.json"
     }
   ]

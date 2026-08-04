@@ -33,7 +33,7 @@ cp nocomma_orig.jsonc nocomma_test.jsonc
 exec cfv format --fix --config=cfv/all_performat.toml nocomma_test.jsonc
 cmp nocomma_test.jsonc comma_orig.jsonc
 
-# Collapsed arrays do not get trailing commas
+# Non-empty JSONC arrays expand and get trailing commas by default
 exec cfv format --fix --no-config collapsed.jsonc
 cmp collapsed.jsonc collapsed_expected.jsonc
 
@@ -76,11 +76,22 @@ cmp strict.json strict_expected.json
 -- collapsed.jsonc --
 [1,2,3]
 -- collapsed_expected.jsonc --
-[1, 2, 3]
+[
+  1,
+  2,
+  3,
+]
 -- strict.json --
 {"nested":{"a":1,"b":2},"items":[1,2,3]}
 -- strict_expected.json --
-{ "nested": { "a": 1, "b": 2 }, "items": [1, 2, 3] }
+{
+  "nested": { "a": 1, "b": 2 },
+  "items": [
+    1,
+    2,
+    3
+  ]
+}
 -- cfv/preserve.toml --
 [format]
 trailing-commas = "preserve"

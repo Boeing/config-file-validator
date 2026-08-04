@@ -8,7 +8,9 @@
 //   - 2-space indentation
 //   - original key order preserved
 //   - trailing newline
-//   - arrays/objects collapsed to one line when they fit within 80 columns
+//   - non-empty root and property arrays expanded one element per line
+//   - short nested array elements kept inline
+//   - objects collapsed to one line when they fit within 80 columns
 package jsonfmt
 
 import (

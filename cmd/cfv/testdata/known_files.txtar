@@ -101,9 +101,18 @@ disable = SC2034
 -- .arcconfig --
 { "project_id": "myproject" }
 -- composer.lock --
-{ "packages": [], "_readme": ["This file locks the dependencies"] }
+{
+  "packages": [],
+  "_readme": [
+    "This file locks the dependencies"
+  ]
+}
 -- .babelrc --
-{ "presets": ["env"] }
+{
+  "presets": [
+    "env",
+  ],
+}
 -- tsconfig.json --
 // TypeScript config
 { "compilerOptions": { "strict": true } }
@@ -142,12 +151,16 @@ BasedOnStyle: LLVM
   "schemas": [
     {
       "name": "Babel",
-      "fileMatch": [".babelrc"],
+      "fileMatch": [
+        ".babelrc"
+      ],
       "url": "https://www.schemastore.org/babelrc.json"
     },
     {
       "name": "clangd",
-      "fileMatch": [".clangd"],
+      "fileMatch": [
+        ".clangd"
+      ],
       "url": "https://www.schemastore.org/clangd.json"
     }
   ]

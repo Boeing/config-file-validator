@@ -4,6 +4,9 @@
   "float": 3.14,
   "bool": true,
   "null": null,
-  "arr": [1, 2],
+  "arr": [
+    1,
+    2
+  ],
   "obj": { "a": 1 }
 }

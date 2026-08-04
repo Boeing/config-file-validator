@@ -366,7 +366,9 @@ stdout '✓.*gitconfig'
 -- project/.eslintrc.json --
 // ESLint config
 {
-  "extends": ["eslint:recommended"],
+  "extends": [
+    "eslint:recommended",
+  ],
 }
 -- project/.devcontainer.json --
 // Dev container
@@ -390,7 +392,7 @@ stdout '✓.*gitconfig'
 -- project/package.json --
 { "name": "test", "version": "1.0.0" }
 -- dotfiles/.babelrc --
-{ "presets": ["env"] }
+{ "plugins": [] }
 -- dotfiles/.swcrc --
 { "jsc": { "parser": { "syntax": "ecmascript" } } }
 -- dotfiles/.arcconfig --
@@ -422,7 +424,12 @@ load-plugins = pylint_django
 [flake8]
 max-line-length = 120
 -- lockfiles/composer.lock --
-{ "packages": [], "_readme": ["This file locks the dependencies"] }
+{
+  "packages": [],
+  "_readme": [
+    "This file locks the dependencies"
+  ]
+}
 -- lockfiles/bun.lock --
 { "lockfileVersion": 1, "packages": {} }
 -- lockfiles/Pipfile --
@@ -449,7 +456,12 @@ key = 123__456
 -- invalid/composer.lock --
 {"bad": }
 -- invalid-schema/.babelrc --
-{ "presets": ["env"], "unknown_field": true }
+{
+  "presets": [
+    "env",
+  ],
+  "unknown_field": true,
+}
 -- invalid-schema/package.json --
 { "name": "test", "version": 123 }
 -- mixed/root.json --
@@ -457,7 +469,11 @@ key = 123__456
 -- mixed/nested/.clang-format --
 BasedOnStyle: Google
 -- mixed/nested/.babelrc --
-{ "presets": ["env"] }
+{
+  "presets": [
+    "env",
+  ],
+}
 -- mixed/nested/.gitconfig --
 [core]
 autocrlf = true
@@ -468,12 +484,18 @@ this is not a config file
 -- edge/.hidden_no_ext --
 not a known file
 -- edge/sub/.babelrc --
-{ "presets": ["env"] }
+{
+  "presets": [
+    "env",
+  ],
+}
 -- strict_schema.json --
 {
   "type": "object",
-  "required": ["id"],
-  "properties": {"id": {"type": "integer"}},
+  "required": [
+    "id"
+  ],
+  "properties": { "id": { "type": "integer" } },
   "additionalProperties": false
 }
 -- schemastore/src/api/json/catalog.json --
@@ -481,17 +503,23 @@ not a known file
   "schemas": [
     {
       "name": "Babel",
-      "fileMatch": [".babelrc"],
+      "fileMatch": [
+        ".babelrc"
+      ],
       "url": "https://www.schemastore.org/babelrc.json"
     },
     {
       "name": "clangd",
-      "fileMatch": [".clangd"],
+      "fileMatch": [
+        ".clangd"
+      ],
       "url": "https://www.schemastore.org/clangd.json"
     },
     {
       "name": "package.json",
-      "fileMatch": ["package.json"],
+      "fileMatch": [
+        "package.json"
+      ],
       "url": "https://www.schemastore.org/package.json"
     }
   ]
