@@ -867,9 +867,14 @@ func TestNormalizeFlowCollections(t *testing.T) {
 		want  string
 	}{
 		{"brace_padding", "x: {key: value}\n", "x: { key: value }\n"},
-		{"preserve_colon_and_comma_spacing", "x: {a:1,b:  2}\n", "x: { a:1,b:  2 }\n"},
+		{"normalize_comma_preserve_colon_spacing", "x: {a:1,b:  2}\n", "x: { a:1, b:  2 }\n"},
 		{"nested_flow", "x: [{a: 1}, { b: 2 }]\n", "x: [{ a: 1 }, { b: 2 }]\n"},
-		{"array_spaces_unchanged", "x: [1,  2,   3]\n", "x: [1,  2,   3]\n"},
+		{"array_comma_spacing_normalized", "x: [1,  2,   3]\n", "x: [1, 2, 3]\n"},
+		{"array_comma_no_space_gets_one", "x: [1,2,3]\n", "x: [1, 2, 3]\n"},
+		{"array_tab_after_comma", "x: [1,\t2]\n", "x: [1, 2]\n"},
+		{"flow_map_comma_normalized", "x: {a: 1,  b: 2}\n", "x: { a: 1, b: 2 }\n"},
+		{"comma_in_quoted_scalar_untouched", "x: [\"a,  b\", c]\n", "x: [\"a,  b\", c]\n"},
+		{"issue_635_repro", "command: [\"perl\",  \"-Mbignum=bpi\",  \"-wle\"]\n", "command: [\"perl\", \"-Mbignum=bpi\", \"-wle\"]\n"},
 		{"empty_map", "x: {}\n", "x: {}\n"},
 		{"empty_array", "x: []\n", "x: []\n"},
 		{"quoted_braces_unchanged", "x: {value: \"{literal}\"}\n", "x: { value: \"{literal}\" }\n"},

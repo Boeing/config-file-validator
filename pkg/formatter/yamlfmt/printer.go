@@ -1392,7 +1392,8 @@ func normalizeSequenceSpacing(tokens []Token) {
 // normalizeFlowTokens adds one space inside non-empty flow mapping braces.
 // It normalizes flow mappings ({...}) with bracketSpacing (space after { and
 // before }) and flow sequences ([...]) without spacing (no space after [ or
-// before ]), matching Prettier's behavior.
+// before ]), matching Prettier's behavior. Element separators are normalized
+// to exactly one space after each comma.
 func normalizeFlowTokens(tokens []Token) {
 	for i := range tokens {
 		if tokens[i].Kind != TokFlow {
@@ -1448,6 +1449,20 @@ func addFlowMappingPadding(raw []byte) []byte {
 			// Remove space after [ (prettier: no bracketSpacing for arrays).
 			for i+1 < len(raw) && raw[i+1] == ' ' {
 				i++
+			}
+		case ',':
+			out = append(out, b)
+			// Collapse the whitespace run after a separator to exactly one
+			// space. A comma followed by a line break belongs to an expanded
+			// multi-line flow, so leave it alone to keep the next line's
+			// indentation intact.
+			j := i + 1
+			for j < len(raw) && (raw[j] == ' ' || raw[j] == '\t') {
+				j++
+			}
+			if j < len(raw) && raw[j] != '\n' && raw[j] != '\r' {
+				out = append(out, ' ')
+				i = j - 1
 			}
 		case ']':
 			// Remove bracketSpacing before ]. Don't strip indentation after newline.
