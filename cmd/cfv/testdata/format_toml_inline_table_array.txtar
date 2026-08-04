@@ -1,0 +1,18 @@
+exec cfv format --fix --no-config config.toml
+cmp config.toml expected.toml
+
+exec cfv check --no-schema --no-config config.toml
+
+exec cfv format --no-config config.toml
+! stdout '~'
+
+-- config.toml --
+[dependencies]
+reqwest = { workspace = true, default-features = false, features = [
+  "rustls",
+] }
+wide = { features = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc", "dddddddddddddddd"] }
+-- expected.toml --
+[dependencies]
+reqwest = { workspace = true, default-features = false, features = ["rustls"] }
+wide = { features = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc", "dddddddddddddddd"] }

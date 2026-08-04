@@ -1,0 +1,46 @@
+[leading]
+item = { features = [
+  # keep this comment
+  "a",
+] }
+
+[trailing]
+item = { features = [
+  "a", # first
+  "b", # second
+] }
+one = "1" # one
+two = "2" # two
+
+[nested_commented]
+item = { groups = [
+  [
+    # nested comment
+    "a",
+  ],
+] }
+
+[mixed]
+item = { clean = [
+  "x",
+], kept = [
+  "y", # keep this comment
+  "z",
+] }
+
+[recursive]
+item = { groups = [
+  # keep the outer array multiline
+  [
+    "a",
+    "b",
+  ],
+] }
+
+[alignment]
+biome_languages = { workspace = true, features = [
+  "lang_css",
+  "lang_html",
+  "lang_js",
+] } # enabled parsers
+once_cell = "1.21.4" # synchronization primitive

@@ -28,20 +28,15 @@ func Test_TOML_ArrayCollapsesWithinColumnWidth(t *testing.T) {
 		"short array must collapse within column_width")
 }
 
-// Test_TOML_InlineTableExpandsAtColumnWidth asserts that inline tables
-// exceeding column_width have their array values expanded.
-func Test_TOML_InlineTableExpandsAtColumnWidth(t *testing.T) {
+// Test_TOML_ArrayInsideInlineTableStaysSingleLine asserts that arrays nested
+// inside inline tables stay on one line even when they exceed column_width.
+func Test_TOML_ArrayInsideInlineTableStaysSingleLine(t *testing.T) {
 	t.Parallel()
 	src := "[deps]\nwide = { features = [\"aaaaaaaaaaaaaaaa\", \"bbbbbbbbbbbbbbbb\", \"cccccccccccccccc\", \"dddddddddddddddd\"] }\n"
-	opts := tomlfmt.DefaultOptions()
 
-	got, err := tomlfmt.Formatter{}.Format([]byte(src), opts)
+	got, err := tomlfmt.Formatter{}.Format([]byte(src), tomlfmt.DefaultOptions())
 	require.NoError(t, err)
-	out := string(got)
-
-	// The array inside the inline table exceeds 80 cols — must expand.
-	require.Contains(t, out, "\"aaaaaaaaaaaaaaaa\",\n",
-		"inline table's array must expand when exceeding column_width")
+	require.Equal(t, src, string(got))
 }
 
 // Test_TOML_NestedArrayExpansionRecursive asserts that when an outer array
@@ -249,14 +244,12 @@ func Test_TOML_CommentAlignmentStableAfterArrayCollapse(t *testing.T) {
 		"comment alignment must be stable after array collapse pass 2→3")
 }
 
-// Test_TOML_CommentAlignmentStableAfterInlineTableExpansion verifies that comment
-// alignment is stable when an inline table containing a long array gets expanded (Bug 7).
-// The alignment decision must treat inline tables the same as arrays — predict
-// whether the value WILL be multiline after formatting.
-func Test_TOML_CommentAlignmentStableAfterInlineTableExpansion(t *testing.T) {
+// Test_TOML_CommentAlignmentStableWithWideInlineTable verifies that comment
+// alignment is stable when an inline table exceeds column_width.
+func Test_TOML_CommentAlignmentStableWithWideInlineTable(t *testing.T) {
 	t.Parallel()
-	// Inline table with array that exceeds 80 cols — will be expanded by formatter.
-	// Another entry in the same group has a trailing comment.
+	// Inline table with array that exceeds 80 cols stays single-line. Another
+	// entry in the same group has a trailing comment.
 	src := "[dependencies]\nbiome_languages = { workspace = true, features = [\"lang_css\", \"lang_html\", \"lang_js\"] }\nonce_cell = \"1.21.4\" # Use std::sync::OnceLock\nshort = { workspace = true }\n"
 	opts := tomlfmt.DefaultOptions()
 
@@ -270,7 +263,7 @@ func Test_TOML_CommentAlignmentStableAfterInlineTableExpansion(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, string(first), string(second),
-		"comment alignment must be stable after inline table expansion pass 1→2")
+		"comment alignment must be stable with a wide inline table on pass 1→2")
 	require.Equal(t, string(second), string(third),
-		"comment alignment must be stable after inline table expansion pass 2→3")
+		"comment alignment must be stable with a wide inline table on pass 2→3")
 }

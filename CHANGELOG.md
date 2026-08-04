@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Comment-free TOML arrays nested in inline tables remain single-line even when the table exceeds column width (closes #631).
 - YAML formatting now normalizes extra spaces after sequence indicators so mapping keys remain aligned with their siblings (closes #622).
 - YAML formatter now moves a long flow collection below its mapping key before expanding its elements, keeping the collection inline when it fits at the deeper value indentation (closes #623).
 - YAML formatter no longer produces unparseable output when a long flow collection is expanded inside a block sequence item. The sequence indicator was not counted towards the key's column, so `- key: [...]` put the bracket at the key's own column, where it is no longer that key's value — `cfv format --fix` rewrote valid documents into invalid ones while reporting success. Affects both `[` and `{`; the corrected layout matches Prettier byte for byte.

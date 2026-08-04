@@ -18,15 +18,15 @@ Source: `tamasfe/taplo` `crates/taplo/src/formatter/mod.rs` `impl Default for Op
 | `align_comments` | `true` | Align consecutive inline comments to same column | ❌ Gap (#586) |
 | `align_single_comments` | `true` | Apply comment alignment even for single lines | ❌ Gap (#586) |
 | `array_trailing_comma` | `true` | Add trailing comma in multiline arrays | ✅ Match |
-| `array_auto_expand` | `true` | Expand arrays to multiline when > `column_width` | ❌ Gap (#569) |
+| `array_auto_expand` | `true` | Expand arrays to multiline when > `column_width` | ⚠️ Partial: inline-table exception (#631) |
 | `array_auto_collapse` | `true` | Collapse arrays to one line when ≤ `column_width` | ❌ Gap (#569) |
 | `compact_arrays` | `true` | No spaces inside `[` `]` on single-line arrays | ✅ Match |
 | `compact_inline_tables` | `false` | Spaces inside `{ }` for inline tables | ❌ Gap (#587) |
 | `compact_entries` | `false` | Spaces around `=` | ✅ Match |
-| `column_width` | `80` | Line width threshold for array expand/collapse | ❌ Gap (#569) |
+| `column_width` | `80` | Line width threshold for array expand/collapse | ⚠️ Partial: inline-table exception (#631) |
 | `indent_tables` | `false` | Don't indent `[table]` keys | ✅ Match |
 | `indent_entries` | `false` | Don't indent values under tables (zero-indent) | ✅ Match |
-| `inline_table_expand` | `true` | Expand inline tables when > `column_width` | ❌ Gap (#569) |
+| `inline_table_expand` | `true` | Expand inline tables when > `column_width` | ⚠️ Intentional divergence (#631) |
 | `indent_string` | `"  "` (2 spaces) | Indent unit | ✅ Match |
 | `trailing_newline` | `true` | File ends with newline | ✅ Match |
 | `allowed_blank_lines` | `2` | Max consecutive blank lines preserved | ⚠️ Partial |
@@ -44,12 +44,18 @@ Source: `tamasfe/taplo` `crates/taplo/src/formatter/mod.rs` `impl Default for Op
 | T-IT1 | Inline tables: space after `{`, before `}`, around `=`, after `,` | ❌ Gap (#587) |
 | T-IT2 | Empty inline tables: `{}` (no spaces) | ✅ Match |
 | T-AC1 | Array auto-collapse: if formatted array fits in `column_width` on one line, collapse it | ❌ Gap (#569) |
-| T-AC2 | Array auto-expand: if formatted array exceeds `column_width`, expand to one item per line | ❌ Gap (#569) |
-| T-AC3 | Arrays containing comments are never collapsed | ❌ Gap (#569) |
+| T-AC2 | Array auto-expand: if formatted array exceeds `column_width`, expand to one item per line | ⚠️ Partial: inline-table exception (#631) |
+| T-AC3 | Arrays containing comments are never collapsed | ✅ Match |
 | T-TC1 | Multiline arrays have trailing comma on last element | ✅ Match |
 | T-CA1 | Consecutive inline comments: align `#` to same column | ❌ Gap (#586) |
 | T-CA2 | Single inline comment: preserve padding (align to column if `align_single_comments` is true) | ❌ Gap (#586) |
 | T-NL1 | File always ends with exactly one newline | ✅ Match |
+
+### Intentional cfv Deviations
+
+| Rule | Description | Rationale |
+|------|-------------|-----------|
+| C-IT1 | Each comment-free array nested in an inline table stays single-line regardless of `column_width` or source layout, including when a sibling or parent array contains comments. Arrays containing comments remain multiline. | Required by #631; comment line breaks must be preserved so `#` does not consume later values. |
 
 ---
 

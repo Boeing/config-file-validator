@@ -39,10 +39,6 @@ type Printer struct {
 	// inInlineTable is true while printing the contents of an inline table,
 	// where newlines are not allowed by the TOML spec.
 	inInlineTable bool
-	// inlineTableLineLen is the estimated single-line length of the current
-	// inline table (including key prefix). Used to decide whether nested arrays
-	// should be expanded to reduce line width.
-	inlineTableLineLen int
 	// inExpandedArray is true when printing elements of a multiline array.
 	// Nested arrays should also be expanded (taplo behavior).
 	inExpandedArray bool
@@ -301,7 +297,7 @@ func findAlignedCommentColumns(groups []Group, indent string, columnWidth int) [
 			if w > maxWidth {
 				maxWidth = w
 			}
-			if _, hasComment := inlineCommentColumn(groups[i]); hasComment {
+			if hasInlineComment(groups[i]) {
 				commentCount++
 			}
 		}
@@ -314,7 +310,7 @@ func findAlignedCommentColumns(groups []Group, indent string, columnWidth int) [
 				if groups[i].Kind != GroupEntry {
 					continue
 				}
-				if _, hasComment := inlineCommentColumn(groups[i]); hasComment {
+				if hasInlineComment(groups[i]) {
 					columns[i] = targetColumn
 				}
 			}
@@ -369,6 +365,7 @@ func entryKeyValueWidth(group Group) int {
 // multiline. This includes:
 // - Values that already contain newlines in source
 // - Arrays that will be expanded by the formatter (exceed column width)
+// - Comment-bearing arrays and inline tables whose line breaks are preserved
 // Per taplo: alignment is disabled for groups containing any multiline values.
 func entryHasMultilineValue(group Group, columnWidth int) bool {
 	if group.Kind != GroupEntry {
@@ -378,6 +375,14 @@ func entryHasMultilineValue(group Group, columnWidth int) bool {
 	keyEnd, _, valueStart, valueEnd, commentStart := splitEntry(tokens)
 	if valueStart < 0 {
 		return false
+	}
+	valueTokens := tokens[valueStart : valueEnd+1]
+
+	// Comment-bearing arrays stay multiline. Inline tables containing comments
+	// preserve those line breaks while selectively collapsing comment-free
+	// arrays. Either form remains multiline for alignment purposes.
+	if containsComment(valueTokens) {
+		return true
 	}
 
 	// Check 1: source already contains newline (non-array, non-inline-table values only).
@@ -415,7 +420,7 @@ func entryHasMultilineValue(group Group, columnWidth int) bool {
 		}
 
 		// Estimate array single-line length (normalized spacing).
-		elements := splitArrayElements(tokens[valueStart : valueEnd+1])
+		elements := splitArrayElements(valueTokens)
 		arrayLen := estimateSingleLineArray(elements)
 
 		if prefixLen+arrayLen > columnWidth {
@@ -423,42 +428,15 @@ func entryHasMultilineValue(group Group, columnWidth int) bool {
 		}
 	}
 
-	// Check 3: inline table that will be expanded (contains nested array exceeding width).
-	// When an inline table's single-line width exceeds columnWidth, nested arrays
-	// within it get expanded, making the inline table value multiline.
-	if tokens[valueStart].Kind == BraceOpen {
-		keyLen := 0
-		for i := 0; i <= keyEnd; i++ {
-			if tokens[i].Kind != Whitespace {
-				keyLen += len(tokens[i].Raw)
-			}
-		}
-		prefixLen := keyLen + 3
-
-		inlineWidth := estimateInlineTableWidth(tokens[valueStart : valueEnd+1])
-		if prefixLen+inlineWidth > columnWidth {
-			return true
-		}
-	}
-
 	return false
 }
 
-func inlineCommentColumn(group Group) (int, bool) {
+func hasInlineComment(group Group) bool {
 	if group.Kind != GroupEntry {
-		return 0, false
+		return false
 	}
-	column := 0
-	for _, tok := range group.Tokens {
-		if tok.Kind == Comment {
-			return column, true
-		}
-		if tok.Kind == Newline {
-			return 0, false
-		}
-		column += len(tok.Raw)
-	}
-	return 0, false
+	_, _, _, _, commentStart := splitEntry(group.Tokens)
+	return commentStart >= 0
 }
 
 func (p *Printer) writeCommentSpacing(targetColumn int) {
@@ -480,18 +458,19 @@ func (p *Printer) printValue(tokens []Token, depth int, prefixLen int) {
 		return
 	}
 
-	// If value contains comments AND it's not an array, emit verbatim.
-	// Arrays handle comments correctly in printArrayMultiline.
-	// Inline tables and scalars with comments are too complex to normalize.
-	if tokens[0].Kind != BracketOpen {
-		for _, tok := range tokens {
-			if tok.Kind == Comment {
-				for _, t := range tokens {
-					p.buf.Write(t.Raw)
-				}
-				return
-			}
+	// Inline tables containing comments preserve their original layout, while
+	// any comment-free arrays inside them are still collapsed. Other non-array
+	// values containing comments are emitted verbatim. Arrays handle comments
+	// separately in printArrayMultiline.
+	if tokens[0].Kind != BracketOpen && containsComment(tokens) {
+		if tokens[0].Kind == BraceOpen {
+			p.printInlineTableWithComments(tokens, depth)
+			return
 		}
+		for _, t := range tokens {
+			p.buf.Write(t.Raw)
+		}
+		return
 	}
 
 	first := tokens[0]
@@ -509,6 +488,60 @@ func (p *Printer) printValue(tokens []Token, depth int, prefixLen int) {
 	}
 }
 
+// printInlineTableWithComments preserves comment placement and line breaks in
+// an inline table while still collapsing each comment-free nested array.
+func (p *Printer) printInlineTableWithComments(tokens []Token, depth int) {
+	wasInline := p.inInlineTable
+	p.inInlineTable = true
+	defer func() { p.inInlineTable = wasInline }()
+
+	p.printTokensCollapsingCommentFreeArrays(tokens, depth)
+}
+
+func (p *Printer) printTokensCollapsingCommentFreeArrays(tokens []Token, depth int) {
+	for i := 0; i < len(tokens); {
+		if tokens[i].Kind != BracketOpen {
+			p.buf.Write(tokens[i].Raw)
+			i++
+			continue
+		}
+
+		closeIdx := matchingBracketClose(tokens, i)
+		if closeIdx < 0 {
+			p.buf.Write(tokens[i].Raw)
+			i++
+			continue
+		}
+
+		arrayTokens := tokens[i : closeIdx+1]
+		if containsComment(arrayTokens) {
+			p.buf.Write(arrayTokens[0].Raw)
+			p.printTokensCollapsingCommentFreeArrays(arrayTokens[1:len(arrayTokens)-1], depth+1)
+			p.buf.Write(arrayTokens[len(arrayTokens)-1].Raw)
+		} else {
+			p.printArray(arrayTokens, depth, p.column())
+		}
+		i = closeIdx + 1
+	}
+}
+
+func matchingBracketClose(tokens []Token, openIdx int) int {
+	bracketDepth := 0
+	for i := openIdx; i < len(tokens); i++ {
+		switch tokens[i].Kind {
+		case BracketOpen:
+			bracketDepth++
+		case BracketClose:
+			bracketDepth--
+			if bracketDepth == 0 {
+				return i
+			}
+		default:
+		}
+	}
+	return -1
+}
+
 // printArray formats an array value. Applies auto-expand/collapse and
 // trailing comma normalization.
 func (p *Printer) printArray(tokens []Token, depth int, prefixLen int) {
@@ -516,13 +549,7 @@ func (p *Printer) printArray(tokens []Token, depth int, prefixLen int) {
 	elements := splitArrayElements(tokens)
 
 	// Check if it contains comments (force multiline).
-	hasComments := false
-	for _, tok := range tokens {
-		if tok.Kind == Comment {
-			hasComments = true
-			break
-		}
-	}
+	hasComments := containsComment(tokens)
 
 	// Calculate single-line length.
 	singleLineLen := estimateSingleLineArray(elements)
@@ -530,24 +557,13 @@ func (p *Printer) printArray(tokens []Token, depth int, prefixLen int) {
 	// Decision: multiline or single-line?
 	// - Has comments → always multiline (can't collapse comments into one line)
 	// - Exceeds column width (including key prefix) → multiline
-	// - Inside inline table that exceeds column width → expand arrays to reduce width
+	// - Inside inline tables → comment-free arrays stay single-line regardless
+	//   of width; commented arrays keep their required line breaks
 	// - Fits → stay inline
-	effectivePrefix := prefixLen
-	if p.inInlineTable && p.inlineTableLineLen > p.opts.ColumnWidth {
-		// The inline table exceeds column width. Use the full line length as
-		// the effective prefix so any non-trivial array will be expanded.
-		effectivePrefix = p.inlineTableLineLen
-	}
-	multiline := hasComments || p.inExpandedArray || (effectivePrefix+singleLineLen) > p.opts.ColumnWidth
+	multiline := hasComments || (!p.inInlineTable && (p.inExpandedArray || (prefixLen+singleLineLen) > p.opts.ColumnWidth))
 
 	if multiline {
-		// When expanding an array inside an inline table, use depth 0 so
-		// elements indent relative to line start (matching taplo behavior).
-		arrayDepth := depth
-		if p.inInlineTable {
-			arrayDepth = 0
-		}
-		p.printArrayMultiline(elements, arrayDepth)
+		p.printArrayMultiline(elements, depth)
 	} else {
 		p.printArrayInline(elements, depth)
 	}
@@ -834,15 +850,8 @@ func (p *Printer) printInlineTable(tokens []Token, depth int) {
 
 	// Emit as single-line: { key = val, key2 = val2 }
 	wasInline := p.inInlineTable
-	prevLineLen := p.inlineTableLineLen
 	p.inInlineTable = true
-	// Estimate the total line width of this inline table (from current column
-	// position). This allows nested arrays to expand when the line is too long.
-	p.inlineTableLineLen = p.column() + estimateInlineTableWidth(content)
-	defer func() {
-		p.inInlineTable = wasInline
-		p.inlineTableLineLen = prevLineLen
-	}()
+	defer func() { p.inInlineTable = wasInline }()
 
 	p.buf.WriteString("{ ")
 	for i, pair := range pairs {
@@ -1003,18 +1012,29 @@ func estimateSingleLineArray(elements [][]Token) int {
 	return length
 }
 
-// estimateInlineTableWidth estimates the single-line character width of an
-// inline table's content (excluding the key prefix). Used to determine whether
-// nested arrays should be expanded.
+// estimateInlineTableWidth estimates the normalized single-line width of an
+// inline table's content (excluding the key prefix) for comment alignment.
 func estimateInlineTableWidth(tokens []Token) int {
 	// Estimate: "{ " + key1 + " = " + val1 + ", " + key2 + " = " + val2 + " }"
 	// Count raw token bytes plus the normalized spacing that printInlineTable adds:
 	// - Each "=" becomes " = " (+2 chars)
 	// - Each "," becomes ", " (+1 char)
-	length := 4 // "{ " + " }"
-	for _, tok := range tokens {
+	length := 0
+	if len(tokens) > 2 && hasNonWhitespace(tokens[1:len(tokens)-1]) {
+		length = 2 // spaces after "{" and before "}"
+	}
+	for i, tok := range tokens {
 		if tok.Kind == Whitespace || tok.Kind == Newline || tok.Kind == Comment {
 			continue
+		}
+		if tok.Kind == Comma {
+			next := i + 1
+			for next < len(tokens) && (tokens[next].Kind == Whitespace || tokens[next].Kind == Newline || tokens[next].Kind == Comment) {
+				next++
+			}
+			if next < len(tokens) && (tokens[next].Kind == BracketClose || tokens[next].Kind == BraceClose) {
+				continue
+			}
 		}
 		length += len(tok.Raw)
 		switch tok.Kind {
@@ -1033,6 +1053,15 @@ func estimateInlineTableWidth(tokens []Token) int {
 func hasNonWhitespace(tokens []Token) bool {
 	for _, tok := range tokens {
 		if tok.Kind != Whitespace && tok.Kind != Newline {
+			return true
+		}
+	}
+	return false
+}
+
+func containsComment(tokens []Token) bool {
+	for _, tok := range tokens {
+		if tok.Kind == Comment {
 			return true
 		}
 	}
