@@ -28,9 +28,9 @@ func Test_TOML_ArrayCollapsesWithinColumnWidth(t *testing.T) {
 		"short array must collapse within column_width")
 }
 
-// Test_TOML_InlineTableExpandsAtColumnWidth asserts that inline tables
-// exceeding column_width have their array values expanded.
-func Test_TOML_InlineTableExpandsAtColumnWidth(t *testing.T) {
+// Test_TOML_InlineTableKeepsArrayInlineAtColumnWidth asserts that inline-table
+// arrays stay single-line even when their contents exceed column_width.
+func Test_TOML_InlineTableKeepsArrayInlineAtColumnWidth(t *testing.T) {
 	t.Parallel()
 	src := "[deps]\nwide = { features = [\"aaaaaaaaaaaaaaaa\", \"bbbbbbbbbbbbbbbb\", \"cccccccccccccccc\", \"dddddddddddddddd\"] }\n"
 	opts := tomlfmt.DefaultOptions()
@@ -39,9 +39,23 @@ func Test_TOML_InlineTableExpandsAtColumnWidth(t *testing.T) {
 	require.NoError(t, err)
 	out := string(got)
 
-	// The array inside the inline table exceeds 80 cols — must expand.
-	require.Contains(t, out, "\"aaaaaaaaaaaaaaaa\",\n",
-		"inline table's array must expand when exceeding column_width")
+	// Inline tables cannot contain newlines, even when their contents exceed
+	// the configured width.
+	require.Contains(t, out, `wide = { features = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc", "dddddddddddddddd"] }`)
+	require.NotContains(t, out, "features = [\n",
+		"inline table's array must remain on one line")
+}
+
+// Test_TOML_InlineTableCollapsesMultilineArray asserts that source newlines in
+// an inline-table array are removed during formatting.
+func Test_TOML_InlineTableCollapsesMultilineArray(t *testing.T) {
+	t.Parallel()
+	src := "[dev-dependencies]\nreqwest = { workspace = true, default-features = false, features = [\n  \"rustls\",\n] }\n"
+
+	got, err := tomlfmt.Formatter{}.Format([]byte(src), tomlfmt.DefaultOptions())
+	require.NoError(t, err)
+
+	require.Contains(t, string(got), `reqwest = { workspace = true, default-features = false, features = ["rustls"] }`)
 }
 
 // Test_TOML_NestedArrayExpansionRecursive asserts that when an outer array

@@ -530,15 +530,13 @@ func (p *Printer) printArray(tokens []Token, depth int, prefixLen int) {
 	// Decision: multiline or single-line?
 	// - Has comments → always multiline (can't collapse comments into one line)
 	// - Exceeds column width (including key prefix) → multiline
-	// - Inside inline table that exceeds column width → expand arrays to reduce width
-	// - Fits → stay inline
-	effectivePrefix := prefixLen
-	if p.inInlineTable && p.inlineTableLineLen > p.opts.ColumnWidth {
-		// The inline table exceeds column width. Use the full line length as
-		// the effective prefix so any non-trivial array will be expanded.
-		effectivePrefix = p.inlineTableLineLen
-	}
-	multiline := hasComments || p.inExpandedArray || (effectivePrefix+singleLineLen) > p.opts.ColumnWidth
+	// - Inside an inline table, nested arrays must stay on one line because
+	//   inline tables cannot contain newlines. This takes precedence over the
+	//   width and outer-array expansion rules.
+	// - Otherwise, expand when an outer array requires multiline output or the
+	//   formatted value exceeds the configured column width.
+	multiline := hasComments || (!p.inInlineTable &&
+		(p.inExpandedArray || (prefixLen+singleLineLen) > p.opts.ColumnWidth))
 
 	if multiline {
 		// When expanding an array inside an inline table, use depth 0 so
