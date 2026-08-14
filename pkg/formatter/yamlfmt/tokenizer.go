@@ -268,11 +268,49 @@ func (t *tokenizer) consumeRestOfLine() {
 	colonPos := t.findColonSeparator(t.pos)
 
 	if colonPos < 0 {
-		// No colon separator — whole line is a value.
+		// No colon separator — the line is a value, optionally followed by an
+		// inline comment. The comment is split into its own token (with the
+		// run of spaces before it as TokSpace) so the printer's comment-spacing
+		// normalizer can reduce the separator to exactly one space. Quoted
+		// regions are skipped so a '#' inside a scalar is not mistaken for a
+		// comment.
+		commentStart := -1
 		for t.pos < len(t.src) && t.src[t.pos] != '\n' && t.src[t.pos] != '\r' {
-			t.pos++
+			switch t.src[t.pos] {
+			case '"':
+				t.skipDoubleQuoted()
+			case '\'':
+				t.skipSingleQuoted()
+			case ' ':
+				if t.pos+1 < len(t.src) && t.src[t.pos+1] == '#' {
+					commentStart = t.pos
+				}
+				t.pos++
+			default:
+				t.pos++
+			}
+			if commentStart >= 0 {
+				break
+			}
 		}
-		t.emit(TokValue, start)
+		if commentStart < 0 {
+			t.emit(TokValue, start)
+			return
+		}
+		// Trim the spaces preceding the comment off the value.
+		valueEnd := commentStart
+		for valueEnd > start && t.src[valueEnd-1] == ' ' {
+			valueEnd--
+		}
+		if valueEnd > start {
+			t.pos = valueEnd
+			t.emit(TokValue, start)
+		}
+		if commentStart+1 > valueEnd {
+			t.tokens = append(t.tokens, Token{Kind: TokSpace, Raw: t.src[valueEnd : commentStart+1]})
+		}
+		t.pos = commentStart + 1
+		t.consumeComment()
 		return
 	}
 

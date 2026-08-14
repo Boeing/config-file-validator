@@ -174,3 +174,66 @@ func TestSortKeys(t *testing.T) {
 		})
 	}
 }
+
+// TestInlineCommentSingleSpace verifies that the separator between a value and
+// its inline comment is normalized to exactly one space, for sequence items as
+// well as mapping values. Regression test for issue #633.
+func TestInlineCommentSingleSpace(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name:   "column-aligned sequence comments collapse to one space",
+			input:  "ports:\n  - \"4327:4317\"   # OTLP gRPC\n  - \"80:80\"        # HTTP\n",
+			expect: "ports:\n  - \"4327:4317\" # OTLP gRPC\n  - \"80:80\" # HTTP\n",
+		},
+		{
+			name:   "plain sequence scalar",
+			input:  "items:\n  - alpha     # first\n  - b   # second\n",
+			expect: "items:\n  - alpha # first\n  - b # second\n",
+		},
+		{
+			name:   "mapping value",
+			input:  "key: value     # note\n",
+			expect: "key: value # note\n",
+		},
+		{
+			name:   "already one space is unchanged",
+			input:  "items:\n  - alpha # first\n",
+			expect: "items:\n  - alpha # first\n",
+		},
+		{
+			name:   "hash inside quoted scalar is not a comment",
+			input:  "items:\n  - \"has # hash\"   # real comment\n",
+			expect: "items:\n  - \"has # hash\" # real comment\n",
+		},
+		{
+			name:   "hash without preceding space is part of the value",
+			input:  "items:\n  - novalue#nothash\n",
+			expect: "items:\n  - novalue#nothash\n",
+		},
+	}
+
+	opts := formatter.Options{
+		IndentWidth:  2,
+		FinalNewline: true,
+		LineEnding:   formatter.LineEndingLF,
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := printFormatted(tokenize([]byte(tc.input)), opts, []byte(tc.input))
+			require.NoError(t, err)
+			require.Equal(t, tc.expect, string(got))
+
+			// Formatting is idempotent.
+			again, err := printFormatted(tokenize(got), opts, got)
+			require.NoError(t, err)
+			require.Equal(t, tc.expect, string(again))
+		})
+	}
+}
