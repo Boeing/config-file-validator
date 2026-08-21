@@ -1389,25 +1389,33 @@ func normalizeSequenceSpacing(tokens []Token) {
 // Flow collection normalization
 // =============================================================================
 
-// normalizeFlowTokens adds one space inside non-empty flow mapping braces.
-// It normalizes flow mappings ({...}) with bracketSpacing (space after { and
-// before }) and flow sequences ([...]) without spacing (no space after [ or
-// before ]), matching Prettier's behavior.
+// normalizeFlowTokens normalizes comma separators and collection padding.
+// Flow mappings ({...}) use bracketSpacing (space after { and before }), while
+// flow sequences ([...]) do not. Commas use one following space unless they
+// precede a line break or closing sequence bracket, matching Prettier's behavior.
 func normalizeFlowTokens(tokens []Token) {
 	for i := range tokens {
 		if tokens[i].Kind != TokFlow {
 			continue
 		}
-		tokens[i].Raw = addFlowMappingPadding(tokens[i].Raw)
+		tokens[i].Raw = normalizeFlowSpacing(tokens[i].Raw)
 	}
 }
 
-func addFlowMappingPadding(raw []byte) []byte {
+func normalizeFlowSpacing(raw []byte) []byte {
 	var out []byte
 	quote := byte(0)
 	escaped := false
+	inComment := false
 	for i := 0; i < len(raw); i++ {
 		b := raw[i]
+		if inComment {
+			out = append(out, b)
+			if b == '\n' || b == '\r' {
+				inComment = false
+			}
+			continue
+		}
 		if quote != 0 {
 			out = append(out, b)
 			if quote == '"' && b == '\\' && !escaped {
@@ -1432,6 +1440,11 @@ func addFlowMappingPadding(raw []byte) []byte {
 			out = append(out, b)
 			continue
 		}
+		if b == '#' && (i == 0 || raw[i-1] == ' ' || raw[i-1] == '\t' || raw[i-1] == '\n' || raw[i-1] == '\r') {
+			inComment = true
+			out = append(out, b)
+			continue
+		}
 		switch b {
 		case '{':
 			out = append(out, b)
@@ -1439,10 +1452,18 @@ func addFlowMappingPadding(raw []byte) []byte {
 				out = append(out, ' ')
 			}
 		case '}':
-			if i > 0 && raw[i-1] != '{' && raw[i-1] != ' ' && raw[i-1] != '\n' && raw[i-1] != '\r' {
+			if len(out) > 0 && out[len(out)-1] != '{' && out[len(out)-1] != ' ' && out[len(out)-1] != '\n' && out[len(out)-1] != '\r' {
 				out = append(out, ' ')
 			}
 			out = append(out, b)
+		case ',':
+			out = append(out, b)
+			for i+1 < len(raw) && (raw[i+1] == ' ' || raw[i+1] == '\t') {
+				i++
+			}
+			if i+1 < len(raw) && raw[i+1] != '\n' && raw[i+1] != '\r' {
+				out = append(out, ' ')
+			}
 		case '[':
 			out = append(out, b)
 			// Remove space after [ (prettier: no bracketSpacing for arrays).

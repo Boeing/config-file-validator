@@ -867,9 +867,15 @@ func TestNormalizeFlowCollections(t *testing.T) {
 		want  string
 	}{
 		{"brace_padding", "x: {key: value}\n", "x: { key: value }\n"},
-		{"preserve_colon_and_comma_spacing", "x: {a:1,b:  2}\n", "x: { a:1,b:  2 }\n"},
+		{"normalize_mapping_comma_spacing", "x: {a:1,b:  2}\n", "x: { a:1, b:  2 }\n"},
 		{"nested_flow", "x: [{a: 1}, { b: 2 }]\n", "x: [{ a: 1 }, { b: 2 }]\n"},
-		{"array_spaces_unchanged", "x: [1,  2,   3]\n", "x: [1,  2,   3]\n"},
+		{"normalize_sequence_comma_spacing", "x: [1,  2,   3]\n", "x: [1, 2, 3]\n"},
+		{"reported_command_sequence", "command: [\"perl\",  \"-Mbignum=bpi\",  \"-wle\",  \"print bpi(2000)\"]\n", "command: [\"perl\", \"-Mbignum=bpi\", \"-wle\", \"print bpi(2000)\"]\n"},
+		{"preserve_comma_spacing_in_quotes", "x: [\"a,  b\",  \"c\"]\n", "x: [\"a,  b\", \"c\"]\n"},
+		{"preserve_comma_spacing_in_comment", "x: [one,  # keep,  comment spacing\n  two]\n", "x: [one, # keep,  comment spacing\n  two]\n"},
+		{"remove_space_before_flow_line_break", "x: [one,  \n  two]\n", "x: [one,\n  two]\n"},
+		{"trailing_mapping_comma", "x: {a: 1,}\n", "x: { a: 1, }\n"},
+		{"trailing_sequence_comma", "x: [1, ]\n", "x: [1,]\n"},
 		{"empty_map", "x: {}\n", "x: {}\n"},
 		{"empty_array", "x: []\n", "x: []\n"},
 		{"quoted_braces_unchanged", "x: {value: \"{literal}\"}\n", "x: { value: \"{literal}\" }\n"},
