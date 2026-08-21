@@ -12,7 +12,8 @@ RUN CGO_ENABLED=0 \
   cmd/validator/validator.go
 
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
-USER user
+RUN adduser -D -u 10001 validator
+USER 10001
 COPY --from=go-builder /build/validator /
 HEALTHCHECK NONE
 ENTRYPOINT [ "/validator" ]
