@@ -8,3 +8,8 @@ CVE-2026-53550
 # The fix (5.0.8) requires a major version bump that breaks minimatch 3.x.
 # Not user-addressable without a Docusaurus update. Not exploitable in a static docs build.
 CVE-2026-14257
+
+# image-size 2.0.2 — transitive dep of Docusaurus (via @docusaurus/utils).
+# No fix released upstream. DoS via crafted image buffer — not exploitable in static docs build.
+CVE-2025-71329
+CVE-2025-71330
