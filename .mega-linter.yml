@@ -5,8 +5,6 @@ EXCLUDED_DIRECTORIES: []
 
 # Disabled certain linters due to duplication and or redundancy.
 DISABLE_LINTERS:
-  # https://megalinter.io/latest/descriptors/repository_kics/
-  - REPOSITORY_KICS
   # already enabled as a dedicated linter for this repo
   - GO_GOLANGCI_LINT
   # another linter, https://megalinter.io/latest/descriptors/go_revive/
