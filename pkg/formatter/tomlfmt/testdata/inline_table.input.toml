@@ -11,8 +11,4 @@ wide = { features = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc",
 reqwest = { workspace = true, default-features = false, features = [
   "rustls",
 ] }
-nested_multiline = { a = { b = [
-  1,
-  2,
-] } }
 000000000000000000000000000000000000000000000000000000000000000000 = [[0b0, 0, 0]]

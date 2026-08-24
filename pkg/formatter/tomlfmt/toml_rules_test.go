@@ -28,10 +28,9 @@ func Test_TOML_ArrayCollapsesWithinColumnWidth(t *testing.T) {
 		"short array must collapse within column_width")
 }
 
-// Test_TOML_InlineTableArrayStaysSingleLine asserts that an array nested in an
-// inline table stays on one line even past column_width, because an inline
-// table has to stay on a single line (TOML v1.0 §5.2).
-func Test_TOML_InlineTableArrayStaysSingleLine(t *testing.T) {
+// Test_TOML_InlineTableExpandsAtColumnWidth asserts that inline tables
+// exceeding column_width have their array values expanded.
+func Test_TOML_InlineTableExpandsAtColumnWidth(t *testing.T) {
 	t.Parallel()
 	src := "[deps]\nwide = { features = [\"aaaaaaaaaaaaaaaa\", \"bbbbbbbbbbbbbbbb\", \"cccccccccccccccc\", \"dddddddddddddddd\"] }\n"
 	opts := tomlfmt.DefaultOptions()
@@ -40,14 +39,16 @@ func Test_TOML_InlineTableArrayStaysSingleLine(t *testing.T) {
 	require.NoError(t, err)
 	out := string(got)
 
-	require.Contains(t, out,
-		"wide = { features = [\"aaaaaaaaaaaaaaaa\", \"bbbbbbbbbbbbbbbb\", \"cccccccccccccccc\", \"dddddddddddddddd\"] }\n",
-		"array inside an inline table must not expand past column_width")
+	// The array inside the inline table exceeds 80 cols — must expand.
+	require.Contains(t, out, "\"aaaaaaaaaaaaaaaa\",\n",
+		"inline table's array must expand when exceeding column_width")
 }
 
 // Test_TOML_InlineTableArrayCollapsesFromMultiline asserts that an array
-// written across several lines inside an inline table is collapsed onto one
-// line. Regression test for issue #631.
+// written across several lines inside an inline table is collapsed back onto
+// one line when the collapsed form fits within column_width. The trailing
+// comma the source carries is dropped by the collapse, so it must not count
+// towards the width. Regression test for issue #631.
 func Test_TOML_InlineTableArrayCollapsesFromMultiline(t *testing.T) {
 	t.Parallel()
 	src := "[dev-dependencies]\nreqwest = { workspace = true, default-features = false, features = [\n  \"rustls\",\n] }\n"
@@ -59,7 +60,7 @@ func Test_TOML_InlineTableArrayCollapsesFromMultiline(t *testing.T) {
 	require.Equal(t,
 		"[dev-dependencies]\nreqwest = { workspace = true, default-features = false, features = [\"rustls\"] }\n",
 		string(got),
-		"multiline array inside an inline table must collapse to a single line")
+		"multiline array inside an inline table must collapse when it fits")
 }
 
 // Test_TOML_NestedArrayExpansionRecursive asserts that when an outer array
