@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- YAML formatter now preserves tag syntax in flow sequences, including required whitespace before closing brackets and commas inside verbatim tags.
 - YAML formatter now normalizes horizontal whitespace after commas in flow sequences and mappings (closes #635).
 - YAML formatting now normalizes extra spaces after sequence indicators so mapping keys remain aligned with their siblings (closes #622).
 - YAML formatter now moves a long flow collection below its mapping key before expanding its elements, keeping the collection inline when it fits at the deeper value indentation (closes #623).
