@@ -1,6 +1,7 @@
 package jsoncfmt_test
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
 	"path/filepath"
@@ -410,6 +411,67 @@ func TestInlineArrayDepthAware(t *testing.T) {
 	gotDeepShort, err := f.Format(deepShortSrc, defaultOpts)
 	require.NoError(t, err)
 	require.Contains(t, string(gotDeepShort), `["x", "y"]`, "deep but short array must collapse")
+}
+
+// TestShouldBreakArray verifies that arrays of homogeneous multi-element
+// arrays/objects always expand, matching prettier v3.9.6's shouldBreak rule.
+func TestShouldBreakArray(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		input        string
+		shouldExpand bool
+	}{
+		{"arrays_multi_element_expand",
+			`[["{", "}"], ["[", "]"], ["(", ")"]]`,
+			true},
+		{"arrays_single_element_inline",
+			`[[1], [2], [3]]`,
+			false},
+		{"single_outer_element_inline",
+			`[[1, 2, 3]]`,
+			false},
+		{"mixed_types_inline",
+			`[[1, 2], "a"]`,
+			false},
+		{"primitives_inline",
+			`[1, 2, 3]`,
+			false},
+		{"objects_multi_prop_expand",
+			`[{"a": 1, "b": 2}, {"c": 3, "d": 4}]`,
+			true},
+		{"objects_single_prop_inline",
+			`[{"a": 1}, {"b": 2}]`,
+			false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			output := string(got)
+			if tc.shouldExpand {
+				require.Contains(t, output, "\n  ", "expected expanded (multiline) output")
+			} else {
+				// Should be single line (plus trailing newline).
+				lines := strings.Split(strings.TrimSpace(output), "\n")
+				require.Len(t, lines, 1, "expected single-line output, got:\n%s", output)
+			}
+
+			// Idempotency.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, got, got2, "must be idempotent")
+
+			// Semantic preservation.
+			var before, after any
+			require.NoError(t, json.Unmarshal([]byte(tc.input), &before))
+			std, err := hujson.Standardize(got)
+			require.NoError(t, err)
+			require.NoError(t, json.Unmarshal(std, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
 }
 
 // TestConciseArrayFillFormat verifies the fill layout for all-numeric arrays.
