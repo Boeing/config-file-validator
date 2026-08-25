@@ -1163,11 +1163,11 @@ func reorderEntries(tokens []Token, entries []mappingEntry) []Token {
 
 func applyQuoteStyle(tokens []Token, style formatter.QuoteStyle) {
 	for i := range tokens {
-		if tokens[i].Kind != TokValue && tokens[i].Kind != TokFlow {
+		if tokens[i].Kind != TokKey && tokens[i].Kind != TokValue && tokens[i].Kind != TokFlow {
 			continue
 		}
 
-		if tokens[i].Kind == TokValue {
+		if tokens[i].Kind == TokKey || tokens[i].Kind == TokValue {
 			// Block scalar quote conversion.
 			raw := bytes.TrimRight(tokens[i].Raw, " \t")
 			if len(raw) < 2 {
