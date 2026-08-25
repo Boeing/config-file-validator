@@ -86,7 +86,11 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	// Collapse consecutive blank lines to at most 1 (matches prettier).
 	tokens = collapseConsecutiveBlankLines(tokens)
 
-	// Strip blank lines between a mapping key's colon and its first value.
+	// Strip blank lines immediately after document markers (--- and ...).
+	// prettier: join(hardline, parts) — exactly one newline after marker, never two.
+	tokens = stripBlankLinesAfterDocMarkers(tokens)
+
+	// Strip blank lines between a mapping key's colon and its first child value.
 	// Prettier rule: no blank line allowed between key: and its value.
 	// Only between siblings (between sequence items, between mapping entries).
 	tokens = stripBlankLinesAfterColon(tokens)
@@ -1859,6 +1863,37 @@ func collapseConsecutiveBlankLines(tokens []Token) []Token {
 	return result
 }
 
+// stripBlankLinesAfterDocMarkers removes blank lines immediately following
+// document start (---) and document end (...) markers. prettier places exactly
+// one newline between a document marker and the body content — never a blank line.
+// Source: prettier v3.9.6 printer-yaml.js, "document" case uses join(hardline, parts).
+func stripBlankLinesAfterDocMarkers(tokens []Token) []Token {
+	result := make([]Token, 0, len(tokens))
+	i := 0
+	for i < len(tokens) {
+		result = append(result, tokens[i])
+
+		if tokens[i].Kind != TokDocStart && tokens[i].Kind != TokDocEnd {
+			i++
+			continue
+		}
+
+		// Expect TokNewline after the marker.
+		j := i + 1
+		if j >= len(tokens) || tokens[j].Kind != TokNewline {
+			i++
+			continue
+		}
+		result = append(result, tokens[j]) // keep the single newline
+		j++
+
+		// Skip blank lines: bare TokNewline or (TokIndent + TokNewline) pairs.
+		j = skipBlankLines(tokens, j)
+		i = j
+	}
+	return result
+}
+
 // stripBlankLinesAfterColon removes blank lines that appear between a mapping
 // key's colon and its first child value. Prettier strips these unconditionally:
 // a blank line is only valid between siblings, not between a key and its value.
@@ -1890,9 +1925,39 @@ func stripBlankLinesAfterColon(tokens []Token) []Token {
 		result = append(result, tokens[j])
 		j++
 
-		// Skip blank lines (TokNewline or TokIndent+TokNewline pairs).
-		j = skipBlankLines(tokens, j)
-		i = j
+		// Check if blank lines exist after the colon's newline.
+		blankEnd := skipBlankLines(tokens, j)
+		if blankEnd == j {
+			// No blank lines — nothing to strip.
+			i = j
+			continue
+		}
+
+		// Blank lines found. Determine if the next content is a child (deeper
+		// indent) or a sibling (same/shallower). Only strip for children.
+		colonLineIndent := 0
+		for k := i - 1; k >= 0; k-- {
+			if tokens[k].Kind == TokIndent {
+				colonLineIndent = len(tokens[k].Raw)
+				break
+			}
+			if tokens[k].Kind == TokNewline {
+				break
+			}
+		}
+
+		nextIndent := 0
+		if blankEnd < len(tokens) && tokens[blankEnd].Kind == TokIndent {
+			nextIndent = len(tokens[blankEnd].Raw)
+		}
+
+		if nextIndent > colonLineIndent {
+			// Child content — strip blank lines (colon's value follows).
+			i = blankEnd
+		} else {
+			// Sibling or parent — preserve blank lines.
+			i = j
+		}
 	}
 	return result
 }
