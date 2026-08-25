@@ -121,6 +121,28 @@ func TestIdempotency(t *testing.T) {
 	}
 }
 
+func TestPlainScalarStartingWithDocumentMarkerIsIdempotent(t *testing.T) {
+	t.Parallel()
+	for _, prefix := range []string{"---", "..."} {
+		t.Run(prefix, func(t *testing.T) {
+			t.Parallel()
+			src := []byte("-:\n- 0\n" + prefix + "\"0:\n")
+
+			first, err := f.Format(src, defaultOpts)
+			require.NoError(t, err)
+
+			second, err := f.Format(first, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, first, second)
+
+			var before, after any
+			require.NoError(t, yaml.Unmarshal(src, &before))
+			require.NoError(t, yaml.Unmarshal(first, &after))
+			require.Equal(t, before, after)
+		})
+	}
+}
+
 // TestInvalidYAMLReturnsError verifies that unparseable input returns an error.
 func TestInvalidYAMLReturnsError(t *testing.T) {
 	t.Parallel()
