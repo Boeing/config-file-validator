@@ -898,6 +898,9 @@ func TestNormalizeFlowCollections(t *testing.T) {
 		{"remove_space_before_flow_line_break", "x: [one,  \n  two]\n", "x: [one,\n  two]\n"},
 		{"trailing_mapping_comma", "x: {a: 1,}\n", "x: { a: 1, }\n"},
 		{"trailing_sequence_comma", "x: [1, ]\n", "x: [1,]\n"},
+		{"preserve_separator_after_tag", "A: [0000,\n00,!00 ]\n", "A: [0000,\n00, !00 ]\n"},
+		{"preserve_separator_after_verbatim_tag", "x: [!<tag:example.com,2026:foo> ]\n", "x: [!<tag:example.com,2026:foo> ]\n"},
+		{"strip_padding_after_tagged_value", "x: [!foo value ]\n", "x: [!foo value]\n"},
 		{"empty_map", "x: {}\n", "x: {}\n"},
 		{"empty_array", "x: []\n", "x: []\n"},
 		{"quoted_braces_unchanged", "x: {value: \"{literal}\"}\n", "x: { value: \"{literal}\" }\n"},
@@ -913,6 +916,7 @@ func TestNormalizeFlowCollections(t *testing.T) {
 			result, err := fmtr.Format([]byte(tc.input), opts)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, string(result))
+			require.NoError(t, yaml.Unmarshal(result, &yaml.Node{}))
 		})
 	}
 }

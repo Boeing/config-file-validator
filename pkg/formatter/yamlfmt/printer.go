@@ -1455,6 +1455,14 @@ func normalizeFlowSpacing(raw []byte) []byte {
 			out = append(out, b)
 			continue
 		}
+		if b == '!' && i+1 < len(raw) && raw[i+1] == '<' {
+			if tagEnd := bytes.IndexByte(raw[i+2:], '>'); tagEnd >= 0 {
+				tagEnd += i + 2
+				out = append(out, raw[i:tagEnd+1]...)
+				i = tagEnd
+				continue
+			}
+		}
 		switch b {
 		case '{':
 			out = append(out, b)
@@ -1489,6 +1497,10 @@ func normalizeFlowSpacing(raw []byte) []byte {
 			if trimEnd == 0 || out[trimEnd-1] != '\n' {
 				// Spaces preceded by non-newline: bracketSpacing, strip them.
 				out = out[:trimEnd]
+				if endsWithFlowTag(out) {
+					// A tag with no explicit value still needs separation from ].
+					out = append(out, ' ')
+				}
 			}
 			// Else: spaces preceded by \n: indentation, preserve them.
 			out = append(out, b)
@@ -1497,6 +1509,22 @@ func normalizeFlowSpacing(raw []byte) []byte {
 		}
 	}
 	return out
+}
+
+// endsWithFlowTag reports whether the final token in a flow collection is a
+// tag. YAML requires whitespace between a tag and a closing flow indicator.
+func endsWithFlowTag(raw []byte) bool {
+	if len(raw) == 0 {
+		return false
+	}
+
+	if raw[len(raw)-1] == '>' {
+		start := bytes.LastIndex(raw, []byte("!<"))
+		return start >= 0 && (start == 0 || strings.ContainsRune(" \t\n\r,[{", rune(raw[start-1])))
+	}
+
+	start := bytes.LastIndexAny(raw, " \t\n\r,[{") + 1
+	return start < len(raw) && raw[start] == '!'
 }
 
 // =============================================================================
