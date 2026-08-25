@@ -537,8 +537,18 @@ func reindentTokens(tokens []Token, targetWidth int, indentSequences bool) {
 			// Exceptions that stay at column 0:
 			// - Blank-line indents (followed by TokNewline) — no visible whitespace on empty lines
 			// - Document markers (--- and ...) — YAML spec requires column 0
+			// - Plain-scalar continuations beginning with a document-marker prefix.
+			//   Indenting these can make a trailing colon structural on the next parse.
+			markerPrefixedScalar := false
+			if oldIndent == 0 && i+1 < len(tokens) &&
+				(tokens[i+1].Kind == TokKey || tokens[i+1].Kind == TokValue) {
+				raw := tokens[i+1].Raw
+				markerPrefixedScalar = bytes.HasPrefix(raw, []byte("---")) ||
+					bytes.HasPrefix(raw, []byte("..."))
+			}
 			if i+1 < len(tokens) &&
-				(tokens[i+1].Kind == TokNewline || tokens[i+1].Kind == TokDocStart || tokens[i+1].Kind == TokDocEnd) {
+				(tokens[i+1].Kind == TokNewline || tokens[i+1].Kind == TokDocStart ||
+					tokens[i+1].Kind == TokDocEnd || markerPrefixedScalar) {
 				newIndent = 0
 			} else {
 				newIndent = oldIndent + lastDelta
