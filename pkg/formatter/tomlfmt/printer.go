@@ -1012,20 +1012,42 @@ func estimateInlineTableWidth(tokens []Token) int {
 	// - Each "=" becomes " = " (+2 chars)
 	// - Each "," becomes ", " (+1 char)
 	length := 4 // "{ " + " }"
-	for _, tok := range tokens {
+	for i, tok := range tokens {
 		if tok.Kind == Whitespace || tok.Kind == Newline || tok.Kind == Comment {
 			continue
 		}
-		length += len(tok.Raw)
 		switch tok.Kind {
 		case Equals:
-			length += 2 // " = " instead of "="
+			length += len(tok.Raw) + 2 // " = " instead of "="
 		case Comma:
-			length++ // ", " instead of ","
+			// A trailing comma before a closing bracket or brace is dropped
+			// when the value is collapsed onto one line, so it contributes
+			// nothing to the single-line width.
+			if isTrailingComma(tokens, i) {
+				continue
+			}
+			length += len(tok.Raw) + 1 // ", " instead of ","
 		default:
+			length += len(tok.Raw)
 		}
 	}
 	return length
+}
+
+// isTrailingComma reports whether tokens[i] is a comma directly before a
+// closing bracket or brace, ignoring intervening whitespace and newlines.
+func isTrailingComma(tokens []Token, i int) bool {
+	for j := i + 1; j < len(tokens); j++ {
+		switch tokens[j].Kind {
+		case Whitespace, Newline:
+			continue
+		case BracketClose, BraceClose:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // hasNonWhitespace returns true if the token slice contains any
