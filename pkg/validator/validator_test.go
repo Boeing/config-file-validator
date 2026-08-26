@@ -544,6 +544,57 @@ func Test_YAMLMarshalToJSONInvalid(t *testing.T) {
 	require.Error(t, err)
 }
 
+func Test_YAMLMarshalToJSON_InfReturnsError(t *testing.T) {
+	t.Parallel()
+	_, err := YAMLValidator{}.MarshalToJSON([]byte("value: .inf\n"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".inf cannot be represented in JSON")
+}
+
+func Test_YAMLMarshalToJSON_NegInfReturnsError(t *testing.T) {
+	t.Parallel()
+	_, err := YAMLValidator{}.MarshalToJSON([]byte("value: -.inf\n"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "-.inf cannot be represented in JSON")
+}
+
+func Test_YAMLMarshalToJSON_NaNReturnsError(t *testing.T) {
+	t.Parallel()
+	_, err := YAMLValidator{}.MarshalToJSON([]byte("value: .nan\n"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".nan cannot be represented in JSON")
+}
+
+func Test_YAMLMarshalToJSON_NestedInfReturnsError(t *testing.T) {
+	t.Parallel()
+	_, err := YAMLValidator{}.MarshalToJSON([]byte("outer:\n  inner: .inf\n"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".inf")
+}
+
+func Test_YAMLMarshalToJSON_InfInArrayReturnsError(t *testing.T) {
+	t.Parallel()
+	_, err := YAMLValidator{}.MarshalToJSON([]byte("values:\n  - 1.0\n  - .inf\n  - 3.0\n"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".inf")
+}
+
+func Test_YAMLMarshalToJSON_NormalFloatsPass(t *testing.T) {
+	t.Parallel()
+	out, err := YAMLValidator{}.MarshalToJSON([]byte("value: 3.14\n"))
+	require.NoError(t, err)
+	require.Contains(t, string(out), "3.14")
+}
+
+func Test_YAMLValidateSchema_InfReturnsError(t *testing.T) {
+	t.Parallel()
+	src := []byte("# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json\nvalue: .inf\n")
+	ok, err := YAMLValidator{}.ValidateSchema(src, "/tmp/test.yaml")
+	require.False(t, ok)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".inf cannot be represented in JSON")
+}
+
 func Test_TomlMarshalToJSON(t *testing.T) {
 	t.Parallel()
 	out, err := TomlValidator{}.MarshalToJSON([]byte("\"$schema\" = \"x\"\nkey = \"val\"\n"))
