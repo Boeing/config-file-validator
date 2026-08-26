@@ -143,6 +143,37 @@ func TestPlainScalarStartingWithDocumentMarkerIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestNestedSequencePreservesDepth(t *testing.T) {
+	t.Parallel()
+	src := []byte("- \n - 00\n")
+
+	formatted, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, "-\n  - 00\n", string(formatted))
+
+	second, err := f.Format(formatted, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, formatted, second)
+
+	var before, after any
+	require.NoError(t, yaml.Unmarshal(src, &before))
+	require.NoError(t, yaml.Unmarshal(formatted, &after))
+	require.Equal(t, before, after)
+}
+
+func TestInlineNestedSequenceIsIdempotent(t *testing.T) {
+	t.Parallel()
+	src := []byte("matrix:\n    - - 1\n      - 2\n    - - 3\n")
+
+	formatted, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, "matrix:\n  - - 1\n    - 2\n  - - 3\n", string(formatted))
+
+	second, err := f.Format(formatted, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, formatted, second)
+}
+
 // TestInvalidYAMLReturnsError verifies that unparseable input returns an error.
 func TestInvalidYAMLReturnsError(t *testing.T) {
 	t.Parallel()

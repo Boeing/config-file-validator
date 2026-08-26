@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- YAML formatting preserves nested sequence depth when an outer sequence indicator has no inline value.
 - YAML formatter now preserves tag syntax in flow sequences, including required whitespace before closing brackets and commas inside verbatim tags.
 - YAML formatting preserves column-zero document-marker prefixes in plain scalar continuations, preventing a second formatting pass from rejecting the first pass's output.
 - YAML formatter now normalizes horizontal whitespace after commas in flow sequences and mappings (closes #635).
