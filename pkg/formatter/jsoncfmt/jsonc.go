@@ -206,11 +206,21 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 			m := &obj.Members[i]
 			m.Name.BeforeExtra = hujson.Extra(" ")
 			m.Name.AfterExtra = nil
-			m.Value.BeforeExtra = hujson.Extra(" ")
+			if hasComment(m.Value.BeforeExtra) {
+				s := strings.TrimSpace(string(m.Value.BeforeExtra))
+				m.Value.BeforeExtra = hujson.Extra(" " + s + " ")
+			} else {
+				m.Value.BeforeExtra = hujson.Extra(" ")
+			}
 			m.Value.AfterExtra = nil
 			formatInlineValue(&m.Value)
 		}
-		obj.AfterExtra = hujson.Extra(" ")
+		if hasComment(obj.AfterExtra) {
+			s := strings.TrimSpace(string(obj.AfterExtra))
+			obj.AfterExtra = hujson.Extra(" " + s + " ")
+		} else {
+			obj.AfterExtra = hujson.Extra(" ")
+		}
 		return
 	}
 
@@ -232,8 +242,13 @@ func (fs *formatState) formatObject(obj *hujson.Object, depth int) {
 		}
 		m.Name.AfterExtra = nil
 
-		// Single space between colon and value.
-		m.Value.BeforeExtra = hujson.Extra(" ")
+		// Single space between colon and value, preserving inline comments.
+		if hasComment(m.Value.BeforeExtra) {
+			s := strings.TrimSpace(string(m.Value.BeforeExtra))
+			m.Value.BeforeExtra = hujson.Extra(" " + s + " ")
+		} else {
+			m.Value.BeforeExtra = hujson.Extra(" ")
+		}
 		m.Value.AfterExtra = clearWhitespace(m.Value.AfterExtra)
 
 		// Recurse into nested structures.
@@ -506,6 +521,13 @@ func inlineValueLength(v *hujson.Value) int {
 		if len(val.Members) == 0 {
 			return 2 // {}
 		}
+		// If AfterExtra has a comment, include its inline length.
+		afterLen := 0
+		if hasComment(val.AfterExtra) {
+			// Comment adds: " /* ... */ " before closing brace
+			s := strings.TrimSpace(string(val.AfterExtra))
+			afterLen = 1 + len(s) // " " + comment text (replaces the normal " " before "}")
+		}
 		// If the object was multiline in the source (any member has a newline
 		// in BeforeExtra), it cannot be inlined. This matches prettier's behavior:
 		// expanded objects stay expanded.
@@ -519,7 +541,7 @@ func inlineValueLength(v *hujson.Value) int {
 			if i > 0 {
 				total += 2 // ", "
 			}
-			if hasComment(m.Name.BeforeExtra) || hasComment(m.Value.BeforeExtra) {
+			if hasComment(m.Name.BeforeExtra) {
 				return -1
 			}
 			if i > 0 && hasBlankLine(m.Name.BeforeExtra) {
@@ -527,13 +549,18 @@ func inlineValueLength(v *hujson.Value) int {
 			}
 			total += len(m.Name.Value.(hujson.Literal)) // key
 			total += 2                                  // ": "
+			// Include inline comment between colon and value if present.
+			if hasComment(m.Value.BeforeExtra) {
+				s := strings.TrimSpace(string(m.Value.BeforeExtra))
+				total += len(s) + 2 // " " + comment + " "
+			}
 			inner := inlineValueLength(&m.Value)
 			if inner < 0 {
 				return -1
 			}
 			total += inner
 		}
-		return total
+		return total + afterLen
 	case *hujson.Array:
 		if len(val.Elements) == 0 {
 			return 2 // []

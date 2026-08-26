@@ -188,6 +188,11 @@ func (c *CLI) Run() (int, error) {
 			return 2, fmt.Errorf("unable to read file: %w", err)
 		}
 
+		// Strip UTF-8 BOM if present. Many editors (especially on Windows)
+		// add BOM to UTF-8 files. Parsers for JSON, TOML, and JSONC don't
+		// handle it, so we strip it centrally before validation.
+		content = stripBOM(content)
+
 		report := c.validate(content, f.FileType, f.Name, f.Path)
 
 		// When --fix is enabled and there are errors, attempt to fix.
@@ -480,6 +485,19 @@ func isBrokenSymlink(path string) bool {
 	}
 	_, err = os.Stat(path)
 	return os.IsNotExist(err)
+}
+
+// hasBOM returns true if b starts with a UTF-8 byte order mark (0xEF 0xBB 0xBF).
+func hasBOM(b []byte) bool {
+	return len(b) >= 3 && b[0] == 0xef && b[1] == 0xbb && b[2] == 0xbf
+}
+
+// stripBOM removes a UTF-8 BOM prefix if present.
+func stripBOM(b []byte) []byte {
+	if hasBOM(b) {
+		return b[3:]
+	}
+	return b
 }
 
 // defaultFixRules returns the standard set of safe fix rules.
