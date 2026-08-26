@@ -336,7 +336,7 @@ func Test_CLISchemaMapValid(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.json": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.json", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -372,7 +372,7 @@ func Test_CLISchemaMapInvalid(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.json": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.json", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -396,7 +396,7 @@ func Test_CLISchemaMapGlob(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"**/configs/*.json": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "**/configs/*.json", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -420,7 +420,7 @@ func Test_CLISchemaMapYAML(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.yaml": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.yaml", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -444,7 +444,7 @@ func Test_CLISchemaMapTOML(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.toml": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.toml", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -460,7 +460,7 @@ func Test_CLISchemaMapUnmatched(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"other.json": "/nonexistent"}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "other.json", SchemaPath: "/nonexistent"}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -479,7 +479,7 @@ func Test_CLISchemaMapUnsupportedValidatorWarnsAndPasses(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporters(capturingReporter),
-		WithSchemaMap(map[string]string{".env": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: ".env", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -503,7 +503,7 @@ func Test_CLISchemaMapUnsupportedValidatorFailsWithRequireSchema(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporters(capturingReporter),
-		WithSchemaMap(map[string]string{".env": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: ".env", SchemaPath: schema}}),
 		WithRequireSchema(true),
 	)
 	exitStatus, err := cli.Run()
@@ -586,7 +586,7 @@ func Test_CLISchemaMapPriorityOverStore(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"package.json": strict}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "package.json", SchemaPath: strict}}),
 		WithSchemaStore(bundle),
 	)
 	exitStatus, err := cli.Run()
@@ -609,7 +609,7 @@ func Test_CLIDocumentSchemaPriorityOverAll(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"package.json": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "package.json", SchemaPath: schema}}),
 		WithSchemaStore(bundle),
 	)
 	exitStatus, err := cli.Run()
@@ -762,7 +762,7 @@ func Test_CLISchemaMapXMLValid(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.xml": schemaPath}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.xml", SchemaPath: schemaPath}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -817,7 +817,7 @@ func Test_CLISchemaMapXMLInvalid(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.xml": schemaPath}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.xml", SchemaPath: schemaPath}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -1233,7 +1233,7 @@ func Test_CLICheckWithFixSchemaCoerce(t *testing.T) {
 		WithFinder(fsFinder),
 		WithReporters(rep),
 		WithFix(true),
-		WithSchemaMap(map[string]string{"**/*.json": filepath.Join(dir, "schema.json")}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "**/*.json", SchemaPath: filepath.Join(dir, "schema.json")}}),
 	)
 
 	_, err := cli.Run()

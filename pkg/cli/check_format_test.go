@@ -197,7 +197,7 @@ func TestCheckSkipsFormatOnSchemaError(t *testing.T) {
 		WithFinder(finder.FileSystemFinderInit(finder.WithPathRoots(dir))),
 		WithReporters(capture),
 		WithFormatOptions(defaultJSONOpts()),
-		WithSchemaMap(map[string]string{"app.json": schemaPath}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "app.json", SchemaPath: schemaPath}}),
 	)
 
 	exitStatus, err := c.Run()

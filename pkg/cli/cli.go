@@ -23,18 +23,26 @@ import (
 
 // CLI is the main entry point for running config file validation and formatting.
 // Use Init with Option functions to configure, then call Run (check) or Format.
+// SchemaMapping is a single glob-pattern → schema-path association.
+// Ordered slice preserves user-specified priority (first match wins).
+type SchemaMapping struct {
+	Pattern    string
+	SchemaPath string
+}
+
 type CLI struct {
-	finder        finder.FileFinder
-	reporters     []reporter.Reporter
-	groupOutput   []string
-	quiet         bool
-	requireSchema bool
-	noSchema      bool
-	schemaMap     map[string]string
-	schemaStore   *schemastore.Store
-	stdinData     []byte
-	stdinFileType filetype.FileType
-	errorFound    bool
+	finder         finder.FileFinder
+	reporters      []reporter.Reporter
+	groupOutput    []string
+	quiet          bool
+	requireSchema  bool
+	noSchema       bool
+	schemaMap      []SchemaMapping
+	schemaStore    *schemastore.Store
+	configFilePath string // excluded from format checking
+	stdinData      []byte
+	stdinFileType  filetype.FileType
+	errorFound     bool
 	// fix enables writing formatted output back to disk.
 	// When false, Format reports issues but does not write.
 	fix bool
@@ -90,9 +98,17 @@ func WithNoSchema(noSchema bool) Option {
 	}
 }
 
-func WithSchemaMap(m map[string]string) Option {
+func WithSchemaMap(m []SchemaMapping) Option {
 	return func(c *CLI) {
 		c.schemaMap = m
+	}
+}
+
+// WithConfigFile sets the path to the resolved config file so it can be
+// excluded from format checking (a tool should not format its own config).
+func WithConfigFile(path string) Option {
+	return func(c *CLI) {
+		c.configFilePath = path
 	}
 }
 
@@ -375,16 +391,22 @@ func (c *CLI) lookupSchemaMap(filePath string) (string, bool) {
 		return "", false
 	}
 	baseName := filepath.Base(filePath)
-	for pattern, schemaPath := range c.schemaMap {
-		if !tools.IsGlobPattern(pattern) {
-			if pattern == baseName {
-				return schemaPath, true
+	for _, m := range c.schemaMap {
+		if !tools.IsGlobPattern(m.Pattern) {
+			if m.Pattern == baseName {
+				return m.SchemaPath, true
 			}
 			continue
 		}
-		matched, err := doublestar.PathMatch(pattern, filePath)
+		// If pattern has no path separator, match against basename only.
+		// "*.json" matches any JSON file regardless of directory depth.
+		target := filePath
+		if !strings.Contains(m.Pattern, "/") {
+			target = baseName
+		}
+		matched, err := doublestar.PathMatch(m.Pattern, target)
 		if err == nil && matched {
-			return schemaPath, true
+			return m.SchemaPath, true
 		}
 	}
 	return "", false
@@ -572,6 +594,14 @@ func (c *CLI) resolveSchemaBytes(v validator.Validator, filePath string) []byte 
 // When the fixer has already written a new version of the file, content will
 // be stale — we re-read from disk in that case (detected by fix notes on the report).
 func (c *CLI) checkFormatting(report reporter.Report, content []byte, ft filetype.FileType, path string) reporter.Report {
+	// Skip the config file itself — a tool should not format-check its own config.
+	if c.configFilePath != "" {
+		absPath, err := filepath.Abs(path)
+		if err == nil && absPath == c.configFilePath {
+			return report
+		}
+	}
+
 	// Skip if file is format-ignored by external tool config.
 	if c.formatIgnores != nil {
 		absPath, err := filepath.Abs(path)

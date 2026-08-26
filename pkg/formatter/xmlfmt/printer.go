@@ -195,8 +195,18 @@ func insertFormattingWhitespace(tokens []Token, indentUnit string) []Token {
 			result = append(result, tok)
 			depth++
 
-			// Check if this element has mixed content.
+			// Check if this element has xml:space="preserve" — emit content verbatim.
 			closeIdx := findMatchingClose(cleaned, i)
+			if closeIdx > 0 && hasXMLSpacePreserve(tok.Raw) {
+				for j := i + 1; j <= closeIdx; j++ {
+					result = append(result, cleaned[j])
+				}
+				depth--
+				i = closeIdx + 1
+				continue
+			}
+
+			// Check if this element has mixed content.
 			if closeIdx > 0 && isMixedContent(cleaned, i, closeIdx) {
 				// Emit everything between open and close INLINE (no formatting).
 				for j := i + 1; j <= closeIdx; j++ {
@@ -280,6 +290,12 @@ func findMatchingClose(tokens []Token, openIdx int) int {
 
 // isMixedContent returns true if the element between openIdx and closeIdx
 // contains BOTH non-whitespace text AND child element tokens.
+// hasXMLSpacePreserve checks if an open tag token contains xml:space="preserve".
+func hasXMLSpacePreserve(raw []byte) bool {
+	return bytes.Contains(raw, []byte(`xml:space="preserve"`)) ||
+		bytes.Contains(raw, []byte(`xml:space='preserve'`))
+}
+
 func isMixedContent(tokens []Token, openIdx, closeIdx int) bool {
 	hasText := false
 	hasChild := false
