@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- JSON and JSONC formatting now expands arrays whose elements are all arrays (or all objects) with more than one child each, matching prettier's `shouldBreak` rule regardless of line width (closes #630).
 - YAML formatting preserves nested sequence depth when an outer sequence indicator has no inline value.
 - YAML formatter now preserves tag syntax in flow sequences, including required whitespace before closing brackets and commas inside verbatim tags.
 - YAML formatting preserves column-zero document-marker prefixes in plain scalar continuations, preventing a second formatting pass from rejecting the first pass's output.

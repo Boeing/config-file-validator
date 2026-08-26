@@ -287,7 +287,9 @@ func (fs *formatState) formatArray(arr *hujson.Array, depth int) {
 	// A single-line array like [1, 2, 3] is cleaner without a trailing comma.
 	// Exception: concise arrays with source blank lines always expand (prettier
 	// behavior — blank lines force the group to break in fill layout).
-	if (!concise || !hasBlankLines) && fs.isInlineArray(arr, depth*len(fs.indent)) {
+	// Exception: homogeneous arrays of multi-element arrays/objects always expand
+	// (prettier's shouldBreak rule from src/language-js/print/array.js v3.9.6).
+	if !shouldBreakArray(arr) && (!concise || !hasBlankLines) && fs.isInlineArray(arr, depth*len(fs.indent)) {
 		for i := range arr.Elements {
 			if i == 0 {
 				arr.Elements[i].BeforeExtra = nil
@@ -536,6 +538,9 @@ func inlineValueLength(v *hujson.Value) int {
 		if len(val.Elements) == 0 {
 			return 2 // []
 		}
+		if shouldBreakArray(val) {
+			return -1 // prettier always expands these
+		}
 		total := 2 // "[" + "]"
 		for i, e := range val.Elements {
 			if i > 0 {
@@ -577,6 +582,40 @@ func (fs *formatState) isInlineObject(obj *hujson.Object, prefixLen int) bool {
 		return false
 	}
 	return prefixLen+fs.keyPrefixLen+valLen <= fs.maxLineWidth
+}
+
+// shouldBreakArray mirrors prettier v3.9.6's shouldBreak logic from
+// src/language-js/print/array.js. An array is forced to expand (regardless of
+// line width) when ALL of:
+//  1. More than 1 element in the outer array.
+//  2. Every element is the same composite type (all arrays OR all objects).
+//  3. Each child array has >1 element, or each child object has >1 property.
+//
+// This handles patterns like [["{", "}"], ["[", "]"], ["(", ")"]] which are
+// short enough to inline but prettier always expands.
+func shouldBreakArray(arr *hujson.Array) bool {
+	if len(arr.Elements) <= 1 {
+		return false
+	}
+	allArrays := true
+	allObjects := true
+	for _, e := range arr.Elements {
+		switch child := e.Value.(type) {
+		case *hujson.Array:
+			allObjects = false
+			if len(child.Elements) <= 1 {
+				return false
+			}
+		case *hujson.Object:
+			allArrays = false
+			if len(child.Members) <= 1 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return allArrays || allObjects
 }
 
 // isInlineArray returns true if the array should stay on one line.
