@@ -383,9 +383,9 @@ func TestMultiDocPartialDecodeReturnsError(t *testing.T) {
 	require.Contains(t, err.Error(), "yaml:")
 }
 
-// TestQuoteStyleDoesNotAffectKeys verifies that quote-style changes only
-// apply to value scalars, never to mapping keys.
-func TestQuoteStyleDoesNotAffectKeys(t *testing.T) {
+// TestQuoteStyleNormalizesKeys verifies that quote-style changes apply to
+// both mapping keys and values, matching prettier's behavior.
+func TestQuoteStyleNormalizesKeys(t *testing.T) {
 	t.Parallel()
 	src := []byte("\"double-key\": 'value1'\n'single-key': 'value2'\nplain-key: 'value3'\n")
 	opts := defaultOpts
@@ -394,14 +394,56 @@ func TestQuoteStyleDoesNotAffectKeys(t *testing.T) {
 	got, err := f.Format(src, opts)
 	require.NoError(t, err)
 	output := string(got)
-	// Keys must be unchanged.
+	// Double-quoted key stays double.
 	require.Contains(t, output, "\"double-key\":")
-	require.Contains(t, output, "'single-key':")
+	// Single-quoted key with no embedded quotes → converted to double.
+	require.Contains(t, output, "\"single-key\":")
+	// Unquoted key stays unquoted (only already-quoted keys are normalized).
 	require.Contains(t, output, "plain-key:")
-	// Values must be converted to double.
+	// Values converted to double.
 	require.Contains(t, output, ": \"value1\"")
 	require.Contains(t, output, ": \"value2\"")
 	require.Contains(t, output, ": \"value3\"")
+
+	// Semantic preservation: parsed data must be identical.
+	var before, after any
+	require.NoError(t, yaml.Unmarshal(src, &before))
+	require.NoError(t, yaml.Unmarshal(got, &after))
+	require.Equal(t, before, after, "formatting must not change parsed value")
+}
+
+// TestQuoteStyleKeyEdgeCases verifies quote normalization edge cases on keys.
+func TestQuoteStyleKeyEdgeCases(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"key_with_embedded_double_quote_stays_single",
+			"'key \"has\" quotes': value\n",
+			"'key \"has\" quotes': value\n"},
+		{"key_with_escape_keeps_original",
+			"\"key\\nnewline\": value\n",
+			"\"key\\nnewline\": value\n"},
+		{"double_quoted_key_no_change",
+			"\"already-double\": value\n",
+			"\"already-double\": value\n"},
+		{"key_with_embedded_single_quote_goes_double",
+			"\"it's\": value\n",
+			"\"it's\": value\n"},
+	}
+	opts := defaultOpts
+	opts.QuoteStyle = formatter.QuoteDouble
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+		})
+	}
 }
 
 // TestDocumentEndMarkerPreserved verifies ... is preserved when present.
