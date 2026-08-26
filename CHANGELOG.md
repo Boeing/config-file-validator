@@ -101,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** JSON, JSONC, TOML, and TOON no longer resolve schemas from `$schema` properties in documents. Use `--schema-map`, `--schemastore`, or `.cfv.toml [schema-map]` for schema validation of these formats. YAML (`# yaml-language-server` comment) and XML (`xsi:noNamespaceSchemaLocation`) inline declarations are unchanged.
 - **Breaking:** `--no-config` now disables ALL config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`), matching prettier's `--no-config` semantics. Previously it only disabled `.cfv.toml`.
 - **Breaking:** Removed `--no-prettier-config`, `--no-taplo-config`, and `--no-yamlfmt-config` flags. Use `--no-config` to disable all config, or `.cfv.toml` to take explicit control.
 - JSONC formatting now adds trailing commas to expanded objects and arrays by default, matching Prettier; collapsed collections and strict JSON remain unchanged (closes #589).

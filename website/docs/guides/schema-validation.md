@@ -7,7 +7,7 @@ The validator checks syntax first. If the file parses correctly and a schema is 
 
 Schemas are resolved in order:
 
-1. **From the file** — a `$schema` property in JSON/TOML, a `yaml-language-server` comment in YAML, or an `xsi:noNamespaceSchemaLocation` attribute in XML.
+1. **From the file** — a `yaml-language-server` comment in YAML, or an `xsi:noNamespaceSchemaLocation` attribute in XML.
 2. **From `--schema-map`** — a glob pattern mapped to a schema file.
 3. **From `--schemastore`** — automatic lookup by filename against the SchemaStore catalog.
 
@@ -15,19 +15,7 @@ The first match wins. If no schema is found, the file passes on syntax alone.
 
 ## Declaring a schema in your files
 
-Each format uses a different convention to reference a schema.
-
-### JSON and JSONC
-
-Add a `$schema` property at the top level:
-
-```json
-{
-  "$schema": "https://json.schemastore.org/package.json",
-  "name": "my-package",
-  "version": "1.0.0"
-}
-```
+YAML and XML support inline schema declarations. JSON, JSONC, TOML, and TOON use external schema sources (`--schema-map` or `--schemastore`).
 
 ### YAML
 
@@ -40,28 +28,6 @@ on: push
 jobs:
   build:
     runs-on: ubuntu-latest
-```
-
-### TOML
-
-Add a `$schema` key at the top level:
-
-```toml
-"$schema" = "https://json.schemastore.org/pyproject.json"
-
-[project]
-name = "my-project"
-version = "1.0.0"
-```
-
-### TOON
-
-Add a quoted `"$schema"` key at the top level:
-
-```
-"$schema": https://example.com/schema.json
-host: localhost
-port: 5432
 ```
 
 ### XML
@@ -169,11 +135,15 @@ The same mappings can be set in `.cfv.toml`:
 
 When multiple schema sources are available for a file, the validator uses this precedence (highest first):
 
-1. Schema declared in the document (`$schema`, `yaml-language-server`, `xsi:noNamespaceSchemaLocation`)
+1. Schema declared in the document (`yaml-language-server` comment in YAML, `xsi:noNamespaceSchemaLocation` in XML)
 2. `--schema-map` patterns
 3. `--schemastore` catalog lookup
 
-Document-level declarations always take priority. SchemaStore acts as a fallback for files that don't declare their own schema.
+Document-level declarations take priority over external sources. SchemaStore acts as a fallback for files that don't declare their own schema.
+
+:::note
+JSON, JSONC, TOML, and TOON files may contain a `$schema` property, but cfv treats it as inert data. Use `--schema-map` or `--schemastore` for schema validation of these formats.
+:::
 
 ## Requiring schemas
 
