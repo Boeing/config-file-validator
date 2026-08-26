@@ -24,7 +24,7 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	}
 
 	// Build AST metadata for structure-aware formatting.
-	astMeta, err := buildASTMetadata(src)
+	astMeta, err := buildASTMetadata(src, tokens)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ type lineMetadata struct {
 // buildASTMetadata walks the yaml.v3 Node tree and returns metadata for each
 // line that contains a mapping key: its semantic depth and whether it's inside
 // a sequence item.
-func buildASTMetadata(src []byte) (map[int]lineMetadata, error) {
+func buildASTMetadata(src []byte, tokens []Token) (map[int]lineMetadata, error) {
 	if len(src) > 0 && src[len(src)-1] != '\n' {
 		src = append(bytes.Clone(src), '\n')
 	}
@@ -128,16 +128,17 @@ func buildASTMetadata(src []byte) (map[int]lineMetadata, error) {
 		return nil, fmt.Errorf("cannot determine document structure: %w", err)
 	}
 	meta := make(map[int]lineMetadata)
-	collectMetadata(&root, meta, 0, false, 0, 0)
+	collectMetadata(&root, meta, sequenceDashColumns(tokens), 0, false, 0, 0)
 	return meta, nil
 }
 
 //nolint:revive // inSeq is a recursive state parameter, not a control flag
-func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq bool, seqOffset, sequenceIndentDepth int) {
+func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, dashColumns map[int][]int,
+	depth int, inSeq bool, seqOffset, sequenceIndentDepth int) {
 	switch n.Kind {
 	case yaml.DocumentNode:
 		for _, c := range n.Content {
-			collectMetadata(c, meta, depth, false, seqOffset, sequenceIndentDepth)
+			collectMetadata(c, meta, dashColumns, depth, false, seqOffset, sequenceIndentDepth)
 		}
 	case yaml.MappingNode:
 		for i := 0; i < len(n.Content); i += 2 {
@@ -162,14 +163,29 @@ func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq b
 				if n.Content[i+1].Kind == yaml.SequenceNode {
 					childSequenceIndentDepth++
 				}
-				collectMetadata(n.Content[i+1], meta, depth+1, false,
+				collectMetadata(n.Content[i+1], meta, dashColumns, depth+1, false,
 					childOffset, childSequenceIndentDepth)
 			}
 		}
 	case yaml.SequenceNode:
+		// A sequence node starts on its first dash. Recording the node itself
+		// preserves the outer dash when a dash-only item contains another
+		// sequence on the following line.
+		if n.Line > 0 {
+			if existing, ok := meta[n.Line]; !ok || existing.depth > depth {
+				meta[n.Line] = lineMetadata{
+					depth: depth, inSeq: true, seqOffset: seqOffset,
+					sequenceIndentDepth: sequenceIndentDepth,
+				}
+			}
+		}
 		for _, item := range n.Content {
 			// Record the start line of each sequence item at this depth.
-			if item.Line > 0 {
+			// yaml.v3 locates a nested sequence at its inner dash. Preserve the
+			// parent depth only when an earlier dash shares that source line;
+			// otherwise the recursive visit records the deeper depth.
+			if item.Line > 0 && (item.Kind != yaml.SequenceNode ||
+				hasEarlierSequenceDash(dashColumns[item.Line], item.Column)) {
 				if existing, ok := meta[item.Line]; !ok || existing.depth > depth {
 					meta[item.Line] = lineMetadata{
 						depth: depth, inSeq: true, seqOffset: seqOffset,
@@ -180,10 +196,10 @@ func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq b
 			if item.Kind == yaml.SequenceNode {
 				// Nested sequence: inner items are one level deeper.
 				// Don't increment seqOffset — the dash handles positioning.
-				collectMetadata(item, meta, depth+1, true, seqOffset,
+				collectMetadata(item, meta, dashColumns, depth+1, true, seqOffset,
 					sequenceIndentDepth)
 			} else {
-				collectMetadata(item, meta, depth, true, seqOffset,
+				collectMetadata(item, meta, dashColumns, depth, true, seqOffset,
 					sequenceIndentDepth)
 			}
 		}
@@ -201,6 +217,30 @@ func collectMetadata(n *yaml.Node, meta map[int]lineMetadata, depth int, inSeq b
 	default:
 		// Unknown node kind — no metadata to collect.
 	}
+}
+
+func sequenceDashColumns(tokens []Token) map[int][]int {
+	columns := make(map[int][]int)
+	line, column := 1, 1
+	for _, token := range tokens {
+		if token.Kind == TokDash {
+			columns[line] = append(columns[line], column)
+		}
+		for _, b := range token.Raw {
+			if b == '\n' {
+				line, column = line+1, 1
+			} else {
+				column++
+			}
+		}
+	}
+	return columns
+}
+
+func hasEarlierSequenceDash(columns []int, column int) bool {
+	return slices.ContainsFunc(columns, func(dashColumn int) bool {
+		return dashColumn < column
+	})
 }
 
 // assignASTMetadata sets ASTDepth and InSeq on tokens by matching each TokKey
