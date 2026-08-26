@@ -147,6 +147,9 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 		return nil
 	}
 
+	hadBOM := hasBOM(content)
+	content = stripBOM(content)
+
 	formatted, err := fmter.Format(content, opts)
 	if err != nil {
 		// Check if the formatter skipped this file (e.g., mixed content XML).
@@ -170,6 +173,11 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 
 	if bytes.Equal(content, formatted) {
 		return &reporter.Report{FileName: name, FilePath: path, Status: reporter.StatusPass, IsQuiet: c.quiet || c.diff}
+	}
+
+	// Restore BOM in output if the original file had one.
+	if hadBOM {
+		formatted = append([]byte{0xef, 0xbb, 0xbf}, formatted...)
 	}
 
 	// Diff mode: print unified diff to stdout, report as unformatted.

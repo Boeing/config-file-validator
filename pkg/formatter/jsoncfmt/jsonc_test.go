@@ -474,6 +474,73 @@ func TestShouldBreakArray(t *testing.T) {
 	}
 }
 
+// TestInlineCommentPreservation verifies that comments in JSONC objects are
+// never deleted during formatting. Covers both inline and multiline paths.
+func TestInlineCommentPreservation(t *testing.T) {
+	t.Parallel()
+	opts := defaultOpts
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "block_comment_after_last_value_inline",
+			input: `{"key": "value" /* comment */}`,
+			want:  "{ \"key\": \"value\" /* comment */ }\n",
+		},
+		{
+			name:  "block_comment_between_colon_and_value_inline",
+			input: `{"key": /* inline */ "value"}`,
+			want:  "{ \"key\": /* inline */ \"value\" }\n",
+		},
+		{
+			name:  "line_comment_on_own_line_preserved",
+			input: "{\n  // comment\n  \"key\": \"value\"\n}",
+			want:  "{\n  // comment\n  \"key\": \"value\",\n}\n",
+		},
+		{
+			name:  "comment_after_value_in_multiline_not_deleted",
+			input: "{\n  \"key\": \"value\" /* note */\n}",
+			want:  "{\n  \"key\": \"value\",\n/* note */\n}\n",
+		},
+		{
+			name:  "comment_between_colon_and_value_multiline",
+			input: "{\n  \"key\": /* note */ \"value\"\n}",
+			want:  "{\n  \"key\": /* note */ \"value\",\n}\n",
+		},
+		{
+			name:  "long_comment_forces_expansion",
+			input: `{"k": "v" /* this comment is long enough to push the line past 80 characters total width easily */}`,
+			want:  "{\n  \"k\": \"v\",\n/* this comment is long enough to push the line past 80 characters total width easily */\n}\n",
+		},
+		{
+			name:  "no_comment_object_stays_inline",
+			input: `{"key": "value"}`,
+			want:  "{ \"key\": \"value\" }\n",
+		},
+		{
+			name:  "no_comment_object_no_regression",
+			input: "{\n  \"a\": 1,\n  \"b\": 2\n}",
+			want:  "{\n  \"a\": 1,\n  \"b\": 2,\n}\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency.
+			got2, err := f.Format(got, opts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2), "format must be idempotent")
+		})
+	}
+}
+
 // TestConciseArrayFillFormat verifies the fill layout for all-numeric arrays.
 // Matches prettier's isConciselyPrintedArray + printArrayElementsConcisely behavior.
 func TestConciseArrayFillFormat(t *testing.T) {

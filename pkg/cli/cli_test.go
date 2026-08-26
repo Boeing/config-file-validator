@@ -1338,3 +1338,62 @@ func Test_osRemove(t *testing.T) {
 	_, err := os.Stat(path)
 	require.True(t, os.IsNotExist(err))
 }
+
+// Test_BOMStripping verifies that UTF-8 BOM is stripped before validation
+// and restored on format write-back.
+func Test_BOMStripping(t *testing.T) {
+	t.Parallel()
+
+	t.Run("hasBOM", func(t *testing.T) {
+		t.Parallel()
+		require.True(t, hasBOM([]byte{0xef, 0xbb, 0xbf, '{', '}'}))
+		require.False(t, hasBOM([]byte{'{', '}'}))
+		require.False(t, hasBOM([]byte{0xef, 0xbb})) // too short
+		require.False(t, hasBOM(nil))
+	})
+
+	t.Run("stripBOM", func(t *testing.T) {
+		t.Parallel()
+		input := []byte{0xef, 0xbb, 0xbf, '{', '}'}
+		got := stripBOM(input)
+		require.Equal(t, []byte{'{', '}'}, got)
+
+		// No BOM — unchanged.
+		noBOM := []byte(`{"key": "value"}`)
+		require.Equal(t, noBOM, stripBOM(noBOM))
+	})
+
+	t.Run("json_with_bom_passes_check", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		content := append([]byte{0xef, 0xbb, 0xbf}, []byte("{ \"key\": \"value\" }\n")...)
+		testhelper.WriteFile(t, dir, "bom.json", string(content))
+
+		fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+		cli := Init(
+			WithFinder(fsFinder),
+			WithReporters(reporter.NewStdoutReporter("")),
+			WithGroupOutput([]string{""}),
+		)
+		exitCode, err := cli.Run()
+		require.NoError(t, err)
+		require.Equal(t, 0, exitCode)
+	})
+
+	t.Run("toml_with_bom_passes_check", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		content := append([]byte{0xef, 0xbb, 0xbf}, []byte("key = \"value\"\n")...)
+		testhelper.WriteFile(t, dir, "bom.toml", string(content))
+
+		fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+		cli := Init(
+			WithFinder(fsFinder),
+			WithReporters(reporter.NewStdoutReporter("")),
+			WithGroupOutput([]string{""}),
+		)
+		exitCode, err := cli.Run()
+		require.NoError(t, err)
+		require.Equal(t, 0, exitCode)
+	})
+}

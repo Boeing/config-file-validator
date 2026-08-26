@@ -124,7 +124,7 @@ cfv replaces all of them. It's a single static binary with no runtime dependenci
 - **18 formats validated** (JSON, YAML, TOML, XML, HCL, INI, Properties, ENV, HOCON, CSV, Justfile, KDL, CUE, PList, EDITORCONFIG, JSONC, TOON, SARIF)
 - **9 formats formatted** (JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV)
 - **Schema validation** via JSON Schema, XSD, and automatic [SchemaStore](https://www.schemastore.org/) lookup
-- **Duplicate key detection** for JSON, YAML, and INI
+- **Duplicate key detection** for YAML (always), JSON and INI (opt-in via `.cfv.toml`)
 - **Gitignore-aware** file discovery
 - [**Pre-commit hook**](https://boeing.github.io/config-file-validator/docs/integrations/pre-commit) and [**GitHub Action**](https://github.com/Boeing/validate-configs-action) with PR annotations
 
