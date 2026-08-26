@@ -116,22 +116,23 @@ type reporterConfig struct {
 
 // resolvedConfig is the final merged configuration passed to the CLI engine.
 type resolvedConfig struct {
-	reporters     []reporter.Reporter
-	groupOutput   []string
-	quiet         bool
-	requireSchema bool
-	noSchema      bool
-	schemaMap     map[string]string
-	store         *schemastore.Store
-	finderOpts    []finder.FSFinderOptions
-	stdinData     []byte
-	stdinFileType filetype.FileType
-	isStdin       bool
-	fix           bool
-	diff          bool
-	formatCfg     *configfile.FormatConfig
-	watch         bool
-	searchPaths   []string
+	reporters      []reporter.Reporter
+	groupOutput    []string
+	quiet          bool
+	requireSchema  bool
+	noSchema       bool
+	schemaMap      []cli.SchemaMapping
+	store          *schemastore.Store
+	finderOpts     []finder.FSFinderOptions
+	configFilePath string
+	stdinData      []byte
+	stdinFileType  filetype.FileType
+	isStdin        bool
+	fix            bool
+	diff           bool
+	formatCfg      *configfile.FormatConfig
+	watch          bool
+	searchPaths    []string
 }
 
 // --- Repeatable flag types ---
@@ -1199,7 +1200,7 @@ func getReporter(reportType, outputDest string) reporter.Reporter {
 // config file loading, reporters, groupOutput, quiet, fix, diff, stdin,
 // and finder options. It does not touch schema-specific fields.
 func resolveBaseConfig(cfg *cfvConfig) (*resolvedConfig, *configfile.ValidatorOptions, error) {
-	validatorOpts, formatCfg, err := applyConfigFile(cfg)
+	cfgFilePath, validatorOpts, formatCfg, err := applyConfigFile(cfg)
 	if err != nil {
 		return nil, nil, fmt.Errorf("loading config file: %w", err)
 	}
@@ -1254,6 +1255,13 @@ func resolveBaseConfig(cfg *cfvConfig) (*resolvedConfig, *configfile.ValidatorOp
 		return nil, nil, err
 	}
 	resolved.finderOpts = fsOpts
+
+	if cfgFilePath != "" {
+		abs, err := filepath.Abs(cfgFilePath)
+		if err == nil {
+			resolved.configFilePath = abs
+		}
+	}
 
 	return resolved, validatorOpts, nil
 }
@@ -1329,6 +1337,7 @@ func buildCLI(rc *resolvedConfig, extra ...cli.Option) *cli.CLI {
 		cli.WithNoSchema(rc.noSchema),
 		cli.WithSchemaMap(rc.schemaMap),
 		cli.WithSchemaStore(rc.store),
+		cli.WithConfigFile(rc.configFilePath),
 		cli.WithFix(rc.fix),
 		cli.WithDiff(rc.diff),
 	}
@@ -1352,6 +1361,7 @@ func buildCLIWithFinder(rc *resolvedConfig, f finder.FileFinder) *cli.CLI {
 		cli.WithNoSchema(rc.noSchema),
 		cli.WithSchemaMap(rc.schemaMap),
 		cli.WithSchemaStore(rc.store),
+		cli.WithConfigFile(rc.configFilePath),
 		cli.WithFix(rc.fix),
 		cli.WithDiff(rc.diff),
 		cli.WithFinder(f),
@@ -1521,14 +1531,14 @@ func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
 	return overrides, nil
 }
 
-func parseSchemaMapFlags(flags schemaMapFlags) (map[string]string, error) {
-	result := make(map[string]string)
+func parseSchemaMapFlags(flags schemaMapFlags) ([]cli.SchemaMapping, error) {
+	result := make([]cli.SchemaMapping, 0, len(flags))
 	for _, mapping := range flags {
 		parts := strings.SplitN(mapping, ":", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 			return nil, fmt.Errorf("invalid schema-map format %q, expected pattern:schema_path", mapping)
 		}
-		result[parts[0]] = parts[1]
+		result = append(result, cli.SchemaMapping{Pattern: parts[0], SchemaPath: parts[1]})
 	}
 	return result, nil
 }
@@ -1594,9 +1604,9 @@ func setIgnoreFilesFromEnvIfNotSet(fs *flag.FlagSet, flags *ignoreFileFlags) {
 // Config file (.cfv.toml) handling
 // =============================================================================
 
-func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, *configfile.FormatConfig, error) {
+func applyConfigFile(cfg *cfvConfig) (string, *configfile.ValidatorOptions, *configfile.FormatConfig, error) {
 	if *cfg.noConfig {
-		return nil, nil, nil
+		return "", nil, nil, nil
 	}
 
 	var cfgPath string
@@ -1606,12 +1616,12 @@ func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, *configfile.
 		cfgPath = configfile.Discover(".")
 	}
 	if cfgPath == "" {
-		return nil, nil, nil
+		return "", nil, nil, nil
 	}
 
 	fileCfg, err := configfile.Load(cfgPath)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 
 	// CLI flag > env var (already applied to flagSet) > config file.
@@ -1629,14 +1639,14 @@ func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, *configfile.
 	}
 	if !cfg.isFlagSet("depth") && fileCfg.Depth != nil {
 		if err := cfg.fs.Set("depth", fmt.Sprintf("%d", *fileCfg.Depth)); err != nil {
-			return nil, nil, fmt.Errorf("config file depth: %w", err)
+			return "", nil, nil, fmt.Errorf("config file depth: %w", err)
 		}
 		cfg.depth = fileCfg.Depth
 	}
 	if !cfg.isFlagSet("reporter") && len(fileCfg.Reporter) > 0 {
 		conf, err := parseReporterFlags(reporterFlags(fileCfg.Reporter))
 		if err != nil {
-			return nil, nil, fmt.Errorf("config file reporter: %w", err)
+			return "", nil, nil, fmt.Errorf("config file reporter: %w", err)
 		}
 		cfg.reportType = conf
 	}
@@ -1669,8 +1679,14 @@ func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, *configfile.
 		cfg.ignoreFiles = ignoreFileFlags(fileCfg.IgnoreFiles)
 	}
 	if len(cfg.schemaMap) == 0 && len(fileCfg.SchemaMap) > 0 {
-		for pattern, schema := range fileCfg.SchemaMap {
-			cfg.schemaMap = append(cfg.schemaMap, pattern+":"+schema)
+		// Sort patterns for deterministic ordering (TOML maps are unordered).
+		patterns := make([]string, 0, len(fileCfg.SchemaMap))
+		for pattern := range fileCfg.SchemaMap {
+			patterns = append(patterns, pattern)
+		}
+		slices.Sort(patterns)
+		for _, pattern := range patterns {
+			cfg.schemaMap = append(cfg.schemaMap, pattern+":"+fileCfg.SchemaMap[pattern])
 		}
 	}
 	if len(cfg.typeMap) == 0 && len(fileCfg.TypeMap) > 0 {
@@ -1679,7 +1695,7 @@ func applyConfigFile(cfg *cfvConfig) (*configfile.ValidatorOptions, *configfile.
 		}
 	}
 
-	return &fileCfg.Validators, &fileCfg.Format, nil
+	return cfgPath, &fileCfg.Validators, &fileCfg.Format, nil
 }
 
 // =============================================================================
