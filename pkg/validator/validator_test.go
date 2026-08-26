@@ -1049,6 +1049,15 @@ func Test_YAMLMarshalToJSON_NormalFloatsPass(t *testing.T) {
 	require.Contains(t, string(out), "3.14")
 }
 
+func Test_YAMLValidateSchema_InfReturnsError(t *testing.T) {
+	t.Parallel()
+	src := []byte("# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json\nvalue: .inf\n")
+	ok, err := YAMLValidator{}.ValidateSchema(src, "/tmp/test.yaml")
+	require.False(t, ok)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ".inf cannot be represented in JSON")
+}
+
 func Test_JSONMarshalToJSON_ArrayRoot(t *testing.T) {
 	// Array-rooted JSON has no $schema field to worry about
 	input := []byte(`[1, 2, 3]`)

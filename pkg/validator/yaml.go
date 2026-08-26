@@ -99,6 +99,10 @@ func (YAMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 		return false, err
 	}
 
+	if err := checkJSONRepresentable(doc); err != nil {
+		return false, err
+	}
+
 	docJSON, err := json.Marshal(doc)
 	if err != nil {
 		return false, err
