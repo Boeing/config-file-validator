@@ -19,12 +19,11 @@ positional arguments:
 
 Schema validation runs automatically when a file declares a schema:
 
-	JSON:  {"$schema": "schema.json", ...}
 	YAML:  # yaml-language-server: $schema=schema.json
-	TOML:  "$schema" = "schema.json"
-	TOON:  "$schema": schema.json
 	XML:   xsi:noNamespaceSchemaLocation="schema.xsd"
 	XML:   <!DOCTYPE> with inline DTD (validated during syntax check)
+
+For JSON, JSONC, TOML, and TOON, use --schema-map or --schemastore.
 
 Global flags apply to all subcommands and must precede the subcommand name.
 Run "cfv help check" or "cfv help format" for subcommand-specific flags.
@@ -291,12 +290,11 @@ func printCheckUsage() {
 	fmt.Println("  search_path  Path to search. Defaults to '.'. Use '-' for stdin.")
 	fmt.Println()
 	fmt.Println("Schema validation runs automatically when a file declares a schema:")
-	fmt.Println("  JSON:  {\"$schema\": \"schema.json\", ...}")
 	fmt.Println("  YAML:  # yaml-language-server: $schema=schema.json")
-	fmt.Println("  TOML:  \"$schema\" = \"schema.json\"")
-	fmt.Println("  TOON:  \"$schema\": schema.json")
 	fmt.Println("  XML:   xsi:noNamespaceSchemaLocation=\"schema.xsd\"")
 	fmt.Println("  XML:   <!DOCTYPE> with inline DTD (validated during syntax check)")
+	fmt.Println()
+	fmt.Println("For JSON, JSONC, TOML, and TOON, use --schema-map or --schemastore.")
 	fmt.Println()
 	fmt.Println("flags:")
 	// Flag defaults are printed by the subcommand's FlagSet after parsing.
@@ -382,8 +380,8 @@ func parseCheckFlags(args []string) (cfvConfig, error) {
 		globbingPtr      = fs.Bool("globbing", false, "Enable glob pattern matching for search paths")
 		requireSchemaPtr = fs.Bool("require-schema", false,
 			"Fail validation if a file supports schema validation but does not declare a schema.\n"+
-				"Supported types: JSON ($schema property), YAML (yaml-language-server comment),\n"+
-				"TOML ($schema key), TOON (\"$schema\" key), XML (xsi:noNamespaceSchemaLocation).\n"+
+				"Supported types: YAML (yaml-language-server comment),\n"+
+				"XML (xsi:noNamespaceSchemaLocation). JSON/JSONC/TOML/TOON require --schema-map or --schemastore.\n"+
 				"Cannot be used with --no-schema.")
 		noSchemaPtr = fs.Bool("no-schema", false,
 			"Disable all schema validation. Only syntax is checked.\n"+
