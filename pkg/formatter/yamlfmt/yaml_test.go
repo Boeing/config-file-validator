@@ -604,6 +604,63 @@ func TestQuoteStyleKeyEdgeCases(t *testing.T) {
 	}
 }
 
+// TestMultiLineQuoteConversion verifies that multi-line quoted scalars are
+// normalized to the target quote style, matching prettier v3.9.6 behavior.
+// Previously, convertQuote bailed on any multi-line content unconditionally.
+func TestMultiLineQuoteConversion(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "simple_multiline_single_to_double",
+			input: "msg: 'hello\n  world'\n",
+			want:  "msg: \"hello\n  world\"\n",
+		},
+		{
+			name:  "multiline_single_with_backslash_preserved",
+			input: "path: 'C:\\Users\\file\n  continues'\n",
+			want:  "path: 'C:\\Users\\file\n  continues'\n",
+		},
+		{
+			name:  "multiline_with_embedded_double_stays_single",
+			input: "msg: 'she said \"hello\"\n  to them'\n",
+			want:  "msg: 'she said \"hello\"\n  to them'\n",
+		},
+		{
+			name:  "multiline_double_with_escape_preserved",
+			input: "msg: \"line\\ttab\n  continues\"\n",
+			want:  "msg: \"line\\ttab\n  continues\"\n",
+		},
+		{
+			name:  "multiline_single_no_conflicts_to_double",
+			input: "msg: 'walking path for files: lstat /tmp/deploy:\n  no such file or directory'\n",
+			want:  "msg: \"walking path for files: lstat /tmp/deploy:\n  no such file or directory\"\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2), "format must be idempotent")
+
+			// Semantic preservation.
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &before))
+			require.NoError(t, yaml.Unmarshal(got, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
+}
+
 // TestDocumentEndMarkerPreserved verifies ... is preserved when present.
 func TestDocumentEndMarkerPreserved(t *testing.T) {
 	t.Parallel()
