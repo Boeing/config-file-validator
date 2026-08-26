@@ -2,7 +2,9 @@ package yamlfmt
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 
@@ -127,12 +129,19 @@ func buildASTMetadata(src []byte, tokens []Token) (map[int]lineMetadata, error) 
 	if len(src) > 0 && src[len(src)-1] != '\n' {
 		src = append(bytes.Clone(src), '\n')
 	}
-	var root yaml.Node
-	if err := yaml.Unmarshal(src, &root); err != nil {
-		return nil, fmt.Errorf("cannot determine document structure: %w", err)
-	}
 	meta := make(map[int]lineMetadata)
-	collectMetadata(&root, meta, sequenceDashColumns(tokens), 0, false, 0, 0)
+	dashCols := sequenceDashColumns(tokens)
+	dec := yaml.NewDecoder(bytes.NewReader(src))
+	for {
+		var root yaml.Node
+		if err := dec.Decode(&root); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("cannot determine document structure: %w", err)
+		}
+		collectMetadata(&root, meta, dashCols, 0, false, 0, 0)
+	}
 	return meta, nil
 }
 
@@ -517,12 +526,15 @@ func buildStructuralLineSet(src []byte) map[int]bool {
 	if len(src) > 0 && src[len(src)-1] != '\n' {
 		src = append(bytes.Clone(src), '\n')
 	}
-	var root yaml.Node
-	if err := yaml.Unmarshal(src, &root); err != nil {
-		return nil
-	}
 	lines := make(map[int]bool)
-	collectStructuralLines(&root, lines)
+	dec := yaml.NewDecoder(bytes.NewReader(src))
+	for {
+		var root yaml.Node
+		if err := dec.Decode(&root); err != nil {
+			break
+		}
+		collectStructuralLines(&root, lines)
+	}
 	return lines
 }
 

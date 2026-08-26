@@ -383,6 +383,81 @@ func TestMultiDocPartialDecodeReturnsError(t *testing.T) {
 	require.Contains(t, err.Error(), "yaml:")
 }
 
+// TestMultiDocSequenceIndent verifies that sequences in documents 2+ receive
+// correct indentation (IndentSequences=Enabled). Before the fix (#582),
+// buildASTMetadata only parsed the first document, so sequences in later
+// documents had no AST depth and fell back to shift-based delta logic.
+func TestMultiDocSequenceIndent(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "sequence_in_second_doc",
+			input: "---\na: 1\n---\nkey:\n- item1\n- item2\n",
+			want:  "---\na: 1\n---\nkey:\n  - item1\n  - item2\n",
+		},
+		{
+			name:  "sequence_in_third_doc",
+			input: "---\na: 1\n---\nb: 2\n---\nlist:\n- one\n- two\n",
+			want:  "---\na: 1\n---\nb: 2\n---\nlist:\n  - one\n  - two\n",
+		},
+		{
+			name:  "first_doc_still_works",
+			input: "---\nkey:\n- item1\n- item2\n",
+			want:  "---\nkey:\n  - item1\n  - item2\n",
+		},
+		{
+			name:  "root_sequence_in_second_doc",
+			input: "---\na: 1\n---\n- item1\n- item2\n",
+			want:  "---\na: 1\n---\n- item1\n- item2\n",
+		},
+		{
+			name:  "nested_sequence_both_docs",
+			input: "---\nfoo:\n- a\n- b\n---\nbar:\n- c\n- d\n",
+			want:  "---\nfoo:\n  - a\n  - b\n---\nbar:\n  - c\n  - d\n",
+		},
+		{
+			name:  "mapping_only_second_doc_unchanged",
+			input: "---\na: 1\n---\nb: 2\nc: 3\n",
+			want:  "---\na: 1\n---\nb: 2\nc: 3\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency check.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2), "format must be idempotent")
+
+			// Semantic preservation: decode all documents before/after.
+			decBefore := yaml.NewDecoder(strings.NewReader(tc.input))
+			decAfter := yaml.NewDecoder(strings.NewReader(string(got)))
+			docIdx := 0
+			for {
+				var before, after any
+				errB := decBefore.Decode(&before)
+				errA := decAfter.Decode(&after)
+				if errB != nil && errA != nil {
+					break
+				}
+				require.Equal(t, errB == nil, errA == nil,
+					"doc %d: decode mismatch (before err=%v, after err=%v)", docIdx, errB, errA)
+				require.Equal(t, before, after,
+					"doc %d: formatting must not change parsed value", docIdx)
+				docIdx++
+			}
+		})
+	}
+}
+
 // TestQuoteStyleNormalizesKeys verifies that quote-style changes apply to
 // both mapping keys and values, matching prettier's behavior.
 func TestQuoteStyleNormalizesKeys(t *testing.T) {
