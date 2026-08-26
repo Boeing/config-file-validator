@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -47,7 +48,43 @@ func (YAMLValidator) MarshalToJSON(b []byte) ([]byte, error) {
 	if err := yaml.Unmarshal(b, &doc); err != nil {
 		return nil, err
 	}
+	if err := checkJSONRepresentable(doc); err != nil {
+		return nil, err
+	}
 	return json.Marshal(doc)
+}
+
+// checkJSONRepresentable walks a decoded value tree and returns an error if any
+// float is ±Inf or NaN — values that JSON cannot represent. Schema validation
+// cannot proceed on documents containing these values.
+func checkJSONRepresentable(v any) error {
+	switch val := v.(type) {
+	case map[string]any:
+		for k, item := range val {
+			if err := checkJSONRepresentable(item); err != nil {
+				return fmt.Errorf("key %q: %w", k, err)
+			}
+		}
+	case []any:
+		for i, item := range val {
+			if err := checkJSONRepresentable(item); err != nil {
+				return fmt.Errorf("index %d: %w", i, err)
+			}
+		}
+	case float64:
+		if math.IsInf(val, 1) {
+			return errors.New("value .inf cannot be represented in JSON; schema validation cannot be performed")
+		}
+		if math.IsInf(val, -1) {
+			return errors.New("value -.inf cannot be represented in JSON; schema validation cannot be performed")
+		}
+		if math.IsNaN(val) {
+			return errors.New("value .nan cannot be represented in JSON; schema validation cannot be performed")
+		}
+	default:
+		// Other types (string, bool, int, nil) are JSON-representable.
+	}
+	return nil
 }
 
 // ValidateSchema validates YAML against a JSON Schema referenced via comment.

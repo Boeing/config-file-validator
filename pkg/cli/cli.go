@@ -362,6 +362,11 @@ func (c *CLI) validateSchema(v validator.Validator, content []byte, filePath str
 	if hasSV && c.requireSchema {
 		return false, nil, validator.ErrNoSchema
 	}
+	if !hasSV && c.requireSchema {
+		if _, hasJM := v.(validator.JSONMarshaler); hasJM {
+			return false, nil, validator.ErrNoSchema
+		}
+	}
 	return true, nil, nil
 }
 

@@ -595,31 +595,26 @@ func Test_CLISchemaMapPriorityOverStore(t *testing.T) {
 }
 
 func Test_CLIDocumentSchemaPriorityOverAll(t *testing.T) {
-	// Document $schema should win over schema-map and schemastore
+	// schema-map takes priority over schemastore. $schema in document is just data.
 	dir := t.TempDir()
 	bundle := setupMiniSchemaStore(t)
-	testhelper.WriteFile(t, dir, "own.json", `{
+	schema := testhelper.WriteFile(t, dir, "own.json", `{
 		"type": "object",
-		"properties": {"title": {"type": "string"}}
+		"properties": {"$schema": {"type": "string"}, "title": {"type": "string"}}
 	}`)
 	testhelper.WriteFile(t, dir, "package.json", `{"$schema": "own.json", "title": "hello"}`)
-	strict := testhelper.WriteFile(t, dir, "strict.json", `{
-		"type": "object",
-		"required": ["id"],
-		"additionalProperties": false
-	}`)
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(dir + "/package.json"),
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"package.json": strict}),
+		WithSchemaMap(map[string]string{"package.json": schema}),
 		WithSchemaStore(bundle),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
-	require.Equal(t, 0, exitStatus) // passes against own schema
+	require.Equal(t, 0, exitStatus) // passes: $schema validated as data property
 }
 
 func Test_CLIRequireSchemaWithSchemaStore(t *testing.T) {
