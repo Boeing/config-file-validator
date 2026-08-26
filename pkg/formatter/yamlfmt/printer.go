@@ -1248,13 +1248,6 @@ func isSimpleQuoted(raw []byte, quote byte) bool {
 func convertQuote(raw []byte, style formatter.QuoteStyle, currentQuote byte) []byte {
 	content := raw[1 : len(raw)-1]
 
-	// Don't convert multi-line scalars.
-	for _, b := range content {
-		if b == '\n' || b == '\r' {
-			return raw
-		}
-	}
-
 	// Don't convert if content has backslashes (escapes).
 	if currentQuote == '"' {
 		for j := 0; j < len(content); j++ {
