@@ -373,6 +373,89 @@ func TestSequenceItemEndCommentIndentation(t *testing.T) {
 	require.Equal(t, want, string(got))
 }
 
+// TestTrailingCommentBlankLines verifies that blank lines before end-of-document
+// trailing comments are stripped for sequence bodies but preserved for mapping
+// bodies. This matches prettier v3.9.6 behavior where documentBody endComments
+// are joined with hardline (not hardline+hardline) in sequence documents.
+func TestTrailingCommentBlankLines(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "sequence_body_trailing_comment_blank_stripped",
+			input: "- cmd: hi\n\n# trailing\n",
+			want:  "- cmd: hi\n# trailing\n",
+		},
+		{
+			name:  "sequence_body_multiple_trailing_comments",
+			input: "- a\n- b\n\n# comment1\n# comment2\n",
+			want:  "- a\n- b\n# comment1\n# comment2\n",
+		},
+		{
+			name:  "mapping_body_trailing_comment_blank_preserved",
+			input: "a: 1\nb: 2\n\n# trailing\n",
+			want:  "a: 1\nb: 2\n\n# trailing\n",
+		},
+		{
+			name:  "sequence_no_blank_line_unchanged",
+			input: "- a\n# trailing\n",
+			want:  "- a\n# trailing\n",
+		},
+		{
+			name:  "mid_document_comment_blank_preserved",
+			input: "- a\n\n# mid\n- b\n",
+			want:  "- a\n\n# mid\n- b\n",
+		},
+		{
+			name:  "no_trailing_comments_unchanged",
+			input: "- a\n- b\n",
+			want:  "- a\n- b\n",
+		},
+		{
+			name:  "mapping_body_no_trailing_comment_unchanged",
+			input: "a: 1\nb: 2\n",
+			want:  "a: 1\nb: 2\n",
+		},
+		{
+			name:  "multi_doc_last_mapping_preserves",
+			input: "- x\n---\na: 1\n\n# end\n",
+			want:  "- x\n---\na: 1\n\n# end\n",
+		},
+		{
+			name:  "multi_doc_last_sequence_strips",
+			input: "a: 1\n---\n- x\n- y\n\n# end\n",
+			want:  "a: 1\n---\n- x\n- y\n# end\n",
+		},
+		{
+			name:  "sequence_indented_trailing_comment_preserved",
+			input: "- a\n- b\n\n  # indented\n",
+			want:  "- a\n- b\n\n  # indented\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency check.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2), "format must be idempotent")
+
+			// Semantic preservation.
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &before))
+			require.NoError(t, yaml.Unmarshal(got, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
+}
+
 // TestMultiDocPartialDecodeReturnsError verifies that a broken second document
 // surfaces an error instead of silently dropping the broken doc.
 func TestMultiDocPartialDecodeReturnsError(t *testing.T) {

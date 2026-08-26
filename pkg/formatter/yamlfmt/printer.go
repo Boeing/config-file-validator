@@ -97,6 +97,11 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	// Only between siblings (between sequence items, between mapping entries).
 	tokens = stripBlankLinesAfterColon(tokens)
 
+	// Strip blank lines before end-of-document trailing comments in sequence bodies.
+	// prettier uses hardline (not hardline+hardline) between sequence content and
+	// endComments. Mapping bodies preserve the blank line.
+	tokens = stripBlankLinesBeforeEndComments(tokens)
+
 	// Serialize, stripping trailing whitespace from non-block-scalar lines.
 	out := serializeWithStrip(tokens)
 
@@ -1987,6 +1992,113 @@ func skipBlankLines(tokens []Token, i int) int {
 		}
 	}
 	return i
+}
+
+// stripBlankLinesBeforeEndComments removes blank lines between document content
+// and end-of-document trailing comments when the document body is a sequence.
+// prettier v3.9.6 uses hardline (single newline) between sequence content and
+// endComments, but preserves blank lines in mapping-body documents.
+//
+// prettier rule (printer-yaml.js, documentBody case, tag 3.9.6):
+//
+//	lastChild = children.at(-1)
+//	shouldPreserveEmptyLine = isNode(lastChild, ["mapping"]) && isPreviousLineEmpty(...)
+//	separator = shouldPreserveEmptyLine ? [hardline, hardline] : hardline
+//
+// Additionally, only col-0 comments are documentBody endComments in prettier's AST.
+// Indented comments are sequenceItem endComments and preserve blank lines.
+func stripBlankLinesBeforeEndComments(tokens []Token) []Token {
+	// Determine if the LAST document body is a mapping (preserve) or sequence (strip).
+	if documentBodyIsMapping(tokens) {
+		return tokens
+	}
+
+	// Find the last non-comment, non-whitespace content token.
+	lastContentIdx := -1
+	for i := len(tokens) - 1; i >= 0; i-- {
+		switch tokens[i].Kind {
+		case TokNewline, TokIndent, TokSpace, TokComment:
+			continue
+		default:
+			lastContentIdx = i
+		}
+		if lastContentIdx >= 0 {
+			break
+		}
+	}
+	if lastContentIdx < 0 {
+		return tokens
+	}
+
+	// Check if there are trailing comments after last content.
+	commentIdx := -1
+	for i := lastContentIdx + 1; i < len(tokens); i++ {
+		if tokens[i].Kind == TokComment {
+			commentIdx = i
+			break
+		}
+	}
+	if commentIdx < 0 {
+		return tokens
+	}
+
+	// Check if the trailing comment is indented (item-level endComment).
+	// In prettier's AST, indented comments belong to the sequenceItem, not
+	// the documentBody. Only col-0 comments are documentBody endComments.
+	for i := commentIdx - 1; i > lastContentIdx; i-- {
+		if tokens[i].Kind == TokIndent && len(tokens[i].Raw) > 0 {
+			return tokens // indented → item-level, preserve blank
+		}
+		if tokens[i].Kind == TokNewline {
+			break // col-0 → document-level, proceed with stripping
+		}
+	}
+
+	// Count newlines between last content and first trailing comment.
+	newlineCount := 0
+	for i := lastContentIdx + 1; i < commentIdx; i++ {
+		if tokens[i].Kind == TokNewline {
+			newlineCount++
+		}
+	}
+	if newlineCount < 2 {
+		return tokens // no blank line to strip
+	}
+
+	// Strip: rebuild with exactly 1 newline before the comment.
+	result := make([]Token, 0, len(tokens))
+	result = append(result, tokens[:lastContentIdx+1]...)
+	result = append(result, Token{Kind: TokNewline, Raw: []byte("\n")})
+	result = append(result, tokens[commentIdx:]...)
+	return result
+}
+
+// documentBodyIsMapping returns true if the LAST document body's first content
+// is a mapping key. In multi-doc files, trailing comments at end-of-stream
+// belong to the last document. Scans from the last TokDocStart forward (or
+// from the beginning if no TokDocStart exists).
+func documentBodyIsMapping(tokens []Token) bool {
+	// Find the last TokDocStart.
+	scanStart := 0
+	for i := len(tokens) - 1; i >= 0; i-- {
+		if tokens[i].Kind == TokDocStart {
+			scanStart = i + 1
+			break
+		}
+	}
+
+	// Scan forward from scanStart to find the first structural token.
+	for i := scanStart; i < len(tokens); i++ {
+		switch tokens[i].Kind {
+		case TokNewline, TokIndent, TokSpace, TokComment, TokDirective, TokDocEnd:
+			continue
+		case TokKey:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // countTrailingNewlines counts how many newlines are at the end of a byte slice.
