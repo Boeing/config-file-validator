@@ -1205,3 +1205,64 @@ func TestNeedsQuotingInFlowBoolLike(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(got, &result))
 	require.Equal(t, orig, result)
 }
+
+// TestBlankLineNormalization verifies blank line handling around document markers
+// and after null-value mapping keys matches prettier v3.9.6 behavior.
+func TestBlankLineNormalization(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		// Bug 3a: blank lines after document markers stripped.
+		{"strip_blank_after_doc_start",
+			"---\n\nkey: value\n",
+			"---\nkey: value\n"},
+		{"strip_multiple_blanks_after_doc_start",
+			"---\n\n\nkey: value\n",
+			"---\nkey: value\n"},
+		{"strip_blank_after_doc_end",
+			"key: a\n...\n\n---\nkey: b\n",
+			"key: a\n...\n---\nkey: b\n"},
+		{"preserve_blank_between_siblings",
+			"---\nkey1: a\n\nkey2: b\n",
+			"---\nkey1: a\n\nkey2: b\n"},
+		{"no_doc_marker_no_change",
+			"key1: a\n\nkey2: b\n",
+			"key1: a\n\nkey2: b\n"},
+
+		// Bug 3b: colon + sibling separator preserved.
+		{"preserve_blank_after_null_value_key",
+			"on:\n\njobs: test\n",
+			"on:\n\njobs: test\n"},
+		{"strip_blank_before_child",
+			"parent:\n\n  child: value\n",
+			"parent:\n  child: value\n"},
+		{"preserve_blank_between_deep_siblings",
+			"root:\n  a: 1\n  b:\n\n  c: 3\n",
+			"root:\n  a: 1\n  b:\n\n  c: 3\n"},
+		{"key_with_value_followed_by_blank",
+			"a: 1\n\nb: 2\n",
+			"a: 1\n\nb: 2\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, got, got2, "must be idempotent")
+
+			// Semantic preservation.
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &before))
+			require.NoError(t, yaml.Unmarshal(got, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
+}
