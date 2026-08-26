@@ -484,6 +484,79 @@ func TestBareScalarReturnsError(t *testing.T) {
 	require.Contains(t, err.Error(), "not a mapping or sequence")
 }
 
+// TestIntegerKeyedMapFormats verifies that maps with non-string keys (which
+// Go decodes as map[any]any or map[int]any) pass the type gate and format
+// correctly. Fixes #585: the old type switch only accepted map[string]any.
+func TestIntegerKeyedMapFormats(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "flow_integer_keys",
+			input: "{1: one, 2: two, 3: three}\n",
+			want:  "{ 1: one, 2: two, 3: three }\n",
+		},
+		{
+			name:  "block_integer_keys",
+			input: "1: one\n2: two\n3: three\n",
+			want:  "1: one\n2: two\n3: three\n",
+		},
+		{
+			name:  "mixed_key_types_flow",
+			input: "{1: one, two: 2, 3: three}\n",
+			want:  "{ 1: one, two: 2, 3: three }\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err, "integer-keyed maps must be formattable")
+			require.Equal(t, tc.want, string(got))
+
+			// Semantic preservation: parsed data structure must be identical.
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &before))
+			require.NoError(t, yaml.Unmarshal(got, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
+}
+
+// TestNilRootReturnsError verifies that nil/empty documents are rejected.
+func TestNilRootReturnsError(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty_document", "---\n"},
+		{"null_literal", "null\n"},
+		{"tilde_null", "~\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := f.Format([]byte(tc.input), defaultOpts)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "nil")
+		})
+	}
+}
+
+// TestNumericScalarRootReturnsError verifies that numeric bare scalars at root
+// are rejected (they are valid YAML but not config files).
+func TestNumericScalarRootReturnsError(t *testing.T) {
+	t.Parallel()
+	src := []byte("42\n")
+	_, err := f.Format(src, defaultOpts)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not a mapping or sequence")
+}
+
 // TestZeroOptionsUsesDefaults verifies that all-zero Options produces
 // sensible output (2-space indent). FinalNewline is false (zero value) so
 // the formatter doesn't force a trailing newline.
