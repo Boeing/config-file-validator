@@ -591,3 +591,67 @@ func FuzzXMLFormatter(f *testing.F) {
 		}
 	})
 }
+
+// TestXMLSpacePreserve verifies that content inside elements with
+// xml:space="preserve" is never modified by the formatter.
+func TestXMLSpacePreserve(t *testing.T) {
+	t.Parallel()
+	opts := defaultOpts
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "trailing_newline_before_close_preserved",
+			input: "<?xml version=\"1.0\"?>\n<root>\n<pre xml:space=\"preserve\">  line1\n  line2\n</pre>\n</root>",
+			want:  "<?xml version=\"1.0\"?>\n<root>\n  <pre xml:space=\"preserve\">  line1\n  line2\n</pre>\n</root>\n",
+		},
+		{
+			name:  "child_elements_inside_preserve",
+			input: "<?xml version=\"1.0\"?>\n<root>\n<code xml:space=\"preserve\">\n  <span>hello</span>\n  <span>world</span>\n</code>\n</root>",
+			want:  "<?xml version=\"1.0\"?>\n<root>\n  <code xml:space=\"preserve\">\n  <span>hello</span>\n  <span>world</span>\n</code>\n</root>\n",
+		},
+		{
+			name:  "preserve_on_root",
+			input: "<root xml:space=\"preserve\">\n  <child>text</child>\n  <child>text2</child>\n</root>",
+			want:  "<root xml:space=\"preserve\">\n  <child>text</child>\n  <child>text2</child>\n</root>\n",
+		},
+		{
+			name:  "non_preserve_sibling_reformatted",
+			input: "<?xml version=\"1.0\"?>\n<root>\n<pre xml:space=\"preserve\">  kept  </pre>\n<normal>\n<child>reformatted</child>\n</normal>\n</root>",
+			want:  "<?xml version=\"1.0\"?>\n<root>\n  <pre xml:space=\"preserve\">  kept  </pre>\n  <normal>\n    <child>reformatted</child>\n  </normal>\n</root>\n",
+		},
+		{
+			name:  "single_quotes_detected",
+			input: "<?xml version=\"1.0\"?>\n<root>\n<pre xml:space='preserve'>  content  </pre>\n</root>",
+			want:  "<?xml version=\"1.0\"?>\n<root>\n  <pre xml:space='preserve'>  content  </pre>\n</root>\n",
+		},
+		{
+			name:  "trailing_spaces_inside_preserve_kept",
+			input: "<?xml version=\"1.0\"?>\n<root>\n<pre xml:space=\"preserve\">line1  \nline2\t\n</pre>\n</root>",
+			want:  "<?xml version=\"1.0\"?>\n<root>\n  <pre xml:space=\"preserve\">line1  \nline2\t\n</pre>\n</root>\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), opts)
+			if err != nil {
+				t.Fatalf("Format error: %v", err)
+			}
+			if string(got) != tc.want {
+				t.Errorf("mismatch:\n  got:  %q\n  want: %q", string(got), tc.want)
+			}
+			// Idempotency.
+			got2, err := f.Format(got, opts)
+			if err != nil {
+				t.Fatalf("Second format error: %v", err)
+			}
+			if string(got) != string(got2) {
+				t.Errorf("not idempotent:\n  first:  %q\n  second: %q", string(got), string(got2))
+			}
+		})
+	}
+}

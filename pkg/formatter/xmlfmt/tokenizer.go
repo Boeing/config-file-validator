@@ -34,6 +34,7 @@ type Token struct {
 	Raw        []byte
 	Structural bool // true = structural whitespace (between tags, safe to remove); false = content whitespace (adjacent to text, must keep)
 	Depth      int  // structural depth for TokIndent tokens; -1 for others
+	Preserve   bool // true = inside xml:space="preserve" — never remove or reformat
 }
 
 // tokenize lexes XML source into a flat token stream.

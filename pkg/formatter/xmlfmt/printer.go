@@ -29,15 +29,27 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) []byte {
 	// Apply self-closing space preference.
 	applySelfClosingSpace(tokens, opts.XMLSelfClosingSpace)
 
-	// Serialize.
+	// Serialize, tracking byte offsets of preserve-block content.
 	var buf bytes.Buffer
+	var preserveRanges [][2]int
 	for _, tok := range tokens {
-		buf.Write(tok.Raw)
+		if tok.Preserve {
+			start := buf.Len()
+			buf.Write(tok.Raw)
+			end := buf.Len()
+			if n := len(preserveRanges); n > 0 && preserveRanges[n-1][1] == start {
+				preserveRanges[n-1][1] = end // merge adjacent
+			} else {
+				preserveRanges = append(preserveRanges, [2]int{start, end})
+			}
+		} else {
+			buf.Write(tok.Raw)
+		}
 	}
 	out := buf.Bytes()
 
-	// Strip trailing whitespace from each line.
-	out = stripTrailingWhitespace(out)
+	// Strip trailing whitespace from each line, skipping preserve ranges.
+	out = stripTrailingWhitespacePreserve(out, preserveRanges)
 
 	// Final newline.
 	out = bytes.TrimRight(out, "\r\n")
@@ -337,9 +349,16 @@ func isMixedContent(tokens []Token, openIdx, closeIdx int) bool {
 func removeInsignificantWhitespace(tokens []Token) []Token {
 	// Classify each whitespace token as structural or content.
 	markContentWhitespace(tokens)
+	// Override: preserve blocks keep ALL tokens regardless of classification.
+	markPreserveRanges(tokens)
 
 	var result []Token
 	for _, tok := range tokens {
+		// Never remove or skip tokens inside xml:space="preserve" blocks.
+		if tok.Preserve {
+			result = append(result, tok)
+			continue
+		}
 		switch tok.Kind {
 		case TokIndent, TokNewline:
 			if tok.Structural {
@@ -356,6 +375,29 @@ func removeInsignificantWhitespace(tokens []Token) []Token {
 		}
 	}
 	return result
+}
+
+// markPreserveRanges sets Preserve=true on all tokens between the open and
+// close tags of elements with xml:space="preserve". This prevents
+// removeInsignificantWhitespace from stripping any whitespace inside them
+// and ensures the verbatim-emit loop copies complete, unmodified content.
+// markPreserveRanges sets Preserve=true on all tokens between the open and
+// close tags of elements with xml:space="preserve". This prevents
+// removeInsignificantWhitespace from stripping any whitespace inside them
+// and ensures the verbatim-emit loop copies complete, unmodified content.
+func markPreserveRanges(tokens []Token) {
+	for i := range tokens {
+		if tokens[i].Kind != TokOpenTag || !hasXMLSpacePreserve(tokens[i].Raw) {
+			continue
+		}
+		closeIdx := findMatchingClose(tokens, i)
+		if closeIdx < 0 {
+			continue
+		}
+		for j := i + 1; j < closeIdx; j++ {
+			tokens[j].Preserve = true
+		}
+	}
 }
 
 // appendNewlineIndent appends a newline token and an indent token.
@@ -520,6 +562,77 @@ func stripTrailingWhitespace(data []byte) []byte {
 			end--
 		}
 		result = append(result, data[lineStart:end]...)
+	}
+	return result
+}
+
+// stripTrailingWhitespacePreserve strips trailing spaces/tabs from each line,
+// skipping lines that overlap any preserve byte range.
+func stripTrailingWhitespacePreserve(data []byte, ranges [][2]int) []byte {
+	if len(ranges) == 0 {
+		return stripTrailingWhitespace(data)
+	}
+
+	var result []byte
+	lineStart := 0
+	ri := 0 // current range index, monotonically advances
+
+	for i := 0; i <= len(data); i++ {
+		atEOF := i == len(data)
+		atNewline := !atEOF && (data[i] == '\n' || data[i] == '\r')
+		if !atNewline && !atEOF {
+			continue
+		}
+
+		lineEnd := i
+
+		// Advance past ranges that end before this line.
+		for ri < len(ranges) && ranges[ri][1] <= lineStart {
+			ri++
+		}
+
+		// Line overlaps preserve range if current range starts before lineEnd
+		// and ends after lineStart.
+		inPreserve := ri < len(ranges) &&
+			ranges[ri][0] < lineEnd &&
+			ranges[ri][1] > lineStart
+
+		if atEOF {
+			if inPreserve {
+				result = append(result, data[lineStart:]...)
+			} else {
+				end := len(data)
+				for end > lineStart && (data[end-1] == ' ' || data[end-1] == '\t') {
+					end--
+				}
+				result = append(result, data[lineStart:end]...)
+			}
+			break
+		}
+
+		if inPreserve {
+			// Emit line verbatim including trailing whitespace + newline.
+			nlEnd := i + 1
+			if data[i] == '\r' && i+1 < len(data) && data[i+1] == '\n' {
+				nlEnd++
+				i++
+			}
+			result = append(result, data[lineStart:nlEnd]...)
+		} else {
+			// Strip trailing spaces/tabs, then append newline.
+			end := lineEnd
+			for end > lineStart && (data[end-1] == ' ' || data[end-1] == '\t') {
+				end--
+			}
+			result = append(result, data[lineStart:end]...)
+			if data[i] == '\r' && i+1 < len(data) && data[i+1] == '\n' {
+				result = append(result, '\r', '\n')
+				i++
+			} else {
+				result = append(result, data[i])
+			}
+		}
+		lineStart = i + 1
 	}
 	return result
 }

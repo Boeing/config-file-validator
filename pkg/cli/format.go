@@ -128,6 +128,19 @@ func (c *CLI) Format(optsFunc FormatOptionsFunc) (int, error) {
 // Returns nil when the file should be skipped entirely (unreadable or unparseable).
 // Broken symlinks are never skipped — they return a StatusFail report.
 func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts formatter.Options) *reporter.Report {
+	// Skip the config file — a tool should not format its own config.
+	if c.configFilePath != "" {
+		absPath, err := filepath.Abs(path)
+		if err == nil && absPath == c.configFilePath {
+			return &reporter.Report{
+				FileName: name,
+				FilePath: path,
+				Status:   reporter.StatusPass,
+				IsQuiet:  c.quiet || c.diff,
+			}
+		}
+	}
+
 	content, err := os.ReadFile(path)
 	if err != nil {
 		if isBrokenSymlink(path) {
