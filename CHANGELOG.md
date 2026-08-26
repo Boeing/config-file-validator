@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - YAML formatting preserves nested sequence depth when an outer sequence indicator has no inline value.
 - YAML quote normalization now applies to mapping keys in addition to values, so single-quoted keys without embedded double-quotes are converted to double-quotes by default (closes #632).
 - YAML formatting now strips blank lines after document markers (`---`/`...`), strips blank lines between a mapping key and its child block, and preserves blank lines between sibling entries at the same indentation level (closes #634).
+- YAML formatter now accepts documents with non-string mapping keys (integer, boolean, etc.) instead of rejecting them with a type error (closes #585).
 - YAML formatter now preserves tag syntax in flow sequences, including required whitespace before closing brackets and commas inside verbatim tags.
 - YAML formatting preserves column-zero document-marker prefixes in plain scalar continuations, preventing a second formatting pass from rejecting the first pass's output.
 - YAML formatter now normalizes horizontal whitespace after commas in flow sequences and mappings (closes #635).
