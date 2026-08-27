@@ -39,6 +39,10 @@ stdout '✓'
 ! exec cfv check --schema-map=badformat .
 stderr 'invalid schema-map format'
 
+# Invalid glob pattern in --schema-map
+! exec cfv check --schema-map='[invalid:schema.json' .
+stderr 'invalid glob pattern'
+
 -- schema.json --
 {
   "type": "object",

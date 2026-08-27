@@ -185,3 +185,73 @@ func TestPrettierConfigApply_LeavesOptionsAloneWhenAbsent(t *testing.T) {
 
 	require.Equal(t, want, got)
 }
+
+func TestPrettierConfigApply_TypeMismatchPartialParse(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// tabWidth is wrong type (string), endOfLine is correct (string).
+	// The correct field should be applied; the wrong one should use default.
+	writePrettierRC(t, dir, ".prettierrc.json", `{"tabWidth": "4", "endOfLine": "crlf"}`)
+
+	opts := formatter.Options{IndentWidth: 2}
+	formatter.NewPrettierConfig().Apply(&opts, filepath.Join(dir, "app.json"))
+
+	// tabWidth was a string — ignored, default preserved.
+	require.Equal(t, 2, opts.IndentWidth)
+	// endOfLine was correct — applied.
+	require.Equal(t, formatter.LineEndingCRLF, opts.LineEnding)
+}
+
+func TestPrettierConfigApply_AllTypeMismatchesIgnored(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// All fields have wrong types.
+	writePrettierRC(t, dir, ".prettierrc.json", `{
+		"tabWidth": "4",
+		"useTabs": "yes",
+		"printWidth": true,
+		"singleQuote": 1
+	}`)
+
+	opts := formatter.Options{IndentWidth: 2, IndentStyle: formatter.IndentSpaces}
+	formatter.NewPrettierConfig().Apply(&opts, filepath.Join(dir, "app.json"))
+
+	// All wrong types — original values preserved.
+	require.Equal(t, 2, opts.IndentWidth)
+	require.Equal(t, formatter.IndentSpaces, opts.IndentStyle)
+	require.Equal(t, 0, opts.MaxLineWidth)
+	require.Equal(t, formatter.QuotePreserve, opts.QuoteStyle)
+}
+
+func TestPrettierConfigWarnings_CollectedCorrectly(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writePrettierRC(t, dir, ".prettierrc.json", `{"tabWidth": "4", "useTabs": "yes"}`)
+
+	pc := formatter.NewPrettierConfig()
+	opts := formatter.Options{IndentWidth: 2}
+	pc.Apply(&opts, filepath.Join(dir, "app.json"))
+
+	// Warnings should be collected (not printed to stderr).
+	warnings := pc.Warnings()
+	require.Len(t, warnings, 2)
+	require.Contains(t, warnings[0], "tabWidth")
+	require.Contains(t, warnings[0], "expected number")
+	require.Contains(t, warnings[1], "useTabs")
+	require.Contains(t, warnings[1], "expected boolean")
+
+	// Calling Warnings() again should return nil (consumed).
+	require.Nil(t, pc.Warnings())
+}
+
+func TestPrettierConfigWarnings_NoWarningsForCorrectConfig(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writePrettierRC(t, dir, ".prettierrc.json", `{"tabWidth": 4, "useTabs": true}`)
+
+	pc := formatter.NewPrettierConfig()
+	opts := formatter.Options{}
+	pc.Apply(&opts, filepath.Join(dir, "app.json"))
+
+	require.Nil(t, pc.Warnings())
+}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
 	"github.com/Boeing/config-file-validator/v3/pkg/finder"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsonfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/xmlfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
@@ -1396,4 +1398,72 @@ func Test_BOMStripping(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 0, exitCode)
 	})
+}
+
+func Test_FormatStdinBOMPreserved(t *testing.T) {
+	// JSON with BOM that needs formatting: output should have BOM restored.
+	bom := []byte{0xef, 0xbb, 0xbf}
+	input := append(bom, []byte(`{"b":1,"a":2}`)...)
+
+	jsonFT := filetype.JSONFileType
+	jsonFT.Formatter = jsonfmt.Formatter{}
+
+	// Capture stdout by redirecting via pipe.
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	c := Init(WithStdinData(input, jsonFT))
+	exitStatus, err := c.Format(defaultJSONOpts())
+
+	require.NoError(t, w.Close())
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus) // needed formatting
+	output := buf.Bytes()
+	require.True(t, hasBOM(output), "output should preserve BOM")
+	// Verify the content after BOM is valid formatted JSON.
+	require.Contains(t, string(output[3:]), `"b": 1`)
+}
+
+func Test_FormatStdinAlreadyFormatted(t *testing.T) {
+	// Already-formatted JSON with BOM: output should be unchanged.
+	bom := []byte{0xef, 0xbb, 0xbf}
+	formatted := "{\n  \"a\": 1\n}\n"
+	input := append(bom, []byte(formatted)...)
+
+	jsonFT := filetype.JSONFileType
+	jsonFT.Formatter = jsonfmt.Formatter{}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	c := Init(WithStdinData(input, jsonFT))
+	exitStatus, err := c.Format(defaultJSONOpts())
+
+	require.NoError(t, w.Close())
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus) // already formatted
+	require.Equal(t, input, buf.Bytes(), "output should be identical to input including BOM")
+}
+
+func Test_FormatStdinSyntaxError(t *testing.T) {
+	// Invalid JSON from stdin should return exit 2 with error.
+	jsonFT := filetype.JSONFileType
+	jsonFT.Formatter = jsonfmt.Formatter{}
+
+	c := Init(WithStdinData([]byte(`{"broken":}`), jsonFT))
+	exitStatus, err := c.Format(defaultJSONOpts())
+
+	require.Error(t, err)
+	require.Equal(t, 2, exitStatus)
+	require.Contains(t, err.Error(), "formatting stdin")
 }

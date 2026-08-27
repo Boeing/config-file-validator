@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -56,6 +57,9 @@ type PrettierConfig struct {
 	// (nil = file absent or malformed), so a config shared by many
 	// directories in a walk is only parsed once.
 	fileCache map[string]*prettierRC
+	// warnings collects diagnostic messages about config issues (e.g.,
+	// type mismatches in .prettierrc). Callers retrieve them via Warnings().
+	warnings []string
 }
 
 // NewPrettierConfig returns a PrettierConfig backed by a cache, so a
@@ -65,6 +69,17 @@ func NewPrettierConfig() *PrettierConfig {
 		dirCache:  make(map[string]*prettierRC),
 		fileCache: make(map[string]*prettierRC),
 	}
+}
+
+// Warnings returns diagnostic messages collected during config resolution
+// (e.g., type mismatches in .prettierrc fields). Each message is a
+// human-readable string without a trailing newline. Safe for concurrent use.
+func (p *PrettierConfig) Warnings() []string {
+	p.mu.Lock()
+	w := p.warnings
+	p.warnings = nil
+	p.mu.Unlock()
+	return w
 }
 
 // Apply overlays the resolved .prettierrc properties for path onto opts.
@@ -173,6 +188,7 @@ func (p *PrettierConfig) parseDir(dir string) *prettierRC {
 		rc := parsePrettierRC(name, src)
 		p.fileCache[path] = rc
 		if rc != nil {
+			p.collectTypeMismatches(path, name, src, rc)
 			return rc
 		}
 	}
@@ -182,6 +198,11 @@ func (p *PrettierConfig) parseDir(dir string) *prettierRC {
 // parsePrettierRC parses src according to name's format. A malformed file
 // returns nil rather than an error, matching the "ignore, don't fail the
 // run" behavior used for .editorconfig.
+//
+// For JSON configs, type mismatches (e.g., "tabWidth": "4") are tolerated:
+// the correctly-typed fields are used and the mismatched ones fall through
+// to defaults. The caller should invoke warnPrettierTypeMismatches to emit
+// user-facing diagnostics.
 func parsePrettierRC(name string, src []byte) *prettierRC {
 	var rc prettierRC
 
@@ -203,6 +224,13 @@ func parsePrettierRC(name string, src []byte) *prettierRC {
 			if err := json.Unmarshal(std, &rc); err == nil {
 				return &rc
 			}
+			// Type mismatches: json.Unmarshal partially populates the
+			// struct but returns an error. Parse via raw map to extract
+			// only correctly-typed values.
+			var raw map[string]any
+			if json.Unmarshal(std, &raw) == nil && len(raw) > 0 {
+				return parsePrettierRCFromRaw(raw)
+			}
 		}
 		if name == ".prettierrc" {
 			if err := yaml.Unmarshal(src, &rc); err == nil {
@@ -213,4 +241,68 @@ func parsePrettierRC(name string, src []byte) *prettierRC {
 	}
 
 	return &rc
+}
+
+// parsePrettierRCFromRaw builds a prettierRC from a raw JSON map, extracting
+// only values with correct types. This is the fallback path when
+// json.Unmarshal into the typed struct fails due to type mismatches.
+func parsePrettierRCFromRaw(raw map[string]any) *prettierRC {
+	rc := &prettierRC{}
+	if v, ok := raw["tabWidth"].(float64); ok {
+		i := int(v)
+		rc.TabWidth = &i
+	}
+	if v, ok := raw["printWidth"].(float64); ok {
+		i := int(v)
+		rc.PrintWidth = &i
+	}
+	if v, ok := raw["useTabs"].(bool); ok {
+		rc.UseTabs = &v
+	}
+	if v, ok := raw["endOfLine"].(string); ok {
+		rc.EndOfLine = &v
+	}
+	if v, ok := raw["trailingComma"].(string); ok {
+		rc.TrailingComma = &v
+	}
+	if v, ok := raw["singleQuote"].(bool); ok {
+		rc.SingleQuote = &v
+	}
+	return rc
+}
+
+// collectTypeMismatches appends warnings to p.warnings when a .prettierrc
+// contains keys with wrong types (e.g., "tabWidth": "4" instead of
+// "tabWidth": 4). Only JSON-format configs are checked since YAML and TOML
+// parsers report type errors during unmarshal rather than silently dropping.
+//
+// Must be called under p.mu.
+func (p *PrettierConfig) collectTypeMismatches(path, name string, src []byte, rc *prettierRC) {
+	// Only JSON-parsed configs have the silent-nil problem. YAML/TOML
+	// parsers return errors on type mismatch rather than silently skipping.
+	if name == ".prettierrc.yaml" || name == ".prettierrc.yml" || name == ".prettierrc.toml" {
+		return
+	}
+
+	std, err := hujson.Standardize(src)
+	if err != nil {
+		return
+	}
+	var raw map[string]any
+	if json.Unmarshal(std, &raw) != nil {
+		return
+	}
+
+	if v, ok := raw["tabWidth"]; ok && rc.TabWidth == nil {
+		p.warnings = append(p.warnings, fmt.Sprintf("%s: tabWidth: expected number, got %T; using default", path, v))
+	}
+	if v, ok := raw["printWidth"]; ok && rc.PrintWidth == nil {
+		p.warnings = append(p.warnings, fmt.Sprintf("%s: printWidth: expected number, got %T; using default", path, v))
+	}
+	if v, ok := raw["useTabs"]; ok && rc.UseTabs == nil {
+		p.warnings = append(p.warnings, fmt.Sprintf("%s: useTabs: expected boolean, got %T; using default", path, v))
+	}
+	if v, ok := raw["singleQuote"]; ok && rc.SingleQuote == nil {
+		p.warnings = append(p.warnings, fmt.Sprintf("%s: singleQuote: expected boolean, got %T; using default", path, v))
+	}
 }

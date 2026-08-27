@@ -47,6 +47,10 @@ stdout '✓'
 exec cfv check --no-config project/tsconfig.json
 stdout '✓'
 
+# --config + --no-config is contradictory
+! exec cfv check --config=cfv/typemap.toml --no-config project/good.json
+stderr 'cannot be used with --no-config'
+
 -- cfv/typemap.toml --
 [type-map]
 "**/tsconfig.json" = "jsonc"

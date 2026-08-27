@@ -37,10 +37,12 @@ import (
 	"io"
 	"log"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 
@@ -194,6 +196,11 @@ var fileTypeFamilies = [][]string{
 
 // mainInit is the testable entry point. Returns an exit code.
 func mainInit() int {
+	// Limit HTTP schema fetches to 10 seconds. gojsonschema uses
+	// http.DefaultClient with no timeout control — a typo'd URL
+	// would otherwise block for 30+ seconds (OS TCP timeout).
+	http.DefaultClient.Timeout = 10 * time.Second
+
 	args := os.Args[1:]
 
 	// Phase 1: parse global flags. Only --version and --help live here.
@@ -349,14 +356,16 @@ func runCheck(args []string) int {
 		return exitStatus
 	}
 
+	optsResolver, prettierCfg := buildFormatOptionsResolver(&cfg, resolved)
 	c := buildCLI(resolved,
-		cli.WithFormatOptions(buildFormatOptionsResolver(&cfg, resolved)),
+		cli.WithFormatOptions(optsResolver),
 		cli.WithFormatIgnores(buildFormatIgnores(&cfg, resolved)),
 	)
 	exitStatus, err := c.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
 	}
+	printPrettierWarnings(prettierCfg)
 	return exitStatus
 }
 
@@ -506,12 +515,13 @@ func runFormat(args []string) int {
 
 	// Build the per-format options resolver. This implements the cascade:
 	// CLI flags > [format.<type>] > [format] > format-specific defaults.
-	optsResolver := buildFormatOptionsResolver(&cfg, resolved)
+	optsResolver, prettierCfg := buildFormatOptionsResolver(&cfg, resolved)
 
 	exitStatus, err := c.Format(optsResolver)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cfv: %v\n", err)
 	}
+	printPrettierWarnings(prettierCfg)
 	return exitStatus
 }
 
@@ -655,14 +665,14 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 //
 // --no-config disables ALL config (pure defaults + CLI flags).
 // --no-editorconfig disables .editorconfig only (Tier 2 tool configs still apply).
-func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOptionsFunc {
+func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) (cli.FormatOptionsFunc, *formatter.PrettierConfig) {
 	// --no-config: pure defaults + CLI flags only. Skip everything.
 	if cfg.noConfig != nil && *cfg.noConfig {
 		return func(formatName, _ string) formatter.Options {
 			opts := formatDefaults(formatName)
 			applyCLIFormatFlags(&opts, cfg)
 			return opts
-		}
+		}, nil
 	}
 
 	// Tier 1: .cfv.toml exists — sole authority.
@@ -694,7 +704,7 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 			// CLI flags (highest priority)
 			applyCLIFormatFlags(&opts, cfg)
 			return opts
-		}
+		}, nil
 	}
 
 	// Tier 2: no .cfv.toml — per-format tool config ownership.
@@ -749,6 +759,17 @@ func buildFormatOptionsResolver(cfg *cfvConfig, rc *resolvedConfig) cli.FormatOp
 		// CLI flags (highest priority)
 		applyCLIFormatFlags(&opts, cfg)
 		return opts
+	}, prettierCfg
+}
+
+// printPrettierWarnings emits any .prettierrc config warnings to stderr.
+// Safe to call with nil (no-op when prettier config was not used).
+func printPrettierWarnings(pc *formatter.PrettierConfig) {
+	if pc == nil {
+		return
+	}
+	for _, w := range pc.Warnings() {
+		fmt.Fprintf(os.Stderr, "cfv: warning: %s\n", w)
 	}
 }
 
@@ -1538,6 +1559,10 @@ func parseSchemaMapFlags(flags schemaMapFlags) ([]cli.SchemaMapping, error) {
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 			return nil, fmt.Errorf("invalid schema-map format %q, expected pattern:schema_path", mapping)
 		}
+		// Validate glob pattern syntax — catch typos like "[invalid" early.
+		if _, err := doublestar.PathMatch(parts[0], ""); err != nil {
+			return nil, fmt.Errorf("invalid glob pattern in --schema-map %q: %w", parts[0], err)
+		}
 		result = append(result, cli.SchemaMapping{Pattern: parts[0], SchemaPath: parts[1]})
 	}
 	return result, nil
@@ -1606,6 +1631,9 @@ func setIgnoreFilesFromEnvIfNotSet(fs *flag.FlagSet, flags *ignoreFileFlags) {
 
 func applyConfigFile(cfg *cfvConfig) (string, *configfile.ValidatorOptions, *configfile.FormatConfig, error) {
 	if *cfg.noConfig {
+		if cfg.configPath != nil && *cfg.configPath != "" {
+			return "", nil, nil, errors.New("--config cannot be used with --no-config")
+		}
 		return "", nil, nil, nil
 	}
 
