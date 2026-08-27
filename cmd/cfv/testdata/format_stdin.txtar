@@ -1,0 +1,47 @@
+# ============================================================
+# Functional tests for format subcommand stdin support
+# ============================================================
+
+# Format JSON from stdin — needs formatting (exit 1 = needs formatting)
+stdin unformatted.json
+! exec cfv format --no-config --file-types=json -
+stdout '^\{ "b": 1, "a": 2 \}$'
+
+# Format JSON from stdin — already formatted (exit 0)
+stdin formatted.json
+exec cfv format --no-config --file-types=json -
+stdout '^\{ "a": 1 \}$'
+
+# Format YAML from stdin — needs formatting
+stdin unformatted.yaml
+! exec cfv format --no-config --file-types=yaml -
+stdout '^b: 2'
+stdout '^a: 1'
+
+# Format stdin with --diff
+stdin unformatted.json
+! exec cfv format --no-config --file-types=json --diff -
+stdout '--- stdin'
+stdout '\+\+\+ stdin \(formatted\)'
+stdout '^\+\{ "b": 1, "a": 2 \}'
+
+# Stdin missing --file-types
+stdin unformatted.json
+! exec cfv format --no-config -
+stderr 'requires --file-types'
+
+# Stdin with unformattable type (csv has no formatter)
+stdin simple.csv
+! exec cfv format --no-config --file-types=csv -
+stderr 'has no formatter'
+
+-- unformatted.json --
+{"b":1,"a":2}
+-- formatted.json --
+{ "a": 1 }
+-- unformatted.yaml --
+b:  2
+a:   1
+-- simple.csv --
+a,b,c
+1,2,3

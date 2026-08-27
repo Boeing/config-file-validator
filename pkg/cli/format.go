@@ -36,6 +36,11 @@ type FormatOptionsFunc func(formatName, path string) formatter.Options
 // Returns 0 if all files are formatted (or all were fixed), 1 if any file
 // needs formatting and --fix was not set, 2 on tool error.
 func (c *CLI) Format(optsFunc FormatOptionsFunc) (int, error) {
+	// Stdin mode: format the piped content and write to stdout.
+	if c.stdinData != nil {
+		return c.formatStdin(optsFunc)
+	}
+
 	foundFiles, err := c.finder.Find()
 	if err != nil {
 		return 2, fmt.Errorf("unable to find files: %w", err)
@@ -122,6 +127,50 @@ func (c *CLI) Format(optsFunc FormatOptionsFunc) (int, error) {
 		return 1, nil
 	}
 	return 0, nil
+}
+
+// formatStdin formats stdin data and writes the result to stdout.
+// With --diff: prints unified diff between stdin and formatted output.
+// With --fix: ignored (cannot write back to stdin); behaves like plain format.
+// Returns 0 if content was already formatted, 1 if it needed formatting.
+func (c *CLI) formatStdin(optsFunc FormatOptionsFunc) (int, error) {
+	fmter := c.stdinFileType.Formatter
+	if fmter == nil {
+		return 2, fmt.Errorf("file type %q has no formatter", c.stdinFileType.Name)
+	}
+
+	hadBOM := hasBOM(c.stdinData)
+	content := stripBOM(c.stdinData)
+	opts := optsFunc(c.stdinFileType.Name, "stdin")
+
+	formatted, err := fmter.Format(content, opts)
+	if err != nil {
+		return 2, fmt.Errorf("formatting stdin: %w", err)
+	}
+
+	if bytes.Equal(content, formatted) {
+		// Already formatted — write original to stdout unchanged (preserves BOM).
+		if _, err := os.Stdout.Write(c.stdinData); err != nil {
+			return 2, fmt.Errorf("writing to stdout: %w", err)
+		}
+		return 0, nil
+	}
+
+	if c.diff {
+		diff := unifiedDiff("stdin", content, formatted)
+		fmt.Print(diff)
+		return 1, nil
+	}
+
+	// Restore BOM in output if the original input had one.
+	if hadBOM {
+		formatted = append([]byte{0xef, 0xbb, 0xbf}, formatted...)
+	}
+
+	if _, err := os.Stdout.Write(formatted); err != nil {
+		return 2, fmt.Errorf("writing to stdout: %w", err)
+	}
+	return 1, nil
 }
 
 // formatFile formats a single file and returns its report.
