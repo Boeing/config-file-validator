@@ -241,7 +241,7 @@ func Test_sarifReportWithRegion(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	log, err := createSARIFReport([]Report{reportWithPos, reportLineOnly, validReport})
+	log, err := createSARIFReport([]Report{reportWithPos, reportLineOnly, validReport}, "test")
 	require.NoError(t, err)
 
 	sarifBytes, err := json.MarshalIndent(log, "", "  ")
@@ -249,6 +249,8 @@ func Test_sarifReportWithRegion(t *testing.T) {
 	buf.Write(sarifBytes)
 
 	output := buf.String()
+	// The version passed to createSARIFReport should appear in the driver section
+	assert.Contains(t, output, `"version": "test"`)
 	// reportWithPos should have region with startLine and startColumn
 	assert.Contains(t, output, `"startLine": 3`)
 	assert.Contains(t, output, `"startColumn": 10`)
@@ -260,7 +262,7 @@ func Test_sarifReportWithRegion(t *testing.T) {
 
 func Test_sarifReportToFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	err := NewSARIFReporter(tmpDir).Print([]Report{validReport})
+	err := NewSARIFReporter(tmpDir, "test").Print([]Report{validReport})
 	require.NoError(t, err)
 }
 
@@ -298,7 +300,7 @@ func Test_sarifReportMergesExternalRuns(t *testing.T) {
   ]
 }`), 0o600))
 
-	log, err := createSARIFReport([]Report{validReport}, SARIFMergeConfig{Files: []string{externalPath}})
+	log, err := createSARIFReport([]Report{validReport}, "test", SARIFMergeConfig{Files: []string{externalPath}})
 	require.NoError(t, err)
 	require.Len(t, log.Runs, 2)
 
@@ -354,7 +356,7 @@ func Test_sarifReportMergesCompatibleSARIFVersions(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, os.WriteFile(externalPath, data, 0o600))
 
-			log, err := createSARIFReport([]Report{validReport}, SARIFMergeConfig{Files: []string{externalPath}})
+			log, err := createSARIFReport([]Report{validReport}, "test", SARIFMergeConfig{Files: []string{externalPath}})
 			require.NoError(t, err)
 			require.Len(t, log.Runs, 2)
 
@@ -612,7 +614,7 @@ func Test_reporterFileOutput(t *testing.T) {
 		},
 		{
 			"sarif",
-			func(d string) Reporter { return NewSARIFReporter(d) },
+			func(d string) Reporter { return NewSARIFReporter(d, "test") },
 			"sarif",
 			func(t *testing.T, data []byte) {
 				t.Helper()

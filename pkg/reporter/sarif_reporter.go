@@ -14,11 +14,11 @@ const SARIFVersion = "2.1.0"
 const SARIFSchema = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
 const DriverName = "config-file-validator"
 const DriverInfoURI = "https://github.com/Boeing/config-file-validator"
-const DriverVersion = "1.8.0"
 
 type SARIFReporter struct {
 	outputDest  string
 	mergeConfig SARIFMergeConfig
+	version     string
 }
 
 // SARIFMergeConfig lists external SARIF inputs to append to the validator's SARIF report.
@@ -96,21 +96,25 @@ func (r runs) MarshalJSON() ([]byte, error) {
 	return json.Marshal(runJSON{Tool: r.Tool, Results: r.Results})
 }
 
-func NewSARIFReporter(outputDest string) *SARIFReporter {
+// NewSARIFReporter creates a SARIF reporter that uses the given version string
+// in the SARIF tool.driver.version field.
+func NewSARIFReporter(outputDest string, version string) *SARIFReporter {
 	return &SARIFReporter{
 		outputDest: outputDest,
+		version:    version,
 	}
 }
 
 // NewSARIFReporterWithMerge creates a SARIF reporter that appends external SARIF runs.
-func NewSARIFReporterWithMerge(outputDest string, mergeConfig SARIFMergeConfig) *SARIFReporter {
+func NewSARIFReporterWithMerge(outputDest string, version string, mergeConfig SARIFMergeConfig) *SARIFReporter {
 	return &SARIFReporter{
 		outputDest:  outputDest,
+		version:     version,
 		mergeConfig: mergeConfig,
 	}
 }
 
-func createSARIFReport(reports []Report, mergeConfigs ...SARIFMergeConfig) (*SARIFLog, error) {
+func createSARIFReport(reports []Report, version string, mergeConfigs ...SARIFMergeConfig) (*SARIFLog, error) {
 	mergeConfig := SARIFMergeConfig{}
 	if len(mergeConfigs) > 0 {
 		mergeConfig = mergeConfigs[0]
@@ -121,7 +125,7 @@ func createSARIFReport(reports []Report, mergeConfigs ...SARIFMergeConfig) (*SAR
 	log.Version = SARIFVersion
 	log.Schema = SARIFSchema
 
-	validatorRun := createValidatorSARIFRun(reports)
+	validatorRun := createValidatorSARIFRun(reports, version)
 	log.Runs = append(log.Runs, validatorRun)
 
 	mergedRuns, err := loadMergedSARIFRuns(mergeConfig)
@@ -133,12 +137,12 @@ func createSARIFReport(reports []Report, mergeConfigs ...SARIFMergeConfig) (*SAR
 	return &log, nil
 }
 
-func createValidatorSARIFRun(reports []Report) runs {
+func createValidatorSARIFRun(reports []Report, version string) runs {
 	var validatorRun runs
 
 	validatorRun.Tool.Driver.Name = DriverName
 	validatorRun.Tool.Driver.InfoURI = DriverInfoURI
-	validatorRun.Tool.Driver.Version = DriverVersion
+	validatorRun.Tool.Driver.Version = version
 
 	for _, report := range reports {
 		filePath := report.FilePath
@@ -278,7 +282,7 @@ func isSupportedSARIFVersion(version, schema string) bool {
 }
 
 func (sr SARIFReporter) Print(reports []Report) error {
-	report, err := createSARIFReport(reports, sr.mergeConfig)
+	report, err := createSARIFReport(reports, sr.version, sr.mergeConfig)
 	if err != nil {
 		return err
 	}

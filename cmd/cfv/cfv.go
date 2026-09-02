@@ -1205,7 +1205,7 @@ func getReporter(reportType, outputDest string) reporter.Reporter {
 	case "json":
 		return reporter.NewJSONReporter(outputDest)
 	case "sarif":
-		return reporter.NewSARIFReporter(outputDest)
+		return reporter.NewSARIFReporter(outputDest, configfilevalidator.GetVersion().Version)
 	case "github":
 		return reporter.NewGitHubReporter(outputDest)
 	default:
@@ -1394,7 +1394,7 @@ func buildReporters(reporterConfigs []reporterConfig, sarifMergeCfg reporter.SAR
 	reporters := make([]reporter.Reporter, 0, len(reporterConfigs))
 	for _, rc := range reporterConfigs {
 		if rc.reportType == "sarif" {
-			reporters = append(reporters, reporter.NewSARIFReporterWithMerge(rc.outputDest, sarifMergeCfg))
+			reporters = append(reporters, reporter.NewSARIFReporterWithMerge(rc.outputDest, configfilevalidator.GetVersion().Version, sarifMergeCfg))
 			continue
 		}
 		reporters = append(reporters, getReporter(rc.reportType, rc.outputDest))
