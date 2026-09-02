@@ -118,8 +118,10 @@ func Test_CLIReportErr(t *testing.T) {
 		WithGroupOutput([]string{""}),
 	)
 	exitStatus, err := cli.Run()
-	require.NoError(t, err)
-	require.Equal(t, 1, exitStatus)
+	// Reporter error is now returned (not printed to stdout).
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "reporter:")
+	require.Equal(t, 2, exitStatus)
 }
 
 func Test_CLISchemaAutoValidation(t *testing.T) {

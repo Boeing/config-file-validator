@@ -470,15 +470,15 @@ func (c *CLI) printReports(reports []reporter.Report) error {
 		return c.printGroup(reports)
 	}
 
+	var errs []error
 	for _, reporterObj := range c.reporters {
-		err := reporterObj.Print(reports)
-		if err != nil {
-			fmt.Println("failed to report:", err)
+		if err := reporterObj.Print(reports); err != nil {
+			errs = append(errs, fmt.Errorf("reporter: %w", err))
 			c.errorFound = true
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (c *CLI) printGroup(reports []reporter.Report) error {
