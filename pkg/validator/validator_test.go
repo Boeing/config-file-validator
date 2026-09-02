@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -903,11 +904,14 @@ func Test_YAMLSchemaErrorPositions(t *testing.T) {
 	var se *SchemaErrors
 	require.ErrorAs(t, err, &se)
 	require.NotEmpty(t, se.Positions)
+	found := false
 	for i, item := range se.Items {
-		if item == "port: Invalid type. Expected: integer, given: string" {
+		if strings.Contains(item, "got string, want integer") {
 			require.Equal(t, 3, se.Positions[i].Line)
+			found = true
 		}
 	}
+	require.True(t, found, "expected port type error in items: %v", se.Items)
 }
 
 func Test_JustfileValidateSyntaxError(t *testing.T) {

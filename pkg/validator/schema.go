@@ -74,7 +74,7 @@ func validateJSONSchema(schemaURL string, docJSON []byte, posMap map[string]Sour
 		if unit.Error == nil {
 			continue
 		}
-		errs = append(errs, unit.Error.String())
+		errs = append(errs, instanceLocationToContext(unit.InstanceLocation)+": "+unit.Error.String())
 		var pos SchemaErrorPosition
 		if posMap != nil {
 			key := instanceLocationToContext(unit.InstanceLocation)
