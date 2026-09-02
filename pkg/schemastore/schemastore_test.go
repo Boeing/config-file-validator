@@ -458,3 +458,21 @@ func TestDefaultCacheDirFallbackToHome(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, dir, ".cache/cfv/schemas")
 }
+
+func TestFetchAndCacheNilClient(t *testing.T) {
+	t.Parallel()
+	cacheDir := t.TempDir()
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: "https://example.com/schema.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: defaultCacheTTL,
+		// client intentionally nil — tests the defensive guard
+	}
+
+	// Should fall back to raw URL (nil client → fetchAndCache returns error → Resolve falls back)
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, "https://example.com/schema.json", path)
+}
