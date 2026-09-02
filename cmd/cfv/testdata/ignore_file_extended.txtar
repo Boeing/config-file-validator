@@ -1,0 +1,52 @@
+# ============================================================
+# Extended functional tests for --ignore-file
+# ============================================================
+
+# Ignore file with comments and blank lines → handled correctly
+exec cfv check --ignore-file=.cfvignore comments
+stdout '✓.*keep.json'
+! stdout 'skip.json'
+! stdout 'drop.yaml'
+
+# --ignore-file with cfv format → format skips ignored files
+! exec cfv format --no-config --ignore-file=.cfvignore fmtdir
+stdout '~.*needs_format.json'
+! stdout 'ignored.json'
+
+# --ignore-file combined with --gitignore (in a git repo) → union of exclusions
+exec git init uniondir
+exec git config -f uniondir/.git/config user.email test@test.com
+exec git config -f uniondir/.git/config user.name test
+exec cfv check --gitignore --ignore-file=.cfvignore uniondir
+stdout '✓.*keep.json'
+! stdout 'git_ignored.json'
+! stdout 'file_ignored.yaml'
+
+-- comments/.cfvignore --
+# This is a comment
+skip.json
+
+# Another comment below a blank line
+drop.yaml
+-- comments/keep.json --
+{ "key": "value" }
+-- comments/skip.json --
+{ "skip": true }
+-- comments/drop.yaml --
+drop: true
+-- fmtdir/.cfvignore --
+ignored.json
+-- fmtdir/needs_format.json --
+{"key":"value"}
+-- fmtdir/ignored.json --
+{"ignored":true}
+-- uniondir/.gitignore --
+git_ignored.json
+-- uniondir/.cfvignore --
+file_ignored.yaml
+-- uniondir/keep.json --
+{ "key": "value" }
+-- uniondir/git_ignored.json --
+{ "git": true }
+-- uniondir/file_ignored.yaml --
+file: ignored

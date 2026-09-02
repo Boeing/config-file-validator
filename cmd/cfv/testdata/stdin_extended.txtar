@@ -1,0 +1,55 @@
+# ============================================================
+# Extended functional tests for stdin support
+# ============================================================
+
+# format --fix with stdin outputs formatted content (exit 1 = needed formatting)
+stdin unformatted.json
+! exec cfv format --fix --no-config --file-types=json -
+stdout '^\{ "b": 1, "a": 2 \}$'
+
+# Empty stdin produces a syntax error (empty bytes are not valid JSON)
+stdin empty.txt
+! exec cfv check --file-types=json -
+stdout '×.*stdin'
+
+# TOML format via stdin: valid TOML → formatted output
+stdin unformatted.toml
+! exec cfv format --no-config --file-types=toml -
+stdout 'name = "example"'
+
+# Schema validation works on stdin via --schema-map
+stdin schema_valid.json
+exec cfv check --schema-map='stdin:schema.json' --file-types=json -
+stdout '✓.*stdin'
+
+# Schema validation catches invalid data on stdin
+stdin schema_invalid.json
+! exec cfv check --schema-map='stdin:schema.json' --file-types=json -
+stdout '×.*stdin'
+
+# Stdin with --quiet and a failing file → exit 1, no stdout
+stdin invalid.json
+! exec cfv check --file-types=json --quiet -
+! stdout '.'
+
+-- unformatted.json --
+{"b":1,"a":2}
+-- empty.txt --
+-- unformatted.toml --
+[package]
+name="example"
+-- schema.json --
+{
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+-- schema_valid.json --
+{ "name": "test" }
+-- schema_invalid.json --
+{ "name": 123 }
+-- invalid.json --
+{"key": }

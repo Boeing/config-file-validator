@@ -1,0 +1,113 @@
+# ============================================================
+# Extended globbing test scenarios
+# ============================================================
+
+# 1. Recursive doublestar: **/*.json finds files in nested dirs
+exec cfv check --no-config --globbing 'recurse/**/*.json'
+stdout '✓.*recurse/root.json'
+stdout '✓.*recurse/sub/mid.json'
+stdout '✓.*recurse/sub/deep/inner.json'
+
+# 2. Multiple glob args: both patterns match their respective files
+exec cfv check --no-config --globbing 'dir1/*.json' 'dir2/*.yaml'
+stdout '✓.*dir1/a.json'
+stdout '✓.*dir2/b.yaml'
+! stdout 'dir1.*yaml'
+! stdout 'dir2.*json'
+
+# 3. Glob matching zero config files (only .txt) → exit 0, no output
+exec cfv check --no-config --globbing 'txtonly/*.txt'
+! stdout '✓'
+! stdout '×'
+! stdout '~'
+
+# 4. Glob with dotfiles: .hidden.json is found by 'dotfiles/*.json'
+exec cfv check --no-config --globbing 'dotfiles/*.json'
+stdout '✓.*\.hidden.json'
+stdout '✓.*visible.json'
+
+# 5. Glob via .cfv.toml — config file provides settings alongside --globbing
+# The config sets globbing = true. Combined with --globbing on the CLI,
+# the glob pattern is expanded. Verifies config + globbing coexist.
+exec cfv check --config=cfv_glob.toml --globbing 'dir1/*.json'
+stdout '✓.*dir1/a.json'
+! stdout 'dir2'
+
+# 6. Glob via CFV_GLOBBING=true env var
+env CFV_GLOBBING=true
+exec cfv check --no-config 'dir1/*.json'
+stdout '✓.*dir1/a.json'
+! stdout 'dir2'
+env CFV_GLOBBING=
+
+# 7. Glob with cfv format --globbing on an unformatted file
+! exec cfv format --no-config --globbing 'fmtdir/*.json'
+stdout '~.*messy.json'
+stdout '✓.*clean.json'
+
+# 8. Glob with cfv check --fix --globbing on a file with schema coercion
+exec cfv check --fix --no-config --globbing --schema-map='**/coerce.json:schemas/coerce_schema.json' 'fixdir/*.json'
+stdout '✓'
+cmp fixdir/coerce.json fixdir/expected.json
+
+# 9. Glob pattern matching non-config file (.txt) → skipped silently
+exec cfv check --no-config --globbing 'mixeddir/*'
+stdout '✓.*config.json'
+! stdout 'readme.txt'
+! stderr 'readme.txt'
+
+# 10. Glob with --quiet → exit 0, no stdout
+exec cfv check --no-config --quiet --globbing 'dir1/*.json'
+! stdout .
+
+# 11. Glob with --no-config to avoid config file interference
+exec cfv check --no-config --globbing 'dir1/*.json'
+stdout '✓.*dir1/a.json'
+
+# 12. Glob with nested dir pattern: 'nested/**/*.yaml'
+exec cfv check --no-config --globbing 'nested/**/*.yaml'
+stdout '✓.*nested/level1/one.yaml'
+stdout '✓.*nested/level1/level2/two.yaml'
+! stdout 'root.json'
+! stdout 'inner.json'
+
+# ============================================================
+# Fixture files
+# ============================================================
+
+-- recurse/root.json --
+{ "key": "value" }
+-- recurse/sub/mid.json --
+{ "mid": true }
+-- recurse/sub/deep/inner.json --
+{ "inner": true }
+-- nested/level1/one.yaml --
+key: value
+-- nested/level1/level2/two.yaml --
+name: nested
+-- dir1/a.json --
+{ "a": 1 }
+-- dir2/b.yaml --
+b: 2
+-- txtonly/notes.txt --
+just a text file
+-- dotfiles/.hidden.json --
+{ "hidden": true }
+-- dotfiles/visible.json --
+{ "visible": true }
+-- fmtdir/messy.json --
+{"b":2,"a":1}
+-- fmtdir/clean.json --
+{ "a": 1, "b": 2 }
+-- fixdir/coerce.json --
+{ "port": "8080", "host": "localhost" }
+-- fixdir/expected.json --
+{ "port": 8080, "host": "localhost" }
+-- schemas/coerce_schema.json --
+{ "type": "object", "properties": { "port": { "type": "integer" }, "host": { "type": "string" } } }
+-- mixeddir/config.json --
+{ "ok": true }
+-- mixeddir/readme.txt --
+This is not a config file.
+-- cfv_glob.toml --
+globbing = true

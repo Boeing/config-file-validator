@@ -1,0 +1,50 @@
+# ============================================================
+# Extended functional tests for --groupby
+# ============================================================
+
+# pass-fail with mixed results → both Passed and Failed groups exist
+! exec cfv check -groupby=pass-fail mixed
+stdout 'Passed'
+stdout 'Failed'
+
+# error-type with syntax errors → both syntax and Passed appear
+! exec cfv check -groupby=error-type mixed
+stdout 'syntax'
+stdout 'Passed'
+
+# error-type with format errors → format type appears
+! exec cfv check --no-config -groupby=error-type format_mixed
+stdout 'format'
+stdout 'Passed'
+
+# Grouped JSON output → verify totalPassed and totalFailed fields
+! exec cfv check -groupby=filetype --reporter=json:- mixed
+stdout 'totalPassed'
+stdout 'totalFailed'
+
+# --groupby with --quiet on all-passing files → exit 0
+exec cfv check -groupby=pass-fail --quiet files
+
+# filetype with only json files → json appears, yaml does NOT
+exec cfv check -groupby=filetype json_only
+stdout 'json'
+! stdout 'yaml'
+
+-- mixed/good.json --
+{ "key": "value" }
+-- mixed/bad.json --
+{"key": value}
+-- mixed/good.yaml --
+key: value
+-- format_mixed/formatted.json --
+{ "key": "value" }
+-- format_mixed/needs_format.json --
+{"key":"value"}
+-- files/good.json --
+{ "key": "value" }
+-- files/good.yaml --
+key: value
+-- json_only/a.json --
+{ "a": 1 }
+-- json_only/b.json --
+{ "b": 2 }
