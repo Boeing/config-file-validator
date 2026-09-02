@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
+	"github.com/Boeing/config-file-validator/v3/pkg/tools"
 	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
@@ -38,7 +39,7 @@ type FileType struct {
 // represent a JSON file
 var JSONFileType = FileType{
 	Name:       "json",
-	Extensions: arrToMap("json"),
+	Extensions: tools.ArrToMap("json"),
 	Validator:  validator.JSONValidator{},
 }
 
@@ -46,7 +47,7 @@ var JSONFileType = FileType{
 // represent a YAML file
 var YAMLFileType = FileType{
 	Name:       "yaml",
-	Extensions: arrToMap("yml", "yaml"),
+	Extensions: tools.ArrToMap("yml", "yaml"),
 	Validator:  validator.YAMLValidator{},
 }
 
@@ -54,7 +55,7 @@ var YAMLFileType = FileType{
 // represent a XML file
 var XMLFileType = FileType{
 	Name:       "xml",
-	Extensions: arrToMap("xml"),
+	Extensions: tools.ArrToMap("xml"),
 	Validator:  validator.XMLValidator{},
 }
 
@@ -62,7 +63,7 @@ var XMLFileType = FileType{
 // represent a Toml file
 var TomlFileType = FileType{
 	Name:       "toml",
-	Extensions: arrToMap("toml"),
+	Extensions: tools.ArrToMap("toml"),
 	Validator:  validator.TomlValidator{},
 }
 
@@ -70,7 +71,7 @@ var TomlFileType = FileType{
 // represent a Ini file
 var IniFileType = FileType{
 	Name:       "ini",
-	Extensions: arrToMap("ini"),
+	Extensions: tools.ArrToMap("ini"),
 	Validator:  validator.IniValidator{},
 }
 
@@ -78,7 +79,7 @@ var IniFileType = FileType{
 // represent a Properties file
 var PropFileType = FileType{
 	Name:       "properties",
-	Extensions: arrToMap("properties"),
+	Extensions: tools.ArrToMap("properties"),
 	Validator:  validator.PropValidator{},
 }
 
@@ -86,7 +87,7 @@ var PropFileType = FileType{
 // represent a HCL file
 var HclFileType = FileType{
 	Name:       "hcl",
-	Extensions: arrToMap("hcl", "tf", "tfvars"),
+	Extensions: tools.ArrToMap("hcl", "tf", "tfvars"),
 	Validator:  validator.HclValidator{},
 }
 
@@ -94,7 +95,7 @@ var HclFileType = FileType{
 // represent a Plist file
 var PlistFileType = FileType{
 	Name:       "plist",
-	Extensions: arrToMap("plist"),
+	Extensions: tools.ArrToMap("plist"),
 	Validator:  validator.PlistValidator{},
 }
 
@@ -102,7 +103,7 @@ var PlistFileType = FileType{
 // represent a CSV file
 var CsvFileType = FileType{
 	Name:       "csv",
-	Extensions: arrToMap("csv"),
+	Extensions: tools.ArrToMap("csv"),
 	Validator:  validator.CsvValidator{},
 }
 
@@ -110,7 +111,7 @@ var CsvFileType = FileType{
 // represent a HOCON file
 var HoconFileType = FileType{
 	Name:       "hocon",
-	Extensions: arrToMap("hocon"),
+	Extensions: tools.ArrToMap("hocon"),
 	Validator:  validator.HoconValidator{},
 }
 
@@ -118,7 +119,7 @@ var HoconFileType = FileType{
 // represent a ENV file
 var EnvFileType = FileType{
 	Name:       "env",
-	Extensions: arrToMap("env"),
+	Extensions: tools.ArrToMap("env"),
 	Validator:  validator.EnvValidator{},
 }
 
@@ -126,7 +127,7 @@ var EnvFileType = FileType{
 // represent an EDITORCONFIG file
 var EditorConfigFileType = FileType{
 	Name:       "editorconfig",
-	Extensions: arrToMap("editorconfig"),
+	Extensions: tools.ArrToMap("editorconfig"),
 	Validator:  validator.EditorConfigValidator{},
 }
 
@@ -134,7 +135,7 @@ var EditorConfigFileType = FileType{
 // represent a TOON file
 var ToonFileType = FileType{
 	Name:       "toon",
-	Extensions: arrToMap("toon"),
+	Extensions: tools.ArrToMap("toon"),
 	Validator:  validator.ToonValidator{},
 }
 
@@ -142,19 +143,19 @@ var ToonFileType = FileType{
 // represent a Sarif file
 var SarifFileType = FileType{
 	Name:       "sarif",
-	Extensions: arrToMap("sarif"),
+	Extensions: tools.ArrToMap("sarif"),
 	Validator:  validator.SarifValidator{},
 }
 
 var JSONCFileType = FileType{
 	Name:       "jsonc",
-	Extensions: arrToMap("jsonc"),
+	Extensions: tools.ArrToMap("jsonc"),
 	Validator:  validator.JSONCValidator{},
 }
 
 var JustfileFileType = FileType{
 	Name:       "justfile",
-	Extensions: arrToMap("just"),
+	Extensions: tools.ArrToMap("just"),
 	KnownFiles: map[string]struct{}{
 		"justfile":  {},
 		"Justfile":  {},
@@ -168,7 +169,7 @@ var JustfileFileType = FileType{
 // See https://kdl.dev/ for the spec.
 var KdlFileType = FileType{
 	Name:       "kdl",
-	Extensions: arrToMap("kdl"),
+	Extensions: tools.ArrToMap("kdl"),
 	Validator:  validator.KdlValidator{},
 }
 
@@ -176,7 +177,7 @@ var KdlFileType = FileType{
 // See https://cuelang.org/ for the language spec.
 var CueFileType = FileType{
 	Name:       "cue",
-	Extensions: arrToMap("cue"),
+	Extensions: tools.ArrToMap("cue"),
 	Validator:  validator.CueValidator{},
 }
 
@@ -295,14 +296,6 @@ func init() {
 // FileTypes contains all file types supported by the validator.
 // Populated in init() after KnownFiles are merged from Linguist data.
 var FileTypes []FileType
-
-func arrToMap(args ...string) map[string]struct{} {
-	m := make(map[string]struct{}, len(args))
-	for _, item := range args {
-		m[item] = struct{}{}
-	}
-	return m
-}
 
 // extOf returns the extension of a filename (lowercase, without the dot),
 // matching filepath.Ext behavior. For ".editorconfig" returns "editorconfig".
