@@ -190,7 +190,6 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 				FileName: name,
 				FilePath: path,
 				Status:   reporter.StatusPass,
-				IsQuiet:  c.quiet || c.diff,
 			}
 		}
 	}
@@ -206,7 +205,6 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 					Type:    reporter.IssueTypeSyntax,
 					Message: "broken symlink",
 				}},
-				IsQuiet: c.quiet,
 			}
 		}
 		// Read error — not a format issue. Skip so the file doesn't inflate
@@ -227,7 +225,6 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 				FileName: name,
 				FilePath: path,
 				Status:   reporter.StatusPass,
-				IsQuiet:  c.quiet,
 				Issues: []reporter.Issue{
 					{Message: skipped.Error(), Type: reporter.IssueTypeFormat},
 				},
@@ -239,7 +236,7 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 	}
 
 	if bytes.Equal(content, formatted) {
-		return &reporter.Report{FileName: name, FilePath: path, Status: reporter.StatusPass, IsQuiet: c.quiet || c.diff}
+		return &reporter.Report{FileName: name, FilePath: path, Status: reporter.StatusPass}
 	}
 
 	// Restore BOM in output if the original file had one.
@@ -256,7 +253,6 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 			FileName: name,
 			FilePath: path,
 			Status:   reporter.StatusUnformatted,
-			IsQuiet:  true, // suppress reporter output — diff is the output
 			Diff:     diff,
 		}
 	}
@@ -272,18 +268,16 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 					Type:    reporter.IssueTypeSyntax,
 					Message: fmt.Sprintf("failed to write formatted file: %v", err),
 				}},
-				IsQuiet: c.quiet,
 			}
 		}
 		// Successfully fixed — report as pass.
-		return &reporter.Report{FileName: name, FilePath: path, Status: reporter.StatusPass, IsQuiet: c.quiet}
+		return &reporter.Report{FileName: name, FilePath: path, Status: reporter.StatusPass}
 	}
 
 	return &reporter.Report{
 		FileName: name,
 		FilePath: path,
 		Status:   reporter.StatusUnformatted,
-		IsQuiet:  c.quiet,
 	}
 }
 

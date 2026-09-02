@@ -9,11 +9,12 @@ import (
 // Errors emit ::error, format warnings emit ::warning.
 type GitHubReporter struct {
 	outputDest string
+	isQuiet    bool
 }
 
 // NewGitHubReporter creates a GitHubReporter.
-func NewGitHubReporter(outputDest string) *GitHubReporter {
-	return &GitHubReporter{outputDest: outputDest}
+func NewGitHubReporter(outputDest string, isQuiet bool) *GitHubReporter {
+	return &GitHubReporter{outputDest: outputDest, isQuiet: isQuiet}
 }
 
 // Print implements the Reporter interface.
@@ -24,7 +25,7 @@ func (gr GitHubReporter) Print(reports []Report) error {
 		return outputBytesToFile(gr.outputDest, "result", "txt", []byte(out))
 	}
 
-	if out != "" && (len(reports) == 0 || !reports[0].IsQuiet) {
+	if out != "" && !gr.isQuiet {
 		fmt.Print(out)
 	}
 	return nil

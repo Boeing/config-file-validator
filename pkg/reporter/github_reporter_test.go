@@ -126,9 +126,9 @@ func TestGitHubReporter_MultipleReportsSkipsValid(t *testing.T) {
 
 func TestGitHubReporter_QuietModeSuppressesStdout(t *testing.T) {
 	reports := []Report{
-		{FilePath: "a.json", Status: StatusFail, Issues: []Issue{{Type: IssueTypeSyntax, Message: "e1"}}, IsQuiet: true},
+		{FilePath: "a.json", Status: StatusFail, Issues: []Issue{{Type: IssueTypeSyntax, Message: "e1"}}},
 	}
-	gr := NewGitHubReporter("")
+	gr := NewGitHubReporter("", true)
 	if err := gr.Print(reports); err != nil {
 		t.Fatalf("Print returned error in quiet mode: %v", err)
 	}

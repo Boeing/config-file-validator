@@ -10,11 +10,13 @@ import (
 
 type JunitReporter struct {
 	outputDest string
+	isQuiet    bool
 }
 
-func NewJunitReporter(outputDest string) *JunitReporter {
+func NewJunitReporter(outputDest string, isQuiet bool) *JunitReporter {
 	return &JunitReporter{
 		outputDest: outputDest,
+		isQuiet:    isQuiet,
 	}
 }
 
@@ -225,7 +227,7 @@ func (jr JunitReporter) Print(reports []Report) error {
 		return outputBytesToFile(jr.outputDest, "result", "xml", []byte(results))
 	}
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
+	if !jr.isQuiet {
 		fmt.Print(results)
 	}
 

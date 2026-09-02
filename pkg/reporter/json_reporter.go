@@ -9,13 +9,16 @@ import (
 // JSONReporter outputs results as structured JSON.
 type JSONReporter struct {
 	outputDest string
+	isQuiet    bool
 }
 
 // NewJSONReporter creates a JSONReporter. If outputDest is non-empty,
-// output is written to that file.
-func NewJSONReporter(outputDest string) *JSONReporter {
+// output is written to that file. When isQuiet is true, stdout output
+// is suppressed.
+func NewJSONReporter(outputDest string, isQuiet bool) *JSONReporter {
 	return &JSONReporter{
 		outputDest: outputDest,
+		isQuiet:    isQuiet,
 	}
 }
 
@@ -63,7 +66,7 @@ func (jr JSONReporter) Print(reports []Report) error {
 		return outputBytesToFile(jr.outputDest, "result", "json", jsonBytes)
 	}
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
+	if !jr.isQuiet {
 		fmt.Print(string(jsonBytes))
 	}
 

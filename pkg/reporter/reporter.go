@@ -19,9 +19,6 @@ type Report struct {
 	// Example: "this file is valid JSONC — use --type-map to validate as JSONC"
 	Notes []string
 
-	// IsQuiet suppresses output for this report when true.
-	IsQuiet bool
-
 	// Diff holds a unified diff string for --diff mode output.
 	// Collected during parallel formatting and printed sequentially
 	// to avoid interleaved output from concurrent goroutines.

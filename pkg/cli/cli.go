@@ -163,7 +163,7 @@ func WithFormatIgnores(fi *formatter.FormatIgnores) Option {
 func Init(opts ...Option) *CLI {
 	c := &CLI{
 		finder:    finder.FileSystemFinderInit(),
-		reporters: []reporter.Reporter{reporter.NewStdoutReporter("")},
+		reporters: []reporter.Reporter{reporter.NewStdoutReporter("", false)},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -260,7 +260,6 @@ func (c *CLI) validate(content []byte, ft filetype.FileType, name, path string) 
 	report := reporter.Report{
 		FileName: name,
 		FilePath: path,
-		IsQuiet:  c.quiet,
 		Notes:    notes,
 	}
 
@@ -563,7 +562,6 @@ func (c *CLI) attemptFix(content []byte, ft filetype.FileType, name, path string
 		FileName: name,
 		FilePath: path,
 		Status:   reporter.StatusPass,
-		IsQuiet:  c.quiet,
 	}
 	for _, fix := range result.Applied {
 		report.Notes = append(report.Notes, "fixed: "+fix.Message)

@@ -39,7 +39,7 @@ func Test_CLI(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewStdoutReporter("")),
+		WithReporters(reporter.NewStdoutReporter("", false)),
 		WithGroupOutput([]string{""}),
 	)
 	exitStatus, err := cli.Run()
@@ -57,7 +57,7 @@ func Test_CLIWithMultipleReporters(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporters(
-			reporter.NewJSONReporter(tmpOut+"/result.json"),
+			reporter.NewJSONReporter(tmpOut+"/result.json", false),
 			reporter.JunitReporter{},
 		),
 		WithGroupOutput([]string{""}),
@@ -98,7 +98,7 @@ func Test_CLIWithGroup(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewStdoutReporter("")),
+		WithReporters(reporter.NewStdoutReporter("", false)),
 		WithGroupOutput([]string{"pass-fail", "directory"}),
 	)
 	exitStatus, err := cli.Run()
@@ -114,7 +114,7 @@ func Test_CLIReportErr(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("./wrong/path")),
+		WithReporters(reporter.NewJSONReporter("./wrong/path", false)),
 		WithGroupOutput([]string{""}),
 	)
 	exitStatus, err := cli.Run()
@@ -267,7 +267,7 @@ func Test_CLISingleGroupJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("")),
+		WithReporters(reporter.NewJSONReporter("", false)),
 		WithGroupOutput([]string{"filetype"}),
 	)
 	exitStatus, err := cli.Run()
@@ -283,7 +283,7 @@ func Test_CLIDoubleGroupJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("")),
+		WithReporters(reporter.NewJSONReporter("", false)),
 		WithGroupOutput([]string{"filetype", "directory"}),
 	)
 	exitStatus, err := cli.Run()
@@ -299,7 +299,7 @@ func Test_CLITripleGroupJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("")),
+		WithReporters(reporter.NewJSONReporter("", false)),
 		WithGroupOutput([]string{"filetype", "directory", "pass-fail"}),
 	)
 	exitStatus, err := cli.Run()
@@ -315,7 +315,7 @@ func Test_CLIQuadGroupJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("")),
+		WithReporters(reporter.NewJSONReporter("", false)),
 		WithGroupOutput([]string{"filetype", "directory", "pass-fail", "error-type"}),
 	)
 	exitStatus, err := cli.Run()
@@ -954,10 +954,6 @@ func Test_FormatWithDiff(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, exitStatus)
-	// In diff mode, reports are quiet (diff goes to stdout directly)
-	for _, r := range rep.reports {
-		require.True(t, r.IsQuiet)
-	}
 	// The diff is collected in the Report, not printed from goroutines.
 	require.Len(t, rep.reports, 1)
 	require.Contains(t, rep.reports[0].Diff, "---")
@@ -1380,7 +1376,7 @@ func Test_BOMStripping(t *testing.T) {
 		fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporters(reporter.NewStdoutReporter("")),
+			WithReporters(reporter.NewStdoutReporter("", false)),
 			WithGroupOutput([]string{""}),
 		)
 		exitCode, err := cli.Run()
@@ -1397,7 +1393,7 @@ func Test_BOMStripping(t *testing.T) {
 		fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
 		cli := Init(
 			WithFinder(fsFinder),
-			WithReporters(reporter.NewStdoutReporter("")),
+			WithReporters(reporter.NewStdoutReporter("", false)),
 			WithGroupOutput([]string{""}),
 		)
 		exitCode, err := cli.Run()

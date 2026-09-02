@@ -51,7 +51,6 @@ var (
 		FileName: "good.xml",
 		FilePath: "/fake/path/good.xml",
 		Status:   StatusPass,
-		IsQuiet:  true,
 	}
 
 	mixedReports = []Report{validReport, invalidReport, multiLineErrorReport}
@@ -111,18 +110,18 @@ func requireJSONNumber(t *testing.T, value any, expected float64) {
 // --- Basic Print tests ---
 
 func Test_stdoutReport(t *testing.T) {
-	err := NewStdoutReporter("").Print(mixedReports)
+	err := NewStdoutReporter("", false).Print(mixedReports)
 	require.NoError(t, err)
 }
 
 func Test_stdoutReportQuiet(t *testing.T) {
-	err := NewStdoutReporter("").Print([]Report{quietReport})
+	err := NewStdoutReporter("", true).Print([]Report{quietReport})
 	require.NoError(t, err)
 }
 
 func Test_stdoutReportToFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	err := NewStdoutReporter(tmpDir).Print([]Report{validReport})
+	err := NewStdoutReporter(tmpDir, false).Print([]Report{validReport})
 	require.NoError(t, err)
 }
 
@@ -139,7 +138,7 @@ func Test_jsonReportQuiet(t *testing.T) {
 
 func Test_jsonReportToFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	err := NewJSONReporter(tmpDir).Print([]Report{validReport})
+	err := NewJSONReporter(tmpDir, false).Print([]Report{validReport})
 	require.NoError(t, err)
 }
 
@@ -262,7 +261,7 @@ func Test_sarifReportWithRegion(t *testing.T) {
 
 func Test_sarifReportToFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	err := NewSARIFReporter(tmpDir, "test").Print([]Report{validReport})
+	err := NewSARIFReporter(tmpDir, "test", false).Print([]Report{validReport})
 	require.NoError(t, err)
 }
 
@@ -592,7 +591,7 @@ func Test_reporterFileOutput(t *testing.T) {
 	}{
 		{
 			"json",
-			func(d string) Reporter { return NewJSONReporter(d) },
+			func(d string) Reporter { return NewJSONReporter(d, false) },
 			"json",
 			func(t *testing.T, data []byte) {
 				t.Helper()
@@ -603,7 +602,7 @@ func Test_reporterFileOutput(t *testing.T) {
 		},
 		{
 			"junit",
-			func(d string) Reporter { return NewJunitReporter(d) },
+			func(d string) Reporter { return NewJunitReporter(d, false) },
 			"xml",
 			func(t *testing.T, data []byte) {
 				t.Helper()
@@ -614,7 +613,7 @@ func Test_reporterFileOutput(t *testing.T) {
 		},
 		{
 			"sarif",
-			func(d string) Reporter { return NewSARIFReporter(d, "test") },
+			func(d string) Reporter { return NewSARIFReporter(d, "test", false) },
 			"sarif",
 			func(t *testing.T, data []byte) {
 				t.Helper()
@@ -702,7 +701,7 @@ func Test_stdoutReportWithUnformatted(t *testing.T) {
 			Issues: []Issue{{Type: IssueTypeFormat, Message: "needs formatting"}}},
 	}
 	output, err := captureStdout(t, func() error {
-		return NewStdoutReporter("").Print(reports)
+		return NewStdoutReporter("", false).Print(reports)
 	})
 	require.NoError(t, err)
 	assert.Contains(t, output, "✓")
@@ -738,9 +737,9 @@ func Test_jsonReportUnformatted(t *testing.T) {
 }
 
 func Test_githubReporterQuiet(t *testing.T) {
-	reports := []Report{{FilePath: "a.json", Status: StatusPass, IsQuiet: true}}
+	reports := []Report{{FilePath: "a.json", Status: StatusPass}}
 	output, err := captureStdout(t, func() error {
-		return NewGitHubReporter("").Print(reports)
+		return NewGitHubReporter("", true).Print(reports)
 	})
 	require.NoError(t, err)
 	assert.Empty(t, output)
@@ -748,7 +747,7 @@ func Test_githubReporterQuiet(t *testing.T) {
 
 func Test_githubReporterEmpty(t *testing.T) {
 	output, err := captureStdout(t, func() error {
-		return NewGitHubReporter("").Print([]Report{})
+		return NewGitHubReporter("", false).Print([]Report{})
 	})
 	require.NoError(t, err)
 	assert.Empty(t, output)

@@ -1163,18 +1163,18 @@ func validateUniqueReporterOutputDestinations(conf []reporterConfig) error {
 }
 
 // getReporter constructs the reporter for the given type and output destination.
-func getReporter(reportType, outputDest string) reporter.Reporter {
+func getReporter(reportType, outputDest string, isQuiet bool) reporter.Reporter {
 	switch reportType {
 	case "junit":
-		return reporter.NewJunitReporter(outputDest)
+		return reporter.NewJunitReporter(outputDest, isQuiet)
 	case "json":
-		return reporter.NewJSONReporter(outputDest)
+		return reporter.NewJSONReporter(outputDest, isQuiet)
 	case "sarif":
-		return reporter.NewSARIFReporter(outputDest, configfilevalidator.GetVersion().Version)
+		return reporter.NewSARIFReporter(outputDest, configfilevalidator.GetVersion().Version, isQuiet)
 	case "github":
-		return reporter.NewGitHubReporter(outputDest)
+		return reporter.NewGitHubReporter(outputDest, isQuiet)
 	default:
-		return reporter.NewStdoutReporter(outputDest)
+		return reporter.NewStdoutReporter(outputDest, isQuiet)
 	}
 }
 
@@ -1182,16 +1182,22 @@ func getReporter(reportType, outputDest string) reporter.Reporter {
 // Config resolution
 // =============================================================================
 
+// reporterIsQuiet returns whether reporters should suppress stdout output.
+// True when --quiet is set or in --diff mode (diff output replaces reporter output).
+func (c *cfvConfig) reporterIsQuiet() bool {
+	return *c.quiet || (c.fmtDiff != nil && *c.fmtDiff)
+}
+
 // resolveBaseConfig handles configuration shared by all subcommands:
 // config file loading, reporters, groupOutput, quiet, fix, diff, stdin,
 // and finder options. It does not touch schema-specific fields.
-func resolveBaseConfig(cfg *cfvConfig) (*resolvedConfig, *configfile.ValidatorOptions, error) {
+func resolveBaseConfig(cfg *cfvConfig, sarifMerge reporter.SARIFMergeConfig) (*resolvedConfig, *configfile.ValidatorOptions, error) {
 	cfgFilePath, validatorOpts, formatCfg, err := applyConfigFile(cfg)
 	if err != nil {
 		return nil, nil, fmt.Errorf("loading config file: %w", err)
 	}
 
-	reporters, err := buildReporters(cfg.reportType, reporter.SARIFMergeConfig{})
+	reporters, err := buildReporters(cfg.reportType, sarifMerge, cfg.reporterIsQuiet())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1256,8 +1262,22 @@ func resolveBaseConfig(cfg *cfvConfig) (*resolvedConfig, *configfile.ValidatorOp
 // Adds schema validation, schema map, schema store, and SARIF merge
 // on top of the base configuration.
 func resolveCheckConfig(cfg *cfvConfig) (*resolvedConfig, error) {
-	resolved, _, err := resolveBaseConfig(cfg)
+	// SARIF merge config is built early so it can be passed to resolveBaseConfig,
+	// which builds reporters once with both quiet and SARIF merge baked in.
+	sarifMergeCfg := reporter.SARIFMergeConfig{
+		Files:     []string(cfg.mergeSarif),
+		Directory: mergeSarifDirectoryValue(cfg.mergeSarifDir),
+	}
+
+	resolved, _, err := resolveBaseConfig(cfg, sarifMergeCfg)
 	if err != nil {
+		return nil, err
+	}
+
+	// SARIF merge validation runs after resolveBaseConfig because the config
+	// file (loaded inside resolveBaseConfig via applyConfigFile) may add SARIF
+	// to the reporter list. Validating before would miss config-file reporters.
+	if err := validateSARIFMergeReporters(cfg.reportType, cfg.mergeSarif, cfg.mergeSarifDir); err != nil {
 		return nil, err
 	}
 
@@ -1286,28 +1306,13 @@ func resolveCheckConfig(cfg *cfvConfig) (*resolvedConfig, error) {
 	}
 	resolved.store = store
 
-	// SARIF merge (check-specific).
-	if err := validateSARIFMergeReporters(cfg.reportType, cfg.mergeSarif, cfg.mergeSarifDir); err != nil {
-		return nil, err
-	}
-
-	sarifMergeCfg := reporter.SARIFMergeConfig{
-		Files:     []string(cfg.mergeSarif),
-		Directory: mergeSarifDirectoryValue(cfg.mergeSarifDir),
-	}
-	reporters, err := buildReporters(cfg.reportType, sarifMergeCfg)
-	if err != nil {
-		return nil, err
-	}
-	resolved.reporters = reporters
-
 	return resolved, nil
 }
 
 // resolveFormatConfig resolves configuration for the format subcommand.
 // No schema fields, no SARIF merge — just the base config.
 func resolveFormatConfig(cfg *cfvConfig) (*resolvedConfig, error) {
-	resolved, _, err := resolveBaseConfig(cfg)
+	resolved, _, err := resolveBaseConfig(cfg, reporter.SARIFMergeConfig{})
 	if err != nil {
 		return nil, err
 	}
@@ -1355,14 +1360,14 @@ func buildCLIWithFinder(rc *resolvedConfig, f finder.FileFinder) *cli.CLI {
 	return cli.Init(opts...)
 }
 
-func buildReporters(reporterConfigs []reporterConfig, sarifMergeCfg reporter.SARIFMergeConfig) ([]reporter.Reporter, error) {
+func buildReporters(reporterConfigs []reporterConfig, sarifMergeCfg reporter.SARIFMergeConfig, isQuiet bool) ([]reporter.Reporter, error) {
 	reporters := make([]reporter.Reporter, 0, len(reporterConfigs))
 	for _, rc := range reporterConfigs {
 		if rc.reportType == "sarif" {
-			reporters = append(reporters, reporter.NewSARIFReporterWithMerge(rc.outputDest, configfilevalidator.GetVersion().Version, sarifMergeCfg))
+			reporters = append(reporters, reporter.NewSARIFReporterWithMerge(rc.outputDest, configfilevalidator.GetVersion().Version, isQuiet, sarifMergeCfg))
 			continue
 		}
-		reporters = append(reporters, getReporter(rc.reportType, rc.outputDest))
+		reporters = append(reporters, getReporter(rc.reportType, rc.outputDest, isQuiet))
 	}
 	return reporters, nil
 }

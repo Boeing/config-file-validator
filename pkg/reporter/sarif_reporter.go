@@ -19,6 +19,7 @@ type SARIFReporter struct {
 	outputDest  string
 	mergeConfig SARIFMergeConfig
 	version     string
+	isQuiet     bool
 }
 
 // SARIFMergeConfig lists external SARIF inputs to append to the validator's SARIF report.
@@ -98,18 +99,20 @@ func (r runs) MarshalJSON() ([]byte, error) {
 
 // NewSARIFReporter creates a SARIF reporter that uses the given version string
 // in the SARIF tool.driver.version field.
-func NewSARIFReporter(outputDest string, version string) *SARIFReporter {
+func NewSARIFReporter(outputDest string, version string, isQuiet bool) *SARIFReporter {
 	return &SARIFReporter{
 		outputDest: outputDest,
 		version:    version,
+		isQuiet:    isQuiet,
 	}
 }
 
 // NewSARIFReporterWithMerge creates a SARIF reporter that appends external SARIF runs.
-func NewSARIFReporterWithMerge(outputDest string, version string, mergeConfig SARIFMergeConfig) *SARIFReporter {
+func NewSARIFReporterWithMerge(outputDest string, version string, isQuiet bool, mergeConfig SARIFMergeConfig) *SARIFReporter {
 	return &SARIFReporter{
 		outputDest:  outputDest,
 		version:     version,
+		isQuiet:     isQuiet,
 		mergeConfig: mergeConfig,
 	}
 }
@@ -298,7 +301,7 @@ func (sr SARIFReporter) Print(reports []Report) error {
 		return outputBytesToFile(sr.outputDest, "result", "sarif", sarifBytes)
 	}
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
+	if !sr.isQuiet {
 		fmt.Print(string(sarifBytes))
 	}
 

@@ -11,6 +11,7 @@ import (
 // StdoutReporter outputs results to stdout (or a file) in human-readable format.
 type StdoutReporter struct {
 	outputDest string
+	isQuiet    bool
 }
 
 type reportStdout struct {
@@ -19,10 +20,12 @@ type reportStdout struct {
 }
 
 // NewStdoutReporter creates a StdoutReporter. If outputDest is non-empty,
-// output is written to that file instead of stdout.
-func NewStdoutReporter(outputDest string) *StdoutReporter {
+// output is written to that file instead of stdout. When isQuiet is true,
+// stdout output is suppressed (file output is unaffected).
+func NewStdoutReporter(outputDest string, isQuiet bool) *StdoutReporter {
 	return &StdoutReporter{
 		outputDest: outputDest,
+		isQuiet:    isQuiet,
 	}
 }
 
@@ -34,7 +37,7 @@ func (sr StdoutReporter) Print(reports []Report) error {
 		return outputBytesToFile(sr.outputDest, "result", "txt", []byte(stdoutReport.Text))
 	}
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
+	if !sr.isQuiet {
 		fmt.Print(stdoutReport.Text)
 	}
 

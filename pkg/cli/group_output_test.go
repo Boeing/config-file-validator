@@ -38,7 +38,7 @@ func Test_ValidGroupOutput(t *testing.T) {
 			)
 			cli := Init(
 				WithFinder(fsFinder),
-				WithReporters(reporter.NewStdoutReporter("")),
+				WithReporters(reporter.NewStdoutReporter("", false)),
 				WithGroupOutput(tc.groupOutput),
 			)
 
@@ -73,7 +73,7 @@ func Test_InvalidGroupOutput(t *testing.T) {
 			)
 			cli := Init(
 				WithFinder(fsFinder),
-				WithReporters(reporter.NewStdoutReporter("")),
+				WithReporters(reporter.NewStdoutReporter("", false)),
 				WithGroupOutput(tc.groupOutput),
 			)
 
