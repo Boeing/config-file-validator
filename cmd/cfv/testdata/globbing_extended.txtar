@@ -71,6 +71,19 @@ stdout '✓.*nested/level1/level2/two.yaml'
 ! stdout 'root.json'
 ! stdout 'inner.json'
 
+# --- Adversarial cases ---
+
+# Invalid glob syntax produces error
+! exec cfv check --no-config --globbing 'badglob/[unclosed.json'
+stderr 'glob matching error'
+
+# Glob resolving to nothing (nonexistent dir) → exit 0
+exec cfv check --no-config --globbing 'nonexistent_dir/**/*.json'
+
+# Glob with spaces in filename
+exec cfv check --no-config --globbing 'spaces/*.json'
+stdout 'has spaces.json'
+
 # ============================================================
 # Fixture files
 # ============================================================
@@ -111,3 +124,5 @@ just a text file
 This is not a config file.
 -- cfv_glob.toml --
 globbing = true
+-- spaces/has spaces.json --
+{ "key": "value" }

@@ -32,8 +32,15 @@ stdin invalid.json
 ! exec cfv check --file-types=json --quiet -
 ! stdout '.'
 
+# Binary garbage via stdin → syntax error
+! exec cfv check --no-config --file-types=json -
+stdin binary_garbage
+stdout '×.*stdin'
+stdout 'error:'
+
 -- unformatted.json --
 {"b":1,"a":2}
+-- binary_garbage --
 -- empty.txt --
 -- unformatted.toml --
 [package]
