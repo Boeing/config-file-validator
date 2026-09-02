@@ -81,3 +81,33 @@ ignoreUntil = "2026-12-01T00:00:00Z"
 id = "GHSA-w3rx-r6r6-pgpr"
 reason = "npm image-size — transitive dep of Docusaurus, no fix released"
 ignoreUntil = "2026-12-01T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GHSA-5jgf-p345-68v8"
+reason = "npm fast-uri — transitive dep of Docusaurus, waiting for Docusaurus update"
+ignoreUntil = "2026-12-01T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GHSA-f65p-4m7j-42xc"
+reason = "npm fast-uri — transitive dep of Docusaurus, waiting for Docusaurus update"
+ignoreUntil = "2026-12-01T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GHSA-fph4-wmhf-6fwf"
+reason = "npm fast-uri — transitive dep of Docusaurus, waiting for Docusaurus update"
+ignoreUntil = "2026-12-01T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GHSA-jqff-g426-hqxp"
+reason = "npm fast-uri — transitive dep of Docusaurus, waiting for Docusaurus update"
+ignoreUntil = "2026-12-01T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GHSA-4mjr-xmp4-gh2g"
+reason = "npm qs — transitive dep of Docusaurus, waiting for Docusaurus update"
+ignoreUntil = "2026-12-01T00:00:00Z"
+
+[[IgnoredVulns]]
+id = "GHSA-x5fp-wj9c-mxmx"
+reason = "npm qs — transitive dep of Docusaurus, waiting for Docusaurus update"
+ignoreUntil = "2026-12-01T00:00:00Z"
