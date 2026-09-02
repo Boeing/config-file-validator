@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/stretchr/testify/require"
-	"github.com/xeipuuv/gojsonschema"
 
 	"github.com/Boeing/config-file-validator/v3/pkg/fixer"
 )
@@ -111,13 +111,17 @@ func assertPassesSchema(t *testing.T, data []byte, schema []byte, testName strin
 		return
 	}
 
-	schemaLoader := gojsonschema.NewBytesLoader(schema)
-	documentLoader := gojsonschema.NewBytesLoader(data)
+	schemaDoc, err := jsonschema.UnmarshalJSON(bytes.NewReader(schema))
+	require.NoError(t, err, "unmarshal schema for %s", testName)
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+	require.NoError(t, err, "unmarshal fixed output for %s", testName)
 
-	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
-	require.NoError(t, err, "schema validation error for %s", testName)
-	require.True(t, result.Valid(),
-		"fixed output does not pass schema for %s: %v", testName, result.Errors())
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft7)
+	require.NoError(t, compiler.AddResource("test-schema.json", schemaDoc), "add schema resource for %s", testName)
+	sch, err := compiler.Compile("test-schema.json")
+	require.NoError(t, err, "compile schema for %s", testName)
+	require.NoError(t, sch.Validate(doc), "fixed output does not pass schema for %s", testName)
 }
 
 // extToFormat maps file extension to format name.

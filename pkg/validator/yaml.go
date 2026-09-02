@@ -139,7 +139,7 @@ func extractYAMLSchemaComment(b []byte) string {
 }
 
 // buildYAMLPositionMap parses YAML into a Node tree and builds a map from
-// gojsonschema context paths (e.g. "(root).server.port") to source positions.
+// context paths (e.g. "(root).server.port") to source positions.
 func buildYAMLPositionMap(b []byte) map[string]SourcePosition {
 	var root yaml.Node
 	if err := yaml.Unmarshal(b, &root); err != nil {

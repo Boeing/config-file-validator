@@ -37,12 +37,10 @@ import (
 	"io"
 	"log"
 	"maps"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 
@@ -161,11 +159,6 @@ var fileTypeFamilies = [][]string{
 
 // mainInit is the testable entry point. Returns an exit code.
 func mainInit() int {
-	// Limit HTTP schema fetches to 10 seconds. gojsonschema uses
-	// http.DefaultClient with no timeout control — a typo'd URL
-	// would otherwise block for 30+ seconds (OS TCP timeout).
-	http.DefaultClient.Timeout = 10 * time.Second
-
 	args := os.Args[1:]
 
 	// Phase 1: parse global flags. Only --version and --help live here.

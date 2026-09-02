@@ -1,14 +1,16 @@
 package configfile
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/pelletier/go-toml/v2"
-	"github.com/xeipuuv/gojsonschema"
+	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 //go:embed schema.json
@@ -115,19 +117,38 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Validate against embedded schema
-	result, err := gojsonschema.Validate(
-		gojsonschema.NewBytesLoader(configSchema),
-		gojsonschema.NewBytesLoader(docJSON),
-	)
+	schemaDoc, err := jsonschema.UnmarshalJSON(bytes.NewReader(configSchema))
 	if err != nil {
-		return nil, fmt.Errorf("config file %s: schema validation error: %w", path, err)
+		return nil, fmt.Errorf("config file %s: schema error: %w", path, err)
 	}
-	if !result.Valid() {
-		var errs []string
-		for _, desc := range result.Errors() {
-			errs = append(errs, desc.String())
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(docJSON))
+	if err != nil {
+		return nil, fmt.Errorf("config file %s: schema error: %w", path, err)
+	}
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft7)
+	if err := compiler.AddResource("cfv-config-schema.json", schemaDoc); err != nil {
+		return nil, fmt.Errorf("config file %s: schema error: %w", path, err)
+	}
+	sch, err := compiler.Compile("cfv-config-schema.json")
+	if err != nil {
+		return nil, fmt.Errorf("config file %s: schema error: %w", path, err)
+	}
+	if err := sch.Validate(doc); err != nil {
+		var verr *jsonschema.ValidationError
+		if errors.As(err, &verr) {
+			var errs []string
+			basic := verr.BasicOutput()
+			for _, unit := range basic.Errors {
+				if unit.Error != nil {
+					errs = append(errs, unit.Error.String())
+				}
+			}
+			if len(errs) > 0 {
+				return nil, fmt.Errorf("config file %s: schema validation failed: %s", path, joinErrors(errs))
+			}
 		}
-		return nil, fmt.Errorf("config file %s: schema validation failed: %s", path, joinErrors(errs))
+		return nil, fmt.Errorf("config file %s: schema validation error: %w", path, err)
 	}
 
 	// Parse into Config struct

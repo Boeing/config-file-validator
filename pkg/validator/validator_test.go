@@ -3,6 +3,8 @@ package validator
 import (
 	_ "embed"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -1072,4 +1074,67 @@ func Test_JSONMarshalToJSON_NestedSchema(t *testing.T) {
 	out, err := JSONValidator{}.MarshalToJSON(input)
 	require.NoError(t, err)
 	require.Contains(t, string(out), `"$schema":"nested"`)
+}
+
+func Test_instanceLocationToContext(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		loc  string
+		want string
+	}{
+		{"empty (root)", "", "(root)"},
+		{"single key", "/name", "(root).name"},
+		{"nested key", "/server/port", "(root).server.port"},
+		{"array index", "/items/0", "(root).items.0"},
+		{"deep path", "/a/b/c/d", "(root).a.b.c.d"},
+		{"array in nested", "/servers/0/port", "(root).servers.0.port"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := instanceLocationToContext(tc.loc)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func Test_schemaHTTPLoader(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/schema.json":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"type":"object"}`))
+		case "/not-json":
+			_, _ = w.Write([]byte(`not json`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	loader := &schemaHTTPLoader{client: &http.Client{}}
+
+	t.Run("success", func(t *testing.T) {
+		doc, err := loader.Load(srv.URL + "/schema.json")
+		require.NoError(t, err)
+		require.NotNil(t, doc)
+	})
+
+	t.Run("404", func(t *testing.T) {
+		_, err := loader.Load(srv.URL + "/missing.json")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "404")
+	})
+
+	t.Run("invalid json", func(t *testing.T) {
+		_, err := loader.Load(srv.URL + "/not-json")
+		require.Error(t, err)
+	})
+
+	t.Run("network error", func(t *testing.T) {
+		_, err := loader.Load("http://127.0.0.1:1/unreachable") //nolint:noctx // test
+		require.Error(t, err)
+	})
 }

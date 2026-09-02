@@ -327,10 +327,6 @@ stderr 'invalid schema-map format'
   },
   "additionalProperties": false
 }
-
-# ============================================================
-# Local schemas for --schema-map tests
-# ============================================================
 -- server_schema.json --
 {
   "type": "object",

@@ -18,7 +18,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
 	github.com/toon-format/toon-go v0.0.0-20251108125615-44b4cd22477f
-	github.com/xeipuuv/gojsonschema v1.2.0
+	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	gopkg.in/ini.v1 v1.67.3
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
@@ -29,6 +29,7 @@ require (
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/pmezard/go-difflib v1.0.0
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/sblinch/kdl-go v0.0.0-20260121213736-8b7053306ca6
 )
 
