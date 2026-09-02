@@ -58,6 +58,22 @@ type Token struct {
 	SequenceIndentDepth int
 }
 
+// AnnotatedTokens wraps a token slice that has been through the annotation
+// phase. The annotation phase sets Structural, Line, ASTDepth, InSeq,
+// SeqOffset, AtSeqItem, and SequenceIndentDepth on each token.
+//
+// Phases that depend on annotation data (reindentTokens, sortKeys) accept
+// this type instead of []Token. This makes the compiler reject calls to
+// annotation-dependent phases on unannotated tokens.
+type AnnotatedTokens struct {
+	tokens []Token
+}
+
+// Tokens returns the underlying token slice.
+func (at AnnotatedTokens) Tokens() []Token {
+	return at.tokens
+}
+
 // tokenize lexes YAML source into a flat token stream.
 // Every byte in src is accounted for in exactly one token.
 // The tokenizer is format-only — it classifies tokens and preserves boundaries.

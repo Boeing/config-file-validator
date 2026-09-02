@@ -32,24 +32,33 @@ func printFormatted(tokens []Token, opts formatter.Options, src []byte) ([]byte,
 	}
 
 	// Annotate tokens with structural metadata from yaml.v3 Node tree.
-	annotate(tokens, src, astMeta)
+	// Returns AnnotatedTokens — phases that depend on annotation data
+	// (reindentTokens, sortKeys) accept this type, not raw []Token.
+	at := annotate(tokens, src, astMeta)
+
+	// --- Phases that don't need annotation guarantees use at.Tokens() ---
 
 	// Match Prettier's bracketSpacing behavior for flow mappings without
 	// rewriting the user's colon or comma spacing.
-	normalizeFlowTokens(tokens)
+	normalizeFlowTokens(at.Tokens())
 
 	// Normalize value spacing: strip leading whitespace from values after colons.
-	normalizeValueSpacing(tokens)
+	normalizeValueSpacing(at.Tokens())
+
+	// --- Annotation-dependent phases (compiler-enforced via AnnotatedTokens) ---
 
 	// Sort keys if requested. Metadata travels with tokens.
 	if opts.SortKeys {
-		tokens = sortKeys(tokens)
+		at = sortKeys(at)
 		// No depth recomputation needed — ASTDepth is position-invariant.
 	}
 
 	// Reindent: structural tokens get depth×width; continuations shift by parent delta.
-	reindentTokens(tokens, targetWidth,
+	reindentTokens(at, targetWidth,
 		opts.IndentSequences != formatter.SequenceIndentDisabled)
+
+	// --- Post-reindent phases (annotation consumed, back to []Token) ---
+	tokens = at.Tokens()
 
 	// Trim trailing blank lines from clip-chomped block scalars.
 	trimBlockScalarTrailingBlanks(tokens)
@@ -470,7 +479,7 @@ func computeNewIndent(astDepth int, inSeq, hasDash bool, seqOffset,
 // annotate sets Structural, Line, ASTDepth, and InSeq on each token.
 // Uses the yaml.v3 Node tree to determine which lines are structural
 // (mapping keys, sequence items) vs continuation (multi-line values).
-func annotate(tokens []Token, src []byte, astMeta map[int]lineMetadata) {
+func annotate(tokens []Token, src []byte, astMeta map[int]lineMetadata) AnnotatedTokens {
 	// Build set of structural line numbers from Node tree.
 	structuralLines := buildStructuralLineSet(src)
 
@@ -507,6 +516,8 @@ func annotate(tokens []Token, src []byte, astMeta map[int]lineMetadata) {
 
 	// Set ASTDepth and InSeq from AST metadata.
 	assignASTMetadata(tokens, astMeta)
+
+	return AnnotatedTokens{tokens: tokens}
 }
 
 // lineHasDash checks whether a TokDash follows the indent at index i on the same line.
@@ -577,7 +588,8 @@ func collectStructuralLines(n *yaml.Node, lines map[int]bool) {
 // Continuation tokens (ASTDepth < 0 or non-structural): shift by same delta as
 // last structural token. Block scalars following a shifted indent also get
 // their content shifted.
-func reindentTokens(tokens []Token, targetWidth int, indentSequences bool) {
+func reindentTokens(at AnnotatedTokens, targetWidth int, indentSequences bool) {
+	tokens := at.Tokens()
 	lastDelta := 0
 
 	for i := range tokens {
@@ -929,8 +941,8 @@ type mappingEntry struct {
 }
 
 // sortKeys sorts mapping entries at all depth levels.
-func sortKeys(tokens []Token) []Token {
-	return sortKeysAtDepth(tokens, 0, 0, len(tokens))
+func sortKeys(at AnnotatedTokens) AnnotatedTokens {
+	return AnnotatedTokens{tokens: sortKeysAtDepth(at.Tokens(), 0, 0, len(at.Tokens()))}
 }
 
 func sortKeysAtDepth(tokens []Token, targetDepth, from, to int) []Token {
