@@ -49,6 +49,7 @@ type Store struct {
 	schemaDir string
 	cacheDir  string
 	cacheTTL  time.Duration
+	client    *http.Client
 }
 
 // Open reads the SchemaStore catalog from bundlePath and returns a Store.
@@ -86,6 +87,7 @@ func newStore(data []byte, bundlePath string) (*Store, error) {
 	s := &Store{
 		entries:  filtered,
 		cacheTTL: defaultCacheTTL,
+		client:   &http.Client{},
 	}
 	if bundlePath != "" {
 		s.basePath = bundlePath
@@ -203,6 +205,10 @@ func (s *Store) lookupCache(schemaURL string) (string, bool) {
 }
 
 func (s *Store) fetchAndCache(schemaURL string) (string, error) {
+	if s.client == nil {
+		return "", errors.New("no HTTP client configured")
+	}
+
 	cachePath, err := s.cachePathForURL(schemaURL)
 	if err != nil {
 		return "", err
@@ -216,7 +222,7 @@ func (s *Store) fetchAndCache(schemaURL string) (string, error) {
 		return "", fmt.Errorf("fetching schema: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("fetching schema: %w", err)
 	}

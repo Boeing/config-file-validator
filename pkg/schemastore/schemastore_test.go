@@ -221,6 +221,7 @@ func TestLookupCacheExpired(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: 0, // expired immediately
+		client:   &http.Client{},
 	}
 
 	// Pre-populate cache with old mtime
@@ -268,6 +269,7 @@ func TestFetchAndCacheSuccess(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	path, found := store.Resolve("/project/config.json")
@@ -294,6 +296,7 @@ func TestFetchAndCache404(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	// Fetch fails, falls back to remote URL
@@ -316,6 +319,7 @@ func TestFetchAndCache500(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	path, found := store.Resolve("/project/config.json")
@@ -332,6 +336,7 @@ func TestFetchAndCacheNetworkError(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   &http.Client{},
 	}
 
 	path, found := store.Resolve("/project/config.json")
@@ -356,6 +361,7 @@ func TestFetchAndCacheThenHitCache(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	// First call fetches
@@ -384,6 +390,7 @@ func TestFetchAndCacheUnwritableDir(t *testing.T) {
 		},
 		cacheDir: "/nonexistent/readonly/path",
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	// Cache write fails, falls back to remote URL
