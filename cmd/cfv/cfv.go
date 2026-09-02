@@ -84,16 +84,16 @@ type cfvConfig struct {
 	globbing         *bool
 	requireSchema    *bool
 	noSchema         *bool
-	typeMap          typeMapFlags
-	schemaMap        schemaMapFlags
+	typeMap          repeatableFlag
+	schemaMap        repeatableFlag
 	schemaStore      *bool
 	schemaStorePath  *string
 	configPath       *string
 	noConfig         *bool
 	gitignore        *bool
-	mergeSarif       sarifMergeFlags
+	mergeSarif       repeatableFlag
 	mergeSarifDir    *string
-	ignoreFiles      ignoreFileFlags
+	ignoreFiles      repeatableFlag
 	// Phase 1: --fix and --unsafe are reserved (no-op) until Phase 4.
 	fix    *bool
 	unsafe *bool
@@ -139,48 +139,13 @@ type resolvedConfig struct {
 
 // --- Repeatable flag types ---
 
-// reporterFlags is a repeatable --reporter flag.
-type reporterFlags []string
+// repeatableFlag is a string slice that implements flag.Value for repeatable flags.
+// Used for --reporter, --type-map, --schema-map, --merge-sarif, --ignore-file.
+type repeatableFlag []string
 
-func (rf *reporterFlags) String() string { return fmt.Sprint(*rf) }
-func (rf *reporterFlags) Set(value string) error {
+func (rf *repeatableFlag) String() string { return fmt.Sprint(*rf) }
+func (rf *repeatableFlag) Set(value string) error {
 	*rf = append(*rf, value)
-	return nil
-}
-
-// typeMapFlags is a repeatable --type-map flag.
-type typeMapFlags []string
-
-func (tf *typeMapFlags) String() string { return fmt.Sprint(*tf) }
-func (tf *typeMapFlags) Set(value string) error {
-	*tf = append(*tf, value)
-	return nil
-}
-
-// schemaMapFlags is a repeatable --schema-map flag.
-type schemaMapFlags []string
-
-func (sf *schemaMapFlags) String() string { return fmt.Sprint(*sf) }
-func (sf *schemaMapFlags) Set(value string) error {
-	*sf = append(*sf, value)
-	return nil
-}
-
-// sarifMergeFlags is a repeatable --merge-sarif flag.
-type sarifMergeFlags []string
-
-func (smf *sarifMergeFlags) String() string { return fmt.Sprint(*smf) }
-func (smf *sarifMergeFlags) Set(value string) error {
-	*smf = append(*smf, value)
-	return nil
-}
-
-// ignoreFileFlags is a repeatable --ignore-file flag.
-type ignoreFileFlags []string
-
-func (iff *ignoreFileFlags) String() string { return fmt.Sprint(*iff) }
-func (iff *ignoreFileFlags) Set(value string) error {
-	*iff = append(*iff, value)
 	return nil
 }
 
@@ -374,11 +339,11 @@ func parseCheckFlags(args []string) (cfvConfig, error) {
 	fs := flag.NewFlagSet("cfv check", flag.ContinueOnError)
 	fs.Usage = printCheckUsage
 
-	reporterConfigFlags := reporterFlags{}
-	typeMapConfigFlags := typeMapFlags{}
-	schemaMapConfigFlags := schemaMapFlags{}
-	mergeSarifConfigFlags := sarifMergeFlags{}
-	ignoreFileConfigFlags := ignoreFileFlags{}
+	reporterConfigFlags := repeatableFlag{}
+	typeMapConfigFlags := repeatableFlag{}
+	schemaMapConfigFlags := repeatableFlag{}
+	mergeSarifConfigFlags := repeatableFlag{}
+	ignoreFileConfigFlags := repeatableFlag{}
 
 	var (
 		depthPtr         = fs.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
@@ -532,9 +497,9 @@ func parseFormatFlags(args []string) (cfvConfig, error) {
 	fs := flag.NewFlagSet("cfv format", flag.ContinueOnError)
 	fs.Usage = printFormatUsage
 
-	reporterConfigFlags := reporterFlags{}
-	typeMapConfigFlags := typeMapFlags{}
-	ignoreFileConfigFlags := ignoreFileFlags{}
+	reporterConfigFlags := repeatableFlag{}
+	typeMapConfigFlags := repeatableFlag{}
+	ignoreFileConfigFlags := repeatableFlag{}
 
 	var (
 		depthPtr        = fs.Int("depth", 0, "Depth of recursion for the provided search paths. Set depth to 0 to disable recursive path traversal")
@@ -1159,7 +1124,7 @@ func handleGlobbing(fs *flag.FlagSet) ([]string, error) {
 	return searchPaths, nil
 }
 
-func parseReporterFlags(flags reporterFlags) ([]reporterConfig, error) {
+func parseReporterFlags(flags repeatableFlag) ([]reporterConfig, error) {
 	conf := make([]reporterConfig, 0, len(flags))
 	for _, reportFlag := range flags {
 		parts := strings.SplitN(reportFlag, ":", 2)
@@ -1532,7 +1497,7 @@ func getExcludeFileTypes(configExcludeFileTypes string) []string {
 	return slices.Collect(maps.Keys(uniqueFileTypes))
 }
 
-func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
+func parseTypeMapFlags(flags repeatableFlag) ([]finder.TypeOverride, error) {
 	var overrides []finder.TypeOverride
 	fileTypesByName := make(map[string]filetype.FileType)
 	for _, ft := range filetype.FileTypes {
@@ -1552,7 +1517,7 @@ func parseTypeMapFlags(flags typeMapFlags) ([]finder.TypeOverride, error) {
 	return overrides, nil
 }
 
-func parseSchemaMapFlags(flags schemaMapFlags) ([]cli.SchemaMapping, error) {
+func parseSchemaMapFlags(flags repeatableFlag) ([]cli.SchemaMapping, error) {
 	result := make([]cli.SchemaMapping, 0, len(flags))
 	for _, mapping := range flags {
 		parts := strings.SplitN(mapping, ":", 2)
@@ -1609,7 +1574,7 @@ func setFlagFromEnvIfNotSet(fs *flag.FlagSet, flagName, envVar string) error {
 	return nil
 }
 
-func setIgnoreFilesFromEnvIfNotSet(fs *flag.FlagSet, flags *ignoreFileFlags) {
+func setIgnoreFilesFromEnvIfNotSet(fs *flag.FlagSet, flags *repeatableFlag) {
 	if isFlagSet(fs, "ignore-file") {
 		return
 	}
@@ -1672,7 +1637,7 @@ func applyConfigFile(cfg *cfvConfig) (string, *configfile.ValidatorOptions, *con
 		cfg.depth = fileCfg.Depth
 	}
 	if !cfg.isFlagSet("reporter") && len(fileCfg.Reporter) > 0 {
-		conf, err := parseReporterFlags(reporterFlags(fileCfg.Reporter))
+		conf, err := parseReporterFlags(repeatableFlag(fileCfg.Reporter))
 		if err != nil {
 			return "", nil, nil, fmt.Errorf("config file reporter: %w", err)
 		}
@@ -1704,7 +1669,7 @@ func applyConfigFile(cfg *cfvConfig) (string, *configfile.ValidatorOptions, *con
 		cfg.gitignore = fileCfg.Gitignore
 	}
 	if !cfg.isFlagSet("ignore-file") && len(fileCfg.IgnoreFiles) > 0 {
-		cfg.ignoreFiles = ignoreFileFlags(fileCfg.IgnoreFiles)
+		cfg.ignoreFiles = repeatableFlag(fileCfg.IgnoreFiles)
 	}
 	if len(cfg.schemaMap) == 0 && len(fileCfg.SchemaMap) > 0 {
 		// Sort patterns for deterministic ordering (TOML maps are unordered).

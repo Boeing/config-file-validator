@@ -167,7 +167,7 @@ func Test_ignoreFilesEnvVar(t *testing.T) {
 
 	cfg, err := parseCheckFlags([]string{"."})
 	require.NoError(t, err)
-	require.Equal(t, ignoreFileFlags{".dockerignore", ".prettierignore"}, cfg.ignoreFiles)
+	require.Equal(t, repeatableFlag{".dockerignore", ".prettierignore"}, cfg.ignoreFiles)
 }
 
 func Test_ignoreFilesConfigOverridesEnvVar(t *testing.T) {
@@ -181,7 +181,7 @@ func Test_ignoreFilesConfigOverridesEnvVar(t *testing.T) {
 
 	_, _, _, err = applyConfigFile(&cfg)
 	require.NoError(t, err)
-	require.Equal(t, ignoreFileFlags{"config.ignore"}, cfg.ignoreFiles)
+	require.Equal(t, repeatableFlag{"config.ignore"}, cfg.ignoreFiles)
 }
 
 func Test_ignoreFilesFlagOverridesConfigAndEnv(t *testing.T) {
@@ -195,7 +195,7 @@ func Test_ignoreFilesFlagOverridesConfigAndEnv(t *testing.T) {
 
 	_, _, _, err = applyConfigFile(&cfg)
 	require.NoError(t, err)
-	require.Equal(t, ignoreFileFlags{"cli.ignore"}, cfg.ignoreFiles)
+	require.Equal(t, repeatableFlag{"cli.ignore"}, cfg.ignoreFiles)
 }
 
 func Test_getExcludeFileTypes(t *testing.T) {
@@ -222,18 +222,18 @@ func Test_getExcludeFileTypes(t *testing.T) {
 func Test_parseTypeMapFlags(t *testing.T) {
 	cases := []struct {
 		name    string
-		flags   typeMapFlags
+		flags   repeatableFlag
 		wantLen int
 		wantErr bool
 	}{
-		{"empty", typeMapFlags{}, 0, false},
-		{"single override", typeMapFlags{"**/inventory:ini"}, 1, false},
-		{"multiple overrides", typeMapFlags{"**/inventory:ini", "**/configs/*:properties"}, 2, false},
-		{"case insensitive type", typeMapFlags{"**/file:JSON"}, 1, false},
-		{"missing colon", typeMapFlags{"nocolon"}, 0, true},
-		{"empty pattern", typeMapFlags{":ini"}, 0, true},
-		{"empty type", typeMapFlags{"pattern:"}, 0, true},
-		{"unknown type", typeMapFlags{"pattern:notreal"}, 0, true},
+		{"empty", repeatableFlag{}, 0, false},
+		{"single override", repeatableFlag{"**/inventory:ini"}, 1, false},
+		{"multiple overrides", repeatableFlag{"**/inventory:ini", "**/configs/*:properties"}, 2, false},
+		{"case insensitive type", repeatableFlag{"**/file:JSON"}, 1, false},
+		{"missing colon", repeatableFlag{"nocolon"}, 0, true},
+		{"empty pattern", repeatableFlag{":ini"}, 0, true},
+		{"empty type", repeatableFlag{"pattern:"}, 0, true},
+		{"unknown type", repeatableFlag{"pattern:notreal"}, 0, true},
 	}
 
 	for _, tc := range cases {
