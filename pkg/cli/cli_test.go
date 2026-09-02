@@ -956,6 +956,10 @@ func Test_FormatWithDiff(t *testing.T) {
 	for _, r := range rep.reports {
 		require.True(t, r.IsQuiet)
 	}
+	// The diff is collected in the Report, not printed from goroutines.
+	require.Len(t, rep.reports, 1)
+	require.Contains(t, rep.reports[0].Diff, "---")
+	require.Contains(t, rep.reports[0].Diff, "+++")
 }
 
 func Test_FormatSkipsUnparseableFiles(t *testing.T) {

@@ -106,12 +106,17 @@ func (c *CLI) Format(optsFunc FormatOptionsFunc) (int, error) {
 	wg.Wait()
 
 	// Collect non-nil reports in original (sorted) order for deterministic output.
+	// Print diffs sequentially — they were collected (not printed) in the workers
+	// to avoid interleaved output from concurrent goroutines.
 	var reports []reporter.Report
 	issueFound := false
 	for _, r := range results {
 		if r == nil {
 			// File was skipped (unparseable or unreadable).
 			continue
+		}
+		if r.Diff != "" {
+			fmt.Print(r.Diff)
 		}
 		reports = append(reports, *r)
 		if r.Status == reporter.StatusUnformatted || r.Status == reporter.StatusFail {
@@ -242,15 +247,17 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 		formatted = append([]byte{0xef, 0xbb, 0xbf}, formatted...)
 	}
 
-	// Diff mode: print unified diff to stdout, report as unformatted.
+	// Diff mode: compute unified diff, report as unformatted.
+	// The diff is stored in the report and printed sequentially after all
+	// workers finish — printing from goroutines would interleave output.
 	if c.diff {
 		diff := unifiedDiff(path, content, formatted)
-		fmt.Print(diff)
 		return &reporter.Report{
 			FileName: name,
 			FilePath: path,
 			Status:   reporter.StatusUnformatted,
 			IsQuiet:  true, // suppress reporter output — diff is the output
+			Diff:     diff,
 		}
 	}
 
@@ -282,6 +289,8 @@ func (c *CLI) formatFile(path, name string, fmter formatter.Formatter, opts form
 
 // unifiedDiff computes a unified diff between original and formatted content.
 func unifiedDiff(path string, original, formatted []byte) string {
+	// GetUnifiedDiffString only fails if the internal template.Execute fails,
+	// which cannot happen with valid string inputs from SplitLines.
 	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 		A:        difflib.SplitLines(string(original)),
 		B:        difflib.SplitLines(string(formatted)),

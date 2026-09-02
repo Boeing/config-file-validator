@@ -21,6 +21,11 @@ type Report struct {
 
 	// IsQuiet suppresses output for this report when true.
 	IsQuiet bool
+
+	// Diff holds a unified diff string for --diff mode output.
+	// Collected during parallel formatting and printed sequentially
+	// to avoid interleaved output from concurrent goroutines.
+	Diff string
 }
 
 // HasErrors reports whether any issue is a failure-level issue (syntax or schema).
