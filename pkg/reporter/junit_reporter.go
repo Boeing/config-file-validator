@@ -226,7 +226,7 @@ func (jr JunitReporter) Print(reports []Report) error {
 	}
 
 	if len(reports) > 0 && !reports[0].IsQuiet {
-		fmt.Println(results)
+		fmt.Print(results)
 	}
 
 	return nil
