@@ -11,6 +11,12 @@
 // Trailing commas are added to expanded objects and arrays by default,
 // matching Prettier's trailingComma: "all" behavior. Options.TrailingCommas
 // can preserve the input style or remove trailing commas instead.
+//
+// COUPLING WARNING: This formatter manipulates hujson's CST directly via
+// BeforeExtra/AfterExtra fields on Value, ObjectMember, and Array types.
+// These are internal to hujson's representation. If hujson changes its CST
+// structure, this file will need updating. Pin the hujson version in go.mod
+// and test thoroughly before upgrading.
 package jsoncfmt
 
 import (

@@ -274,6 +274,12 @@ func (gim *gitignoreMatcher) refreshMatcher() {
 
 // pushDir loads a .gitignore from the given directory if one exists.
 func (gim *gitignoreMatcher) pushDir(dir string) {
+	// Performance note: when a new .gitignore is found, the matcher is rebuilt
+	// from all accumulated patterns — O(total_patterns). For monorepos with
+	// hundreds of nested .gitignore files, consider caching or incremental
+	// matcher updates if profiling shows this is a bottleneck. The go-git
+	// Matcher does not support incremental updates, so a fix would require
+	// vendoring or batching rebuilds.
 	if !gim.loadGitignore {
 		return
 	}

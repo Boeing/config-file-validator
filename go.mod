@@ -16,7 +16,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/rogpeppe/go-internal v1.16.0
 	github.com/stretchr/testify v1.12.1
-	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
+	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd // pinned: jsoncfmt depends on CST internals
 	github.com/toon-format/toon-go v0.0.0-20251108125615-44b4cd22477f
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	gopkg.in/ini.v1 v1.67.3

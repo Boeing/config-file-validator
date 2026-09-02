@@ -671,3 +671,27 @@ func FuzzJSONCFormatter(f *testing.F) {
 		}
 	})
 }
+
+// TestHujsonCSTCanary verifies that comments survive a format round-trip.
+// This is a canary test for hujson CST compatibility — if hujson changes its
+// BeforeExtra/AfterExtra representation, this test will fail.
+func TestHujsonCSTCanary(t *testing.T) {
+	t.Parallel()
+	input := `{
+  // line comment
+  "key": "value", /* block comment */
+  "nested": {
+    // nested comment
+    "inner": true,
+  },
+}
+`
+	f := jsoncfmt.Formatter{}
+	opts := jsoncfmt.DefaultOptions()
+	out, err := f.Format([]byte(input), opts)
+	require.NoError(t, err)
+	output := string(out)
+	require.Contains(t, output, "// line comment", "line comment must survive formatting")
+	require.Contains(t, output, "/* block comment */", "block comment must survive formatting")
+	require.Contains(t, output, "// nested comment", "nested comment must survive formatting")
+}
