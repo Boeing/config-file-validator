@@ -285,6 +285,11 @@ func init() {
 		KdlFileType,
 		CueFileType,
 	}
+
+	// Wire formatters after the slice is built. This is an explicit call
+	// rather than a separate init() to avoid depending on filename-sorted
+	// init() ordering.
+	wireFormatters()
 }
 
 // FileTypes contains all file types supported by the validator.

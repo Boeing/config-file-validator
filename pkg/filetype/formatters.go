@@ -12,14 +12,14 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/yamlfmt"
 )
 
-// init registers formatters with their corresponding FileTypes. This must run
-// after the main init() in file_type.go that builds the FileTypes slice (Go
-// processes init() functions in filename-sorted order within a package).
+// wireFormatters registers formatters with their corresponding FileTypes.
+// Called explicitly from init() in file_type.go after the FileTypes slice is
+// built — no dependency on filename-sorted init() ordering.
 //
 // We update the slice entries directly because FileTypes holds value copies —
 // updating the package-level vars (JSONFileType etc.) has no effect on the
 // already-copied slice.
-func init() {
+func wireFormatters() {
 	for i, ft := range FileTypes {
 		switch ft.Name {
 		case "json":
