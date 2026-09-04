@@ -34,8 +34,8 @@ DISABLE_ERRORS_LINTERS:
 
 # The website/ directory is a Docusaurus static site — npm deps are build
 # tooling only, not shipped in the Go binary. Skip it in vulnerability scans.
-# osv-scanner excludes it via PackageOverrides in osv-scanner.toml.
 REPOSITORY_TRIVY_ARGUMENTS: "--skip-dirs website"
+REPOSITORY_OSV_SCANNER_ARGUMENTS: "--experimental-exclude website"
 
 FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
 JSON_JSONLINT_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"

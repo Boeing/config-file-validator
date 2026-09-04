@@ -73,11 +73,5 @@ reason = "Go stdlib — fixed in 1.26.6, MegaLinter container ships 1.26.3"
 ignoreUntil = "2026-12-01T00:00:00Z"
 
 # The website/ directory is a Docusaurus static site generator — npm deps are
-# build tooling only, not shipped in the Go binary. Vulnerability scanning npm
-# transitive deps produces constant noise (qs, image-size, etc.) that we can't
-# fix without upstream updates. Ignore the entire path.
-[[PackageOverrides]]
-path = "website/package-lock.json"
-ecosystem = "npm"
-ignore = true
-reason = "Docusaurus static site build tooling — not shipped, not exploitable"
+# build tooling only, not shipped in the Go binary. osv-scanner skips website/
+# via REPOSITORY_OSV_SCANNER_ARGUMENTS in .mega-linter.yml.
