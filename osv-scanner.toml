@@ -72,42 +72,12 @@ id = "GO-2026-6218"
 reason = "Go stdlib — fixed in 1.26.6, MegaLinter container ships 1.26.3"
 ignoreUntil = "2026-12-01T00:00:00Z"
 
-[[IgnoredVulns]]
-id = "GHSA-5p2g-fcmc-qvqq"
-reason = "npm image-size — transitive dep of Docusaurus, no fix released"
-ignoreUntil = "2026-12-01T00:00:00Z"
-
-[[IgnoredVulns]]
-id = "GHSA-w3rx-r6r6-pgpr"
-reason = "npm image-size — transitive dep of Docusaurus, no fix released"
-ignoreUntil = "2026-12-01T00:00:00Z"
-
-[[IgnoredVulns]]
-id = "GHSA-5jgf-p345-68v8"
-reason = "npm fast-uri — transitive dep of Docusaurus, waiting for Docusaurus update"
-ignoreUntil = "2026-12-01T00:00:00Z"
-
-[[IgnoredVulns]]
-id = "GHSA-f65p-4m7j-42xc"
-reason = "npm fast-uri — transitive dep of Docusaurus, waiting for Docusaurus update"
-ignoreUntil = "2026-12-01T00:00:00Z"
-
-[[IgnoredVulns]]
-id = "GHSA-fph4-wmhf-6fwf"
-reason = "npm fast-uri — transitive dep of Docusaurus, waiting for Docusaurus update"
-ignoreUntil = "2026-12-01T00:00:00Z"
-
-[[IgnoredVulns]]
-id = "GHSA-jqff-g426-hqxp"
-reason = "npm fast-uri — transitive dep of Docusaurus, waiting for Docusaurus update"
-ignoreUntil = "2026-12-01T00:00:00Z"
-
-[[IgnoredVulns]]
-id = "GHSA-4mjr-xmp4-gh2g"
-reason = "npm qs — transitive dep of Docusaurus, waiting for Docusaurus update"
-ignoreUntil = "2026-12-01T00:00:00Z"
-
-[[IgnoredVulns]]
-id = "GHSA-x5fp-wj9c-mxmx"
-reason = "npm qs — transitive dep of Docusaurus, waiting for Docusaurus update"
-ignoreUntil = "2026-12-01T00:00:00Z"
+# The website/ directory is a Docusaurus static site generator — npm deps are
+# build tooling only, not shipped in the Go binary. Vulnerability scanning npm
+# transitive deps produces constant noise (qs, image-size, etc.) that we can't
+# fix without upstream updates. Ignore the entire path.
+[[PackageOverrides]]
+path = "website/package-lock.json"
+ecosystem = "npm"
+ignore = true
+reason = "Docusaurus static site build tooling — not shipped, not exploitable"

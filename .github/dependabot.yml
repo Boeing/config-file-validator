@@ -15,3 +15,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  # Only propose Docusaurus updates. Transitive npm deps (express, qs, etc.)
+  # are build tooling for a static site — not shipped in the Go binary.
+  # Security fixes for transitive deps arrive inside Docusaurus releases.
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-name: "@docusaurus/*"

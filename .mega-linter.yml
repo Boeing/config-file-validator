@@ -32,6 +32,11 @@ DISABLE_ERRORS_LINTERS:
   # secretlint flags fake postgres URLs in stress_format_test.go
   - REPOSITORY_SECRETLINT
 
+# The website/ directory is a Docusaurus static site — npm deps are build
+# tooling only, not shipped in the Go binary. Skip it in vulnerability scans.
+# osv-scanner excludes it via PackageOverrides in osv-scanner.toml.
+REPOSITORY_TRIVY_ARGUMENTS: "--skip-dirs website"
+
 FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
 JSON_JSONLINT_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
 YAML_YAMLLINT_FILTER_REGEX_EXCLUDE: "(test/|testdata/)"
