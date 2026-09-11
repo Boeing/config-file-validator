@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.10.1",
-    "@docusaurus/tsconfig": "3.10.1",
+    "@docusaurus/tsconfig": "3.10.2",
     "@docusaurus/types": "3.10.1",
     "@types/react": "^19.0.0",
     "patch-package": "^8.0.1",
