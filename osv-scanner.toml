@@ -57,12 +57,6 @@ id = "GO-2026-6218"
 reason = "Go stdlib — fixed in 1.26.6, MegaLinter container ships 1.26.3"
 ignoreUntil = "2026-12-01T00:00:00Z"
 
-[[IgnoredVulns]]
-id = "GHSA-5p2g-fcmc-qvqq"
-reason = "npm image-size — transitive dep of Docusaurus, no fix released"
-ignoreUntil = "2026-12-01T00:00:00Z"
-
-[[IgnoredVulns]]
-id = "GHSA-w3rx-r6r6-pgpr"
-reason = "npm image-size — transitive dep of Docusaurus, no fix released"
-ignoreUntil = "2026-12-01T00:00:00Z"
+# The website/ directory is a Docusaurus static site generator — npm deps are
+# build tooling only, not shipped in the Go binary. osv-scanner skips website/
+# via REPOSITORY_OSV_SCANNER_ARGUMENTS in .mega-linter.yml.
