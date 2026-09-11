@@ -21,11 +21,11 @@ import (
 	"strings"
 	"time"
 
-	goyaml "gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v3"
 )
 
 const (
-	linguistSHA = "af6f772786199696e4d07d618c9c5b625a1a03f0" // DevSkim: ignore DS173237 - this is a commit SHA, not a secret
+	linguistSHA = "5fb5096b95ab9893c5925d87121e5faaae9f3966" // DevSkim: ignore DS173237 - this is a commit SHA, not a secret
 	linguistURL = "https://raw.githubusercontent.com/github-linguist/linguist/" + linguistSHA + "/lib/linguist/languages.yml"
 	outputFile  = "known_files_gen.go"
 )
@@ -76,7 +76,7 @@ func run() error {
 	}
 
 	var languages map[string]linguistLanguage
-	if err := goyaml.Unmarshal(data, &languages); err != nil {
+	if err := yaml.Unmarshal(data, &languages); err != nil {
 		return fmt.Errorf("parsing languages.yml: %w", err)
 	}
 
