@@ -28,8 +28,8 @@ Most CLI flags can be set via environment variables prefixed with `CFV_`. CLI fl
 When the same option is set in multiple places:
 
 1. CLI flags (highest)
-2. `.cfv.toml` configuration file
-3. Environment variables
+2. Environment variables
+3. `.cfv.toml` configuration file
 4. Built-in defaults (lowest)
 
 `CFV_IGNORE_FILES` accepts a comma-separated list, for example `.dockerignore,.prettierignore`.

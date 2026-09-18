@@ -6,15 +6,15 @@ This file provides context for AI coding agents (Claude Code, Codex, Kiro, etc.)
 
 Config File Validator is a Go CLI tool that recursively scans directories for configuration files, detects their format by extension or known filename, and validates syntax and schema. It supports 18 file formats and outputs results in multiple report formats.
 
-- Module path: `github.com/Boeing/config-file-validator/v2`
+- Module path: `github.com/Boeing/config-file-validator/v3`
 - Go version: 1.26
-- Binary: `cmd/validator/validator.go`
+- Binary: `cmd/cfv/cfv.go`
 - License: Apache 2.0
 
 ## Architecture
 
 ```
-cmd/validator/       CLI entrypoint, flag parsing, orchestration
+cmd/cfv/              CLI entrypoint, flag parsing, orchestration
 pkg/validator/       Validator implementations (one file per format)
 pkg/filetype/        FileType registry, extension/known-file mapping
 pkg/finder/          Filesystem walker, gitignore support, filtering
@@ -52,7 +52,7 @@ go vet ./...
 test -z "$(gofmt -s -l -e .)"
 golangci-lint run ./...
 go generate ./pkg/filetype/...
-go build -o /dev/null cmd/validator/validator.go
+go build -o /dev/null ./cmd/cfv/
 go test -cover -coverprofile coverage.out ./...
 go tool cover -func coverage.out | grep total
 ```
@@ -74,7 +74,7 @@ Save the full pipeline for the final check before pushing.
 ```
 go test -v -run TestFoo ./pkg/validator/...                          # Run one test
 go test -count=1 ./pkg/validator/...                                 # Skip test cache
-go build -o ./validator cmd/validator/validator.go && ./validator .   # Build and run locally
+go build -o ./cfv ./cmd/cfv/ && ./cfv check .   # Build and run locally
 go test -bench=. -benchmem ./pkg/finder/...                          # Benchmark finder
 ```
 
@@ -136,7 +136,7 @@ func (r *FooReporter) Print(reports []Report) error {
 }
 ```
 
-2. Wire it into the CLI in `cmd/validator/validator.go`:
+2. Wire it into the CLI in `cmd/cfv/cfv.go`:
    - Add the format name to the `getReporter` switch/map.
    - Update the usage text with the new format name.
 
@@ -201,7 +201,7 @@ The project uses a strict golangci-lint config (`.golangci.yaml`). Common issues
 - Table-driven tests with descriptive names.
 - `internal/testhelper` provides `CreateFixtureDir`, `CreateFixtureFile`, and `WriteFile`.
 - Fuzz tests for validators that handle untrusted input (see `FuzzJsonValidator`, etc.).
-- The `cmd/validator` package uses `txtar`-based testscript tests (`testscript_test.go`). Add new CLI integration tests as `.txtar` files in `cmd/validator/testdata/`. See `basic.txtar` for the pattern.
+- The `cmd/cfv` package uses `txtar`-based testscript tests (`testscript_test.go`). Add new CLI integration tests as `.txtar` files in `cmd/cfv/testdata/`. See `basic.txtar` for the pattern.
 
 ## Decisions and constraints
 

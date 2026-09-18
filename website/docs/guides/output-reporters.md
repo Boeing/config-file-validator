@@ -90,21 +90,26 @@ groupby = ["filetype", "pass-fail"]
 
 ### JSON
 
-The JSON reporter produces an array of result objects:
+The JSON reporter produces an object with a `files` array and a `summary`:
 
 ```json
-[
-  {
-    "file": "/path/to/config.yaml",
-    "status": "pass",
-    "message": ""
-  },
-  {
-    "file": "/path/to/broken.json",
-    "status": "fail",
-    "message": "unexpected EOF"
+{
+  "files": [
+    {
+      "path": "/path/to/config.yaml",
+      "status": "passed"
+    },
+    {
+      "path": "/path/to/broken.json",
+      "status": "failed",
+      "errors": ["unexpected EOF"]
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 1
   }
-]
+}
 ```
 
 ### SARIF

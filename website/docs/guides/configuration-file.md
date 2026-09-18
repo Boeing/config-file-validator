@@ -26,8 +26,8 @@ cfv check --no-config .
 Most CLI flags can also be set through [environment variables](../reference/environment-variables.md) prefixed with `CFV_`. When multiple sources set the same option, `cfv check` resolves them in this order (highest priority first):
 
 1. CLI flags
-2. `.cfv.toml` configuration file
-3. Environment variables (`CFV_*`)
+2. Environment variables (`CFV_*`)
+3. `.cfv.toml` configuration file
 4. Built-in defaults
 
 ## Example
@@ -81,6 +81,19 @@ forbid-duplicate-keys = true
 | `schema-map`         | table            | —              | Map glob patterns to schema files                                   |
 | `type-map`           | table            | —              | Map glob patterns to file types                                     |
 | `validators`         | table            | —              | Per-validator options (see below)                                   |
+| `format`             | table            | —              | Formatting configuration (see [Formatting](./formatting.md))        |
+| `format.indent`      | integer          | format-specific | Spaces per indent level (2 for JSON/JSONC/YAML/XML, 0 for others)  |
+| `format.use-tabs`    | boolean          | `false`        | Use tabs instead of spaces                                          |
+| `format.sort-keys`   | boolean          | `false`        | Sort mapping keys alphabetically                                    |
+| `format.trailing-newline` | boolean     | `true`         | Ensure file ends with a single newline                              |
+| `format.line-ending` | string           | `lf`           | Line ending: `lf` or `crlf`                                        |
+| `format.max-line-width` | integer       | format-specific | Target max line width. 0 = unlimited                               |
+| `format.quote-style` | string           | `double`       | Quote style: `double`, `single`, `preserve` (YAML)                 |
+| `format.trailing-commas` | string       | `all`          | Trailing commas: `all`, `none`, `preserve` (JSONC)                 |
+| `format.indent-sequences` | boolean     | `true`         | Indent YAML sequences an extra level                                |
+| `editorconfig`       | boolean          | `true`         | Enable `.editorconfig` integration                                  |
+
+Per-format overrides (`[format.json]`, `[format.yaml]`, etc.) accept the same keys as the global `[format]` table. Format-specific values take precedence over global ones.
 
 ## Schema and type maps
 
@@ -149,5 +162,5 @@ The `.cfv.toml` file is validated against a built-in schema on load. Typos in ke
 
 ```
 $ cfv check .
-Error: .cfv.toml: unknown key "exlude-dirs" (did you mean "exclude-dirs"?)
+cfv: loading config file: config file .cfv.toml: schema validation failed: additional properties 'exlude-dirs' not allowed
 ```

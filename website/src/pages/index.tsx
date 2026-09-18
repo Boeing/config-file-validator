@@ -2,6 +2,7 @@ import React from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import styles from './index.module.css';
+import { SUPPORTED_FORMATS, formatList } from '../data/supportedFormats';
 
 function Hero() {
   return (
@@ -42,9 +43,8 @@ function Hero() {
 
 const features = [
   {
-    title: '16 File Formats',
-    description:
-      'JSON, YAML, TOML, XML, HCL, INI, HOCON, ENV, CSV, Properties, EDITORCONFIG, Justfile, PList, SARIF, JSONC, and TOON.',
+    title: `${SUPPORTED_FORMATS.length} File Formats`,
+    description: formatList(SUPPORTED_FORMATS),
   },
   {
     title: 'Syntax + Schema Validation',
@@ -92,7 +92,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Config File Validator"
-      description="Validates config files across 16 formats"
+      description={`Validates config files across ${SUPPORTED_FORMATS.length} formats`}
     >
       <Hero />
       <main>

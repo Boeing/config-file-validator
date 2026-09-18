@@ -64,12 +64,12 @@ Checks formatting of config files. With `--fix`, rewrites files in place. With `
 |-----------------------|--------|---------|---------------------------------------------------------------|
 | `-fix`                | bool   | `false` | Rewrite files in place. Mutually exclusive with `-diff`.      |
 | `-diff`               | bool   | `false` | Print unified diff of formatting changes. Mutually exclusive with `-fix`. |
-| `-indent`             | int    | `2`     | Override indent width (number of spaces per level).           |
+| `-indent`             | int    | `0`     | Override indent width. `0` uses format default (2 for JSON/JSONC/YAML/XML). |
 | `-use-tabs`           | bool   | `false` | Use tabs for indentation.                                    |
 | `-sort-keys`          | bool   | `false` | Sort mapping keys alphabetically.                            |
 | `-no-sort-keys`       | bool   | `false` | Disable key sorting (overrides config file setting).         |
 | `-line-ending`        | string | —       | Line ending style: `lf` or `crlf`.                           |
-| `-max-line-width`     | int    | `0`     | Max line width hint. `0` uses format default (80 for JSON/YAML/TOML). |
+| `-max-line-width`     | int    | `0`     | Max line width hint. `0` uses format default (80 for JSON/JSONC/YAML). |
 | `-quote-style`        | string | —       | Quote style: `double`, `single`, or `preserve` (YAML only).  |
 | `-no-config`          | bool   | `false` | Disable all config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`). |
 | `-no-editorconfig`    | bool   | `false` | Ignore `.editorconfig` files when resolving format options.   |
@@ -85,6 +85,9 @@ These flags work the same as in `check`.
 | `-exclude-file-types` | string | —          | Comma-separated list of file types to ignore. Cannot be used with `-file-types`.                                   |
 | `-file-types`         | string | all        | Comma-separated list of file types to format. Cannot be used with `-exclude-file-types`.                           |
 | `-gitignore`          | bool   | `false`    | Skip files matched by `.gitignore` patterns.                                                                       |
+| `--ignore-file`       | string | —          | Apply gitignore-style patterns from a file relative to each search path. Repeatable.                               |
+| `-globbing`           | bool   | `false`    | Treat positional arguments as glob patterns.                                                                       |
+| `-groupby`            | string | —          | Group output by: `filetype`, `directory`, `pass-fail`. Comma-separated.                                            |
 | `-reporter`           | string | `standard` | Output format and optional path. Format: `<type>:<path>`. Types: `standard`, `json`, `junit`, `sarif`, `github`. Repeatable. |
 | `-quiet`              | bool   | `false`    | Suppress stdout output when writing to file.                                                                       |
 | `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |

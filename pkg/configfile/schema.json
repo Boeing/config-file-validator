@@ -165,7 +165,7 @@
         },
         "sort-keys": {
           "type": "boolean",
-          "description": "Sort object/mapping keys alphabetically. Default: format-specific (true for JSON, false for YAML)."
+          "description": "Sort object/mapping keys alphabetically. Default: false."
         },
         "trailing-newline": {
           "type": "boolean",
@@ -183,7 +183,7 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 320,
-          "description": "Target maximum line width. 0 = unlimited. Default: 0."
+          "description": "Target maximum line width. 0 = unlimited. Default: format-specific (80 for JSON/JSONC/YAML, 0 for others)."
         },
         "quote-style": {
           "type": "string",
@@ -192,7 +192,7 @@
             "single",
             "preserve"
           ],
-          "description": "Scalar quoting style. Only affects YAML. Default: preserve."
+          "description": "Scalar quoting style. Only affects YAML. Default: double."
         },
         "trailing-commas": {
           "type": "string",

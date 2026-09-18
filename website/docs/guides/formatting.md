@@ -26,6 +26,8 @@ Formatting is available for 9 formats: JSON, JSONC, YAML, TOML, HCL, XML, INI, P
 
 All other formats supported by cfv (HOCON, CSV, KDL, etc.) are validation-only.
 
+HCL uses its canonical style (the `terraform fmt` convention). Format options like `--indent` and `--sort-keys` are ignored for HCL files.
+
 ## What gets normalized
 
 - **Indentation** — consistent indent width across the file
@@ -137,6 +139,8 @@ Options: `"all"` (default), `"none"`, or `"preserve"` (keep whatever style the f
 
 These flags override all config file settings for a single invocation:
 
+These flags are available on `cfv format` only. `cfv check` reads format settings from `.cfv.toml` or tool configs.
+
 | Flag | Effect |
 |------|--------|
 | `--indent <n>` | Set indent width |
@@ -148,6 +152,7 @@ These flags override all config file settings for a single invocation:
 | `--quote-style <double\|single\|preserve>` | Set quote style (YAML) |
 | `--no-config` | Ignore all config files |
 | `--no-editorconfig` | Ignore `.editorconfig` only |
+| `--diff` | Show unified diff of formatting changes (mutually exclusive with `--fix`) |
 
 Example: check formatting with 4-space indent regardless of config:
 
