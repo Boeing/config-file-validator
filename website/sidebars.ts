@@ -17,6 +17,8 @@ const sidebars: SidebarsConfig = {
       label: 'Guides',
       items: [
         'guides/schema-validation',
+        'guides/formatting',
+        'guides/existing-tools',
         'guides/configuration-file',
         'guides/glob-patterns',
         'guides/file-type-detection',
@@ -49,6 +51,7 @@ const sidebars: SidebarsConfig = {
         'reference/supported-file-types',
         'reference/exit-codes',
         'reference/known-files',
+        'reference/formatting-differences',
       ],
     },
     {

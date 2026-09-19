@@ -2,7 +2,7 @@ import React from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import styles from './index.module.css';
-import { SUPPORTED_FORMATS, formatList } from '../data/supportedFormats';
+import { SUPPORTED_FORMATS, SCHEMA_FORMATS, FORMAT_FORMATS, formatList } from '../data/supportedFormats';
 
 function Hero() {
   return (
@@ -43,33 +43,34 @@ function Hero() {
 
 const features = [
   {
-    title: `${SUPPORTED_FORMATS.length} File Formats`,
-    description: formatList(SUPPORTED_FORMATS),
+    title: `${SUPPORTED_FORMATS.length} Formats, One Command`,
+    description:
+      'cfv check . validates syntax, enforces schemas, and checks formatting in a single pass. cfv check --fix fixes everything.',
   },
   {
-    title: 'Syntax + Schema Validation',
+    title: 'Schema Enforcement',
     description:
-      'Validates structure with JSON Schema and XSD. Automatic SchemaStore integration for hundreds of common config files.',
+      `Validates ${SCHEMA_FORMATS.length} formats against JSON Schema and XSD. Automatic SchemaStore lookup — no URLs to configure.`,
   },
   {
-    title: 'Single Binary, Zero Dependencies',
+    title: `Formats ${FORMAT_FORMATS.length} Config Languages`,
     description:
-      'No runtimes, no package managers. One executable that runs on macOS, Linux, and Windows.',
+      "JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, and ENV. Reads your .prettierrc, taplo.toml, .yamlfmt, and .editorconfig for a drop-in migration.",
   },
   {
-    title: 'CI/CD Ready',
+    title: 'Single Binary, No Runtime',
     description:
-      'JSON, JUnit, and SARIF output. GitHub Actions integration with PR annotations. Pre-commit hook support.',
+      'Static Go executable. No Node, no Python, no package manager. Runs on macOS, Linux, and Windows.',
   },
   {
-    title: 'Configurable',
+    title: 'Built for CI',
     description:
-      'Project-level .cfv.toml config files, glob patterns, schema mappings, type overrides, and environment variables.',
+      'JUnit, SARIF, and JSON reporters. GitHub Actions annotations on PRs. Exits non-zero on any failure.',
   },
   {
-    title: 'Go Library',
+    title: 'Fits Your Workflow',
     description:
-      'Embed validation in your own tools. The full CLI is available as a Go package.',
+      'Respects .gitignore. Configurable via .cfv.toml. Available as a pre-commit hook, GitHub Action, or Go library.',
   },
 ];
 

@@ -12,6 +12,11 @@ export const SYNTAX_FORMATS = [
 // Master list of all supported configuration file formats
 export const SUPPORTED_FORMATS = [...SCHEMA_FORMATS, ...SYNTAX_FORMATS];
 
+// Formats that support formatting
+export const FORMAT_FORMATS = [
+  'JSON', 'JSONC', 'YAML', 'TOML', 'HCL', 'XML', 'INI', 'Properties', 'ENV'
+];
+
 // Formats an array of strings into a readable comma-separated list (e.g., "A, B, and C").
 export function formatList(items: string[]): string {
   if (items.length === 0) return '';

@@ -14,10 +14,22 @@ cfv check --fix .
 
 The `cfv format` subcommand is also available for format-only workflows:
 
+Report files that need formatting:
+
 ```shell
-cfv format .          # Report files that need formatting (exit 1 if any)
-cfv format --fix .    # Rewrite files in-place
-cfv format --diff .   # Show what would change as a unified diff
+cfv format .
+```
+
+Rewrite files in place:
+
+```shell
+cfv format --fix .
+```
+
+Show what would change as a unified diff:
+
+```shell
+cfv format --diff .
 ```
 
 ## Supported formats
@@ -50,30 +62,7 @@ Running `cfv format --fix` twice produces the same output. If a file is already 
 
 cfv resolves format settings differently depending on whether your project has a `.cfv.toml`.
 
-### Projects with `.cfv.toml`
-
-If `.cfv.toml` exists, it is the sole source of formatting configuration. External tool configs (`.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`) are not read.
-
-```toml
-[format]
-indent = 2
-sort-keys = false
-
-[format.yaml]
-indent = 2
-
-[format.toml]
-indent = 2
-sort-keys = true
-```
-
-Global `[format]` settings apply to all formats. Per-format sections override them. CLI flags override both.
-
-This means: once you adopt `.cfv.toml`, all formatting behavior is defined in one place. No interaction with other config files.
-
-See [Configuration Keys](../reference/configuration-keys.md) for all available format options.
-
-### Projects without `.cfv.toml`
+### Default behavior
 
 Without a `.cfv.toml`, cfv reads your existing tool configs so that formatting matches what those tools already produce. Each format has one owner:
 
@@ -94,6 +83,31 @@ Without a `.cfv.toml`, cfv reads your existing tool configs so that formatting m
 For YAML: if `.yamlfmt` is found, it owns YAML formatting. If not, cfv falls back to `.prettierrc`. The two are never combined.
 
 See [Using cfv with Existing Tools](./existing-tools.md) for details on what cfv reads from each config format.
+
+### Projects with `.cfv.toml`
+
+If `.cfv.toml` exists, it is the sole source of formatting configuration. External tool configs (`.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`) are not read.
+
+```toml
+[format]
+indent = 2
+sort-keys = false
+
+[format.yaml]
+indent = 2
+
+[format.toml]
+indent = 2
+sort-keys = true
+```
+
+Global `[format]` settings apply to all formats. Per-format sections override them. CLI flags override both.
+
+Once you adopt `.cfv.toml`, all formatting behavior is defined in one place. No interaction with other config files.
+
+`.editorconfig` is not read when `.cfv.toml` exists. If your `.editorconfig` sets `indent_size` or `end_of_line`, add the equivalent settings to your `[format]` table. `.editorconfig` as a base layer under `.cfv.toml` is planned for v3.1.
+
+See [Configuration Keys](../reference/configuration-keys.md) for all available format options.
 
 ### Disabling config discovery
 
