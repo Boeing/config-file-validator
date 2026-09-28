@@ -24,5 +24,6 @@ megalinter-reports/
 .kiro/
 PLAN.md
 PLAN-*.md
+ROADMAP.md
 docs/design/
 .cfv-realworld/
