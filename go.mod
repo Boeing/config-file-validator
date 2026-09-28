@@ -3,7 +3,7 @@ module github.com/Boeing/config-file-validator/v2
 go 1.26.3
 
 require (
-	github.com/bmatcuk/doublestar/v4 v4.10.0
+	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.5
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-billy/v5 v5.9.1
