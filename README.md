@@ -14,9 +14,15 @@
   <a href="https://github.com/boeing/config-file-validator/actions/workflows/go.yml"><img src="https://github.com/boeing/config-file-validator/actions/workflows/go.yml/badge.svg" alt="Pipeline Status"></a>
 </p>
 
+cfv is a toolchain for configuration files. It catches syntax errors, schema violations, and formatting problems across your repo and fixes what it can. Single static binary. No runtime dependencies.
+
 <p align="center">
   <img src="./img/demo.svg" width="780" alt="cfv validating config files"/>
 </p>
+
+## Documentation
+
+[boeing.github.io/config-file-validator](https://boeing.github.io/config-file-validator): [Quick Start](https://boeing.github.io/config-file-validator/docs/quick-start) · [CLI Reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags) · [Configuration](https://boeing.github.io/config-file-validator/docs/guides/configuration-file) · [Formatting](https://boeing.github.io/config-file-validator/docs/guides/formatting) · [Schema Validation](https://boeing.github.io/config-file-validator/docs/guides/schema-validation) · [Go Library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
 
 ## Install
 
@@ -93,10 +99,6 @@ cfv check --reporter=junit:results.xml --schemastore .
 Reporters: `standard`, `json`, `junit`, `sarif`, `github`. The `github` reporter emits workflow commands so errors appear as inline PR annotations.
 
 A [GitHub Action](https://github.com/Boeing/validate-configs-action) and [pre-commit hook](https://boeing.github.io/config-file-validator/docs/integrations/pre-commit) are also available.
-
-## Documentation
-
-[boeing.github.io/config-file-validator](https://boeing.github.io/config-file-validator): [CLI Reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags) · [Configuration](https://boeing.github.io/config-file-validator/docs/guides/configuration-file) · [Formatting](https://boeing.github.io/config-file-validator/docs/guides/formatting) · [Go Library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
 
 ## Contributors
 

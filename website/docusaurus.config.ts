@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Config File Validator',
-  tagline: 'One tool to validate every config file in your repo',
+  tagline: 'A toolchain for configuration files',
   favicon: 'img/favicon.ico',
 
   future: {
@@ -119,7 +119,7 @@ const config: Config = {
             },
             {
               label: 'Go Package',
-              href: 'https://pkg.go.dev/github.com/Boeing/config-file-validator/v2',
+              href: 'https://pkg.go.dev/github.com/Boeing/config-file-validator/v3',
             },
           ],
         },

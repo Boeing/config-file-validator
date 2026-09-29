@@ -5,7 +5,7 @@ slug: /introduction
 
 # Introduction
 
-cfv validates syntax, enforces schemas, and checks formatting of configuration files across 18 formats. One static binary replaces the collection of per-format tools you maintain today.
+cfv is a toolchain for configuration files. It catches syntax errors, schema violations, and formatting problems across your repo and fixes what it can. Single static binary. No runtime dependencies.
 
 ```shell
 cfv check .
@@ -59,7 +59,7 @@ cfv covers what previously required separate tools:
 - **jsonlint** — JSON validation
 - **v8r** — schema validation via SchemaStore
 
-All in one binary, zero runtime dependencies. For projects that already use prettier, taplo, or yamlfmt, cfv reads those config files so formatting output matches. See [Using cfv with Existing Tools](./guides/existing-tools.md).
+For projects that already use prettier, taplo, or yamlfmt, cfv reads those config files so formatting output matches. See [Using cfv with Existing Tools](./guides/existing-tools.md).
 
 ## When to use it
 

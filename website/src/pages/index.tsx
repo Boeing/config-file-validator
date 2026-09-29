@@ -2,7 +2,6 @@ import React from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import styles from './index.module.css';
-import { SUPPORTED_FORMATS, SCHEMA_FORMATS, FORMAT_FORMATS, formatList } from '../data/supportedFormats';
 
 function Hero() {
   return (
@@ -15,7 +14,7 @@ function Hero() {
         />
         <h1 className={styles['hero-title']}>Config File Validator</h1>
         <p className={styles['hero-subtitle']}>
-          One tool to validate every config file in your repo
+          A toolchain for configuration files
         </p>
         <div className={styles['hero-actions']}>
           <Link className={styles['primary-button']} to="/docs/introduction">
@@ -43,19 +42,19 @@ function Hero() {
 
 const features = [
   {
-    title: `${SUPPORTED_FORMATS.length} Formats, One Command`,
+    title: 'Validate',
     description:
-      'cfv check . validates syntax, enforces schemas, and checks formatting in a single pass. cfv check --fix fixes everything.',
+      'Catches syntax errors across JSON, YAML, TOML, XML, HCL, and 13 more formats. One command, one pass.',
   },
   {
-    title: 'Schema Enforcement',
+    title: 'Enforce Schemas',
     description:
-      `Validates ${SCHEMA_FORMATS.length} formats against JSON Schema and XSD. Automatic SchemaStore lookup — no URLs to configure.`,
+      'Validates against JSON Schema and XSD. Automatic SchemaStore lookup finds the right schema by filename.',
   },
   {
-    title: `Formats ${FORMAT_FORMATS.length} Config Languages`,
+    title: 'Format and Fix',
     description:
-      "JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, and ENV. Reads your .prettierrc, taplo.toml, .yamlfmt, and .editorconfig for a drop-in migration.",
+      'Checks and fixes formatting for JSON, YAML, TOML, XML, HCL, INI, Properties, and ENV. Reads your existing .prettierrc, taplo.toml, and .yamlfmt configs.',
   },
   {
     title: 'Single Binary, No Runtime',
@@ -93,7 +92,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Config File Validator"
-      description={`Validates config files across ${SUPPORTED_FORMATS.length} formats`}
+      description="A toolchain for configuration files. Validates syntax, enforces schemas, and checks formatting."
     >
       <Hero />
       <main>
