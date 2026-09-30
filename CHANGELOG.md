@@ -7,107 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-30
+
 ### Added
 
-- `cfv check` now detects formatting issues alongside syntax and schema errors in a single pass. Files that are valid but not canonically formatted are reported as unformatted (`~`) and cause exit code 1.
-- `cfv check --fix` now fixes formatting in addition to trailing commas and schema coercion — one command to fix everything.
-- Two-tier config resolution for `cfv check` format checking: `.cfv.toml` (Tier 1, sole authority) or per-format tool config auto-detection (Tier 2: `.prettierrc` for JSON/JSONC, `.yamlfmt` for YAML, `taplo.toml` for TOML, `.editorconfig` as base layer).
-- Format-ignore file support in Tier 2: cfv reads `.prettierignore` (JSON/JSONC/YAML), taplo `exclude` array (TOML), and `.yamlfmtignore` + yamlfmt `exclude` (YAML). Matched files are skipped from format checking but still syntax-validated.
-- `cfv format` subcommand with `--fix` (rewrite in place) and `--diff` (print unified diff) modes
-- `--watch` flag for `cfv check`: watches search paths for file changes and re-runs validation on each changed file (closes #510).
-- Formatting support for 9 formats: JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, ENV
-- AST-driven YAML formatter: indent normalization, inline mapping/sequence spacing, flow collection normalization, and alphabetical key sorting
-- CST-based formatters for TOML, Properties, and INI using custom tokenizers that preserve comments and structure
-- JSONC formatting via hujson CST (preserves comments while normalizing whitespace and trailing commas)
-- `--indent` flag to override indent width on `cfv format`
-- `--sort-keys` flag to sort mapping keys alphabetically on `cfv format`
-- `--diff` flag for previewing formatting changes without modifying files
-- Per-format configuration in `.cfv.toml` via `[format.<type>]` tables (yaml, json, jsonc, toml, hcl, xml, ini, properties, env)
-- Format configuration cascade: CLI flags > per-format config > global `[format]` config > `taplo.toml` / `.prettierrc` > `.editorconfig` > defaults
-- `trailing-commas` format option (`all` | `none` | `preserve`) to control trailing commas on expanded JSONC collections
-- `.editorconfig` auto-detection for `cfv format`: `indent_style`, `indent_size`, `end_of_line`, and `insert_final_newline` are resolved per file (globs, parent directories, and `root = true` are all respected). Disable with `--no-editorconfig` (closes #562)
-- `taplo.toml` / `.taplo.toml` auto-detection for TOML formatting: `indent_string`, `column_width`, `trailing_newline`, `reorder_keys`, `crlf`, and `array_trailing_comma` are mapped onto the equivalent cfv options. Disable with `--no-taplo-config` (closes #564)
-- `.prettierrc` auto-detection for `cfv format`: `tabWidth`, `useTabs`, `printWidth`, `endOfLine`, `trailingComma`, and `singleQuote` are read from `.prettierrc`, `.prettierrc.json`, `.prettierrc.yaml`/`.yml`, or `.prettierrc.toml` (closest directory wins; JS-based configs are skipped, not an error). Slots into the cascade between `.editorconfig` and `.cfv.toml`. Disable with `--no-prettier-config` (closes #563)
-- `.yamlfmt` / `.yamlfmt.yaml` auto-detection for YAML formatting: `formatter.indent`, `formatter.line_ending`, and `formatter.max_line_length` are mapped onto the equivalent cfv options. Disable with `--no-yamlfmt-config` (closes #565)
-- `max-line-width` and `trailing-commas` are now honored by the TOML formatter
-- `indent-sequences` YAML format option. Sequence items under mapping keys are indented by default; set it to `false` to restore the compact style (closes #582).
-- Schema validation support for JSONC files via `$schema`, `--schema-map`, and SchemaStore
-- Schema validation support for Properties files via `--schema-map` in `.cfv.toml`
-- **cfv 3.0 Phase 1**: Renamed binary from `validator` to `cfv`. This is a breaking change — no compatibility shim ships. Update scripts: `validator .` → `cfv check .`
-- `cfv check` subcommand — identical behavior to the v2 `validator` binary
-- `cfv version` subcommand
-- `cfv help [subcommand]` subcommand
-- Running `cfv .` without a subcommand dispatches to `check` (backward-compatible invocation style)
-- CUE syntax validation (`.cue`) via [cuelang.org/go](https://cuelang.org/go) parser (closes #462)
-- KDL Document Language syntax validation (`.kdl`) via [sblinch/kdl-go](https://github.com/sblinch/kdl-go) (closes #463)
-- Documentation website at https://boeing.github.io/config-file-validator
-- `--reporter=github` option that emits validation errors as GitHub Actions workflow commands so they appear as inline PR annotations, without requiring the separate `validate-configs-action` wrapper (closes #459)
-- `--merge-sarif` and `--merge-sarif-dir` options for appending external SARIF runs to the validator's SARIF report (closes #460)
-- `--ignore-file` option for applying gitignore-style patterns from files like `.dockerignore` or `.prettierignore` during file discovery (closes #457)
-- Justfile syntax validation (`.just`, `justfile`, `Justfile`, `.justfile`) via embedded justfile parser (`pkg/validator/justfile`)
-- Automatic file type detection from GitHub Linguist's `languages.yml` via `go generate`
-- ~90 known filenames auto-detected (`.babelrc`, `tsconfig.json`, `Pipfile`, `pom.xml`, `.gitconfig`, etc.)
-- SchemaStore now resolves schemas for extensionless known files (`.babelrc`, `.clangd`, etc.)
-- JSON and JSONC treated as a family for `--file-types` and `--exclude-file-types`
-- `go generate` step in CI pipeline to keep Linguist data fresh
-- CI lint check to ensure generated files are committed up to date
-- Automated Linguist SHA updates via scheduled GitHub Actions workflow (`linguist.yml`) that checks SHA weekly
-
-### Fixed
-
-- JSON and JSONC formatting now expands arrays whose elements are all arrays (or all objects) with more than one child each, matching prettier's `shouldBreak` rule regardless of line width (closes #630).
-- YAML formatting preserves nested sequence depth when an outer sequence indicator has no inline value.
-- YAML quote normalization now applies to multi-line quoted scalars, matching prettier behavior (closes #580).
-- YAML quote normalization now applies to mapping keys in addition to values, so single-quoted keys without embedded double-quotes are converted to double-quotes by default (closes #632).
-- YAML formatting now strips blank lines after document markers (`---`/`...`), strips blank lines between a mapping key and its child block, and preserves blank lines between sibling entries at the same indentation level (closes #634).
-- YAML formatter now accepts documents with non-string mapping keys (integer, boolean, etc.) instead of rejecting them with a type error (closes #585).
-- YAML formatter now preserves tag syntax in flow sequences, including required whitespace before closing brackets and commas inside verbatim tags.
-- YAML formatting preserves column-zero document-marker prefixes in plain scalar continuations, preventing a second formatting pass from rejecting the first pass's output.
-- YAML formatter now normalizes horizontal whitespace after commas in flow sequences and mappings (closes #635).
-- YAML formatting now normalizes extra spaces after sequence indicators so mapping keys remain aligned with their siblings (closes #622).
-- YAML formatter now moves a long flow collection below its mapping key before expanding its elements, keeping the collection inline when it fits at the deeper value indentation (closes #623).
-- YAML formatter no longer produces unparseable output when a long flow collection is expanded inside a block sequence item. The sequence indicator was not counted towards the key's column, so `- key: [...]` put the bracket at the key's own column, where it is no longer that key's value — `cfv format --fix` rewrote valid documents into invalid ones while reporting success. Affects both `[` and `{`; the corrected layout matches Prettier byte for byte.
-- XML formatter no longer collapses multi-line text content into a single line. Elements containing text (like `<description>` with paragraphs) now preserve newlines and get correctly reindented. Previously, `removeInsignificantWhitespace` stripped all newlines unconditionally, causing sentences to concatenate without separators — data corruption.
-- XML formatter preserve mode (`xml-whitespace-sensitivity = "preserve"`) now indents close tags at the correct depth (matching the open tag) instead of one level too deep.
-- JSONC validator no longer mutates the input byte slice during schema validation. `ValidateSchema` and `MarshalToJSON` now clone the input before calling `hujson.Standardize`, which modifies data in-place.
-- JSONC `trailing-commas = "none"` formatting now removes trailing commas next to final-value comments while preserving the comments.
-- JSON and JSONC formatting removes blank lines before closing braces and brackets while preserving blank lines between members (closes #581).
-- JSON and JSONC formatting now preserves a single blank line between object properties and array elements while removing blank lines before closing delimiters (closes #588).
-- YAML formatting now adds space padding inside non-empty flow mappings while preserving colon and comma spacing (closes #585).
-- YAML formatting now normalizes quoted scalars to double quotes by default, with conflict and escape safeguards; `quote-style = "preserve"` retains the previous behavior (closes #580).
-- JSON/JSONC formatters normalize tab indentation to spaces by default (prettier-compatible); explicit `indent_style = tab` via `.editorconfig` or `.cfv.toml` still preserves tabs (closes #584)
-- TOML formatting now normalizes spacing inside inline tables and nested arrays that appear as array elements, so `[{name="x"}]` becomes `[{ name = "x" }]` (closes #587).
-- TOML formatting now inserts one blank line before each table and array-of-tables section while keeping leading section comments attached (closes #583).
-- TOML formatting now preserves intentionally aligned inline comment columns across consecutive entries while normalizing isolated comments (closes #586).
-- TOML formatting now leaves entries under table headers unindented by default while preserving explicit indentation overrides (closes #558).
-- XML files without a DOCTYPE declaration are validated as syntax-only again; `ValidateSyntax` now enables DTD validation only when a DOCTYPE is present, restoring compatibility after upgrading `helium` to v0.5.1's stricter "DTD required" semantics (closes #546)
-- Local JSON Schema paths are encoded as file URLs on Windows (closes #550)
-- JSONC `trailing-commas = "preserve"` mode retains the trailing-comma style already used by the file (closes #559).
-- JSONC formatting no longer adds trailing commas to files that do not already use them (closes #559).
-- JSON formatter now keeps short arrays and objects on one line when they fit within 80 columns instead of always expanding them (closes #557).
-- Global `--help` now exits after printing usage instead of running validation on the current directory.
-- Update Go and npm dependencies to resolve 22 known vulnerabilities (CVE-2026-25680, CVE-2026-48779, and others).
-- TOML files with duplicate keys are now rejected as invalid (closes #504).
-- Broken symlinks are reported as validation failures instead of aborting the run (closes #505)
-- External consumers of this module (e.g. `validate-configs-action`) can now resolve all dependencies without workarounds. The justfile parser was previously a separate nested module (`github.com/Boeing/go-just`) with a `replace` directive that didn't propagate to downstream `go.mod` files.
-- Repeating the same `--reporter` type with different output paths now writes each requested output.
-- `--schema-map` now warns instead of silently skipping files whose validators do not support external schema validation.
-- `--require-schema --schema-map` now fails when a mapped file's validator does not support external schema validation.
-- Unsupported-extension caching no longer mutates the user-provided `ExcludeFileTypes` map during file walks.
-- Multiple reporters targeting the same output file now fail during startup instead of silently overwriting a report.
-- KnownFiles now take priority over extension matching in the finder, so `tsconfig.json` resolves to JSONC (not JSON)
-- Extension exclusion cache no longer prevents known files from being found
-- Linguist known files that conflict with dedicated validators are automatically excluded (e.g. `.editorconfig` stays with EditorConfig, not INI)
-- `cfv format` no longer sorts JSON/JSONC object keys by default, matching the behavior of prettier, biome, and deno fmt. Original key order is now preserved unless `sort-keys = true` is set in `.cfv.toml` or `--sort-keys` is passed on the CLI.
+- Subcommands: `cfv check`, `cfv format`, `cfv version`, `cfv help`. Running `cfv .` without a subcommand dispatches to `check`.
+- Formatting for JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, and ENV. `cfv check` detects formatting issues alongside syntax and schema errors. `cfv check --fix` fixes everything. `cfv format --diff` previews changes.
+- Two-tier config resolution: `.cfv.toml` as sole authority (Tier 1), or auto-detection of `.prettierrc`, `taplo.toml`, `.yamlfmt`, and `.editorconfig` (Tier 2). Format-ignore files (`.prettierignore`, taplo `exclude`, `.yamlfmtignore`) respected in Tier 2.
+- `--watch` flag for `cfv check` — re-validates changed files on save.
+- CUE (`.cue`) and KDL (`.kdl`) syntax validation.
+- Justfile syntax validation via embedded parser.
+- `--reporter=github` for inline PR annotations. `--merge-sarif` / `--merge-sarif-dir` for combining SARIF reports.
+- `--ignore-file` for gitignore-style exclusion from arbitrary files (`.dockerignore`, `.prettierignore`, etc.).
+- ~90 known filenames auto-detected from GitHub Linguist (`tsconfig.json`, `.babelrc`, `Pipfile`, etc.).
+- Schema validation for JSONC and Properties via `--schema-map`.
+- Documentation website: https://boeing.github.io/config-file-validator
 
 ### Changed
 
-- **Breaking:** JSON, JSONC, TOML, and TOON no longer resolve schemas from `$schema` properties in documents. Use `--schema-map`, `--schemastore`, or `.cfv.toml [schema-map]` for schema validation of these formats. YAML (`# yaml-language-server` comment) and XML (`xsi:noNamespaceSchemaLocation`) inline declarations are unchanged.
-- **Breaking:** `--no-config` now disables ALL config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`), matching prettier's `--no-config` semantics. Previously it only disabled `.cfv.toml`.
-- **Breaking:** Removed `--no-prettier-config`, `--no-taplo-config`, and `--no-yamlfmt-config` flags. Use `--no-config` to disable all config, or `.cfv.toml` to take explicit control.
-- JSONC formatting now adds trailing commas to expanded objects and arrays by default, matching Prettier; collapsed collections and strict JSON remain unchanged (closes #589).
-- Refactored grouped standard and JSON output to support any number of `--groupby` levels.
-- Directory grouped output now uses slash-normalized directory keys without trailing separators; files in the current directory use an empty directory key.
+- **Breaking:** Binary renamed from `validator` to `cfv`. Update scripts: `validator .` → `cfv check .`.
+- **Breaking:** JSON, JSONC, TOML, and TOON no longer resolve schemas from `$schema` in documents. Use `--schema-map`, `--schemastore`, or `.cfv.toml [schema-map]`.
+- **Breaking:** `--no-config` disables all config file discovery. `--no-prettier-config`, `--no-taplo-config`, and `--no-yamlfmt-config` removed.
+- JSON Schema validation migrated from `gojsonschema` to `santhosh-tekuri/jsonschema/v6`.
+
+### Fixed
+
+- 25+ formatter bug fixes across JSON, JSONC, YAML, TOML, and XML covering blank line handling, quote normalization, flow collection spacing, array expansion, inline tables, comment preservation, and indentation.
+- XML DTD validation only runs when a DOCTYPE is present (closes #546).
+- Local schema paths encoded as file URLs on Windows (closes #550).
+- Broken symlinks reported as failures instead of aborting the run (closes #505).
+- Known filenames take priority over extension matching in the finder.
 
 ## [2.2.0] - 2026-04-27
 
