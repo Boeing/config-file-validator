@@ -22,7 +22,14 @@ cfv is a toolchain for configuration files. It catches syntax errors, schema vio
 
 ## Documentation
 
-[boeing.github.io/config-file-validator](https://boeing.github.io/config-file-validator): [Quick Start](https://boeing.github.io/config-file-validator/docs/quick-start) · [CLI Reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags) · [Configuration](https://boeing.github.io/config-file-validator/docs/guides/configuration-file) · [Formatting](https://boeing.github.io/config-file-validator/docs/guides/formatting) · [Schema Validation](https://boeing.github.io/config-file-validator/docs/guides/schema-validation) · [Go Library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
+[Read the docs →](https://boeing.github.io/config-file-validator)
+
+- [Quick Start](https://boeing.github.io/config-file-validator/docs/quick-start)
+- [CLI Reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags)
+- [Configuration](https://boeing.github.io/config-file-validator/docs/guides/configuration-file)
+- [Formatting](https://boeing.github.io/config-file-validator/docs/guides/formatting)
+- [Schema Validation](https://boeing.github.io/config-file-validator/docs/guides/schema-validation)
+- [Go Library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
 
 ## Install
 
