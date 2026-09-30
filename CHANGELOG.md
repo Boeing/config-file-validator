@@ -15,28 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formatting for JSON, JSONC, YAML, TOML, HCL, XML, INI, Properties, and ENV. `cfv check` detects formatting issues alongside syntax and schema errors. `cfv check --fix` fixes everything. `cfv format --diff` previews changes.
 - Two-tier config resolution: `.cfv.toml` as sole authority (Tier 1), or auto-detection of `.prettierrc`, `taplo.toml`, `.yamlfmt`, and `.editorconfig` (Tier 2). Format-ignore files (`.prettierignore`, taplo `exclude`, `.yamlfmtignore`) respected in Tier 2.
 - `--watch` flag for `cfv check` — re-validates changed files on save.
-- CUE (`.cue`) and KDL (`.kdl`) syntax validation.
-- Justfile syntax validation via embedded parser.
-- `--reporter=github` for inline PR annotations. `--merge-sarif` / `--merge-sarif-dir` for combining SARIF reports.
-- `--ignore-file` for gitignore-style exclusion from arbitrary files (`.dockerignore`, `.prettierignore`, etc.).
-- ~90 known filenames auto-detected from GitHub Linguist (`tsconfig.json`, `.babelrc`, `Pipfile`, etc.).
-- Schema validation for JSONC and Properties via `--schema-map`.
-- Documentation website: https://boeing.github.io/config-file-validator
+- CUE (`.cue`) syntax validation.
+- `--merge-sarif` / `--merge-sarif-dir` for combining external SARIF runs into the cfv report.
+- Schema validation for Properties via `--schema-map`.
 
 ### Changed
 
 - **Breaking:** Binary renamed from `validator` to `cfv`. Update scripts: `validator .` → `cfv check .`.
 - **Breaking:** JSON, JSONC, TOML, and TOON no longer resolve schemas from `$schema` in documents. Use `--schema-map`, `--schemastore`, or `.cfv.toml [schema-map]`.
-- **Breaking:** `--no-config` disables all config file discovery. `--no-prettier-config`, `--no-taplo-config`, and `--no-yamlfmt-config` removed.
 - JSON Schema validation migrated from `gojsonschema` to `santhosh-tekuri/jsonschema/v6`.
 
 ### Fixed
 
-- 25+ formatter bug fixes across JSON, JSONC, YAML, TOML, and XML covering blank line handling, quote normalization, flow collection spacing, array expansion, inline tables, comment preservation, and indentation.
 - XML DTD validation only runs when a DOCTYPE is present (closes #546).
 - Local schema paths encoded as file URLs on Windows (closes #550).
-- Broken symlinks reported as failures instead of aborting the run (closes #505).
-- Known filenames take priority over extension matching in the finder.
 
 ## [2.2.0] - 2026-04-27
 
