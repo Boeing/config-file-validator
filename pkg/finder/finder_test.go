@@ -476,6 +476,51 @@ func fileNames(files []FileMetadata) []string {
 	return names
 }
 
+func Test_fsFinderMatchFile(t *testing.T) {
+	dir := t.TempDir()
+	jsonFile := testhelper.WriteFile(t, dir, "good.json", testhelper.ValidContent["json"])
+	yamlFile := testhelper.WriteFile(t, dir, "good.yaml", testhelper.ValidContent["yaml"])
+
+	fsFinder := FileSystemFinderInit(
+		WithPathRoots(dir),
+		WithExcludeFileTypes([]string{"yaml", "yml"}),
+	)
+
+	files, err := fsFinder.MatchFile(jsonFile)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "good.json", files[0].Name)
+
+	files, err = fsFinder.MatchFile(yamlFile)
+	require.NoError(t, err)
+	require.Empty(t, files)
+}
+
+func Test_fsFinderMatchFileGitignore(t *testing.T) {
+	dir := initGitRepo(t)
+	keepFile := testhelper.WriteFile(t, dir, "keep.json", testhelper.ValidContent["json"])
+	dropFile := testhelper.WriteFile(t, dir, "drop.json", testhelper.ValidContent["json"])
+	sub := testhelper.CreateSubdir(t, dir, "sub")
+	nestedDrop := testhelper.WriteFile(t, sub, "local.json", testhelper.ValidContent["json"])
+	testhelper.WriteFile(t, dir, ".gitignore", "drop.json\n")
+	testhelper.WriteFile(t, sub, ".gitignore", "local.json\n")
+
+	fsFinder := FileSystemFinderInit(WithPathRoots(dir), WithGitignore(true))
+
+	files, err := fsFinder.MatchFile(keepFile)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+	require.Equal(t, "keep.json", files[0].Name)
+
+	files, err = fsFinder.MatchFile(dropFile)
+	require.NoError(t, err)
+	require.Empty(t, files)
+
+	files, err = fsFinder.MatchFile(nestedDrop)
+	require.NoError(t, err)
+	require.Empty(t, files)
+}
+
 func Test_fsFinderGitignore(t *testing.T) {
 	tests := []struct {
 		name     string

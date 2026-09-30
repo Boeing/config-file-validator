@@ -48,6 +48,7 @@ func Test_parseCheckFlags(t *testing.T) {
 		{"type-map", []string{"--type-map=**/inventory:ini", "."}, false},
 		{"multiple type-maps", []string{"--type-map=**/inventory:ini", "--type-map=**/configs/*:properties", "."}, false},
 		{"require-schema", []string{"--require-schema", "."}, false},
+		{"watch flag", []string{"--watch", "."}, false},
 		{"sarif merge file", []string{"--reporter=sarif", "--merge-sarif=external.sarif", "."}, false},
 		{"sarif merge dir", []string{"--reporter=sarif", "--merge-sarif-dir=reports", "."}, false},
 		{"ignore-file", []string{"--ignore-file=.dockerignore", "."}, false},
@@ -133,6 +134,14 @@ func Test_parseCheckFlagsValues(t *testing.T) {
 	require.Equal(t, 3, *cfg.depth)
 	require.Equal(t, "vendor,node_modules", *cfg.excludeDirs)
 	require.True(t, *cfg.requireSchema)
+	require.Equal(t, []string{"."}, cfg.searchPaths)
+}
+
+func Test_parseCheckFlagsWatchValue(t *testing.T) {
+	cfg, err := parseCheckFlags([]string{"--watch", "."})
+	require.NoError(t, err)
+
+	require.True(t, *cfg.watch)
 	require.Equal(t, []string{"."}, cfg.searchPaths)
 }
 
@@ -250,7 +259,7 @@ func Test_parseTypeMapFlags(t *testing.T) {
 }
 
 func Test_emptyBoolEnvVarNoParseError(t *testing.T) {
-	for _, envVar := range []string{"CFV_GITIGNORE", "CFV_QUIET", "CFV_GLOBBING", "CFV_REQUIRE_SCHEMA", "CFV_NO_SCHEMA", "CFV_SCHEMASTORE"} {
+	for _, envVar := range []string{"CFV_GITIGNORE", "CFV_QUIET", "CFV_GLOBBING", "CFV_REQUIRE_SCHEMA", "CFV_NO_SCHEMA", "CFV_SCHEMASTORE", "CFV_WATCH"} {
 		t.Run(envVar, func(t *testing.T) {
 			t.Setenv(envVar, "")
 			_, err := parseCheckFlags([]string{"."})
