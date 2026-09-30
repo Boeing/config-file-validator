@@ -42,9 +42,9 @@ function Hero() {
 
 const features = [
   {
-    title: 'Validate',
+    title: '18 Formats, One Command',
     description:
-      'Catches syntax errors across JSON, YAML, TOML, XML, HCL, and 13 more formats. One command, one pass.',
+      'cfv check . validates syntax across all 18 formats in a single pass. cfv check --fix fixes what it can.',
   },
   {
     title: 'Enforce Schemas',
