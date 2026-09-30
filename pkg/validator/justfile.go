@@ -3,7 +3,7 @@ package validator
 import (
 	"errors"
 
-	"github.com/Boeing/config-file-validator/v2/pkg/validator/justfile"
+	"github.com/Boeing/config-file-validator/v3/pkg/validator/justfile"
 )
 
 type JustfileValidator struct{}

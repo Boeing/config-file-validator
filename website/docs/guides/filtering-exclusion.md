@@ -10,7 +10,7 @@ The validator provides several ways to control which files are validated. If any
 Use `--exclude-dirs` to skip specific subdirectories during traversal:
 
 ```shell
-validator --exclude-dirs=node_modules,vendor,.git .
+cfv check --exclude-dirs=node_modules,vendor,.git .
 ```
 
 The flag accepts a comma-separated list of directory names. These are matched against directory basenames at any depth — `node_modules` excludes every `node_modules` directory in the tree, not just the top-level one.
@@ -26,7 +26,7 @@ exclude-dirs = ["node_modules", "vendor", ".git", "dist", "build"]
 Use `--exclude-file-types` to skip files of specific types:
 
 ```shell
-validator --exclude-file-types=csv,env .
+cfv check --exclude-file-types=csv,env .
 ```
 
 This filters by resolved file type, not by extension. Extensionless known files (like `.gitconfig` or `.babelrc`) are excluded when they resolve to an excluded type.
@@ -44,7 +44,7 @@ exclude-file-types = ["csv", "env"]
 Use `--file-types` to validate only the listed types:
 
 ```shell
-validator --file-types=json,yaml,toml .
+cfv check --file-types=json,yaml,toml .
 ```
 
 `--file-types` and `--exclude-file-types` cannot be used together.
@@ -62,13 +62,13 @@ By default, the validator recurses without limit. Use `--depth` to restrict how 
 Disable recursion (only files in the immediate search path):
 
 ```shell
-validator --depth=0 .
+cfv check --depth=0 .
 ```
 
 Limit to 2 levels deep:
 
 ```shell
-validator --depth=2 .
+cfv check --depth=2 .
 ```
 
 In `.cfv.toml`:
@@ -82,7 +82,7 @@ depth = 3
 Use `--gitignore` to skip files and directories matched by `.gitignore` patterns:
 
 ```shell
-validator --gitignore .
+cfv check --gitignore .
 ```
 
 This respects:
@@ -103,7 +103,7 @@ gitignore = true
 Use `--ignore-file` to apply gitignore-style patterns from files such as `.dockerignore`, `.prettierignore`, or `.eslintignore`:
 
 ```shell
-validator --ignore-file=.dockerignore --ignore-file=.prettierignore .
+cfv check --ignore-file=.dockerignore --ignore-file=.prettierignore .
 ```
 
 Each path is resolved relative to the search path root. Missing ignore files are skipped, and repeated flags are additive.
@@ -117,12 +117,12 @@ ignore-files = [".dockerignore", ".prettierignore"]
 With an environment variable:
 
 ```shell
-CFV_IGNORE_FILES=.dockerignore,.prettierignore validator .
+CFV_IGNORE_FILES=.dockerignore,.prettierignore cfv check .
 ```
 
 ## Evaluation order
 
-A file is validated only if it passes every active filter. During traversal, the validator checks:
+A file is validated only if it passes every active filter. During traversal, `cfv check` applies each filter in order:
 
 1. Is the directory excluded by `--exclude-dirs`? → skip the entire directory
 2. Is the file or directory matched by `.gitignore` or an explicit ignore file? → skip

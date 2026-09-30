@@ -1,0 +1,10 @@
+{
+  // Apple comment
+  "apple": 2,
+  "mango": {
+    "a_inner_setting_with_longer_name": false,
+    "z_inner_setting_with_longer_name": true,
+  },
+  // Zebra comment
+  "zebra": 1,
+}

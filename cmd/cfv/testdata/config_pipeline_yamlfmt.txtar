@@ -1,0 +1,23 @@
+# ============================================================
+# Config pipeline: .yamlfmt → cfv check
+# Proves that .yamlfmt formatter options flow through to YAML format checking.
+# .yamlfmt is resolved from CWD (not per-file), so tests use a single config.
+# ============================================================
+
+# indent:4 → 4-space YAML indent passes
+exec cfv check app.yaml
+stdout '✓'
+
+# indent:4 → 2-space indent fails
+! exec cfv check wrong.yaml
+stdout '~'
+
+-- .yamlfmt --
+formatter:
+  indent: 4
+-- app.yaml --
+parent:
+    child: value
+-- wrong.yaml --
+parent:
+  child: value

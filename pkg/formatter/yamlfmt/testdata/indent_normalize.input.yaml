@@ -1,0 +1,7 @@
+name: app
+server:
+    host: localhost
+    port: 8080
+    tls:
+        enabled: true
+        cert: /etc/cert.pem

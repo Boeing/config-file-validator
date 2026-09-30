@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<root><a><b></b>0</a></root>")

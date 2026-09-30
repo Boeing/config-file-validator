@@ -3,7 +3,7 @@
 
 # Glob Patterns
 
-By default, positional arguments are treated as directory paths. The `-globbing` flag tells the validator to expand them as glob patterns instead. This is required for `**` recursive matching, which most shells don't handle.
+By default, positional arguments are treated as directory paths. The `-globbing` flag tells `cfv check` to expand them as glob patterns instead. This is required for `**` recursive matching, which most shells don't handle.
 
 Note that `--schema-map`, `--type-map`, and their `.cfv.toml` equivalents always interpret their keys as globs. The `-globbing` flag only affects positional arguments.
 
@@ -12,19 +12,19 @@ Note that `--schema-map`, `--type-map`, and their `.cfv.toml` equivalents always
 Validate all JSON files in a directory:
 
 ```shell
-validator -globbing "configs/*.json"
+cfv check -globbing "configs/*.json"
 ```
 
 Recursively match all YAML files:
 
 ```shell
-validator -globbing "**/*.yaml"
+cfv check -globbing "**/*.yaml"
 ```
 
 Multiple patterns:
 
 ```shell
-validator -globbing "configs/*.json" "deploy/**/*.yml"
+cfv check -globbing "configs/*.json" "deploy/**/*.yml"
 ```
 
 Patterns must be quoted to prevent shell expansion.
@@ -34,7 +34,7 @@ Patterns must be quoted to prevent shell expansion.
 Glob patterns and regular directory paths can be combined in the same invocation:
 
 ```shell
-validator -globbing "src/**/*.json" ./config
+cfv check -globbing "src/**/*.json" ./config
 ```
 
 The validator expands the glob patterns into file lists and traverses the directory paths normally. Results are merged into a single report.

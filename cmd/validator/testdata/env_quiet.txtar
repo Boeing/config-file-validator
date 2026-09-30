@@ -1,7 +1,0 @@
-# CFV_QUIET suppresses output
-env CFV_QUIET=true
-exec validator good.json
-! stdout .
-
--- good.json --
-{"key": "value"}

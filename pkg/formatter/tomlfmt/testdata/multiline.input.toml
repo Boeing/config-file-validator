@@ -1,0 +1,12 @@
+# Multiline test
+[strings]
+bio = """
+This is a
+multiline string."""
+
+[arrays]
+hosts = [
+  "alpha",
+  "beta",
+  "gamma"
+]

@@ -1,0 +1,18 @@
+{
+  // Keep blank lines between logical sections.
+  "sections": {
+    "first": 1,
+
+    "second": 2,
+  },
+
+  "items": [
+    {
+      "name": "one-item-with-a-longer-name-that-prevents-the-object-from-collapsing",
+    },
+
+    {
+      "name": "two-item-with-a-longer-name-that-prevents-the-object-from-collapsing",
+    },
+  ],
+}

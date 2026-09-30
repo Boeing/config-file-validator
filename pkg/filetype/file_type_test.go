@@ -61,3 +61,27 @@ func TestEditorConfigNotInINIKnownFiles(t *testing.T) {
 	_, ok := IniFileType.KnownFiles[".editorconfig"]
 	require.False(t, ok, ".editorconfig should NOT be in INI KnownFiles")
 }
+
+func TestFormatterWiring(t *testing.T) {
+	t.Parallel()
+	formattedTypes := map[string]bool{
+		"json":       true,
+		"jsonc":      true,
+		"yaml":       true,
+		"toml":       true,
+		"hcl":        true,
+		"xml":        true,
+		"ini":        true,
+		"properties": true,
+		"env":        true,
+	}
+	for _, ft := range FileTypes {
+		if formattedTypes[ft.Name] {
+			require.NotNilf(t, ft.Formatter,
+				"FileType %q should have a Formatter but it is nil", ft.Name)
+		} else {
+			require.Nilf(t, ft.Formatter,
+				"FileType %q should NOT have a Formatter but it has one", ft.Name)
+		}
+	}
+}

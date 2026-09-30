@@ -1,0 +1,11 @@
+# cfv format --fix rewrites unformatted files
+exec cfv format --fix --no-config .
+stdout '✓.*messy.json'
+
+# Run again - file should now be formatted (idempotent)
+exec cfv format --no-config .
+stdout '✓.*messy.json'
+! stdout '~'
+
+-- messy.json --
+{"b":2,"a":1}

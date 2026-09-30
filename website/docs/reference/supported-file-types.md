@@ -3,26 +3,26 @@
 
 # Supported File Types
 
-| Format          | Extensions              | Syntax | Schema |
-|-----------------|-------------------------|:------:|:------:|
-| JSON            | `.json`                 |   ✅    |   ✅    |
-| JSONC           | `.jsonc`                |   ✅    |   ✅    |
-| YAML            | `.yaml`, `.yml`         |   ✅    |   ✅    |
-| TOML            | `.toml`                 |   ✅    |   ✅    |
-| XML             | `.xml`                  |   ✅    |   ✅    |
-| TOON            | `.toon`                 |   ✅    |   ✅    |
-| SARIF           | `.sarif`                |   ✅    |   ✅    |
-| HCL             | `.hcl`, `.tf`           |   ✅    |   —    |
-| INI             | `.ini`, `.cfg`          |   ✅    |   —    |
-| HOCON           | `.conf`                 |   ✅    |   —    |
-| ENV             | `.env`                  |   ✅    |   —    |
-| CSV             | `.csv`                  |   ✅    |   —    |
-| Properties      | `.properties`           |   ✅    |   —    |
-| EDITORCONFIG    | `.editorconfig`         |   ✅    |   —    |
-| Justfile        | `justfile`, `.justfile` |   ✅    |   —    |
-| KDL             | `.kdl`                  |   ✅    |   —    |
-| CUE             | `.cue`                  |   ✅    |   —    |
-| Apple PList XML | `.plist`                |   ✅    |   —    |
+| Format          | Extensions              | Syntax | Format | Schema |
+|-----------------|-------------------------|:------:|:------:|:------:|
+| JSON            | `.json`                 |   ✅    |   ✅    |   ✅    |
+| JSONC           | `.jsonc`                |   ✅    |   ✅    |   ✅    |
+| YAML            | `.yaml`, `.yml`         |   ✅    |   ✅    |   ✅    |
+| TOML            | `.toml`                 |   ✅    |   ✅    |   ✅    |
+| XML             | `.xml`                  |   ✅    |   ✅    |   ✅    |
+| TOON            | `.toon`                 |   ✅    |   —    |   ✅    |
+| SARIF           | `.sarif`                |   ✅    |   —    |   ✅    |
+| HCL             | `.hcl`, `.tf`, `.tfvars`|   ✅    |   ✅    |   —    |
+| INI             | `.ini`                  |   ✅    |   ✅    |   —    |
+| Properties      | `.properties`           |   ✅    |   ✅    |   —    |
+| ENV             | `.env`                  |   ✅    |   ✅    |   —    |
+| HOCON           | `.hocon`                |   ✅    |   —    |   —    |
+| CSV             | `.csv`                  |   ✅    |   —    |   —    |
+| EDITORCONFIG    | `.editorconfig`         |   ✅    |   —    |   —    |
+| Justfile        | `.just`                 |   ✅    |   —    |   —    |
+| KDL             | `.kdl`                  |   ✅    |   —    |   —    |
+| CUE             | `.cue`                  |   ✅    |   —    |   —    |
+| Apple PList XML | `.plist`                |   ✅    |   —    |   —    |
 
 ## Schema types
 
@@ -38,3 +38,5 @@
 ## Known files
 
 Many files are recognized by filename regardless of extension. See [Known Files](./known-files.md).
+
+Justfile is also recognized by the filenames `justfile`, `Justfile`, and `.justfile` regardless of extension.

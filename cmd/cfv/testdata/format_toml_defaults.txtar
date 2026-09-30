@@ -1,0 +1,30 @@
+# TOML table entries are unindented by default.
+exec cfv format --fix --no-config default.toml
+cmp default.toml default.want
+
+# Formatting the default output again is idempotent.
+cp default.toml default.once
+exec cfv format --fix --no-config default.toml
+cmp default.toml default.once
+
+# Per-format config can opt into indentation.
+exec cfv format --fix --config=indent.toml configured.toml
+cmp configured.toml configured.want
+
+-- default.toml --
+[package]
+name="example"
+-- default.want --
+[package]
+name = "example"
+-- configured.toml --
+[package]
+name="example"
+-- configured.want --
+[package]
+  name = "example"
+-- indent.toml --
+[format.toml]
+indent = 2
+-- .editorconfig --
+root = true

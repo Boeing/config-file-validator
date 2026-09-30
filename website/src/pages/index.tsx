@@ -2,7 +2,6 @@ import React from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import styles from './index.module.css';
-import { SUPPORTED_FORMATS, formatList } from '../data/supportedFormats';
 
 function Hero() {
   return (
@@ -15,7 +14,7 @@ function Hero() {
         />
         <h1 className={styles['hero-title']}>Config File Validator</h1>
         <p className={styles['hero-subtitle']}>
-          One tool to validate every config file in your repo
+          A toolchain for configuration files
         </p>
         <div className={styles['hero-actions']}>
           <Link className={styles['primary-button']} to="/docs/introduction">
@@ -43,33 +42,34 @@ function Hero() {
 
 const features = [
   {
-    title: `${SUPPORTED_FORMATS.length} File Formats`,
-    description: formatList(SUPPORTED_FORMATS),
+    title: '18 Formats, One Command',
+    description:
+      'cfv check . validates syntax across all 18 formats in a single pass. cfv check --fix fixes what it can.',
   },
   {
-    title: 'Syntax + Schema Validation',
+    title: 'Enforce Schemas',
     description:
-      'Validates structure with JSON Schema and XSD. Automatic SchemaStore integration for hundreds of common config files.',
+      'Validates against JSON Schema and XSD. Automatic SchemaStore lookup finds the right schema by filename.',
   },
   {
-    title: 'Single Binary, Zero Dependencies',
+    title: 'Format and Fix',
     description:
-      'No runtimes, no package managers. One executable that runs on macOS, Linux, and Windows.',
+      'Checks and fixes formatting for JSON, YAML, TOML, XML, HCL, INI, Properties, and ENV. Reads your existing .prettierrc, taplo.toml, and .yamlfmt configs.',
   },
   {
-    title: 'CI/CD Ready',
+    title: 'Single Binary, No Runtime',
     description:
-      'JSON, JUnit, and SARIF output. GitHub Actions integration with PR annotations. Pre-commit hook support.',
+      'Static Go executable. No Node, no Python, no package manager. Runs on macOS, Linux, and Windows.',
   },
   {
-    title: 'Configurable',
+    title: 'Built for CI',
     description:
-      'Project-level .cfv.toml config files, glob patterns, schema mappings, type overrides, and environment variables.',
+      'JUnit, SARIF, and JSON reporters. GitHub Actions annotations on PRs. Exits non-zero on any failure.',
   },
   {
-    title: 'Go Library',
+    title: 'Fits Your Workflow',
     description:
-      'Embed validation in your own tools. The full CLI is available as a Go package.',
+      'Respects .gitignore. Configurable via .cfv.toml. Available as a pre-commit hook, GitHub Action, or Go library.',
   },
 ];
 
@@ -92,7 +92,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Config File Validator"
-      description={`Validates config files across ${SUPPORTED_FORMATS.length} formats`}
+      description="A toolchain for configuration files. Validates syntax, enforces schemas, and checks formatting."
     >
       <Hero />
       <main>

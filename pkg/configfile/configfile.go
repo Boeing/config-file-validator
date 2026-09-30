@@ -1,14 +1,16 @@
 package configfile
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/pelletier/go-toml/v2"
-	"github.com/xeipuuv/gojsonschema"
+	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 //go:embed schema.json
@@ -32,9 +34,42 @@ type Config struct {
 	SchemaStorePath  *string           `toml:"schemastore-path"`
 	Globbing         *bool             `toml:"globbing"`
 	Gitignore        *bool             `toml:"gitignore"`
+	Editorconfig     *bool             `toml:"editorconfig"`
 	SchemaMap        map[string]string `toml:"schema-map"`
 	TypeMap          map[string]string `toml:"type-map"`
 	Validators       ValidatorOptions  `toml:"validators"`
+	Format           FormatConfig      `toml:"format"`
+}
+
+// FormatConfig holds the [format] section and per-format overrides.
+type FormatConfig struct {
+	FormatOptions
+
+	// Per-format overrides. Keys are format names: "json", "yaml", "hcl", etc.
+	JSON       *FormatOptions `toml:"json"`
+	JSONC      *FormatOptions `toml:"jsonc"`
+	YAML       *FormatOptions `toml:"yaml"`
+	HCL        *FormatOptions `toml:"hcl"`
+	TOML       *FormatOptions `toml:"toml"`
+	XML        *FormatOptions `toml:"xml"`
+	INI        *FormatOptions `toml:"ini"`
+	ENV        *FormatOptions `toml:"env"`
+	Properties *FormatOptions `toml:"properties"`
+}
+
+// FormatOptions holds formatting configuration keys.
+// All fields are pointers so we can distinguish "not set" from "set to zero/false".
+// This allows correct cascade resolution: CLI > per-format > global > defaults.
+type FormatOptions struct {
+	Indent          *int    `toml:"indent"`
+	UseTabs         *bool   `toml:"use-tabs"`
+	SortKeys        *bool   `toml:"sort-keys"`
+	TrailingNewline *bool   `toml:"trailing-newline"`
+	LineEnding      *string `toml:"line-ending"`
+	MaxLineWidth    *int    `toml:"max-line-width"`
+	QuoteStyle      *string `toml:"quote-style"`
+	TrailingCommas  *string `toml:"trailing-commas"`
+	IndentSequences *bool   `toml:"indent-sequences"`
 }
 
 // ValidatorOptions holds per-validator configuration.
@@ -82,19 +117,38 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Validate against embedded schema
-	result, err := gojsonschema.Validate(
-		gojsonschema.NewBytesLoader(configSchema),
-		gojsonschema.NewBytesLoader(docJSON),
-	)
+	schemaDoc, err := jsonschema.UnmarshalJSON(bytes.NewReader(configSchema))
 	if err != nil {
-		return nil, fmt.Errorf("config file %s: schema validation error: %w", path, err)
+		return nil, fmt.Errorf("config file %s: schema error: %w", path, err)
 	}
-	if !result.Valid() {
-		var errs []string
-		for _, desc := range result.Errors() {
-			errs = append(errs, desc.String())
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(docJSON))
+	if err != nil {
+		return nil, fmt.Errorf("config file %s: schema error: %w", path, err)
+	}
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft7)
+	if err := compiler.AddResource("cfv-config-schema.json", schemaDoc); err != nil {
+		return nil, fmt.Errorf("config file %s: schema error: %w", path, err)
+	}
+	sch, err := compiler.Compile("cfv-config-schema.json")
+	if err != nil {
+		return nil, fmt.Errorf("config file %s: schema error: %w", path, err)
+	}
+	if err := sch.Validate(doc); err != nil {
+		var verr *jsonschema.ValidationError
+		if errors.As(err, &verr) {
+			var errs []string
+			basic := verr.BasicOutput()
+			for _, unit := range basic.Errors {
+				if unit.Error != nil {
+					errs = append(errs, unit.Error.String())
+				}
+			}
+			if len(errs) > 0 {
+				return nil, fmt.Errorf("config file %s: schema validation failed: %s", path, joinErrors(errs))
+			}
 		}
-		return nil, fmt.Errorf("config file %s: schema validation failed: %s", path, joinErrors(errs))
+		return nil, fmt.Errorf("config file %s: schema validation error: %w", path, err)
 	}
 
 	// Parse into Config struct

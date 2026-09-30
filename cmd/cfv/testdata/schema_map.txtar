@@ -1,0 +1,91 @@
+# --schema-map with exact filename match
+exec cfv check --schema-map=config.json:schema.json config.json
+stdout '✓'
+
+# --schema-map with invalid data fails
+! exec cfv check --schema-map=bad.json:schema.json bad.json
+stdout '×'
+stdout 'error:'
+
+# --schema-map with glob pattern
+exec cfv check --schema-map=**/*.json:schema.json subdir/config.json
+stdout '✓'
+
+# --schema-map does not affect unmatched files
+exec cfv check --schema-map=config.json:schema.json other.json
+stdout '✓'
+
+# --schema-map warns and still passes when matched file type has no schema support
+exec cfv check --schema-map=.env:schema.json .env
+stdout '✓'
+stdout 'note: --schema-map matched this file'
+
+# --schema-map fails unsupported schema validators when schema is required
+! exec cfv check --require-schema --schema-map=.env:schema.json .env
+stdout '×'
+stdout 'error: schema: --schema-map matched this file'
+! stdout 'note: --schema-map matched this file'
+
+# $schema in document is validated as data — fails strict schema (additionalProperties: false)
+! exec cfv check --schema-map=with_schema.json:strict_schema.json with_schema.json
+stdout '×'
+stdout 'error:'
+
+# $schema in document passes when schema allows it
+exec cfv check --schema-map=with_schema.json:permissive_schema.json with_schema.json
+stdout '✓'
+
+# Invalid --schema-map format
+! exec cfv check --schema-map=badformat .
+stderr 'invalid schema-map format'
+
+# Invalid glob pattern in --schema-map
+! exec cfv check --schema-map='[invalid:schema.json' .
+stderr 'invalid glob pattern'
+
+-- schema.json --
+{
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+-- strict_schema.json --
+{
+  "type": "object",
+  "required": ["host"],
+  "properties": {
+    "host": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+-- permissive_schema.json --
+{
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+-- config.json --
+{ "name": "test", "version": "1.0" }
+-- bad.json --
+{"name": 123}
+-- subdir/config.json --
+{ "name": "nested", "version": "2.0" }
+-- other.json --
+{ "anything": "goes" }
+-- .env --
+KEY=VALUE
+-- with_schema.json --
+{
+  "$schema": "schema.json",
+  "name": "test",
+  "version": "1.0"
+}

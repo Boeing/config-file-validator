@@ -1,0 +1,14 @@
+{
+  // App metadata
+  "name": "my-app",
+
+  "scripts": {
+    "build": "tsc",
+  },
+
+  "items": [
+    "one-is-a-longer-string-value-that-prevents-collapsing-when-combined-with-two",
+
+    "two-is-also-a-longer-string-value-that-ensures-the-array-exceeds-eighty-cols",
+  ],
+}

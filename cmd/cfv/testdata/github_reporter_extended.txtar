@@ -1,0 +1,21 @@
+# ============================================================
+# Extended functional tests for --reporter=github
+# ============================================================
+
+# Syntax error → ::error with file path
+! exec cfv check --reporter=github bad.json
+stdout '::error file=.*bad\.json'
+
+# All valid → clean exit, no annotations
+exec cfv check --reporter=github good.json
+! stdout '::'
+
+# --reporter=github with --reporter=json simultaneously → both produce output
+! exec cfv check --reporter=github --reporter=json:- bad.json
+stdout '::error'
+stdout '"status": "failed"'
+
+-- good.json --
+{ "key": "value" }
+-- bad.json --
+{"key": }

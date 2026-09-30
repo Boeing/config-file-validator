@@ -1,0 +1,27 @@
+# ============================================================
+# cfv check format-ignore: taplo exclude support
+# Verifies that TOML files matching taplo.toml exclude patterns
+# are skipped from format checking.
+# ============================================================
+
+# Unformatted TOML in excluded path → ✓ (format not checked)
+# Unformatted TOML outside exclude → ~ (format checked)
+! exec cfv check .
+stdout '✓.*tests/fixture.toml'
+stdout '~.*src/ugly.toml'
+! stdout '~.*tests'
+
+-- taplo.toml --
+exclude = ["tests/**"]
+
+[formatting]
+indent_string = "  "
+-- src/config.toml --
+[package]
+name = "app"
+-- src/ugly.toml --
+[package]
+name  =    "ugly"
+-- tests/fixture.toml --
+[test]
+data    =     "intentionally ugly"

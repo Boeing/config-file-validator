@@ -1,0 +1,24 @@
+# Justfile validation (exit 1 because invalid.just fails)
+! exec cfv check project
+stdout '✓.*valid.just'
+stdout '×.*invalid.just'
+stdout '✓.*Justfile'
+
+# Known filename detected without extension
+exec cfv check knownfile
+stdout '✓.*justfile'
+
+-- project/valid.just --
+default:
+    echo "hello"
+
+build:
+    echo "building"
+-- project/invalid.just --
+this is not valid {{{
+-- project/Justfile --
+test:
+    echo "testing"
+-- knownfile/justfile --
+greet name:
+    echo "hi {{name}}"

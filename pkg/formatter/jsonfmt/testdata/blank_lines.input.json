@@ -1,0 +1,19 @@
+{
+  "name": "my-app",
+
+
+  "scripts": {
+    "build": "tsc"
+  },
+
+  "items": [
+    "one",
+
+
+    "two"
+
+
+  ]
+
+
+}

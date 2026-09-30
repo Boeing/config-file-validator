@@ -1,0 +1,1 @@
+{"type": "object", "properties": {"db": {"type": "object", "properties": {"port": {"type": "integer"}, "host": {"type": "string"}}}}}

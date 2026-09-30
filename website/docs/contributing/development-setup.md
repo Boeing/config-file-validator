@@ -20,8 +20,8 @@ GOARCH=arm64 \
 go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
--o validator \
-cmd/validator/validator.go
+-o cfv \
+cmd/cfv/cfv.go
 ```
 
 For Intel Macs, use `GOARCH=amd64`.
@@ -29,8 +29,8 @@ For Intel Macs, use `GOARCH=amd64`.
 Install:
 
 ```shell
-cp ./validator /usr/local/bin/
-chmod +x /usr/local/bin/validator
+cp ./cfv /usr/local/bin/
+chmod +x /usr/local/bin/cfv
 ```
 
 </TabItem>
@@ -43,15 +43,15 @@ GOARCH=amd64 \
 go build \
 -ldflags='-w -s -extldflags "-static"' \
 -tags netgo \
--o validator \
-cmd/validator/validator.go
+-o cfv \
+cmd/cfv/cfv.go
 ```
 
 Install:
 
 ```shell
-cp ./validator /usr/local/bin/
-chmod +x /usr/local/bin/validator
+cp ./cfv /usr/local/bin/
+chmod +x /usr/local/bin/cfv
 ```
 
 </TabItem>
@@ -64,16 +64,16 @@ $env:GOARCH = 'amd64'
 go build `
   -ldflags='-w -s -extldflags "-static"' `
   -tags netgo `
-  -o validator.exe `
-  cmd/validator/validator.go
+  -o cfv.exe `
+  cmd/cfv/cfv.go
 ```
 
 Install to Local App Data:
 
 ```powershell
-$install = Join-Path $env:LOCALAPPDATA 'Programs\validator'
+$install = Join-Path $env:LOCALAPPDATA 'Programs\cfv'
 New-Item -Path $install -ItemType Directory -Force | Out-Null
-Copy-Item -Path .\validator.exe -Destination $install -Force
+Copy-Item -Path .\cfv.exe -Destination $install -Force
 ```
 
 </TabItem>

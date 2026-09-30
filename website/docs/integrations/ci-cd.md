@@ -3,7 +3,7 @@
 
 # CI/CD Pipelines
 
-The validator exits with code `1` when any file fails validation, making it usable in any CI system that checks exit codes. Use `--reporter` to produce machine-readable output.
+`cfv check` validates syntax, schema, and formatting in one pass. It exits 1 if any file has issues, making it a single CI gate for all config file quality.
 
 ## GitLab CI
 
@@ -12,8 +12,8 @@ validate-config:
   stage: test
   image: golang:1.26
   script:
-    - go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
-    - validator --reporter=junit:results.xml --schemastore .
+    - go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
+    - cfv check --reporter=junit:results.xml --schemastore .
   artifacts:
     reports:
       junit: results.xml
@@ -24,7 +24,7 @@ validate-config:
 ```groovy
 stage('Validate Config') {
     steps {
-        sh 'validator --reporter=junit:results.xml --schemastore .'
+        sh 'cfv check --reporter=junit:results.xml --schemastore .'
     }
     post {
         always {
@@ -38,8 +38,8 @@ stage('Validate Config') {
 
 ```yaml
 - script: |
-    go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
-    validator --reporter=junit:results.xml --schemastore .
+    go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
+    cfv check --reporter=junit:results.xml --schemastore .
   displayName: 'Validate config files'
 
 - task: PublishTestResults@2
@@ -49,26 +49,41 @@ stage('Validate Config') {
   condition: always()
 ```
 
-## Output formats for CI
+## GitHub Actions
+
+See [GitHub Actions](./github-actions.md) for the dedicated action with PR annotations.
+
+For a manual setup:
+
+```yaml
+- run: |
+    go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
+    cfv check --reporter=github --schemastore .
+```
+
+The `github` reporter produces `::error` and `::warning` annotations that appear inline on the PR diff.
+
+## Output formats
 
 | Format | Flag                             | Use case                      |
 |--------|----------------------------------|-------------------------------|
 | JUnit  | `--reporter=junit:results.xml`   | Jenkins, GitLab, Azure DevOps |
 | SARIF  | `--reporter=sarif:results.sarif` | GitHub Code Scanning          |
 | JSON   | `--reporter=json:results.json`   | Custom tooling, scripts       |
+| GitHub | `--reporter=github`              | GitHub Actions annotations    |
 
 Multiple reporters can run in a single invocation:
 
 ```shell
-validator --reporter=junit:results.xml --reporter=sarif:results.sarif --schemastore .
+cfv check --reporter=junit:results.xml --reporter=sarif:results.sarif --schemastore .
 ```
 
 ## Exit codes
 
 | Code | Meaning                        |
 |------|--------------------------------|
-| `0`  | All files valid                |
-| `1`  | One or more validation errors  |
+| `0`  | All files pass                 |
+| `1`  | One or more files failed       |
 | `2`  | Runtime or configuration error |
 
-Use exit code `1` as your CI gate. Exit code `2` indicates a problem with the validator invocation itself (bad flags, unreadable files).
+Use exit code `1` as your CI gate. Exit code `2` means cfv itself couldn't run as intended (bad flags, unreadable files).

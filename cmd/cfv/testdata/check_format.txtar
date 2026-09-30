@@ -1,0 +1,61 @@
+# ============================================================
+# cfv check format checking integration tests
+# Verifies that cfv check detects and reports formatting issues
+# ============================================================
+
+# Valid but unformatted JSON → exit 1, shows ~
+! exec cfv check --no-config unformatted.json
+stdout '~.*unformatted.json'
+stdout 'not formatted'
+
+# --fix formats the file
+exec cfv check --fix --no-config unformatted_fix.json
+stdout '✓'
+
+# Verify the file was rewritten
+exec cat unformatted_fix.json
+stdout '^\{ "key": "value" \}$'
+
+# Already formatted → exit 0
+exec cfv check --no-config formatted.json
+stdout '✓'
+
+# Syntax error takes priority over formatting
+! exec cfv check --no-config bad.json
+stdout '×'
+! stdout '~'
+! stdout 'not formatted'
+
+# File type without formatter (CSV) → only syntax check
+exec cfv check --no-config valid.csv
+stdout '✓'
+
+# Multiple files: mixed pass and unformatted
+! exec cfv check --no-config multi
+stdout '✓.*formatted.json'
+stdout '~.*needs_format.json'
+
+# Schema error takes priority over format checking
+! exec cfv check --no-config --schema-map='schema_fail.json:schema.json' schema_fail.json
+stdout '×'
+! stdout 'not formatted'
+
+-- unformatted.json --
+{"key":"value"}
+-- unformatted_fix.json --
+{"key":"value"}
+-- formatted.json --
+{ "key": "value" }
+-- bad.json --
+{"key": }
+-- valid.csv --
+a,b,c
+1,2,3
+-- multi/formatted.json --
+{ "key": "value" }
+-- multi/needs_format.json --
+{"key":"value"}
+-- schema_fail.json --
+{"name": 123}
+-- schema.json --
+{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}

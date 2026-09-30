@@ -1,0 +1,9 @@
+# Service configuration
+name: app  # application name
+server:
+  # server settings
+  host: localhost
+  port: 8080  # default port
+  # TLS block
+  tls:
+    enabled: true

@@ -1,0 +1,18 @@
+{
+  "config": {
+    "deeply": {
+      "nested": {
+        "key": [
+          "short",
+          "array",
+          "that",
+          "fits",
+          "because",
+          "key",
+          "is",
+          "long"
+        ]
+      }
+    }
+  }
+}

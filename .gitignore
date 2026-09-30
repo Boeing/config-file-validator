@@ -5,7 +5,9 @@
 *.so
 *.dylib
 cmd/validator/validator
+cmd/cfv/cfv
 /validator
+/cfv
 bin/
 
 # Test binary, built with `go test -c`
@@ -20,4 +22,8 @@ vendor/
 .idea
 megalinter-reports/
 .kiro/
-.kiro/
+PLAN.md
+PLAN-*.md
+ROADMAP.md
+/docs/
+.cfv-realworld/

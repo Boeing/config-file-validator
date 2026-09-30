@@ -1,0 +1,41 @@
+# ============================================================
+# cfv check --fix combined fix scenarios
+# Tests that --fix handles both fixer rules AND formatting in one pass
+# ============================================================
+
+# JSON with trailing comma AND wrong spacing → --fix handles both
+exec cfv check --fix --no-config combo.json
+stdout '✓'
+exec cat combo.json
+stdout '^\{ "key": "value" \}$'
+
+# YAML unformatted → --fix formats it
+exec cfv check --fix --no-config unformatted.yaml
+stdout '✓'
+exec cat unformatted.yaml
+stdout '^key: value$'
+
+# TOML unformatted → --fix formats it
+exec cfv check --fix --no-config unformatted.toml
+stdout '✓'
+exec cat unformatted.toml
+stdout '^key = "value"$'
+
+# Already-formatted file with --fix → passes without rewrite
+exec cfv check --fix --no-config formatted.json
+stdout '✓'
+
+# Fix doesn't touch broken files
+! exec cfv check --fix --no-config broken.json
+stdout '×'
+
+-- combo.json --
+{"key":"value",}
+-- unformatted.yaml --
+key:   value
+-- unformatted.toml --
+key="value"
+-- formatted.json --
+{ "key": "value" }
+-- broken.json --
+{invalid json}

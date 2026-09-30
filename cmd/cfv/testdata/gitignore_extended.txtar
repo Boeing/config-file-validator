@@ -1,0 +1,189 @@
+# Extended gitignore integration tests.
+# Covers nested scoping, .git/info/exclude, negation, format integration,
+# combined --ignore-file, negation-in-ignored-dir limitation, and empty .gitignore.
+
+# -------------------------------------------------------------------
+# 1. Nested .gitignore scopes patterns to its directory
+# -------------------------------------------------------------------
+# The root .gitignore ignores *.log globally.
+# The sub/.gitignore ignores *.yaml but only within sub/.
+# Files in the root directory should not be affected by sub/.gitignore.
+
+exec git init nested
+exec git config -f nested/.git/config user.email test@test.com
+exec git config -f nested/.git/config user.name test
+
+exec cfv check --no-config --gitignore nested
+stdout '✓.*root.json'
+stdout '✓.*root.yaml'
+stdout '✓.*sub/kept.json'
+! stdout 'root.log'
+! stdout 'sub/dropped.yaml'
+! stdout 'sub/also.log'
+
+# -------------------------------------------------------------------
+# 2. .git/info/exclude patterns are respected
+# -------------------------------------------------------------------
+
+exec git init exclude_repo
+exec git config -f exclude_repo/.git/config user.email test@test.com
+exec git config -f exclude_repo/.git/config user.name test
+cp exclude_patterns exclude_repo/.git/info/exclude
+
+exec cfv check --no-config --gitignore exclude_repo
+stdout '✓.*visible.json'
+! stdout 'secret.json'
+! stdout 'internal'
+
+# -------------------------------------------------------------------
+# 3. Negation pattern: *.json then !important.json keeps important.json
+# -------------------------------------------------------------------
+
+exec git init negation
+exec git config -f negation/.git/config user.email test@test.com
+exec git config -f negation/.git/config user.name test
+
+exec cfv check --no-config --gitignore negation
+stdout '✓.*important.json'
+stdout '✓.*config.yaml'
+! stdout 'throwaway.json'
+! stdout 'temp.json'
+
+# -------------------------------------------------------------------
+# 4. cfv format --gitignore skips gitignored files
+# -------------------------------------------------------------------
+
+exec git init fmtrepo
+exec git config -f fmtrepo/.git/config user.email test@test.com
+exec git config -f fmtrepo/.git/config user.name test
+
+# Format with --gitignore: only unignored files are processed.
+# messy_kept.json is unformatted and not ignored → shows ~
+# messy_ignored.json is unformatted but ignored → not in output
+! exec cfv format --no-config --gitignore fmtrepo
+stdout '~.*messy_kept.json'
+! stdout 'messy_ignored.json'
+
+# Verify the ignored file was not modified.
+cmp fmtrepo/messy_ignored.json messy_ignored_orig.json
+
+# -------------------------------------------------------------------
+# 5. --gitignore combined with --ignore-file: both sources applied
+# -------------------------------------------------------------------
+
+exec git init combined
+exec git config -f combined/.git/config user.email test@test.com
+exec git config -f combined/.git/config user.name test
+
+exec cfv check --no-config --gitignore --ignore-file=.dockerignore combined
+stdout '✓.*survivor.json'
+! stdout 'git_ignored.json'
+! stdout 'docker_ignored.json'
+
+# Sanity: without --ignore-file, docker_ignored.json is visible.
+exec cfv check --no-config --gitignore combined
+stdout '✓.*survivor.json'
+stdout '✓.*docker_ignored.json'
+! stdout 'git_ignored.json'
+
+# -------------------------------------------------------------------
+# 6. Known limitation: negation inside ignored directory does NOT rescue files
+# -------------------------------------------------------------------
+# The .gitignore ignores build/ entirely. The negation !build/keep.json
+# cannot rescue the file because the walker skips the directory.
+
+exec git init limitation
+exec git config -f limitation/.git/config user.email test@test.com
+exec git config -f limitation/.git/config user.name test
+
+exec cfv check --no-config --gitignore limitation
+stdout '✓.*root.json'
+! stdout 'build/keep.json'
+! stdout 'build/drop.json'
+
+# Without --gitignore, both files inside build/ are found.
+exec cfv check --no-config limitation
+stdout '✓.*root.json'
+stdout '✓.*build/keep.json'
+stdout '✓.*build/drop.json'
+
+# -------------------------------------------------------------------
+# 7. Empty .gitignore: no effect, no crash
+# -------------------------------------------------------------------
+
+exec git init emptygi
+exec git config -f emptygi/.git/config user.email test@test.com
+exec git config -f emptygi/.git/config user.name test
+
+exec cfv check --no-config --gitignore emptygi
+stdout '✓.*one.json'
+stdout '✓.*two.yaml'
+
+-- nested/.gitignore --
+*.log
+-- nested/sub/.gitignore --
+*.yaml
+-- nested/root.json --
+{ "root": true }
+-- nested/root.yaml --
+root: true
+-- nested/root.log --
+not a config
+-- nested/sub/kept.json --
+{ "sub": true }
+-- nested/sub/dropped.yaml --
+dropped: true
+-- nested/sub/also.log --
+also not a config
+-- exclude_patterns --
+secret.json
+internal/
+-- exclude_repo/visible.json --
+{ "visible": true }
+-- exclude_repo/secret.json --
+{ "secret": true }
+-- exclude_repo/internal/config.json --
+{ "internal": true }
+-- negation/.gitignore --
+*.json
+!important.json
+-- negation/important.json --
+{ "important": true }
+-- negation/throwaway.json --
+{ "throwaway": true }
+-- negation/temp.json --
+{ "temp": true }
+-- negation/config.yaml --
+config: true
+-- fmtrepo/.gitignore --
+messy_ignored.json
+-- fmtrepo/messy_kept.json --
+{"b":2,"a":1}
+-- fmtrepo/messy_ignored.json --
+{"z":26,"y":25}
+-- messy_ignored_orig.json --
+{"z":26,"y":25}
+-- combined/.gitignore --
+git_ignored.json
+-- combined/.dockerignore --
+docker_ignored.json
+-- combined/survivor.json --
+{ "alive": true }
+-- combined/git_ignored.json --
+{ "git": true }
+-- combined/docker_ignored.json --
+{ "docker": true }
+-- limitation/.gitignore --
+build/
+!build/keep.json
+-- limitation/root.json --
+{ "root": true }
+-- limitation/build/keep.json --
+{ "keep": true }
+-- limitation/build/drop.json --
+{ "drop": true }
+-- emptygi/.gitignore --
+-- emptygi/one.json --
+{ "one": 1 }
+-- emptygi/two.yaml --
+two: 2

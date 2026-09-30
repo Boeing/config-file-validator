@@ -43,3 +43,50 @@ All keys supported in `.cfv.toml`. See the [Configuration File](../guides/config
 | `validators.ini.forbid-duplicate-keys`  | boolean | `false` | Report duplicate keys within the same section as errors. |
 
 YAML duplicate keys are always rejected by the parser regardless of configuration.
+
+## Format keys
+
+The `[format]` table controls formatting behavior for `cfv format`.
+
+| Key                | Type    | Default      | Description                                             |
+|--------------------|---------|--------------|---------------------------------------------------------|
+| `indent`           | integer | `2`          | Spaces per indent level.                                |
+| `use-tabs`         | boolean | `false`      | Use tabs instead of spaces for indentation.             |
+| `sort-keys`        | boolean | `false`      | Sort mapping keys alphabetically.                       |
+| `trailing-newline` | boolean | `true`       | Ensure file ends with a newline.                        |
+| `line-ending`      | string  | `"lf"`       | Line ending style: `"lf"` or `"crlf"`.                 |
+| `quote-style`      | string  | `"double"`   | Quote style: `"preserve"`, `"double"`, or `"single"` (YAML only). |
+| `trailing-commas`  | string  | `"all"`      | Trailing commas on expanded collections: `"all"`, `"none"`, or `"preserve"` (match the file; JSONC only). |
+| `indent-sequences` | boolean | `true`       | Indent YAML sequences used as mapping values by one additional level. Set to `false` for compact sequence indentation. |
+
+### Per-format overrides
+
+Use `[format.<type>]` tables to override settings for a specific format. The same keys as `[format]` are supported.
+
+```toml
+[format]
+indent = 2
+sort-keys = false
+
+[format.yaml]
+indent = 2
+quote-style = "double"
+indent-sequences = false
+
+[format.json]
+indent = 4
+
+[format.toml]
+sort-keys = true
+```
+
+Supported format types: `yaml`, `json`, `jsonc`, `toml`, `hcl`, `xml`, `ini`, `properties`, `env`.
+
+### Resolution order
+
+Settings resolve with this priority (highest wins):
+
+1. CLI flags (`--indent`, `--sort-keys`)
+2. Per-format config (`[format.yaml]`)
+3. Global format config (`[format]`)
+4. Built-in defaults

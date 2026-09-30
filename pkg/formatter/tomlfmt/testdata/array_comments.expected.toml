@@ -1,0 +1,9 @@
+[dependencies]
+packages = [
+  # web framework
+  "actix-web",
+  # serialization
+  "serde",
+  # logging
+  "tracing",
+]

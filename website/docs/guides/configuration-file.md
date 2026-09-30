@@ -7,27 +7,27 @@ The validator supports a `.cfv.toml` configuration file for project-level defaul
 
 ## Discovery
 
-On startup, the validator looks for `.cfv.toml` in the current directory and walks up parent directories until it finds one or reaches the filesystem root.
+On startup, `cfv check` looks for `.cfv.toml` in the current directory and walks up parent directories until it finds one or reaches the filesystem root.
 
 To specify a file explicitly:
 
 ```shell
-validator --config=path/to/.cfv.toml .
+cfv check --config=path/to/.cfv.toml .
 ```
 
 To disable auto-discovery:
 
 ```shell
-validator --no-config .
+cfv check --no-config .
 ```
 
 ## Precedence
 
-Most CLI flags can also be set through [environment variables](../reference/environment-variables.md) prefixed with `CFV_`. When multiple sources set the same option, the validator resolves them in this order (highest priority first):
+Most CLI flags can also be set through [environment variables](../reference/environment-variables.md) prefixed with `CFV_`. When multiple sources set the same option, `cfv check` resolves them in this order (highest priority first):
 
 1. CLI flags
-2. `.cfv.toml` configuration file
-3. Environment variables (`CFV_*`)
+2. Environment variables (`CFV_*`)
+3. `.cfv.toml` configuration file
 4. Built-in defaults
 
 ## Example
@@ -81,6 +81,19 @@ forbid-duplicate-keys = true
 | `schema-map`         | table            | —              | Map glob patterns to schema files                                   |
 | `type-map`           | table            | —              | Map glob patterns to file types                                     |
 | `validators`         | table            | —              | Per-validator options (see below)                                   |
+| `format`             | table            | —              | Formatting configuration (see [Formatting](./formatting.md))        |
+| `format.indent`      | integer          | format-specific | Spaces per indent level (2 for JSON/JSONC/YAML/XML, 0 for others)  |
+| `format.use-tabs`    | boolean          | `false`        | Use tabs instead of spaces                                          |
+| `format.sort-keys`   | boolean          | `false`        | Sort mapping keys alphabetically                                    |
+| `format.trailing-newline` | boolean     | `true`         | Ensure file ends with a single newline                              |
+| `format.line-ending` | string           | `lf`           | Line ending: `lf` or `crlf`                                        |
+| `format.max-line-width` | integer       | format-specific | Target max line width. 0 = unlimited                               |
+| `format.quote-style` | string           | `double`       | Quote style: `double`, `single`, `preserve` (YAML)                 |
+| `format.trailing-commas` | string       | `all`          | Trailing commas: `all`, `none`, `preserve` (JSONC)                 |
+| `format.indent-sequences` | boolean     | `true`         | Indent YAML sequences an extra level                                |
+| `editorconfig`       | boolean          | `true`         | Enable `.editorconfig` integration                                  |
+
+Per-format overrides (`[format.json]`, `[format.yaml]`, etc.) accept the same keys as the global `[format]` table. Format-specific values take precedence over global ones.
 
 ## Schema and type maps
 
@@ -148,6 +161,6 @@ YAML duplicate keys are always rejected by the YAML parser regardless of configu
 The `.cfv.toml` file is validated against a built-in schema on load. Typos in key names and invalid value types are reported immediately as errors (exit code 2).
 
 ```
-$ validator .
-Error: .cfv.toml: unknown key "exlude-dirs" (did you mean "exclude-dirs"?)
+$ cfv check .
+cfv: loading config file: config file .cfv.toml: schema validation failed: additional properties 'exlude-dirs' not allowed
 ```

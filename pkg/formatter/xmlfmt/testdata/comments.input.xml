@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- Main config --><config><database><!-- DB settings --><host>localhost</host><port>5432</port></database></config>

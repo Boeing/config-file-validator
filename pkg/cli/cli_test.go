@@ -1,18 +1,25 @@
 package cli
 
 import (
+	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Boeing/config-file-validator/v2/internal/testhelper"
-	"github.com/Boeing/config-file-validator/v2/pkg/filetype"
-	"github.com/Boeing/config-file-validator/v2/pkg/finder"
-	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
-	"github.com/Boeing/config-file-validator/v2/pkg/schemastore"
-	"github.com/Boeing/config-file-validator/v2/pkg/validator"
+	"github.com/Boeing/config-file-validator/v3/internal/testhelper"
+	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
+	"github.com/Boeing/config-file-validator/v3/pkg/finder"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsonfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/xmlfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
+	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
+	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
 type captureReporter struct {
@@ -32,7 +39,7 @@ func Test_CLI(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewStdoutReporter("")),
+		WithReporters(reporter.NewStdoutReporter("", false)),
 		WithGroupOutput([]string{""}),
 	)
 	exitStatus, err := cli.Run()
@@ -50,7 +57,7 @@ func Test_CLIWithMultipleReporters(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporters(
-			reporter.NewJSONReporter(tmpOut+"/result.json"),
+			reporter.NewJSONReporter(tmpOut+"/result.json", false),
 			reporter.JunitReporter{},
 		),
 		WithGroupOutput([]string{""}),
@@ -91,7 +98,7 @@ func Test_CLIWithGroup(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewStdoutReporter("")),
+		WithReporters(reporter.NewStdoutReporter("", false)),
 		WithGroupOutput([]string{"pass-fail", "directory"}),
 	)
 	exitStatus, err := cli.Run()
@@ -107,12 +114,14 @@ func Test_CLIReportErr(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("./wrong/path")),
+		WithReporters(reporter.NewJSONReporter("./wrong/path", false)),
 		WithGroupOutput([]string{""}),
 	)
 	exitStatus, err := cli.Run()
-	require.NoError(t, err)
-	require.Equal(t, 1, exitStatus)
+	// Reporter error is now returned (not printed to stdout).
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "reporter:")
+	require.Equal(t, 2, exitStatus)
 }
 
 func Test_CLISchemaAutoValidation(t *testing.T) {
@@ -237,15 +246,17 @@ func Test_CLIWithBrokenSymlink(t *testing.T) {
 	require.Equal(t, 1, exitStatus)
 
 	var failed int
-	var errorType string
+	var issueType reporter.IssueType
 	for _, r := range rep.reports {
-		if !r.IsValid {
+		if r.HasErrors() {
 			failed++
-			errorType = r.ErrorType
+			if len(r.Issues) > 0 {
+				issueType = r.Issues[0].Type
+			}
 		}
 	}
 	require.Equal(t, 1, failed)
-	require.Equal(t, "other", errorType)
+	require.Equal(t, reporter.IssueTypeSyntax, issueType)
 }
 
 func Test_CLISingleGroupJSON(t *testing.T) {
@@ -256,7 +267,7 @@ func Test_CLISingleGroupJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("")),
+		WithReporters(reporter.NewJSONReporter("", false)),
 		WithGroupOutput([]string{"filetype"}),
 	)
 	exitStatus, err := cli.Run()
@@ -272,7 +283,7 @@ func Test_CLIDoubleGroupJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("")),
+		WithReporters(reporter.NewJSONReporter("", false)),
 		WithGroupOutput([]string{"filetype", "directory"}),
 	)
 	exitStatus, err := cli.Run()
@@ -288,7 +299,7 @@ func Test_CLITripleGroupJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("")),
+		WithReporters(reporter.NewJSONReporter("", false)),
 		WithGroupOutput([]string{"filetype", "directory", "pass-fail"}),
 	)
 	exitStatus, err := cli.Run()
@@ -304,7 +315,7 @@ func Test_CLIQuadGroupJSON(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithReporters(reporter.NewJSONReporter("")),
+		WithReporters(reporter.NewJSONReporter("", false)),
 		WithGroupOutput([]string{"filetype", "directory", "pass-fail", "error-type"}),
 	)
 	exitStatus, err := cli.Run()
@@ -329,7 +340,7 @@ func Test_CLISchemaMapValid(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.json": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.json", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -365,7 +376,7 @@ func Test_CLISchemaMapInvalid(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.json": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.json", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -389,7 +400,7 @@ func Test_CLISchemaMapGlob(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"**/configs/*.json": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "**/configs/*.json", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -413,7 +424,7 @@ func Test_CLISchemaMapYAML(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.yaml": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.yaml", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -437,7 +448,7 @@ func Test_CLISchemaMapTOML(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.toml": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.toml", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -453,7 +464,7 @@ func Test_CLISchemaMapUnmatched(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"other.json": "/nonexistent"}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "other.json", SchemaPath: "/nonexistent"}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -472,16 +483,16 @@ func Test_CLISchemaMapUnsupportedValidatorWarnsAndPasses(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporters(capturingReporter),
-		WithSchemaMap(map[string]string{".env": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: ".env", SchemaPath: schema}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 0, exitStatus)
 	require.Len(t, capturingReporter.reports, 1)
-	require.True(t, capturingReporter.reports[0].IsValid)
-	require.Len(t, capturingReporter.reports[0].Warnings, 1)
-	require.Contains(t, capturingReporter.reports[0].Warnings[0], "--schema-map matched this file")
-	require.Contains(t, capturingReporter.reports[0].Warnings[0], "does not support schema validation")
+	require.Equal(t, reporter.StatusPass, capturingReporter.reports[0].Status)
+	require.Len(t, capturingReporter.reports[0].Notes, 1)
+	require.Contains(t, capturingReporter.reports[0].Notes[0], "--schema-map matched this file")
+	require.Contains(t, capturingReporter.reports[0].Notes[0], "does not support schema validation")
 }
 
 func Test_CLISchemaMapUnsupportedValidatorFailsWithRequireSchema(t *testing.T) {
@@ -496,18 +507,18 @@ func Test_CLISchemaMapUnsupportedValidatorFailsWithRequireSchema(t *testing.T) {
 	cli := Init(
 		WithFinder(fsFinder),
 		WithReporters(capturingReporter),
-		WithSchemaMap(map[string]string{".env": schema}),
+		WithSchemaMap([]SchemaMapping{{Pattern: ".env", SchemaPath: schema}}),
 		WithRequireSchema(true),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 1, exitStatus)
 	require.Len(t, capturingReporter.reports, 1)
-	require.False(t, capturingReporter.reports[0].IsValid)
-	require.Empty(t, capturingReporter.reports[0].Warnings)
-	require.Equal(t, "schema", capturingReporter.reports[0].ErrorType)
-	require.Contains(t, capturingReporter.reports[0].ValidationErrors[0], "--schema-map matched this file")
-	require.Contains(t, capturingReporter.reports[0].ValidationErrors[0], "does not support schema validation")
+	require.Equal(t, reporter.StatusFail, capturingReporter.reports[0].Status)
+	require.Empty(t, capturingReporter.reports[0].Notes)
+	require.Equal(t, reporter.IssueTypeSchema, capturingReporter.reports[0].Issues[0].Type)
+	require.Contains(t, capturingReporter.reports[0].Issues[0].Message, "--schema-map matched this file")
+	require.Contains(t, capturingReporter.reports[0].Issues[0].Message, "does not support schema validation")
 }
 
 func Test_CLISchemaStoreValid(t *testing.T) {
@@ -579,7 +590,7 @@ func Test_CLISchemaMapPriorityOverStore(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"package.json": strict}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "package.json", SchemaPath: strict}}),
 		WithSchemaStore(bundle),
 	)
 	exitStatus, err := cli.Run()
@@ -588,31 +599,26 @@ func Test_CLISchemaMapPriorityOverStore(t *testing.T) {
 }
 
 func Test_CLIDocumentSchemaPriorityOverAll(t *testing.T) {
-	// Document $schema should win over schema-map and schemastore
+	// schema-map takes priority over schemastore. $schema in document is just data.
 	dir := t.TempDir()
 	bundle := setupMiniSchemaStore(t)
-	testhelper.WriteFile(t, dir, "own.json", `{
+	schema := testhelper.WriteFile(t, dir, "own.json", `{
 		"type": "object",
-		"properties": {"title": {"type": "string"}}
+		"properties": {"$schema": {"type": "string"}, "title": {"type": "string"}}
 	}`)
 	testhelper.WriteFile(t, dir, "package.json", `{"$schema": "own.json", "title": "hello"}`)
-	strict := testhelper.WriteFile(t, dir, "strict.json", `{
-		"type": "object",
-		"required": ["id"],
-		"additionalProperties": false
-	}`)
 
 	fsFinder := finder.FileSystemFinderInit(
 		finder.WithPathRoots(dir + "/package.json"),
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"package.json": strict}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "package.json", SchemaPath: schema}}),
 		WithSchemaStore(bundle),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
-	require.Equal(t, 0, exitStatus) // passes against own schema
+	require.Equal(t, 0, exitStatus) // passes: $schema validated as data property
 }
 
 func Test_CLIRequireSchemaWithSchemaStore(t *testing.T) {
@@ -760,7 +766,7 @@ func Test_CLISchemaMapXMLValid(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.xml": schemaPath}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.xml", SchemaPath: schemaPath}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -815,7 +821,7 @@ func Test_CLISchemaMapXMLInvalid(t *testing.T) {
 	)
 	cli := Init(
 		WithFinder(fsFinder),
-		WithSchemaMap(map[string]string{"config.xml": schemaPath}),
+		WithSchemaMap([]SchemaMapping{{Pattern: "config.xml", SchemaPath: schemaPath}}),
 	)
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
@@ -830,50 +836,6 @@ func Test_SchemaErrorsMethod(t *testing.T) {
 	}
 	require.Equal(t, []string{"error1", "error2"}, se.Errors())
 	require.Equal(t, "test: error1; error2", se.Error())
-}
-
-func Test_formatErrorsSchemaWithPositions(t *testing.T) {
-	t.Parallel()
-	se := &validator.SchemaErrors{
-		Prefix: "schema validation failed: ",
-		Items:  []string{"port: Invalid type", "name is required"},
-		Positions: []validator.SchemaErrorPosition{
-			{Line: 3, Column: 5},
-			{Line: 0, Column: 0},
-		},
-	}
-	errs, lines, cols := formatErrors(se, 0, 0)
-	require.Len(t, errs, 2)
-	require.Contains(t, errs[0], "line 3, column 5")
-	require.Contains(t, errs[1], "schema: ")
-	require.NotContains(t, errs[1], "line")
-	require.Equal(t, 3, lines[0])
-	require.Equal(t, 0, lines[1])
-	require.Equal(t, 5, cols[0])
-}
-
-func Test_formatErrorsSchemaLineOnly(t *testing.T) {
-	t.Parallel()
-	se := &validator.SchemaErrors{
-		Prefix: "schema validation failed: ",
-		Items:  []string{"port: Invalid type"},
-		Positions: []validator.SchemaErrorPosition{
-			{Line: 7, Column: 0},
-		},
-	}
-	errs, lines, _ := formatErrors(se, 0, 0)
-	require.Len(t, errs, 1)
-	require.Contains(t, errs[0], "line 7:")
-	require.NotContains(t, errs[0], "column")
-	require.Equal(t, 7, lines[0])
-}
-
-func Test_formatErrorsNil(t *testing.T) {
-	t.Parallel()
-	errs, lines, cols := formatErrors(nil, 0, 0)
-	require.Nil(t, errs)
-	require.Nil(t, lines)
-	require.Nil(t, cols)
 }
 
 func Test_CLINoJSONCNoteOnYAML(t *testing.T) {
@@ -897,4 +859,613 @@ func Test_CLIStdinWithQuiet(t *testing.T) {
 	exitStatus, err := cli.Run()
 	require.NoError(t, err)
 	require.Equal(t, 0, exitStatus)
+}
+
+// =============================================================================
+// Format tests
+// =============================================================================
+
+func Test_FormatCleanFiles(t *testing.T) {
+	dir := t.TempDir()
+	// Already-formatted JSON (2-space, sorted keys, collapsed — fits on one line)
+	testhelper.WriteFile(t, dir, "clean.json", "{ \"a\": 1, \"b\": 2 }\n")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+	require.Len(t, rep.reports, 1)
+	require.Equal(t, reporter.StatusPass, rep.reports[0].Status)
+}
+
+func Test_FormatUnformattedFile(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "messy.json", `{"b":2,"a":1}`)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+	require.Len(t, rep.reports, 1)
+	require.Equal(t, reporter.StatusUnformatted, rep.reports[0].Status)
+}
+
+func Test_FormatWithFix(t *testing.T) {
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "messy.json", `{"b":2,"a":1}`)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithFix(true))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+
+	// Verify file was rewritten
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Contains(t, string(content), "\"a\": 1")
+	require.Contains(t, string(content), "\"b\": 2")
+}
+
+func Test_FormatWithDiff(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "messy.json", `{"b":2,"a":1}`)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithDiff(true))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus)
+	// The diff is collected in the Report, not printed from goroutines.
+	require.Len(t, rep.reports, 1)
+	require.Contains(t, rep.reports[0].Diff, "---")
+	require.Contains(t, rep.reports[0].Diff, "+++")
+}
+
+func Test_FormatSkipsUnparseableFiles(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "bad.json", `{"not valid json`)
+	testhelper.WriteFile(t, dir, "good.json", "{ \"a\": 1 }\n")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{
+			IndentStyle:  formatter.IndentSpaces,
+			IndentWidth:  2,
+			FinalNewline: true,
+			SortKeys:     true,
+		}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+	// Only the parseable file should be in reports
+	require.Len(t, rep.reports, 1)
+	require.Contains(t, rep.reports[0].FilePath, "good.json")
+}
+
+func Test_FormatBrokenSymlink(t *testing.T) {
+	dir := t.TempDir()
+	testhelper.WriteFile(t, dir, "good.json", "{ \"a\": 1 }\n")
+	err := os.Symlink("/nonexistent_target_xyz", filepath.Join(dir, "broken.json"))
+	require.NoError(t, err)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
+	})
+	require.NoError(t, err)
+	// Broken symlink should be reported as a failure
+	var failCount int
+	for _, r := range rep.reports {
+		if r.Status == reporter.StatusFail {
+			failCount++
+		}
+	}
+	require.Equal(t, 1, failCount)
+	require.Equal(t, 1, exitStatus)
+}
+
+func Test_FormatNoFormatterRegistered(t *testing.T) {
+	dir := t.TempDir()
+	// .hocon has no formatter registered
+	testhelper.WriteFile(t, dir, "config.hocon", "key = value\n")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+	// No reports — file was skipped (no formatter)
+	require.Empty(t, rep.reports)
+}
+
+func Test_FormatYAMLDefaults(t *testing.T) {
+	dir := t.TempDir()
+	// YAML with 4-space indent — should get normalized to 2 (YAML default)
+	testhelper.WriteFile(t, dir, "config.yaml", "name: app\nserver:\n    host: localhost\n")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(formatName, _ string) formatter.Options {
+		opts := formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true}
+		if formatName == "json" {
+			opts.SortKeys = true
+		}
+		return opts
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus) // unformatted (4sp → 2sp)
+
+	// Verify the report mentions the YAML file
+	require.Len(t, rep.reports, 1)
+	require.Contains(t, rep.reports[0].FilePath, "config.yaml")
+	require.Equal(t, reporter.StatusUnformatted, rep.reports[0].Status)
+}
+
+func Test_FormatFixUnwritableDirectory(t *testing.T) {
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "messy.json", `{"b":2,"a":1}`)
+
+	// Make directory unwritable — can't create temp file
+	require.NoError(t, os.Chmod(dir, 0555))
+	defer func() { _ = os.Chmod(dir, 0755) }()
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(path))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithFix(true))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{IndentStyle: formatter.IndentSpaces, IndentWidth: 2, FinalNewline: true, SortKeys: true}
+	})
+	require.NoError(t, err)
+	// Should report as failed (can't write), not crash
+	require.Equal(t, 1, exitStatus)
+	require.Len(t, rep.reports, 1)
+	require.Equal(t, reporter.StatusFail, rep.reports[0].Status)
+	require.NotEmpty(t, rep.reports[0].Issues)
+	require.Contains(t, rep.reports[0].Issues[0].Message, "failed to write")
+}
+
+// =============================================================================
+// writeFileAtomic unit tests with mock filesystem
+// =============================================================================
+
+type mockFile struct {
+	name     string
+	writeErr error
+	closeErr error
+	written  []byte
+}
+
+func (f *mockFile) Name() string { return f.name }
+func (f *mockFile) Write(b []byte) (int, error) {
+	if f.writeErr != nil {
+		return 0, f.writeErr
+	}
+	f.written = append(f.written, b...)
+	return len(b), nil
+}
+func (f *mockFile) Close() error { return f.closeErr }
+
+type mockFS struct {
+	statInfo  fs.FileInfo
+	statErr   error
+	file      *mockFile
+	createErr error
+	chmodErr  error
+	renameErr error
+	removed   []string
+}
+
+func (m *mockFS) Stat(_ string) (fs.FileInfo, error) {
+	return m.statInfo, m.statErr
+}
+func (m *mockFS) CreateTemp(_, _ string) (File, error) {
+	if m.createErr != nil {
+		return nil, m.createErr
+	}
+	return m.file, nil
+}
+func (m *mockFS) Chmod(_ string, _ fs.FileMode) error { return m.chmodErr }
+func (m *mockFS) Rename(_, _ string) error            { return m.renameErr }
+func (m *mockFS) Remove(path string) error {
+	m.removed = append(m.removed, path)
+	return nil
+}
+
+func Test_writeFileAtomicSuccess(t *testing.T) {
+	mf := &mockFile{name: "/tmp/test/.cfv-fmt-123"}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist}
+
+	err := writeFileAtomicWith(mfs, "/tmp/test/config.json", []byte("data"))
+	require.NoError(t, err)
+	require.Equal(t, []byte("data"), mf.written)
+	require.Empty(t, mfs.removed) // no cleanup needed on success
+}
+
+func Test_writeFileAtomicCreateTempFails(t *testing.T) {
+	mfs := &mockFS{createErr: errors.New("permission denied"), statErr: os.ErrNotExist}
+
+	err := writeFileAtomicWith(mfs, "/tmp/test/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "creating temp file")
+}
+
+func Test_writeFileAtomicWriteFails(t *testing.T) {
+	mf := &mockFile{name: "/tmp/.cfv-fmt-456", writeErr: errors.New("disk full")}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist}
+
+	err := writeFileAtomicWith(mfs, "/tmp/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "writing temp file")
+	// Temp file should be cleaned up
+	require.Contains(t, mfs.removed, "/tmp/.cfv-fmt-456")
+}
+
+func Test_writeFileAtomicCloseFails(t *testing.T) {
+	mf := &mockFile{name: "/tmp/.cfv-fmt-789", closeErr: errors.New("io error")}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist}
+
+	err := writeFileAtomicWith(mfs, "/tmp/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "closing temp file")
+	require.Contains(t, mfs.removed, "/tmp/.cfv-fmt-789")
+}
+
+func Test_writeFileAtomicChmodFails(t *testing.T) {
+	mf := &mockFile{name: "/tmp/.cfv-fmt-abc"}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist, chmodErr: errors.New("not supported")}
+
+	err := writeFileAtomicWith(mfs, "/tmp/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "setting permissions")
+	require.Contains(t, mfs.removed, "/tmp/.cfv-fmt-abc")
+}
+
+func Test_writeFileAtomicRenameFails(t *testing.T) {
+	mf := &mockFile{name: "/tmp/.cfv-fmt-def"}
+	mfs := &mockFS{file: mf, statErr: os.ErrNotExist, renameErr: errors.New("cross-device link")}
+
+	err := writeFileAtomicWith(mfs, "/tmp/config.json", []byte("data"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "renaming temp file")
+	require.Contains(t, mfs.removed, "/tmp/.cfv-fmt-def")
+}
+
+func Test_toSchemaURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name, input, wantPrefix string
+	}{
+		{"https URL passthrough", "https://example.com/schema.json", "https://"},
+		{"http URL passthrough", "http://example.com/schema.json", "http://"},
+		{"relative path becomes file URL", "schemas/my.json", "file://"},
+		{"absolute path becomes file URL", "/tmp/schema.json", "file:///tmp/schema.json"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := toSchemaURL(tc.input)
+			require.NoError(t, err)
+			require.True(t, strings.HasPrefix(got, tc.wantPrefix),
+				"expected %q to start with %q", got, tc.wantPrefix)
+		})
+	}
+}
+
+// Test_CLICheckWithFix verifies that check --fix applies trailing comma fixes.
+func Test_CLICheckWithFix(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "bad.json", `{"key":"value","port":8080,}`)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir), finder.WithFileTypes(filetype.FileTypes))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep), WithFix(true))
+
+	exitStatus, err := cli.Run()
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+
+	// File must have been fixed.
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NotContains(t, string(content), ",}")
+}
+
+// Test_CLICheckWithFixSchemaCoerce verifies string-to-int coercion via --fix.
+func Test_CLICheckWithFixSchemaCoerce(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	schema := `{"type":"object","properties":{"port":{"type":"integer"}}}`
+	testhelper.WriteFile(t, dir, "config.json", `{"port":"8080"}`)
+	testhelper.WriteFile(t, dir, "schema.json", schema)
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir), finder.WithFileTypes(filetype.FileTypes))
+	rep := &captureReporter{}
+	cli := Init(
+		WithFinder(fsFinder),
+		WithReporters(rep),
+		WithFix(true),
+		WithSchemaMap([]SchemaMapping{{Pattern: "**/*.json", SchemaPath: filepath.Join(dir, "schema.json")}}),
+	)
+
+	_, err := cli.Run()
+	require.NoError(t, err)
+}
+
+// Test_isBrokenSymlinkRegularFile verifies that a regular file returns false.
+func Test_isBrokenSymlinkRegularFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "regular.json", `{}`)
+	require.False(t, isBrokenSymlink(path))
+}
+
+// Test_isBrokenSymlinkMissingFile verifies that a missing path returns false.
+func Test_isBrokenSymlinkMissingFile(t *testing.T) {
+	t.Parallel()
+	require.False(t, isBrokenSymlink("/this/path/does/not/exist"))
+}
+
+// Test_FormatFileSkippedOnReadError verifies that an unreadable file is skipped.
+func Test_FormatFileSkippedOnReadError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// Write then chmod to make unreadable.
+	path := testhelper.WriteFile(t, dir, "unreadable.json", `{"a":1}`)
+	require.NoError(t, os.Chmod(path, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir), finder.WithFileTypes(filetype.FileTypes))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	// Unreadable file is skipped — no reports emitted for it.
+	_, err := cli.Format(func(_, _ string) formatter.Options {
+		return formatter.Options{IndentWidth: 2, FinalNewline: true}
+	})
+	require.NoError(t, err)
+}
+
+// Test_FormatFileSkippedEmptyXML verifies ErrSkipped is reported as pass
+// when an XML file is effectively empty.
+func Test_FormatFileSkippedEmptyXML(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// Empty XML — formatter returns ErrSkipped.
+	testhelper.WriteFile(t, dir, "empty.xml", "   ")
+
+	fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir), finder.WithFileTypes(filetype.FileTypes))
+	rep := &captureReporter{}
+	cli := Init(WithFinder(fsFinder), WithReporters(rep))
+
+	exitStatus, err := cli.Format(func(_, _ string) formatter.Options {
+		return xmlfmt.DefaultOptions()
+	})
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus)
+}
+
+// Test_GroupByErrorTypeSchema verifies that schema errors are grouped under "schema" key.
+func Test_GroupByErrorTypeSchema(t *testing.T) {
+	t.Parallel()
+	reports := []reporter.Report{
+		{
+			FileName: "bad.json",
+			Status:   reporter.StatusFail,
+			Issues: []reporter.Issue{
+				{Type: reporter.IssueTypeSchema, Message: "schema error"},
+			},
+		},
+		{
+			FileName: "other.json",
+			Status:   reporter.StatusFail,
+			Issues: []reporter.Issue{
+				{Type: reporter.IssueTypeFormat, Message: "format error"},
+			},
+		},
+	}
+	grouped := GroupByErrorType(reports)
+	require.Contains(t, grouped, "schema")
+	require.Contains(t, grouped, "format")
+}
+
+// Test_GroupByDirectoryEmpty verifies that files in the current dir use empty key.
+func Test_GroupByDirectoryEmpty(t *testing.T) {
+	t.Parallel()
+	reports := []reporter.Report{
+		{FilePath: "config.json", FileName: "config.json", Status: reporter.StatusPass},
+	}
+	grouped := GroupByDirectory(reports)
+	require.Contains(t, grouped, "")
+}
+
+// Test_osRemove verifies osFS.Remove delegates to os.Remove.
+func Test_osRemove(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := testhelper.WriteFile(t, dir, "tmp.json", `{}`)
+
+	var fsImpl FileSystem = osFS{}
+	require.NoError(t, fsImpl.Remove(path))
+	_, err := os.Stat(path)
+	require.True(t, os.IsNotExist(err))
+}
+
+// Test_BOMStripping verifies that UTF-8 BOM is stripped before validation
+// and restored on format write-back.
+func Test_BOMStripping(t *testing.T) {
+	t.Parallel()
+
+	t.Run("hasBOM", func(t *testing.T) {
+		t.Parallel()
+		require.True(t, hasBOM([]byte{0xef, 0xbb, 0xbf, '{', '}'}))
+		require.False(t, hasBOM([]byte{'{', '}'}))
+		require.False(t, hasBOM([]byte{0xef, 0xbb})) // too short
+		require.False(t, hasBOM(nil))
+	})
+
+	t.Run("stripBOM", func(t *testing.T) {
+		t.Parallel()
+		input := []byte{0xef, 0xbb, 0xbf, '{', '}'}
+		got := stripBOM(input)
+		require.Equal(t, []byte{'{', '}'}, got)
+
+		// No BOM — unchanged.
+		noBOM := []byte(`{"key": "value"}`)
+		require.Equal(t, noBOM, stripBOM(noBOM))
+	})
+
+	t.Run("json_with_bom_passes_check", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		content := append([]byte{0xef, 0xbb, 0xbf}, []byte("{ \"key\": \"value\" }\n")...)
+		testhelper.WriteFile(t, dir, "bom.json", string(content))
+
+		fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+		cli := Init(
+			WithFinder(fsFinder),
+			WithReporters(reporter.NewStdoutReporter("", false)),
+			WithGroupOutput([]string{""}),
+		)
+		exitCode, err := cli.Run()
+		require.NoError(t, err)
+		require.Equal(t, 0, exitCode)
+	})
+
+	t.Run("toml_with_bom_passes_check", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		content := append([]byte{0xef, 0xbb, 0xbf}, []byte("key = \"value\"\n")...)
+		testhelper.WriteFile(t, dir, "bom.toml", string(content))
+
+		fsFinder := finder.FileSystemFinderInit(finder.WithPathRoots(dir))
+		cli := Init(
+			WithFinder(fsFinder),
+			WithReporters(reporter.NewStdoutReporter("", false)),
+			WithGroupOutput([]string{""}),
+		)
+		exitCode, err := cli.Run()
+		require.NoError(t, err)
+		require.Equal(t, 0, exitCode)
+	})
+}
+
+func Test_FormatStdinBOMPreserved(t *testing.T) {
+	// JSON with BOM that needs formatting: output should have BOM restored.
+	bom := []byte{0xef, 0xbb, 0xbf}
+	input := append(bom, []byte(`{"b":1,"a":2}`)...)
+
+	jsonFT := filetype.JSONFileType
+	jsonFT.Formatter = jsonfmt.Formatter{}
+
+	// Capture stdout by redirecting via pipe.
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	c := Init(WithStdinData(input, jsonFT))
+	exitStatus, err := c.Format(defaultJSONOpts())
+
+	require.NoError(t, w.Close())
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, exitStatus) // needed formatting
+	output := buf.Bytes()
+	require.True(t, hasBOM(output), "output should preserve BOM")
+	// Verify the content after BOM is valid formatted JSON.
+	require.Contains(t, string(output[3:]), `"b": 1`)
+}
+
+func Test_FormatStdinAlreadyFormatted(t *testing.T) {
+	// Already-formatted JSON with BOM: output should be unchanged.
+	bom := []byte{0xef, 0xbb, 0xbf}
+	formatted := "{\n  \"a\": 1\n}\n"
+	input := append(bom, []byte(formatted)...)
+
+	jsonFT := filetype.JSONFileType
+	jsonFT.Formatter = jsonfmt.Formatter{}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	c := Init(WithStdinData(input, jsonFT))
+	exitStatus, err := c.Format(defaultJSONOpts())
+
+	require.NoError(t, w.Close())
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+
+	require.NoError(t, err)
+	require.Equal(t, 0, exitStatus) // already formatted
+	require.Equal(t, input, buf.Bytes(), "output should be identical to input including BOM")
+}
+
+func Test_FormatStdinSyntaxError(t *testing.T) {
+	// Invalid JSON from stdin should return exit 2 with error.
+	jsonFT := filetype.JSONFileType
+	jsonFT.Formatter = jsonfmt.Formatter{}
+
+	c := Init(WithStdinData([]byte(`{"broken":}`), jsonFT))
+	exitStatus, err := c.Format(defaultJSONOpts())
+
+	require.Error(t, err)
+	require.Equal(t, 2, exitStatus)
+	require.Contains(t, err.Error(), "formatting stdin")
 }

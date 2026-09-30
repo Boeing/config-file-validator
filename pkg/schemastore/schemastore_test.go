@@ -221,6 +221,7 @@ func TestLookupCacheExpired(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: 0, // expired immediately
+		client:   &http.Client{},
 	}
 
 	// Pre-populate cache with old mtime
@@ -268,6 +269,7 @@ func TestFetchAndCacheSuccess(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	path, found := store.Resolve("/project/config.json")
@@ -294,6 +296,7 @@ func TestFetchAndCache404(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	// Fetch fails, falls back to remote URL
@@ -316,6 +319,7 @@ func TestFetchAndCache500(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	path, found := store.Resolve("/project/config.json")
@@ -332,6 +336,7 @@ func TestFetchAndCacheNetworkError(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   &http.Client{},
 	}
 
 	path, found := store.Resolve("/project/config.json")
@@ -356,6 +361,7 @@ func TestFetchAndCacheThenHitCache(t *testing.T) {
 		},
 		cacheDir: cacheDir,
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	// First call fetches
@@ -384,6 +390,7 @@ func TestFetchAndCacheUnwritableDir(t *testing.T) {
 		},
 		cacheDir: "/nonexistent/readonly/path",
 		cacheTTL: defaultCacheTTL,
+		client:   srv.Client(),
 	}
 
 	// Cache write fails, falls back to remote URL
@@ -436,4 +443,36 @@ func TestResolveExtensionlessDotfileNoMatch(t *testing.T) {
 	// Different dotfile should not match
 	_, found := store.Resolve("/project/.eslintrc")
 	require.False(t, found)
+}
+
+func TestDefaultCacheDirXDG(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", "/custom/cache")
+	dir, err := defaultCacheDir()
+	require.NoError(t, err)
+	require.Equal(t, "/custom/cache/cfv/schemas", dir)
+}
+
+func TestDefaultCacheDirFallbackToHome(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", "")
+	dir, err := defaultCacheDir()
+	require.NoError(t, err)
+	require.Contains(t, dir, ".cache/cfv/schemas")
+}
+
+func TestFetchAndCacheNilClient(t *testing.T) {
+	t.Parallel()
+	cacheDir := t.TempDir()
+	store := &Store{
+		entries: []catalogEntry{
+			{FileMatch: []string{"config.json"}, URL: "https://example.com/schema.json"},
+		},
+		cacheDir: cacheDir,
+		cacheTTL: defaultCacheTTL,
+		// client intentionally nil — tests the defensive guard
+	}
+
+	// Should fall back to raw URL (nil client → fetchAndCache returns error → Resolve falls back)
+	path, found := store.Resolve("/project/config.json")
+	require.True(t, found)
+	require.Equal(t, "https://example.com/schema.json", path)
 }

@@ -3,33 +3,75 @@ sidebar_position: 1
 slug: /introduction
 ---
 
-import Head from '@docusaurus/Head';
-import { SUPPORTED_FORMATS, SCHEMA_FORMATS, SYNTAX_FORMATS } from '@site/src/data/supportedFormats';
-
-<Head>
-  <meta name="description" content={`Validates config files across ${SUPPORTED_FORMATS.length} formats`} />
-</Head>
-
 # Introduction
 
-Config File Validator validates config files across {SUPPORTED_FORMATS.length} formats.
+cfv is a toolchain for configuration files. It catches syntax errors, schema violations, and formatting problems across your repo and fixes what it can. Single static binary. No runtime dependencies.
 
-It recursively searches directories for config files, detects their format by extension or filename, and reports errors.
+```shell
+cfv check .
+```
+
+Validates syntax, enforces schemas, and checks formatting in one pass. Fix everything automatically:
+
+```shell
+cfv check --fix .
+```
+
+Preview formatting changes as a diff:
+
+```shell
+cfv format --diff .
+```
+
+`cfv check` is the single CI gate. If any file has a syntax error, a schema violation, or inconsistent formatting, it exits 1.
 
 ## Supported formats
 
-**Syntax + Schema:** {SCHEMA_FORMATS.map(f => `\`${f}\``).join(' ')}
+| Format | Validate | Format | Schema |
+|--------|:--------:|:------:|:------:|
+| JSON | ✓ | ✓ | ✓ |
+| JSONC | ✓ | ✓ | ✓ |
+| YAML | ✓ | ✓ | ✓ |
+| TOML | ✓ | ✓ | ✓ |
+| XML | ✓ | ✓ | ✓ |
+| HCL | ✓ | ✓ | |
+| INI | ✓ | ✓ | |
+| Properties | ✓ | ✓ | |
+| ENV | ✓ | ✓ | |
+| HOCON | ✓ | | |
+| CSV | ✓ | | |
+| EDITORCONFIG | ✓ | | |
+| Justfile | ✓ | | |
+| KDL | ✓ | | |
+| CUE | ✓ | | |
+| PList | ✓ | | |
+| TOON | ✓ | | ✓ |
+| SARIF | ✓ | | ✓ |
 
-**Syntax:** {SYNTAX_FORMATS.map(f => `\`${f}\``).join(' ')}
+## What it replaces
+
+cfv covers what previously required separate tools:
+
+- **prettier** / **yamlfmt** — YAML and JSON formatting
+- **taplo** — TOML formatting
+- **terraform fmt** — HCL formatting
+- **xmllint** — XML validation and formatting
+- **jsonlint** — JSON validation
+- **v8r** — schema validation via SchemaStore
+
+For projects that already use prettier, taplo, or yamlfmt, cfv reads those config files so formatting output matches. See [Using cfv with Existing Tools](./guides/existing-tools.md).
 
 ## When to use it
 
-- **CI pipelines** — a [GitHub Action](./integrations/github-actions.md) posts validation results as PR comments with inline annotations. For other CI systems, use JSON, JUnit, or SARIF output.
-- **Pre-commit hooks** — a ready-made [pre-commit hook](./integrations/pre-commit.md) validates changed config files on every commit. No setup beyond adding the hook.
-- **Monorepos** — validates all config formats in a single pass. No per-format tooling to install or maintain.
-- **Schema enforcement** — go beyond syntax checking. Require that config files declare and conform to a schema. Catch wrong field names, invalid values, and missing required keys — not just malformed syntax.
+- **CI pipelines** — `cfv check` as a single gate catches syntax, schema, and formatting issues. Use JSON, JUnit, SARIF, or GitHub output for machine-readable results.
+- **Pre-commit hooks** — `cfv check --fix` validates and formats changed config files before every commit.
+- **Monorepos** — one tool handles all config formats in a single pass. No per-format tooling to install.
+- **Schema enforcement** — catch wrong field names, invalid values, and missing required keys via JSON Schema, XSD, or automatic SchemaStore lookup.
 
 ## Next steps
 
-- [Installation](./installation.md) — install via Homebrew, Winget, `go install`, or binary download
-- [Quick Start](./quick-start.md) — validate your first directory in under a minute
+- [Installation](./installation.md) — Homebrew, Winget, `go install`, or binary download
+- [Quick Start](./quick-start.md) — validate your first directory
+- [Formatting Guide](./guides/formatting.md) — configure and use formatting
+- [Schema Validation](./guides/schema-validation.md) — enforce schemas beyond syntax
+- [CLI Reference](./reference/cli-flags.md) — all flags and options

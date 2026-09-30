@@ -1,0 +1,8 @@
+{
+    // comment
+    "name": "test",
+    "nested": {
+        "alpha_setting": "this value is long enough to prevent collapsing",
+        "beta_setting": 2,
+    },
+}

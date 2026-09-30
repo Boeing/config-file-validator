@@ -1,0 +1,18 @@
+# A long flow collection expanded inside a block sequence item must stay valid
+# YAML: its bracket belongs under the key, not at the key's own column.
+exec cfv format --fix --no-config .
+stdout '✓.*relabel.yaml'
+
+# The rewritten file still parses.
+exec cfv check --no-schema .
+stdout '✓.*relabel.yaml'
+! stdout '×'
+
+# Formatting again is a no-op.
+exec cfv format --no-config .
+! stdout '~'
+
+-- relabel.yaml --
+relabel_configs:
+  - values: ["first_long_element_value_aaaaaaaaaaaaaaaa", "second_long_element_value_bbbbbbbbbbbb", "third_long_element_cccccc"]
+    action: keep

@@ -1,0 +1,6 @@
+alpha:
+  value: simple
+zebra:
+  config: &zebra_cfg
+    port: 9090
+  server: *zebra_cfg

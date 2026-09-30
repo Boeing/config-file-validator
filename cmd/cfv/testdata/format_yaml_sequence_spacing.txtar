@@ -1,0 +1,13 @@
+exec cfv format --fix --no-config sequence.yaml
+stdout 'sequence.yaml'
+
+exec cfv check --no-schema --no-config sequence.yaml
+stdout 'sequence.yaml'
+
+exec cfv format --no-config sequence.yaml
+! stdout '~'
+
+-- sequence.yaml --
+items:
+  -   key: short
+      other: x

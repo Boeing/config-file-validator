@@ -1,0 +1,37 @@
+# ============================================================
+# cfv check format issues in structured reporters
+# Verifies JSON, SARIF, and JUnit reporters include format issues
+# ============================================================
+
+# JSON reporter includes format issue
+! exec cfv check --no-config --reporter=json:- unformatted.json
+stdout '"status": "unformatted"'
+stdout 'format: file is not formatted'
+
+# JUnit reporter includes format failure
+! exec cfv check --no-config --reporter=junit:- unformatted.json
+stdout 'testcase'
+stdout 'file is not formatted'
+
+# SARIF reporter includes format result
+! exec cfv check --no-config --reporter=sarif:- unformatted.json
+stdout '"level": "warning"'
+stdout 'file is not formatted'
+
+# GitHub reporter emits annotation for format issue
+! exec cfv check --no-config --reporter=github unformatted.json
+stdout '::warning'
+stdout 'file is not formatted'
+
+# Quiet mode suppresses output but still exits 1
+! exec cfv check --no-config --quiet unformatted.json
+! stdout '.'
+
+# With --fix, reporter shows pass
+exec cfv check --fix --no-config --reporter=json:- fix_me.json
+stdout '"status": "passed"'
+
+-- unformatted.json --
+{"key":"value"}
+-- fix_me.json --
+{"key":"value"}

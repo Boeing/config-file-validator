@@ -6,27 +6,33 @@ import (
 	"strings"
 )
 
+// JSONReporter outputs results as structured JSON.
 type JSONReporter struct {
 	outputDest string
+	isQuiet    bool
 }
 
-func NewJSONReporter(outputDest string) *JSONReporter {
+// NewJSONReporter creates a JSONReporter. If outputDest is non-empty,
+// output is written to that file. When isQuiet is true, stdout output
+// is suppressed.
+func NewJSONReporter(outputDest string, isQuiet bool) *JSONReporter {
 	return &JSONReporter{
 		outputDest: outputDest,
+		isQuiet:    isQuiet,
 	}
 }
 
 type fileStatus struct {
-	Path     string   `json:"path"`
-	Status   string   `json:"status"`
-	Errors   []string `json:"errors,omitempty"`
-	Notes    []string `json:"notes,omitempty"`
-	Warnings []string `json:"warnings,omitempty"`
+	Path   string   `json:"path"`
+	Status string   `json:"status"`
+	Errors []string `json:"errors,omitempty"`
+	Notes  []string `json:"notes,omitempty"`
 }
 
 type summary struct {
-	Passed int `json:"passed"`
-	Failed int `json:"failed"`
+	Passed      int `json:"passed"`
+	Failed      int `json:"failed"`
+	Unformatted int `json:"unformatted,omitempty"`
 }
 
 type reportJSON struct {
@@ -35,15 +41,14 @@ type reportJSON struct {
 }
 
 type groupReportJSON struct {
-	Files       any `json:"files"`
-	Summary     any `json:"summary"`
-	TotalPassed int `json:"totalPassed"`
-	TotalFailed int `json:"totalFailed"`
+	Files            any `json:"files"`
+	Summary          any `json:"summary"`
+	TotalPassed      int `json:"totalPassed"`
+	TotalFailed      int `json:"totalFailed"`
+	TotalUnformatted int `json:"totalUnformatted,omitempty"`
 }
 
-// Print implements the Reporter interface by outputting
-// the report content to stdout as JSON
-// if outputDest flag is provided, output results to a file.
+// Print implements the Reporter interface.
 func (jr JSONReporter) Print(reports []Report) error {
 	report, err := createJSONReport(reports)
 	if err != nil {
@@ -61,7 +66,7 @@ func (jr JSONReporter) Print(reports []Report) error {
 		return outputBytesToFile(jr.outputDest, "result", "json", jsonBytes)
 	}
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
+	if !jr.isQuiet {
 		fmt.Print(string(jsonBytes))
 	}
 
@@ -76,10 +81,11 @@ func PrintGroupJSON(groupReports *GroupNode) error {
 	}
 
 	jsonReport := groupReportJSON{
-		Files:       files,
-		Summary:     summaries,
-		TotalPassed: totalSummary.Passed,
-		TotalFailed: totalSummary.Failed,
+		Files:            files,
+		Summary:          summaries,
+		TotalPassed:      totalSummary.Passed,
+		TotalFailed:      totalSummary.Failed,
+		TotalUnformatted: totalSummary.Unformatted,
 	}
 	jsonBytes, err := json.MarshalIndent(jsonReport, "", "  ")
 	if err != nil {
@@ -106,6 +112,7 @@ func createGroupJSON(node *GroupNode) (files any, summaries any, total summary, 
 		groupSummaries[child.Key] = childSummary
 		total.Passed += reportSummary.Passed
 		total.Failed += reportSummary.Failed
+		total.Unformatted += reportSummary.Unformatted
 	}
 
 	return groupFiles, groupSummaries, total, nil
@@ -131,6 +138,7 @@ func createGroupJSONNode(node *GroupNode) (files any, summaries any, total summa
 		childSummaries[child.Key] = summaries
 		total.Passed += reportSummary.Passed
 		total.Failed += reportSummary.Failed
+		total.Unformatted += reportSummary.Unformatted
 	}
 
 	return childFiles, childSummaries, total, nil
@@ -151,44 +159,50 @@ func PrintTripleGroupJSON(groupReports map[string]map[string]map[string][]Report
 	return PrintGroupJSON(groupNodeFromTriple(groupReports))
 }
 
-// Creates the json report
 func createJSONReport(reports []Report) (reportJSON, error) {
 	var jsonReport reportJSON
 
 	for _, report := range reports {
-		status := "passed"
+		status := statusToString(report.Status)
 		var errs []string
-		if !report.IsValid {
-			status = "failed"
-			errs = report.ValidationErrors
+		for _, issue := range report.Issues {
+			errs = append(errs, formatIssueMessage(issue))
 		}
 
-		// Convert Windows-style file paths.
-		if strings.Contains(report.FilePath, "\\") {
-			report.FilePath = strings.ReplaceAll(report.FilePath, "\\", "/")
+		filePath := report.FilePath
+		if strings.Contains(filePath, "\\") {
+			filePath = strings.ReplaceAll(filePath, "\\", "/")
 		}
 
 		jsonReport.Files = append(jsonReport.Files, fileStatus{
-			Path:     report.FilePath,
-			Status:   status,
-			Errors:   errs,
-			Notes:    report.Notes,
-			Warnings: report.Warnings,
+			Path:   filePath,
+			Status: status,
+			Errors: errs,
+			Notes:  report.Notes,
 		})
+	}
 
-		currentPassed := 0
-		currentFailed := 0
-		for _, f := range jsonReport.Files {
-			if f.Status == "passed" {
-				currentPassed++
-			} else {
-				currentFailed++
-			}
+	for _, f := range jsonReport.Files {
+		switch f.Status {
+		case "passed":
+			jsonReport.Summary.Passed++
+		case "unformatted":
+			jsonReport.Summary.Unformatted++
+		default:
+			jsonReport.Summary.Failed++
 		}
-
-		jsonReport.Summary.Passed = currentPassed
-		jsonReport.Summary.Failed = currentFailed
 	}
 
 	return jsonReport, nil
+}
+
+func statusToString(s Status) string {
+	switch s {
+	case StatusFail:
+		return "failed"
+	case StatusUnformatted:
+		return "unformatted"
+	default:
+		return "passed"
+	}
 }

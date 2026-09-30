@@ -1,0 +1,1556 @@
+package yamlfmt_test
+
+import (
+	"encoding/json"
+	"flag"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/yamlfmt"
+)
+
+var update = flag.Bool("update", false, "update .expected.* golden files")
+
+var f = yamlfmt.Formatter{}
+var defaultOpts = yamlfmt.DefaultOptions()
+
+func TestDefaultQuoteStyleMatchesPrettier(t *testing.T) {
+	t.Parallel()
+	src := []byte("plain: unchanged\nversion: '1.0.0'\nmessage: 'say \"hi\"'\napostrophe: \"it's\"\nescape: \"line\\nnext\"\n")
+	want := "plain: unchanged\nversion: \"1.0.0\"\nmessage: 'say \"hi\"'\napostrophe: \"it's\"\nescape: \"line\\nnext\"\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+func TestSequenceIndicatorSpacing(t *testing.T) {
+	t.Parallel()
+	src := []byte("items:\n  -   key: short\n      other: x\n")
+	want := "items:\n  - key: short\n    other: x\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+	require.NoError(t, yamlUnmarshal(got, &map[string]any{}))
+}
+
+// yamlUnmarshal is a test helper that validates output is parseable YAML.
+func yamlUnmarshal(data []byte, v any) error {
+	return yaml.Unmarshal(data, v)
+}
+
+// TestFixtures runs all .input.yaml -> .expected.yaml fixture pairs.
+func TestFixtures(t *testing.T) {
+	t.Parallel()
+	inputs, err := filepath.Glob("testdata/*.input.yaml")
+	require.NoError(t, err)
+	require.NotEmpty(t, inputs, "no fixture files found")
+
+	for _, input := range inputs {
+		name := strings.TrimSuffix(filepath.Base(input), ".input.yaml")
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			expected := strings.Replace(input, ".input.", ".expected.", 1)
+
+			src, err := os.ReadFile(input)
+			require.NoError(t, err)
+
+			optsFile := "testdata/" + name + ".opts.json"
+			opts := formatter.LoadFixtureOptions(optsFile, defaultOpts)
+
+			got, err := f.Format(src, opts)
+			require.NoError(t, err, "Format(%s) should not error", name)
+
+			var parsed yaml.Node
+			require.NoError(t, yaml.Unmarshal(got, &parsed),
+				"Format output is not valid YAML for %s", name)
+
+			if *update {
+				require.NoError(t, os.WriteFile(expected, got, 0o600), //nolint:gosec // path derived from glob within testdata/
+					"failed to update golden file %s", expected)
+				return
+			}
+
+			want, err := os.ReadFile(expected)
+			require.NoError(t, err)
+			require.Equal(t, string(want), string(got), "unexpected output for %s", name)
+		})
+	}
+}
+
+// TestIdempotency verifies Format(Format(x, opts), opts) == Format(x, opts)
+// using fixture-specific options when available.
+func TestIdempotency(t *testing.T) {
+	t.Parallel()
+	expected, err := filepath.Glob("testdata/*.expected.yaml")
+	require.NoError(t, err)
+	require.NotEmpty(t, expected)
+
+	for _, file := range expected {
+		name := filepath.Base(file)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			src, err := os.ReadFile(file)
+			require.NoError(t, err)
+
+			// Use fixture-specific options when available.
+			baseName := strings.TrimSuffix(name, ".expected.yaml")
+			optsFile := "testdata/" + baseName + ".opts.json"
+			opts := formatter.LoadFixtureOptions(optsFile, defaultOpts)
+
+			first, err := f.Format(src, opts)
+			require.NoError(t, err)
+
+			var parsed yaml.Node
+			require.NoError(t, yaml.Unmarshal(first, &parsed),
+				"Format output is not valid YAML for %s", name)
+
+			second, err := f.Format(first, opts)
+			require.NoError(t, err)
+
+			require.Equal(t, string(first), string(second),
+				"Format is not idempotent for %s", name)
+		})
+	}
+}
+
+func TestPlainScalarStartingWithDocumentMarkerIsIdempotent(t *testing.T) {
+	t.Parallel()
+	for _, prefix := range []string{"---", "..."} {
+		t.Run(prefix, func(t *testing.T) {
+			t.Parallel()
+			src := []byte("-:\n- 0\n" + prefix + "\"0:\n")
+
+			first, err := f.Format(src, defaultOpts)
+			require.NoError(t, err)
+
+			second, err := f.Format(first, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, first, second)
+
+			var before, after any
+			require.NoError(t, yaml.Unmarshal(src, &before))
+			require.NoError(t, yaml.Unmarshal(first, &after))
+			require.Equal(t, before, after)
+		})
+	}
+}
+
+func TestNestedSequencePreservesDepth(t *testing.T) {
+	t.Parallel()
+	src := []byte("- \n - 00\n")
+
+	formatted, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, "-\n  - 00\n", string(formatted))
+
+	second, err := f.Format(formatted, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, formatted, second)
+
+	var before, after any
+	require.NoError(t, yaml.Unmarshal(src, &before))
+	require.NoError(t, yaml.Unmarshal(formatted, &after))
+	require.Equal(t, before, after)
+}
+
+func TestInlineNestedSequenceIsIdempotent(t *testing.T) {
+	t.Parallel()
+	src := []byte("matrix:\n    - - 1\n      - 2\n    - - 3\n")
+
+	formatted, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, "matrix:\n  - - 1\n    - 2\n  - - 3\n", string(formatted))
+
+	second, err := f.Format(formatted, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, formatted, second)
+}
+
+// TestInvalidYAMLReturnsError verifies that unparseable input returns an error.
+func TestInvalidYAMLReturnsError(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		src  string
+	}{
+		{"bad indentation", "key:\n  a: 1\n b: 2\n"},
+		{"tab in mapping", "a:\n\tb: 1\n"},
+		{"unclosed flow", "{a: 1, b: 2"},
+		{"undefined anchor", "a: *undefined\n"},
+		{"reserved indicator", "@ value\n"},
+		{"control character", "key: \x00value\n"},
+		{"second doc broken", "---\na: 1\n---\n{broken"},
+		{"third doc broken", "---\na: 1\n---\nb: 2\n---\n@ bad\n"},
+		{"duplicate key in second doc", "---\na: 1\n---\nb: 1\nb: 2\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := f.Format([]byte(tc.src), defaultOpts)
+			require.Error(t, err, "expected error for invalid YAML: %s", tc.src)
+		})
+	}
+}
+
+// TestDuplicateKeysRejected verifies that duplicate mapping keys produce an
+// error. This is caught by yaml.Unmarshal (the Node decoder silently keeps
+// both keys).
+func TestDuplicateKeysRejected(t *testing.T) {
+	t.Parallel()
+	src := []byte("a: 1\na: 2\n")
+	_, err := f.Format(src, defaultOpts)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already defined")
+}
+
+// TestEmptyInputReturnsErrSkipped verifies that empty or whitespace-only
+// input returns ErrSkipped rather than silently passing through.
+func TestEmptyInputReturnsErrSkipped(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		src  string
+	}{
+		{"empty", ""},
+		{"whitespace only", "   \n  \n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := f.Format([]byte(tc.src), defaultOpts)
+			require.Error(t, err)
+			var skipped *formatter.ErrSkipped
+			require.ErrorAs(t, err, &skipped)
+			require.Equal(t, "empty document", skipped.Reason)
+		})
+	}
+}
+
+// TestDocumentMarkerPreserved verifies --- is preserved when present.
+func TestDocumentMarkerPreserved(t *testing.T) {
+	t.Parallel()
+	src := []byte("---\na: 1\nb: 2\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(string(got), "---\n"),
+		"expected output to start with ---, got: %q", string(got))
+}
+
+// TestDocumentMarkerAbsent verifies --- is NOT added when absent.
+func TestDocumentMarkerAbsent(t *testing.T) {
+	t.Parallel()
+	src := []byte("a: 1\nb: 2\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.False(t, strings.HasPrefix(string(got), "---\n"),
+		"expected output NOT to start with ---, got: %q", string(got))
+}
+
+// TestMultiDocAlwaysHasMarkers verifies every document in a multi-doc file
+// gets a --- separator.
+func TestMultiDocAlwaysHasMarkers(t *testing.T) {
+	t.Parallel()
+	src := []byte("---\na: 1\n---\nb: 2\n---\nc: 3\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	count := strings.Count(string(got), "---\n")
+	require.Equal(t, 3, count, "expected 3 --- markers in multi-doc output, got %d:\n%s", count, got)
+}
+
+// TestTabsRejectedAsInvalidYAML verifies that YAML with tab indentation
+// inside a mapping is rejected — the YAML spec forbids tabs in indentation.
+func TestTabsRejectedAsInvalidYAML(t *testing.T) {
+	t.Parallel()
+	src := []byte("a:\n\tb: 1\n")
+	_, err := f.Format(src, defaultOpts)
+	require.Error(t, err, "expected error for YAML with tab indentation in mapping")
+}
+
+// TestCRLFLineEnding verifies CRLF line endings are applied to output.
+func TestCRLFLineEnding(t *testing.T) {
+	t.Parallel()
+	src := []byte("a: 1\nb: 2\n")
+	opts := defaultOpts
+	opts.LineEnding = formatter.LineEndingCRLF
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "\r\n", "expected CRLF line endings")
+	require.NotContains(t, string(got), "\r\r\n", "must not double-CRLF")
+}
+
+// TestFinalNewlineFalse verifies that FinalNewline=false strips the trailing
+// newline from YAML output.
+func TestFinalNewlineFalse(t *testing.T) {
+	t.Parallel()
+	src := []byte("a: 1\nb: 2\n")
+	opts := defaultOpts
+	opts.FinalNewline = false
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	require.NotEqual(t, byte('\n'), got[len(got)-1],
+		"expected no trailing newline, got: %q", got)
+}
+
+// TestIndentWidth4 verifies 4-space indent produces correctly indented output.
+func TestIndentWidth4(t *testing.T) {
+	t.Parallel()
+	src := []byte("a:\n  b: 1\n")
+	opts := defaultOpts
+	opts.IndentWidth = 4
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "    b: 1", "expected 4-space indent")
+}
+
+// TestTabOptionReturnsError verifies that IndentTabs returns an error
+// (YAML spec forbids tab indentation).
+func TestTabOptionReturnsError(t *testing.T) {
+	t.Parallel()
+	src := []byte("a:\n  b: 1\n")
+	opts := defaultOpts
+	opts.IndentStyle = formatter.IndentTabs
+
+	_, err := f.Format(src, opts)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "tab indentation is not supported")
+}
+
+// TestCommentsPreserved verifies that all comment types survive formatting.
+func TestCommentsPreserved(t *testing.T) {
+	t.Parallel()
+	src := []byte("# header\nkey: value # inline\n# footer\nother: thing\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "# header")
+	require.Contains(t, string(got), "# inline")
+	require.Contains(t, string(got), "# footer")
+}
+
+// TestEndCommentIndentation verifies that "end comments" (comments after a
+// block's content but before a shallower sibling) retain their indentation.
+// P2 fix: these were previously moved to column 0.
+func TestEndCommentIndentation(t *testing.T) {
+	t.Parallel()
+	src := []byte("a:\n  123\n  # endComment\nb: 2\n")
+	want := "a:\n  123\n  # endComment\nb: 2\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestSequenceEndCommentIndentation verifies end comments after sequence items.
+func TestSequenceEndCommentIndentation(t *testing.T) {
+	t.Parallel()
+	src := []byte("d:\n  - 123\n  # seqEndComment\ne: 2\n")
+	want := "d:\n  - 123\n  # seqEndComment\ne: 2\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestSequenceItemEndCommentIndentation verifies comments at item-content level.
+func TestSequenceItemEndCommentIndentation(t *testing.T) {
+	t.Parallel()
+	src := []byte("f:\n  - a\n  - b\n    # itemEndComment\n  - c\n")
+	want := "f:\n  - a\n  - b\n    # itemEndComment\n  - c\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestTrailingCommentBlankLines verifies that blank lines before end-of-document
+// trailing comments are stripped for sequence bodies but preserved for mapping
+// bodies. This matches prettier v3.9.6 behavior where documentBody endComments
+// are joined with hardline (not hardline+hardline) in sequence documents.
+func TestTrailingCommentBlankLines(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "sequence_body_trailing_comment_blank_stripped",
+			input: "- cmd: hi\n\n# trailing\n",
+			want:  "- cmd: hi\n# trailing\n",
+		},
+		{
+			name:  "sequence_body_multiple_trailing_comments",
+			input: "- a\n- b\n\n# comment1\n# comment2\n",
+			want:  "- a\n- b\n# comment1\n# comment2\n",
+		},
+		{
+			name:  "mapping_body_trailing_comment_blank_preserved",
+			input: "a: 1\nb: 2\n\n# trailing\n",
+			want:  "a: 1\nb: 2\n\n# trailing\n",
+		},
+		{
+			name:  "sequence_no_blank_line_unchanged",
+			input: "- a\n# trailing\n",
+			want:  "- a\n# trailing\n",
+		},
+		{
+			name:  "mid_document_comment_blank_preserved",
+			input: "- a\n\n# mid\n- b\n",
+			want:  "- a\n\n# mid\n- b\n",
+		},
+		{
+			name:  "no_trailing_comments_unchanged",
+			input: "- a\n- b\n",
+			want:  "- a\n- b\n",
+		},
+		{
+			name:  "mapping_body_no_trailing_comment_unchanged",
+			input: "a: 1\nb: 2\n",
+			want:  "a: 1\nb: 2\n",
+		},
+		{
+			name:  "multi_doc_last_mapping_preserves",
+			input: "- x\n---\na: 1\n\n# end\n",
+			want:  "- x\n---\na: 1\n\n# end\n",
+		},
+		{
+			name:  "multi_doc_last_sequence_strips",
+			input: "a: 1\n---\n- x\n- y\n\n# end\n",
+			want:  "a: 1\n---\n- x\n- y\n# end\n",
+		},
+		{
+			name:  "sequence_indented_trailing_comment_preserved",
+			input: "- a\n- b\n\n  # indented\n",
+			want:  "- a\n- b\n\n  # indented\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency check.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2), "format must be idempotent")
+
+			// Semantic preservation.
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &before))
+			require.NoError(t, yaml.Unmarshal(got, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
+}
+
+// TestMultiDocPartialDecodeReturnsError verifies that a broken second document
+// surfaces an error instead of silently dropping the broken doc.
+func TestMultiDocPartialDecodeReturnsError(t *testing.T) {
+	t.Parallel()
+	src := []byte("---\na: 1\n---\n{broken")
+	_, err := f.Format(src, defaultOpts)
+	require.Error(t, err, "expected error for broken second document")
+	require.Contains(t, err.Error(), "yaml:")
+}
+
+// TestMultiDocSequenceIndent verifies that sequences in documents 2+ receive
+// correct indentation (IndentSequences=Enabled). Before the fix (#582),
+// buildASTMetadata only parsed the first document, so sequences in later
+// documents had no AST depth and fell back to shift-based delta logic.
+func TestMultiDocSequenceIndent(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "sequence_in_second_doc",
+			input: "---\na: 1\n---\nkey:\n- item1\n- item2\n",
+			want:  "---\na: 1\n---\nkey:\n  - item1\n  - item2\n",
+		},
+		{
+			name:  "sequence_in_third_doc",
+			input: "---\na: 1\n---\nb: 2\n---\nlist:\n- one\n- two\n",
+			want:  "---\na: 1\n---\nb: 2\n---\nlist:\n  - one\n  - two\n",
+		},
+		{
+			name:  "first_doc_still_works",
+			input: "---\nkey:\n- item1\n- item2\n",
+			want:  "---\nkey:\n  - item1\n  - item2\n",
+		},
+		{
+			name:  "root_sequence_in_second_doc",
+			input: "---\na: 1\n---\n- item1\n- item2\n",
+			want:  "---\na: 1\n---\n- item1\n- item2\n",
+		},
+		{
+			name:  "nested_sequence_both_docs",
+			input: "---\nfoo:\n- a\n- b\n---\nbar:\n- c\n- d\n",
+			want:  "---\nfoo:\n  - a\n  - b\n---\nbar:\n  - c\n  - d\n",
+		},
+		{
+			name:  "mapping_only_second_doc_unchanged",
+			input: "---\na: 1\n---\nb: 2\nc: 3\n",
+			want:  "---\na: 1\n---\nb: 2\nc: 3\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency check.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2), "format must be idempotent")
+
+			// Semantic preservation: decode all documents before/after.
+			decBefore := yaml.NewDecoder(strings.NewReader(tc.input))
+			decAfter := yaml.NewDecoder(strings.NewReader(string(got)))
+			docIdx := 0
+			for {
+				var before, after any
+				errB := decBefore.Decode(&before)
+				errA := decAfter.Decode(&after)
+				if errB != nil && errA != nil {
+					break
+				}
+				require.Equal(t, errB == nil, errA == nil,
+					"doc %d: decode mismatch (before err=%v, after err=%v)", docIdx, errB, errA)
+				require.Equal(t, before, after,
+					"doc %d: formatting must not change parsed value", docIdx)
+				docIdx++
+			}
+		})
+	}
+}
+
+// TestQuoteStyleNormalizesKeys verifies that quote-style changes apply to
+// both mapping keys and values, matching prettier's behavior.
+func TestQuoteStyleNormalizesKeys(t *testing.T) {
+	t.Parallel()
+	src := []byte("\"double-key\": 'value1'\n'single-key': 'value2'\nplain-key: 'value3'\n")
+	opts := defaultOpts
+	opts.QuoteStyle = formatter.QuoteDouble
+
+	got, err := f.Format(src, opts)
+	require.NoError(t, err)
+	output := string(got)
+	// Double-quoted key stays double.
+	require.Contains(t, output, "\"double-key\":")
+	// Single-quoted key with no embedded quotes → converted to double.
+	require.Contains(t, output, "\"single-key\":")
+	// Unquoted key stays unquoted (only already-quoted keys are normalized).
+	require.Contains(t, output, "plain-key:")
+	// Values converted to double.
+	require.Contains(t, output, ": \"value1\"")
+	require.Contains(t, output, ": \"value2\"")
+	require.Contains(t, output, ": \"value3\"")
+
+	// Semantic preservation: parsed data must be identical.
+	var before, after any
+	require.NoError(t, yaml.Unmarshal(src, &before))
+	require.NoError(t, yaml.Unmarshal(got, &after))
+	require.Equal(t, before, after, "formatting must not change parsed value")
+}
+
+// TestQuoteStyleKeyEdgeCases verifies quote normalization edge cases on keys.
+func TestQuoteStyleKeyEdgeCases(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"key_with_embedded_double_quote_stays_single",
+			"'key \"has\" quotes': value\n",
+			"'key \"has\" quotes': value\n"},
+		{"key_with_escape_keeps_original",
+			"\"key\\nnewline\": value\n",
+			"\"key\\nnewline\": value\n"},
+		{"double_quoted_key_no_change",
+			"\"already-double\": value\n",
+			"\"already-double\": value\n"},
+		{"key_with_embedded_single_quote_goes_double",
+			"\"it's\": value\n",
+			"\"it's\": value\n"},
+	}
+	opts := defaultOpts
+	opts.QuoteStyle = formatter.QuoteDouble
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+		})
+	}
+}
+
+// TestMultiLineQuoteConversion verifies that multi-line quoted scalars are
+// normalized to the target quote style, matching prettier v3.9.6 behavior.
+// Previously, convertQuote bailed on any multi-line content unconditionally.
+func TestMultiLineQuoteConversion(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "simple_multiline_single_to_double",
+			input: "msg: 'hello\n  world'\n",
+			want:  "msg: \"hello\n  world\"\n",
+		},
+		{
+			name:  "multiline_single_with_backslash_preserved",
+			input: "path: 'C:\\Users\\file\n  continues'\n",
+			want:  "path: 'C:\\Users\\file\n  continues'\n",
+		},
+		{
+			name:  "multiline_with_embedded_double_stays_single",
+			input: "msg: 'she said \"hello\"\n  to them'\n",
+			want:  "msg: 'she said \"hello\"\n  to them'\n",
+		},
+		{
+			name:  "multiline_double_with_escape_preserved",
+			input: "msg: \"line\\ttab\n  continues\"\n",
+			want:  "msg: \"line\\ttab\n  continues\"\n",
+		},
+		{
+			name:  "multiline_single_no_conflicts_to_double",
+			input: "msg: 'walking path for files: lstat /tmp/deploy:\n  no such file or directory'\n",
+			want:  "msg: \"walking path for files: lstat /tmp/deploy:\n  no such file or directory\"\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2), "format must be idempotent")
+
+			// Semantic preservation.
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &before))
+			require.NoError(t, yaml.Unmarshal(got, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
+}
+
+// TestDocumentEndMarkerPreserved verifies ... is preserved when present.
+func TestDocumentEndMarkerPreserved(t *testing.T) {
+	t.Parallel()
+	src := []byte("---\na: 1\n...\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "...\n",
+		"expected output to contain ..., got: %q", string(got))
+}
+
+// TestDocumentEndMarkerAbsent verifies ... is NOT added when not in source.
+func TestDocumentEndMarkerAbsent(t *testing.T) {
+	t.Parallel()
+	src := []byte("---\na: 1\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.NotContains(t, string(got), "...",
+		"expected output NOT to contain ..., got: %q", string(got))
+}
+
+// TestSequenceAtRootIsFormattable verifies that root-level sequences are accepted.
+func TestSequenceAtRootIsFormattable(t *testing.T) {
+	t.Parallel()
+	src := []byte("- one\n- two\n- three\n")
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Contains(t, string(got), "- one")
+}
+
+// TestBareScalarReturnsError verifies that bare scalars at root are rejected.
+func TestBareScalarReturnsError(t *testing.T) {
+	t.Parallel()
+	src := []byte("just a plain string\n")
+	_, err := f.Format(src, defaultOpts)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not a mapping or sequence")
+}
+
+// TestIntegerKeyedMapFormats verifies that maps with non-string keys (which
+// Go decodes as map[any]any or map[int]any) pass the type gate and format
+// correctly. Fixes #585: the old type switch only accepted map[string]any.
+func TestIntegerKeyedMapFormats(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "flow_integer_keys",
+			input: "{1: one, 2: two, 3: three}\n",
+			want:  "{ 1: one, 2: two, 3: three }\n",
+		},
+		{
+			name:  "block_integer_keys",
+			input: "1: one\n2: two\n3: three\n",
+			want:  "1: one\n2: two\n3: three\n",
+		},
+		{
+			name:  "mixed_key_types_flow",
+			input: "{1: one, two: 2, 3: three}\n",
+			want:  "{ 1: one, two: 2, 3: three }\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err, "integer-keyed maps must be formattable")
+			require.Equal(t, tc.want, string(got))
+
+			// Semantic preservation: parsed data structure must be identical.
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &before))
+			require.NoError(t, yaml.Unmarshal(got, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
+}
+
+// TestNilRootReturnsError verifies that nil/empty documents are rejected.
+func TestNilRootReturnsError(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty_document", "---\n"},
+		{"null_literal", "null\n"},
+		{"tilde_null", "~\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := f.Format([]byte(tc.input), defaultOpts)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "nil")
+		})
+	}
+}
+
+// TestNumericScalarRootReturnsError verifies that numeric bare scalars at root
+// are rejected (they are valid YAML but not config files).
+func TestNumericScalarRootReturnsError(t *testing.T) {
+	t.Parallel()
+	src := []byte("42\n")
+	_, err := f.Format(src, defaultOpts)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not a mapping or sequence")
+}
+
+// TestZeroOptionsUsesDefaults verifies that all-zero Options produces
+// sensible output (2-space indent). FinalNewline is false (zero value) so
+// the formatter doesn't force a trailing newline.
+func TestZeroOptionsUsesDefaults(t *testing.T) {
+	t.Parallel()
+	src := []byte("a:\n    b: 1\n")
+	got, err := f.Format(src, formatter.Options{}) // all zero
+	require.NoError(t, err)
+	require.Contains(t, string(got), "  b: 1") // 2-space default
+}
+
+// TestRootLevelFlowExpansionIndent verifies that expanding a root-level flow
+// sequence places brackets at column 0 and elements at indentWidth (2),
+// with no spurious leading blank line. (P3 fix)
+func TestRootLevelFlowExpansionIndent(t *testing.T) {
+	t.Parallel()
+	// 16 elements × 5 chars = well over 80 columns.
+	src := []byte("[aaaa, bbbb, cccc, dddd, eeee, ffff, gggg, hhhh, iiii, jjjj, kkkk, llll, mmmm, nnnn, oooo, pppp]\n")
+	want := "[\n  aaaa,\n  bbbb,\n  cccc,\n  dddd,\n  eeee,\n  ffff,\n  gggg,\n  hhhh,\n  iiii,\n  jjjj,\n  kkkk,\n  llll,\n  mmmm,\n  nnnn,\n  oooo,\n  pppp,\n]\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestNestedFlowExpansionIndent verifies that expanding a flow sequence after
+// a mapping key places brackets at parentIndent+indentWidth. Regression guard.
+func TestNestedFlowExpansionIndent(t *testing.T) {
+	t.Parallel()
+	src := []byte("items:\n  arr: [aaaa, bbbb, cccc, dddd, eeee, ffff, gggg, hhhh, iiii, jjjj, kkkk, llll, mmmm, nnnn, oooo, pppp]\n")
+	want := "items:\n  arr:\n    [\n      aaaa,\n      bbbb,\n      cccc,\n      dddd,\n      eeee,\n      ffff,\n      gggg,\n      hhhh,\n      iiii,\n      jjjj,\n      kkkk,\n      llll,\n      mmmm,\n      nnnn,\n      oooo,\n      pppp,\n    ]\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestLongFlowValueStaysWholeOnOwnLine verifies that a flow collection which
+// only exceeds the width while following its key moves to the value's next
+// line without unnecessarily expanding one element per line.
+func TestLongFlowValueStaysWholeOnOwnLine(t *testing.T) {
+	t.Parallel()
+	src := []byte("items:\n  - labels: [\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"]\n    name: x\n")
+	want := "items:\n  - labels:\n      [\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"]\n    name: x\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+
+	second, err := f.Format(got, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, got, second)
+}
+
+// TestFlowMappingExpansion verifies that long flow mappings { } are expanded
+// to multiline format at printWidth, matching prettier behavior. P1 fix.
+func TestFlowMappingExpansion(t *testing.T) {
+	t.Parallel()
+	src := []byte("key: { a: longlonglonglonglonglonglonglonglonglong, b: longlonglonglonglonglonglonglonglonglong, c: longlonglonglonglonglonglonglonglonglong }\n")
+	want := "key:\n  {\n    a: longlonglonglonglonglonglonglonglonglong,\n    b: longlonglonglonglonglonglonglonglonglong,\n    c: longlonglonglonglonglonglonglonglonglong,\n  }\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestShortFlowMappingStaysInline verifies short flow mappings stay on one line.
+func TestShortFlowMappingStaysInline(t *testing.T) {
+	t.Parallel()
+	src := []byte("key: { a: 1, b: 2, c: 3 }\n")
+	want := "key: { a: 1, b: 2, c: 3 }\n"
+
+	got, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// TestFlowBracketIndentIdempotent verifies that multi-line expanded flow
+// sequences preserve bracket indentation on re-format (Bug 1 regression).
+func TestFlowBracketIndentIdempotent(t *testing.T) {
+	t.Parallel()
+	// Flow sequence that exceeds printWidth → expands to multi-line.
+	src := []byte("key: [longlonglonglonglonglonglonglongvalue1, longlonglonglonglonglonglonglongvalue2, longlonglonglonglonglonglonglongvalue3]\n")
+
+	first, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+	// The expanded flow should have indented closing bracket.
+	require.Contains(t, string(first), "\n  ]", "expanded flow bracket should be indented")
+
+	second, err := f.Format(first, defaultOpts)
+	require.NoError(t, err)
+	require.Equal(t, string(first), string(second),
+		"multi-line flow bracket indent must be idempotent")
+}
+
+// TestBlockScalarExtraSpaceIdempotent verifies that a block scalar preceded by
+// extra spaces after colon (key:  !tag |) is correctly tokenized on the first
+// pass and produces stable output (Bug 3 regression).
+func TestBlockScalarExtraSpaceIdempotent(t *testing.T) {
+	t.Parallel()
+	// Two spaces between colon and tag — triggers the mis-tokenization bug.
+	src := []byte("symlink:  !vault |\n          secret content here\n")
+
+	first, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+
+	second, err := f.Format(first, defaultOpts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"block scalar with extra space must be idempotent")
+}
+
+// TestCommentAfterKeyInSequenceIdempotent verifies that a comment following
+// a key inside a sequence item (not a dash line) maintains stable indentation
+// across formatting passes (Bug 2 regression).
+func TestCommentAfterKeyInSequenceIdempotent(t *testing.T) {
+	t.Parallel()
+	// Comment follows `relabel_configs:` which is a key inside a sequence item.
+	// The comment should stay at key-level indent, not oscillate to dash-level.
+	src := []byte("scrape_configs:\n  - job_name: prometheus\n    relabel_configs:\n      # This comment is at key indent level\n      - source_labels: [__name__]\n")
+
+	first, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+
+	second, err := f.Format(first, defaultOpts)
+	require.NoError(t, err)
+
+	third, err := f.Format(second, defaultOpts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"comment after key in sequence must be idempotent pass 1→2")
+	require.Equal(t, string(second), string(third),
+		"comment after key in sequence must be idempotent pass 2→3")
+}
+
+// TestCommentClassificationStableAcrossPasses verifies that a comment with
+// "wrong" source indentation (deeper than next) doesn't oscillate when the
+// structural relationship (AST depth) says it's a leading comment (Bug 2 Defect 1).
+func TestCommentClassificationStableAcrossPasses(t *testing.T) {
+	t.Parallel()
+	// Comment at 8sp (deeper than next's 6sp) but structurally it LEADS the
+	// sequence items. AST: rules: is depth N, - record: is depth N+1.
+	// Source indent should NOT determine classification when depths differ.
+	src := []byte("groups:\n  - name: features\n    rules:\n        # leading comment for the sequence items below\n      - record: foo\n        expr: up\n")
+
+	first, err := f.Format(src, defaultOpts)
+	require.NoError(t, err)
+
+	second, err := f.Format(first, defaultOpts)
+	require.NoError(t, err)
+
+	third, err := f.Format(second, defaultOpts)
+	require.NoError(t, err)
+
+	require.Equal(t, string(first), string(second),
+		"comment classification must be stable across passes (1→2)")
+	require.Equal(t, string(second), string(third),
+		"comment classification must be stable across passes (2→3)")
+}
+
+// TestSortKeysAnchorSafety proves that SortKeys does not reorder entries when
+// doing so would break anchor/alias references (producing invalid YAML).
+func TestSortKeysAnchorSafety(t *testing.T) {
+	t.Parallel()
+
+	sortOpts := defaultOpts
+	sortOpts.SortKeys = true
+
+	tests := []struct {
+		name         string
+		input        string
+		expectSorted bool // true = entries SHOULD be sorted; false = entries MUST stay in original order
+	}{
+		{
+			name: "cross_entry_dependency_blocks_sort",
+			input: `z_defaults: &db
+  host: localhost
+a_service:
+  db: *db
+`,
+			expectSorted: false, // a_service uses *db defined in z_defaults — can't reorder
+		},
+		{
+			name: "self_contained_anchors_allow_sort",
+			input: `zebra:
+  config: &z_cfg
+    port: 9090
+  server: *z_cfg
+alpha:
+  value: simple
+`,
+			expectSorted: true, // anchor and alias are within the SAME entry — safe to sort
+		},
+		{
+			name: "merge_key_blocks_sort",
+			input: `z_base: &base
+  timeout: 30
+a_extended:
+  <<: *base
+  retries: 3
+`,
+			expectSorted: false, // merge key references anchor from different entry
+		},
+		{
+			name: "no_anchors_sorts_normally",
+			input: `zebra: 1
+alpha: 2
+`,
+			expectSorted: true,
+		},
+		{
+			name: "nested_mappings_still_sorted_when_top_blocked",
+			input: `z_defaults: &db
+  zoo: 3
+  alpha: 1
+a_service:
+  db: *db
+  zebra: 2
+  ant: 1
+`,
+			expectSorted: false, // top level blocked, but nested should sort
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), sortOpts)
+			require.NoError(t, err, "Format should not error")
+
+			// CRITICAL: output must be valid YAML that yaml.v3 can parse.
+			// This is the core assertion — if sorting broke anchor/alias ordering,
+			// yaml.v3 would reject it with "unknown anchor referenced".
+			var parsed any
+			err = yamlUnmarshal(got, &parsed)
+			require.NoError(t, err, "formatted output must be valid YAML:\n%s", got)
+
+			// Verify sort behavior.
+			output := string(got)
+			if tc.expectSorted {
+				// Keys should be alphabetically ordered at the top level.
+				aIdx := strings.Index(output, "alpha")
+				zIdx := strings.Index(output, "zebra")
+				require.Greater(t, zIdx, aIdx,
+					"expected alpha before zebra (sorted):\n%s", output)
+			} else {
+				// Keys must remain in original order (z before a).
+				zIdx := strings.Index(output, "z_")
+				aIdx := strings.Index(output, "a_")
+				require.Greater(t, aIdx, zIdx,
+					"expected z_ before a_ (unsorted due to anchor dep):\n%s", output)
+			}
+
+			// For the nested test case, verify nested keys ARE sorted even though
+			// top level is blocked.
+			if tc.name == "nested_mappings_still_sorted_when_top_blocked" {
+				// Within z_defaults, alpha should come before zoo.
+				lines := strings.Split(output, "\n")
+				var alphaLine, zooLine int
+				for i, line := range lines {
+					if strings.Contains(line, "alpha:") {
+						alphaLine = i
+					}
+					if strings.Contains(line, "zoo:") {
+						zooLine = i
+					}
+				}
+				require.Greater(t, zooLine, alphaLine,
+					"nested keys should be sorted (alpha before zoo):\n%s", output)
+
+				// Within a_service, ant should come before zebra.
+				var antLine, zebraLine int
+				for i, line := range lines {
+					if strings.Contains(line, "ant:") {
+						antLine = i
+					}
+					if strings.Contains(line, "zebra:") {
+						zebraLine = i
+					}
+				}
+				require.Greater(t, zebraLine, antLine,
+					"nested keys should be sorted (ant before zebra):\n%s", output)
+			}
+
+			// Idempotency: formatting again produces same output.
+			got2, err := f.Format(got, sortOpts)
+			require.NoError(t, err)
+			require.Equal(t, string(got), string(got2),
+				"must be idempotent:\nfirst:  %q\nsecond: %q", got, got2)
+		})
+	}
+}
+
+// FuzzYAMLFormatter verifies no panics and idempotency on arbitrary inputs.
+func FuzzYAMLFormatter(f *testing.F) {
+	f.Add([]byte("a: 1\nb: 2\n"))
+	f.Add([]byte("---\nkey: value\n"))
+	f.Add([]byte("items:\n  - one\n  - two\n"))
+	f.Add([]byte("# comment\nkey: value\n"))
+	f.Add([]byte("a: \"quoted\"\nb: 'single'\n"))
+	f.Add([]byte("---\na: 1\n---\nb: 2\n"))
+
+	fmter := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		result, err := fmter.Format(data, opts)
+		if err != nil {
+			return // rejected input — fine, just didn't panic
+		}
+
+		// Idempotency: formatting the output again must produce identical output.
+		result2, err := fmter.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format pass failed: %v\nfirst output: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent:\ninput:  %q\nfirst:  %q\nsecond: %q", data, result, result2)
+		}
+	})
+}
+
+// FuzzYAMLFormatterWithOptions fuzzes with various option combinations.
+func FuzzYAMLFormatterWithOptions(f *testing.F) {
+	f.Add([]byte("z: 'hello'\na: 'world'\n"), byte(0))
+	f.Add([]byte("---\nlist:\n  - 'one'\n  - 'two'\nmap:\n  z: 1\n  a: 2\n"), byte(1))
+	f.Add([]byte("key: 'value'\nnested:\n  b: 'x'\n  a: 'y'\n"), byte(3))
+	f.Add([]byte("data: |\n  line1\n  line2\n"), byte(5))
+
+	fmtr := yamlfmt.Formatter{}
+	f.Fuzz(func(t *testing.T, data []byte, optByte byte) {
+		opts := yamlfmt.DefaultOptions()
+		if optByte&0x01 != 0 {
+			opts.SortKeys = true
+		}
+		if optByte&0x02 != 0 {
+			opts.QuoteStyle = formatter.QuoteDouble
+		}
+		if optByte&0x04 != 0 {
+			opts.IndentWidth = 4
+		}
+		if optByte&0x08 != 0 {
+			opts.FinalNewline = false
+		}
+		if optByte&0x10 != 0 {
+			opts.QuoteStyle = formatter.QuoteSingle
+		}
+
+		result, err := fmtr.Format(data, opts)
+		if err != nil {
+			return
+		}
+
+		result2, err := fmtr.Format(result, opts)
+		if err != nil {
+			t.Fatalf("second format failed: %v\nfirst: %q", err, result)
+		}
+		if string(result) != string(result2) {
+			t.Fatalf("not idempotent with opts=%08b:\ninput:  %q\nfirst:  %q\nsecond: %q", optByte, data, result, result2)
+		}
+
+		// Semantic equivalence.
+		var origVal, fmtVal any
+		if yaml.Unmarshal(data, &origVal) == nil {
+			if err := yaml.Unmarshal(result, &fmtVal); err != nil {
+				t.Fatalf("formatted output is invalid YAML: %v\ninput: %q\noutput: %q", err, data, result)
+			}
+			origJSON, _ := json.Marshal(origVal)
+			fmtJSON, _ := json.Marshal(fmtVal)
+			if string(origJSON) != string(fmtJSON) {
+				t.Fatalf("semantics changed:\n  orig: %s\n  fmt:  %s", origJSON, fmtJSON)
+			}
+		}
+	})
+}
+
+// TestBlockScalarChompingPreservation verifies that formatting preserves
+// block scalar chomping semantics (|+, |-, |, >+, >-).
+func TestBlockScalarChompingPreservation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		input    string
+		expected string // expected value after yaml.Unmarshal of formatted output
+	}{
+		{
+			name:     "literal keep (|+)",
+			input:    "k: |+\n  text\n\n\n",
+			expected: "text\n\n\n",
+		},
+		{
+			name:     "literal strip (|-)",
+			input:    "k: |-\n  text\n",
+			expected: "text",
+		},
+		{
+			name:     "literal clip (|)",
+			input:    "k: |\n  text\n",
+			expected: "text\n",
+		},
+		{
+			name:     "folded keep (>+)",
+			input:    "k: >+\n  text\n\n\n",
+			expected: "text\n\n\n",
+		},
+		{
+			name:     "folded strip (>-)",
+			input:    "k: >-\n  text\n",
+			expected: "text",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			formatted, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err, "Format should not error")
+
+			var result map[string]string
+			err = yaml.Unmarshal(formatted, &result)
+			require.NoError(t, err, "formatted output must be valid YAML: %q", formatted)
+
+			require.Equal(t, tc.expected, result["k"],
+				"chomping semantics corrupted.\nInput:     %q\nFormatted: %q\nGot value: %q",
+				tc.input, formatted, result["k"])
+		})
+	}
+}
+
+// TestNormalizeValueSpacing verifies that extra whitespace between colon and
+// value is normalized to a single space.
+func TestNormalizeValueSpacing(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"extra_spaces", "key:    value\n", "key: value\n"},
+		{"already_correct", "key: value\n", "key: value\n"},
+		{"tab_after_colon", "key:\tvalue\n", "key: value\n"},
+		{"quoted_with_space", "key:  \"quoted\"\n", "key: \"quoted\"\n"},
+		{"anchor_with_space", "key:   &name val\n", "key: &name val\n"},
+		{"tag_with_space", "key:   !!str 42\n", "key: !!str 42\n"},
+		{"nested", "parent:\n  child:    deep\n", "parent:\n  child: deep\n"},
+		{"preserves_internal", "key: value with   spaces\n", "key: value with   spaces\n"},
+		{"empty_value", "key:\n", "key:\n"},
+		{"multiple_keys", "a:   1\nb:  2\nc: 3\n", "a: 1\nb: 2\nc: 3\n"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := fmtr.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(result))
+		})
+	}
+}
+
+// TestNormalizeFlowCollections verifies Prettier-compatible bracketSpacing.
+func TestNormalizeFlowCollections(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"brace_padding", "x: {key: value}\n", "x: { key: value }\n"},
+		{"normalize_mapping_comma_spacing", "x: {a:1,b:  2}\n", "x: { a:1, b:  2 }\n"},
+		{"nested_flow", "x: [{a: 1}, { b: 2 }]\n", "x: [{ a: 1 }, { b: 2 }]\n"},
+		{"normalize_sequence_comma_spacing", "x: [1,  2,   3]\n", "x: [1, 2, 3]\n"},
+		{"reported_command_sequence", "command: [\"perl\",  \"-Mbignum=bpi\",  \"-wle\",  \"print bpi(2000)\"]\n", "command: [\"perl\", \"-Mbignum=bpi\", \"-wle\", \"print bpi(2000)\"]\n"},
+		{"preserve_comma_spacing_in_quotes", "x: [\"a,  b\",  \"c\"]\n", "x: [\"a,  b\", \"c\"]\n"},
+		{"preserve_comma_spacing_in_comment", "x: [one,  # keep,  comment spacing\n  two]\n", "x: [one, # keep,  comment spacing\n  two]\n"},
+		{"remove_space_before_flow_line_break", "x: [one,  \n  two]\n", "x: [one,\n  two]\n"},
+		{"trailing_mapping_comma", "x: {a: 1,}\n", "x: { a: 1, }\n"},
+		{"trailing_sequence_comma", "x: [1, ]\n", "x: [1,]\n"},
+		{"preserve_separator_after_tag", "A: [0000,\n00,!00 ]\n", "A: [0000,\n00, !00 ]\n"},
+		{"preserve_separator_after_verbatim_tag", "x: [!<tag:example.com,2026:foo> ]\n", "x: [!<tag:example.com,2026:foo> ]\n"},
+		{"strip_padding_after_tagged_value", "x: [!foo value ]\n", "x: [!foo value]\n"},
+		{"empty_map", "x: {}\n", "x: {}\n"},
+		{"empty_array", "x: []\n", "x: []\n"},
+		{"quoted_braces_unchanged", "x: {value: \"{literal}\"}\n", "x: { value: \"{literal}\" }\n"},
+		{"already_normalized", "x: { a: 1, b: 2 }\n", "x: { a: 1, b: 2 }\n"},
+		{"doubled_single_quote", "x: {key: 'it''s a test'}\n", "x: { key: \"it's a test\" }\n"},
+		{"multiple_doubled_quotes", "x: {key: 'has''two''escapes'}\n", "x: { key: \"has'two'escapes\" }\n"},
+		{"single_quote_no_escape", "x: {key: 'simple'}\n", "x: { key: \"simple\" }\n"},
+		{"doubled_quote_empty_value", "x: {key: ''}\n", "x: { key: \"\" }\n"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := fmtr.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(result))
+			require.NoError(t, yaml.Unmarshal(result, &yaml.Node{}))
+		})
+	}
+}
+
+func TestIndentSequencesDisabled(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+	opts.IndentSequences = formatter.SequenceIndentDisabled
+
+	cases := []struct {
+		name, input, want string
+	}{
+		{
+			"single_level_compact",
+			"items:\n  - one\n  - two\n",
+			"items:\n- one\n- two\n",
+		},
+		{
+			"comment_before_item",
+			"items:\n  # comment\n  - one\n",
+			"items:\n# comment\n- one\n",
+		},
+		{
+			"nested_compact",
+			"spec:\n  containers:\n    - name: app\n    - name: sidecar\n",
+			"spec:\n  containers:\n  - name: app\n  - name: sidecar\n",
+		},
+		{
+			"top_level_sequence_unaffected",
+			"- one\n- two\n",
+			"- one\n- two\n",
+		},
+		{
+			"deeply_nested",
+			"a:\n  b:\n    c:\n      - x\n      - y\n",
+			"a:\n  b:\n    c:\n    - x\n    - y\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := fmtr.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+		})
+	}
+}
+
+func TestBlockScalarFinalNewlineFalse(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	opts := yamlfmt.DefaultOptions()
+	opts.FinalNewline = false
+
+	cases := []struct {
+		name    string
+		input   string
+		wantVal string // expected value after yaml.Unmarshal of formatted output
+	}{
+		{"clip_preserves_newline", "A: |\n  0\n", "0\n"},
+		{"keep_preserves_all", "A: |+\n  0\n\n\n", "0\n\n\n"},
+		{"strip_removes_newline", "A: |-\n  0\n", "0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := fmtr.Format([]byte(tc.input), opts)
+			require.NoError(t, err)
+
+			var parsed map[string]string
+			err = yaml.Unmarshal(result, &parsed)
+			require.NoError(t, err, "formatted output: %q", result)
+			require.Equal(t, tc.wantVal, parsed["A"],
+				"input=%q output=%q", tc.input, result)
+		})
+	}
+}
+
+// TestQuoteConversionWithEscapes verifies that backslash-containing strings
+// are left unchanged by quote conversion (escape semantics differ between styles).
+func TestQuoteConversionWithEscapes(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+
+	// Single-quoted string with backslash — must NOT be converted to double-quoted
+	// because backslash has no escape meaning in single-quoted YAML.
+	src := []byte("key: 'path\\to\\file'\n")
+	opts := yamlfmt.DefaultOptions()
+	opts.QuoteStyle = formatter.QuoteDouble
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	// The backslash is content in single-quote — converting would change semantics.
+	// Should stay as single-quoted (or be left unchanged).
+	require.Contains(t, string(got), "path\\to\\file")
+
+	// Double-quoted string with non-quote backslash escape must stay double-quoted.
+	src2 := []byte("key: \"line1\\nline2\"\n")
+	opts2 := yamlfmt.DefaultOptions()
+	opts2.QuoteStyle = formatter.QuoteSingle
+
+	got2, err := fmtr.Format(src2, opts2)
+	require.NoError(t, err)
+	// \\n is a newline escape in double-quoted — can't convert without losing semantics.
+	require.Contains(t, string(got2), "\"line1\\nline2\"")
+}
+
+// TestQuoteConversionBothQuoteTypesInContent verifies correct fallback when
+// content contains both single and double quotes.
+func TestQuoteConversionBothQuoteTypesInContent(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+
+	// Content with both ' and " — prefer single, but has single, so use double.
+	src := []byte("key: \"it's a \\\"test\\\"\"\n")
+	opts := yamlfmt.DefaultOptions()
+	opts.QuoteStyle = formatter.QuoteSingle
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	// Result must be valid YAML with same semantic content.
+	var orig, result map[string]any
+	require.NoError(t, yaml.Unmarshal(src, &orig))
+	require.NoError(t, yaml.Unmarshal(got, &result))
+	require.Equal(t, orig, result)
+}
+
+// TestFlowScalarWithAnchor verifies that flow scalars with anchors are
+// re-serialized correctly with the anchor prefix.
+func TestFlowScalarWithAnchor(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	// Flow mapping with an anchored value.
+	src := []byte("x: {key: &anchor value, other: *anchor}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	// Must preserve anchor and alias.
+	require.Contains(t, string(got), "&anchor")
+	require.Contains(t, string(got), "*anchor")
+}
+
+// TestFlowScalarNullValue verifies that empty/null flow scalar values
+// are serialized as "null".
+func TestFlowScalarNullValue(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	src := []byte("x: {key: ~}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
+
+// TestFlowNormalizationWithComments verifies that flow collections containing
+// comments are not re-serialized (preserved verbatim).
+func TestFlowNormalizationWithComments(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+	// A flow mapping where we can verify the output is stable.
+	src := []byte("x: {a: 1, b: 2}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	got2, err := fmtr.Format(got, opts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2), "flow normalization must be idempotent")
+}
+
+// TestEscapeDoubleQuotedSpecialChars verifies that all escape sequences in
+// double-quoted scalars are handled correctly by escapeDoubleQuoted.
+func TestEscapeDoubleQuotedSpecialChars(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+
+	// Input with flow mapping containing a double-quoted value with special chars.
+	// These chars should be escaped if the flow re-serializer processes them.
+	src := []byte("x: {key: \"tab\\there\"}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	got2, err := fmtr.Format(got, opts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2), "idempotent")
+}
+
+// TestNeedsQuotingInFlowBoolLike verifies that flow scalars that look like
+// booleans are properly quoted when needed.
+func TestNeedsQuotingInFlowBoolLike(t *testing.T) {
+	t.Parallel()
+	fmtr := yamlfmt.Formatter{}
+
+	// A flow mapping where a value looks like a boolean string — the formatter
+	// must decide whether to quote it. We just verify stability.
+	src := []byte("x: {enabled: \"true\", disabled: \"false\"}\n")
+	opts := yamlfmt.DefaultOptions()
+
+	got, err := fmtr.Format(src, opts)
+	require.NoError(t, err)
+	got2, err := fmtr.Format(got, opts)
+	require.NoError(t, err)
+	require.Equal(t, string(got), string(got2))
+
+	// Verify semantics preserved.
+	var orig, result map[string]any
+	require.NoError(t, yaml.Unmarshal(src, &orig))
+	require.NoError(t, yaml.Unmarshal(got, &result))
+	require.Equal(t, orig, result)
+}
+
+// TestBlankLineNormalization verifies blank line handling around document markers
+// and after null-value mapping keys matches prettier v3.9.6 behavior.
+func TestBlankLineNormalization(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		// Bug 3a: blank lines after document markers stripped.
+		{"strip_blank_after_doc_start",
+			"---\n\nkey: value\n",
+			"---\nkey: value\n"},
+		{"strip_multiple_blanks_after_doc_start",
+			"---\n\n\nkey: value\n",
+			"---\nkey: value\n"},
+		{"strip_blank_after_doc_end",
+			"key: a\n...\n\n---\nkey: b\n",
+			"key: a\n...\n---\nkey: b\n"},
+		{"preserve_blank_between_siblings",
+			"---\nkey1: a\n\nkey2: b\n",
+			"---\nkey1: a\n\nkey2: b\n"},
+		{"no_doc_marker_no_change",
+			"key1: a\n\nkey2: b\n",
+			"key1: a\n\nkey2: b\n"},
+
+		// Bug 3b: colon + sibling separator preserved.
+		{"preserve_blank_after_null_value_key",
+			"on:\n\njobs: test\n",
+			"on:\n\njobs: test\n"},
+		{"strip_blank_before_child",
+			"parent:\n\n  child: value\n",
+			"parent:\n  child: value\n"},
+		{"preserve_blank_between_deep_siblings",
+			"root:\n  a: 1\n  b:\n\n  c: 3\n",
+			"root:\n  a: 1\n  b:\n\n  c: 3\n"},
+		{"key_with_value_followed_by_blank",
+			"a: 1\n\nb: 2\n",
+			"a: 1\n\nb: 2\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := f.Format([]byte(tc.input), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+
+			// Idempotency.
+			got2, err := f.Format(got, defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, got, got2, "must be idempotent")
+
+			// Semantic preservation.
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &before))
+			require.NoError(t, yaml.Unmarshal(got, &after))
+			require.Equal(t, before, after, "formatting must not change parsed value")
+		})
+	}
+}

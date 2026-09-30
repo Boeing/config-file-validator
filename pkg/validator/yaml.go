@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,36 +16,78 @@ import (
 )
 
 // YAMLValidator validates YAML files.
-// Note: yaml.v3 already rejects duplicate keys by default.
+// Uses gopkg.in/yaml.v3 which rejects duplicate keys by default and validates
+// all documents in multi-doc files via the Decoder loop.
 type YAMLValidator struct{}
 
 var _ Validator = YAMLValidator{}
 
-var yamlLineRe = regexp.MustCompile(`yaml: line (\d+): (.*)`)
+// yamlLineRe extracts line number from yaml.v3 error messages.
+// Formats: "yaml: line 3: ..." or "  line 2: mapping key ..."
+var yamlLineRe = regexp.MustCompile(`(?:yaml: )?line (\d+): (.*)`)
 
+// ValidateSyntax validates YAML syntax across all documents in the file.
 func (YAMLValidator) ValidateSyntax(b []byte) (bool, error) {
-	var output any
-	err := yaml.Unmarshal(b, &output)
-	if err != nil {
-		if m := yamlLineRe.FindStringSubmatch(err.Error()); m != nil {
-			if line, convErr := strconv.Atoi(m[1]); convErr == nil {
-				return false, &ValidationError{Err: errors.New(m[2]), Line: line}
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	for {
+		var output any
+		err := dec.Decode(&output)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
 			}
+			return false, parseYAMLError(err)
 		}
-		return false, err
 	}
-
 	return true, nil
 }
 
+// MarshalToJSON converts YAML to JSON for schema validation.
 func (YAMLValidator) MarshalToJSON(b []byte) ([]byte, error) {
 	var doc any
 	if err := yaml.Unmarshal(b, &doc); err != nil {
 		return nil, err
 	}
+	if err := checkJSONRepresentable(doc); err != nil {
+		return nil, err
+	}
 	return json.Marshal(doc)
 }
 
+// checkJSONRepresentable walks a decoded value tree and returns an error if any
+// float is ±Inf or NaN — values that JSON cannot represent. Schema validation
+// cannot proceed on documents containing these values.
+func checkJSONRepresentable(v any) error {
+	switch val := v.(type) {
+	case map[string]any:
+		for k, item := range val {
+			if err := checkJSONRepresentable(item); err != nil {
+				return fmt.Errorf("key %q: %w", k, err)
+			}
+		}
+	case []any:
+		for i, item := range val {
+			if err := checkJSONRepresentable(item); err != nil {
+				return fmt.Errorf("index %d: %w", i, err)
+			}
+		}
+	case float64:
+		if math.IsInf(val, 1) {
+			return errors.New("value .inf cannot be represented in JSON; schema validation cannot be performed")
+		}
+		if math.IsInf(val, -1) {
+			return errors.New("value -.inf cannot be represented in JSON; schema validation cannot be performed")
+		}
+		if math.IsNaN(val) {
+			return errors.New("value .nan cannot be represented in JSON; schema validation cannot be performed")
+		}
+	default:
+		// Other types (string, bool, int, nil) are JSON-representable.
+	}
+	return nil
+}
+
+// ValidateSchema validates YAML against a JSON Schema referenced via comment.
 func (YAMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 	schemaURL := extractYAMLSchemaComment(b)
 	if schemaURL == "" {
@@ -52,6 +96,10 @@ func (YAMLValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
 
 	var doc any
 	if err := yaml.Unmarshal(b, &doc); err != nil {
+		return false, err
+	}
+
+	if err := checkJSONRepresentable(doc); err != nil {
 		return false, err
 	}
 
@@ -91,7 +139,7 @@ func extractYAMLSchemaComment(b []byte) string {
 }
 
 // buildYAMLPositionMap parses YAML into a Node tree and builds a map from
-// gojsonschema context paths (e.g. "(root).server.port") to source positions.
+// context paths (e.g. "(root).server.port") to source positions.
 func buildYAMLPositionMap(b []byte) map[string]SourcePosition {
 	var root yaml.Node
 	if err := yaml.Unmarshal(b, &root); err != nil {
@@ -123,5 +171,25 @@ func walkYAMLNode(node *yaml.Node, path string, positions map[string]SourcePosit
 			walkYAMLNode(child, childPath, positions)
 		}
 	default:
+		// Scalar and other nodes — no children to walk for positions.
 	}
+}
+
+// parseYAMLError extracts line number from yaml.v3 error messages and wraps
+// in ValidationError for structured error reporting.
+func parseYAMLError(err error) error {
+	msg := err.Error()
+	// Handle multi-error format: "yaml: unmarshal errors:\n  line 2: ..."
+	if strings.HasPrefix(msg, "yaml: unmarshal errors:") {
+		lines := strings.Split(msg, "\n")
+		if len(lines) > 1 {
+			msg = strings.TrimSpace(lines[1])
+		}
+	}
+	if m := yamlLineRe.FindStringSubmatch(msg); m != nil {
+		if line, convErr := strconv.Atoi(m[1]); convErr == nil {
+			return &ValidationError{Err: errors.New(m[2]), Line: line}
+		}
+	}
+	return err
 }

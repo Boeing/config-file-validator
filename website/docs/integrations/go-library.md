@@ -5,12 +5,12 @@
 
 The validator is available as a Go package. Embed validation in your own tools using the `cli` and `finder` packages.
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v2.svg)](https://pkg.go.dev/github.com/Boeing/config-file-validator/v2)
+[![Go Reference](https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v3.svg)](https://pkg.go.dev/github.com/Boeing/config-file-validator/v3)
 
 ## Install
 
 ```shell
-go get github.com/Boeing/config-file-validator/v2
+go get github.com/Boeing/config-file-validator/v3
 ```
 
 :::note
@@ -28,7 +28,7 @@ import (
 	"os"
 	"log"
 
-	"github.com/Boeing/config-file-validator/v2/pkg/cli"
+	"github.com/Boeing/config-file-validator/v3/pkg/cli"
 )
 
 func main() {
@@ -58,7 +58,7 @@ cfv := cli.Init(
 Output JSON to stdout:
 
 ```go
-jsonReporter := reporter.NewJSONReporter("")
+jsonReporter := reporter.NewJSONReporter("", false)
 
 cfv := cli.Init(
 	cli.WithFinder(fileSystemFinder),
@@ -66,7 +66,7 @@ cfv := cli.Init(
 )
 ```
 
-Pass a directory path to `NewJSONReporter` to write to a file instead.
+The first argument is the output path (empty string for stdout). The second controls quiet mode.
 
 ## Finder options
 
@@ -89,8 +89,8 @@ cfv := cli.Init(
 	cli.WithGroupOutput([]string{"pass-fail"}),
 	cli.WithRequireSchema(true),
 	cli.WithNoSchema(false),
-	cli.WithSchemaMap(map[string]string{
-		"**/package.json": "schemas/package.schema.json",
+	cli.WithSchemaMap([]cli.SchemaMapping{
+		{Pattern: "**/package.json", SchemaPath: "schemas/package.schema.json"},
 	}),
 )
 ```
@@ -100,7 +100,7 @@ cfv := cli.Init(
 Enable automatic schema lookup:
 
 ```go
-import "github.com/Boeing/config-file-validator/v2/pkg/schemastore"
+import "github.com/Boeing/config-file-validator/v3/pkg/schemastore"
 
 store, err := schemastore.OpenEmbedded()
 if err != nil {
@@ -127,4 +127,4 @@ cfv := cli.Init(
 
 ## Full API reference
 
-See the [Go package documentation](https://pkg.go.dev/github.com/Boeing/config-file-validator/v2) for all exported types and functions.
+See the [Go package documentation](https://pkg.go.dev/github.com/Boeing/config-file-validator/v3) for all exported types and functions.

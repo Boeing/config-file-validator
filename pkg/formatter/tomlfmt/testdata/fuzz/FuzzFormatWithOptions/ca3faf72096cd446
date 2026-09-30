@@ -1,0 +1,3 @@
+go test fuzz v1
+[]byte("[[0]]\n\nA=\"\"\nB=\"\" ")
+byte('\x03')

@@ -1,0 +1,18 @@
+exec cfv format --fix --no-config flow.yaml
+stdout 'flow.yaml'
+cmp flow.yaml expected.yaml
+
+exec cfv check --no-schema --no-config flow.yaml
+stdout 'flow.yaml'
+
+exec cfv format --no-config flow.yaml
+! stdout '~'
+
+-- flow.yaml --
+command: ["perl",  "-Mbignum=bpi",  "-wle",  "print bpi(2000)"]
+mapping: {one: 1,  two: 2}
+quoted: ["keep,  internal",  "normalize"]
+-- expected.yaml --
+command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+mapping: { one: 1, two: 2 }
+quoted: ["keep,  internal", "normalize"]

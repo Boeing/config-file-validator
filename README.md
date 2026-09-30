@@ -1,104 +1,111 @@
 <p align="center">
   <img src="./img/logo.png" width="160" height="160" alt="Config File Validator logo"/>
 </p>
+
 <h1 align="center">Config File Validator</h1>
 
 <p align="center">
-<img id="cov" src="https://img.shields.io/badge/Coverage-93.3%25-brightgreen" alt="Code Coverage">
-
-  <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator">
-    <img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard">
-  </a>
-
-  <a href="https://www.bestpractices.dev/projects/9027">
-    <img src="https://www.bestpractices.dev/projects/9027/badge" alt="OpenSSF Best Practices">
-  </a>
-
-  <a href="https://opensource.org/licenses/Apache-2.0">
-  <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License">
-  </a>
-
-  <a href="https://github.com/avelino/awesome-go">
-  <img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go">
-  </a>  
-
-  <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator/v2">
-  <img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v2.svg" alt="Go Reference">
-  </a>
-
-  <a href="https://github.com/boeing/config-file-validator/actions/workflows/go.yml">
-  <img src="https://github.com/boeing/config-file-validator/actions/workflows/go.yml/badge.svg" alt="Pipeline Status">
-  </a>
+  <img id="cov" src="https://img.shields.io/badge/Coverage-92%25-brightgreen" alt="Code Coverage">
+  <a href="https://scorecard.dev/viewer/?uri=github.com/Boeing/config-file-validator"><img src="https://api.scorecard.dev/projects/github.com/Boeing/config-file-validator/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://www.bestpractices.dev/projects/9027"><img src="https://www.bestpractices.dev/projects/9027/badge" alt="OpenSSF Best Practices"></a>
+  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2 License"></a>
+  <a href="https://github.com/avelino/awesome-go"><img src="https://awesome.re/mentioned-badge.svg" alt="Awesome Go"></a>
+  <a href="https://pkg.go.dev/github.com/Boeing/config-file-validator/v3"><img src="https://pkg.go.dev/badge/github.com/Boeing/config-file-validator/v3.svg" alt="Go Reference"></a>
+  <a href="https://github.com/boeing/config-file-validator/actions/workflows/go.yml"><img src="https://github.com/boeing/config-file-validator/actions/workflows/go.yml/badge.svg" alt="Pipeline Status"></a>
 </p>
 
-Config File Validator validates config files across 18 formats.
+cfv is a toolchain for configuration files. It catches syntax errors, schema violations, and formatting problems across your repo and fixes what it can. Single static binary. No runtime dependencies.
 
-It recursively searches directories for config files, detects their format by extension or filename, and reports errors.
+<p align="center">
+  <img src="./img/demo.svg" width="780" alt="cfv validating config files"/>
+</p>
+
+## Documentation
+
+[Read the docs →](https://boeing.github.io/config-file-validator)
+
+- [Quick Start](https://boeing.github.io/config-file-validator/docs/quick-start)
+- [CLI Reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags)
+- [Configuration](https://boeing.github.io/config-file-validator/docs/guides/configuration-file)
+- [Formatting](https://boeing.github.io/config-file-validator/docs/guides/formatting)
+- [Schema Validation](https://boeing.github.io/config-file-validator/docs/guides/schema-validation)
+- [Go Library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
 
 ## Install
 
-**Homebrew**
 ```shell
 brew install config-file-validator
 ```
 
-**Winget**
 ```shell
-winget install Boeing.config-file-validator
-```
-
-**Go Install**
-```shell
-go install github.com/Boeing/config-file-validator/v2/cmd/validator@latest
+go install github.com/Boeing/config-file-validator/v3/cmd/cfv@latest
 ```
 
 <details>
-<summary>More install options</summary>
+<summary>Winget, Scoop, MacPorts, binary downloads</summary>
 
-**MacPorts**
-
-```shell
-sudo port install config-file-validator
-```
-
-**Scoop**
-
-```shell
-scoop install config-file-validator
-```
-
-**Binary releases**
-
-Download pre-built binaries for macOS, Linux, and Windows from [GitHub Releases](https://github.com/Boeing/config-file-validator/releases).
-
+- Winget: `winget install Boeing.config-file-validator`
+- Scoop: `scoop install config-file-validator`
+- MacPorts: `sudo port install config-file-validator`
+- Binaries: [GitHub Releases](https://github.com/Boeing/config-file-validator/releases)
 </details>
 
 ## Usage
 
-Validate all config files in the current directory:
+Validate syntax, enforce schemas, and check formatting:
 
-<img src="./img/demo.svg" alt="Config File Validator output showing pass/fail results" width="800" />
+```shell
+cfv check .
+```
 
-See the [CLI reference](https://boeing.github.io/config-file-validator/docs/reference/cli-flags) for all options.
+Fix formatting, trailing commas, and type coercion:
 
-## Features
+```shell
+cfv check --fix .
+```
 
-- Schema validation via JSON Schema, XSD, and automatic [SchemaStore](https://www.schemastore.org/) lookup
-- Auto-detects file types by extension and [known filename](https://boeing.github.io/config-file-validator/docs/reference/known-files)
-- JSON, JUnit, and SARIF output for CI pipelines
-- Watch mode for continuous local validation while editing config files
-- [GitHub Action](https://github.com/Boeing/validate-configs-action) with PR annotations
-- [Pre-commit hook](https://boeing.github.io/config-file-validator/docs/integrations/pre-commit)
-- Project-level [`.cfv.toml`](https://boeing.github.io/config-file-validator/docs/guides/configuration-file) configuration
-- Usable as a [Go library](https://boeing.github.io/config-file-validator/docs/integrations/go-library)
+Preview formatting changes as a diff:
 
-## Documentation
+```shell
+cfv format --diff .
+```
 
-Documentation is hosted at https://boeing.github.io/config-file-validator.
+Exits with code 1 if any file fails.
 
-## Contributing
+## Supported Formats
 
-We welcome contributions! See the [contributing guide](./CONTRIBUTING.md).
+| Format          | Extensions              | Syntax | Format | Schema |
+|-----------------|-------------------------|:------:|:------:|:------:|
+| JSON            | `.json`                 |   ✅    |   ✅    |   ✅    |
+| JSONC           | `.jsonc`                |   ✅    |   ✅    |   ✅    |
+| YAML            | `.yaml`, `.yml`         |   ✅    |   ✅    |   ✅    |
+| TOML            | `.toml`                 |   ✅    |   ✅    |   ✅    |
+| XML             | `.xml`                  |   ✅    |   ✅    |   ✅    |
+| TOON            | `.toon`                 |   ✅    |   —    |   ✅    |
+| SARIF           | `.sarif`                |   ✅    |   —    |   ✅    |
+| HCL             | `.hcl`, `.tf`, `.tfvars`|   ✅    |   ✅    |   —    |
+| INI             | `.ini`                  |   ✅    |   ✅    |   —    |
+| Properties      | `.properties`           |   ✅    |   ✅    |   —    |
+| ENV             | `.env`                  |   ✅    |   ✅    |   —    |
+| HOCON           | `.hocon`                |   ✅    |   —    |   —    |
+| CSV             | `.csv`                  |   ✅    |   —    |   —    |
+| EDITORCONFIG    | `.editorconfig`         |   ✅    |   —    |   —    |
+| Justfile        | `.just`                 |   ✅    |   —    |   —    |
+| KDL             | `.kdl`                  |   ✅    |   —    |   —    |
+| CUE             | `.cue`                  |   ✅    |   —    |   —    |
+| Apple PList XML | `.plist`                |   ✅    |   —    |   —    |
+
+Schema validation uses [JSON Schema](https://json-schema.org/), [XSD](https://www.w3.org/XML/Schema), and automatic [SchemaStore](https://www.schemastore.org/) lookup. Formatting reads your existing `.prettierrc`, `taplo.toml`, `.yamlfmt`, and `.editorconfig` files. See [Formatting](https://boeing.github.io/config-file-validator/docs/guides/formatting) and [Schema Validation](https://boeing.github.io/config-file-validator/docs/guides/schema-validation).
+
+## CI
+
+```shell
+cfv check --reporter=junit:results.xml --schemastore .
+```
+
+Reporters: `standard`, `json`, `junit`, `sarif`, `github`. The `github` reporter emits workflow commands so errors appear as inline PR annotations.
+
+A [GitHub Action](https://github.com/Boeing/validate-configs-action) and [pre-commit hook](https://boeing.github.io/config-file-validator/docs/integrations/pre-commit) are also available.
 
 ## Contributors
 

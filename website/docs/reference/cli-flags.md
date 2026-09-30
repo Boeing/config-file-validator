@@ -4,19 +4,34 @@
 # CLI Flags
 
 ```
-validator [OPTIONS] [<search_path>...]
+cfv check [flags] [<search_path>...]
 ```
 
-If no search path is provided, the validator searches the current directory. Use `-` to read from stdin (requires `--file-types`).
+Bare `cfv [flags] [<search_path>...]` also works and is equivalent to `cfv check`.
 
-## Flags
+If no search path is provided, cfv searches the current directory. Use `-` to read from stdin (requires `--file-types`).
+
+## Subcommands
+
+| Subcommand    | Description                                      |
+|---------------|--------------------------------------------------|
+| `check`       | Validate config files. Default when omitted.     |
+| `format`      | Check or fix formatting of config files.         |
+| `version`     | Print the version and exit.                      |
+| `help`        | Show help for a subcommand.                      |
+
+## `check` flags
+
+All flags below apply to the `check` subcommand.
 
 | Flag                  | Type   | Default    | Description                                                                                                        |
-|-----------------------|--------|------------|--------------------------------------------------------------------------------------------------------------------|
+|-----------------------|--------|------------|---------------------------------------------------------------------------------------------------------------------|
 | `-depth`              | int    | unlimited  | Maximum recursion depth. `0` disables recursion.                                                                   |
 | `-exclude-dirs`       | string | —          | Comma-separated list of directory names to skip.                                                                   |
 | `-exclude-file-types` | string | —          | Comma-separated list of file types to ignore. Cannot be used with `-file-types`.                                   |
 | `-file-types`         | string | all        | Comma-separated list of file types to validate. Cannot be used with `-exclude-file-types`.                         |
+| `-fix`                | bool   | `false`    | Apply safe fixes automatically (trailing commas, schema coercion, formatting).                                     |
+| `-unsafe`             | bool   | `false`    | Apply unsafe fixes. Requires `-fix`.                                                                               |
 | `-gitignore`          | bool   | `false`    | Skip files matched by `.gitignore` patterns. Only active inside a Git repository.                                  |
 | `--ignore-file`       | string | —          | Apply gitignore-style patterns from a file relative to each search path. Repeatable.                               |
 | `-globbing`           | bool   | `false`    | Treat positional arguments as glob patterns.                                                                       |
@@ -31,7 +46,49 @@ If no search path is provided, the validator searches the current directory. Use
 | `-schemastore`        | bool   | `false`    | Enable automatic schema lookup by filename using the SchemaStore catalog.                                          |
 | `-schemastore-path`   | string | —          | Path to a local SchemaStore clone. Implies `-schemastore`.                                                         |
 | `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |
-| `-no-config`          | bool   | `false`    | Disable automatic `.cfv.toml` discovery.                                                                           |
+| `-no-config`          | bool   | `false`    | Disable all config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`).         |
 | `-type-map`           | string | —          | Map a glob pattern to a file type. Format: `<pattern>:<type>`. Repeatable.                                         |
-| `-version`            | bool   | —          | Print the version and exit.                                                                                        |
-| `-watch`              | bool   | `false`    | Watch search paths for file changes. Runs a full pass first, then revalidates changed files.                       |
+| `-watch`              | bool   | `false`    | Watch search paths for file changes and re-run validation on each changed file.                                    |
+
+## `format` flags
+
+```
+cfv format [flags] [<search_path>...]
+```
+
+Checks formatting of config files. With `--fix`, rewrites files in place. With `--diff`, prints a unified diff of what would change.
+
+### Format-specific flags
+
+| Flag                  | Type   | Default | Description                                                   |
+|-----------------------|--------|---------|---------------------------------------------------------------|
+| `-fix`                | bool   | `false` | Rewrite files in place. Mutually exclusive with `-diff`.      |
+| `-diff`               | bool   | `false` | Print unified diff of formatting changes. Mutually exclusive with `-fix`. |
+| `-indent`             | int    | `0`     | Override indent width. `0` uses format default (2 for JSON/JSONC/YAML/XML). |
+| `-use-tabs`           | bool   | `false` | Use tabs for indentation.                                    |
+| `-sort-keys`          | bool   | `false` | Sort mapping keys alphabetically.                            |
+| `-no-sort-keys`       | bool   | `false` | Disable key sorting (overrides config file setting).         |
+| `-line-ending`        | string | —       | Line ending style: `lf` or `crlf`.                           |
+| `-max-line-width`     | int    | `0`     | Max line width hint. `0` uses format default (80 for JSON/JSONC/YAML). |
+| `-quote-style`        | string | —       | Quote style: `double`, `single`, or `preserve` (YAML only).  |
+| `-no-config`          | bool   | `false` | Disable all config file discovery (`.cfv.toml`, `.prettierrc`, `taplo.toml`, `.yamlfmt`, `.editorconfig`). |
+| `-no-editorconfig`    | bool   | `false` | Ignore `.editorconfig` files when resolving format options.   |
+
+### Shared flags
+
+These flags work the same as in `check`.
+
+| Flag                  | Type   | Default    | Description                                                                                                        |
+|-----------------------|--------|------------|---------------------------------------------------------------------------------------------------------------------|
+| `-depth`              | int    | unlimited  | Maximum recursion depth. `0` disables recursion.                                                                   |
+| `-exclude-dirs`       | string | —          | Comma-separated list of directory names to skip.                                                                   |
+| `-exclude-file-types` | string | —          | Comma-separated list of file types to ignore. Cannot be used with `-file-types`.                                   |
+| `-file-types`         | string | all        | Comma-separated list of file types to format. Cannot be used with `-exclude-file-types`.                           |
+| `-gitignore`          | bool   | `false`    | Skip files matched by `.gitignore` patterns.                                                                       |
+| `--ignore-file`       | string | —          | Apply gitignore-style patterns from a file relative to each search path. Repeatable.                               |
+| `-globbing`           | bool   | `false`    | Treat positional arguments as glob patterns.                                                                       |
+| `-groupby`            | string | —          | Group output by: `filetype`, `directory`, `pass-fail`. Comma-separated.                                            |
+| `-reporter`           | string | `standard` | Output format and optional path. Format: `<type>:<path>`. Types: `standard`, `json`, `junit`, `sarif`, `github`. Repeatable. |
+| `-quiet`              | bool   | `false`    | Suppress stdout output when writing to file.                                                                       |
+| `-config`             | string | auto       | Path to a `.cfv.toml` configuration file.                                                                          |
+| `-type-map`           | string | —          | Map a glob pattern to a file type. Format: `<pattern>:<type>`. Repeatable.                                         |

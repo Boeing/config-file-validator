@@ -14,11 +14,12 @@ const SARIFVersion = "2.1.0"
 const SARIFSchema = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
 const DriverName = "config-file-validator"
 const DriverInfoURI = "https://github.com/Boeing/config-file-validator"
-const DriverVersion = "1.8.0"
 
 type SARIFReporter struct {
 	outputDest  string
 	mergeConfig SARIFMergeConfig
+	version     string
+	isQuiet     bool
 }
 
 // SARIFMergeConfig lists external SARIF inputs to append to the validator's SARIF report.
@@ -96,21 +97,27 @@ func (r runs) MarshalJSON() ([]byte, error) {
 	return json.Marshal(runJSON{Tool: r.Tool, Results: r.Results})
 }
 
-func NewSARIFReporter(outputDest string) *SARIFReporter {
+// NewSARIFReporter creates a SARIF reporter that uses the given version string
+// in the SARIF tool.driver.version field.
+func NewSARIFReporter(outputDest string, version string, isQuiet bool) *SARIFReporter {
 	return &SARIFReporter{
 		outputDest: outputDest,
+		version:    version,
+		isQuiet:    isQuiet,
 	}
 }
 
 // NewSARIFReporterWithMerge creates a SARIF reporter that appends external SARIF runs.
-func NewSARIFReporterWithMerge(outputDest string, mergeConfig SARIFMergeConfig) *SARIFReporter {
+func NewSARIFReporterWithMerge(outputDest string, version string, isQuiet bool, mergeConfig SARIFMergeConfig) *SARIFReporter {
 	return &SARIFReporter{
 		outputDest:  outputDest,
+		version:     version,
+		isQuiet:     isQuiet,
 		mergeConfig: mergeConfig,
 	}
 }
 
-func createSARIFReport(reports []Report, mergeConfigs ...SARIFMergeConfig) (*SARIFLog, error) {
+func createSARIFReport(reports []Report, version string, mergeConfigs ...SARIFMergeConfig) (*SARIFLog, error) {
 	mergeConfig := SARIFMergeConfig{}
 	if len(mergeConfigs) > 0 {
 		mergeConfig = mergeConfigs[0]
@@ -121,7 +128,7 @@ func createSARIFReport(reports []Report, mergeConfigs ...SARIFMergeConfig) (*SAR
 	log.Version = SARIFVersion
 	log.Schema = SARIFSchema
 
-	validatorRun := createValidatorSARIFRun(reports)
+	validatorRun := createValidatorSARIFRun(reports, version)
 	log.Runs = append(log.Runs, validatorRun)
 
 	mergedRuns, err := loadMergedSARIFRuns(mergeConfig)
@@ -133,21 +140,22 @@ func createSARIFReport(reports []Report, mergeConfigs ...SARIFMergeConfig) (*SAR
 	return &log, nil
 }
 
-func createValidatorSARIFRun(reports []Report) runs {
+func createValidatorSARIFRun(reports []Report, version string) runs {
 	var validatorRun runs
 
 	validatorRun.Tool.Driver.Name = DriverName
 	validatorRun.Tool.Driver.InfoURI = DriverInfoURI
-	validatorRun.Tool.Driver.Version = DriverVersion
+	validatorRun.Tool.Driver.Version = version
 
 	for _, report := range reports {
-		if strings.Contains(report.FilePath, "\\") {
-			report.FilePath = strings.ReplaceAll(report.FilePath, "\\", "/")
+		filePath := report.FilePath
+		if strings.Contains(filePath, "\\") {
+			filePath = strings.ReplaceAll(filePath, "\\", "/")
 		}
 
-		uri := "file:///" + report.FilePath
+		uri := "file:///" + filePath
 
-		if report.IsValid {
+		if report.Status == StatusPass {
 			validatorRun.Results = append(validatorRun.Results, result{
 				Kind:    "pass",
 				Level:   "none",
@@ -161,28 +169,26 @@ func createValidatorSARIFRun(reports []Report) runs {
 			continue
 		}
 
-		for i, errMsg := range report.ValidationErrors {
+		level := "error"
+		if report.Status == StatusUnformatted {
+			level = "warning"
+		}
+
+		for _, issue := range report.Issues {
 			r := result{
 				Kind:    "fail",
-				Level:   "error",
-				Message: message{Text: errMsg},
+				Level:   level,
+				Message: message{Text: issue.Message},
 				Locations: []location{{
 					PhysicalLocation: physicalLocation{
 						ArtifactLocation: artifactLocation{URI: uri},
 					},
 				}},
 			}
-			errLine, errCol := report.StartLine, report.StartColumn
-			if i < len(report.ErrorLines) && report.ErrorLines[i] > 0 {
-				errLine = report.ErrorLines[i]
-				if i < len(report.ErrorColumns) {
-					errCol = report.ErrorColumns[i]
-				}
-			}
-			if errLine > 0 {
+			if issue.Line > 0 {
 				r.Locations[0].PhysicalLocation.Region = &region{
-					StartLine:   errLine,
-					StartColumn: errCol,
+					StartLine:   issue.Line,
+					StartColumn: issue.Column,
 				}
 			}
 			validatorRun.Results = append(validatorRun.Results, r)
@@ -279,7 +285,7 @@ func isSupportedSARIFVersion(version, schema string) bool {
 }
 
 func (sr SARIFReporter) Print(reports []Report) error {
-	report, err := createSARIFReport(reports, sr.mergeConfig)
+	report, err := createSARIFReport(reports, sr.version, sr.mergeConfig)
 	if err != nil {
 		return err
 	}
@@ -295,7 +301,7 @@ func (sr SARIFReporter) Print(reports []Report) error {
 		return outputBytesToFile(sr.outputDest, "result", "sarif", sarifBytes)
 	}
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
+	if !sr.isQuiet {
 		fmt.Print(string(sarifBytes))
 	}
 

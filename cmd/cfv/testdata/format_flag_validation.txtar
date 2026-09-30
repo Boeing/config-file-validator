@@ -1,0 +1,74 @@
+# ============================================================
+# Format CLI flag validation tests
+# ============================================================
+
+# --- Mutual exclusion ---
+
+# --sort-keys and --no-sort-keys conflict
+! exec cfv format --sort-keys --no-sort-keys --no-config .
+stderr 'cannot be used together'
+
+# --fix and --diff conflict
+! exec cfv format --fix --diff --no-config .
+stderr 'cannot be used together'
+
+# --- Indent range ---
+
+# --indent=0 is invalid (explicitly set)
+! exec cfv format --indent=0 --no-config .
+stderr 'must be between 1 and 16'
+
+# --indent=-1 is invalid
+! exec cfv format --indent=-1 --no-config .
+stderr 'must be between 1 and 16'
+
+# --indent=17 is invalid
+! exec cfv format --indent=17 --no-config .
+stderr 'must be between 1 and 16'
+
+# --indent=1 is valid (lower boundary) — no error on stderr
+exec cfv format --fix --indent=1 --no-config .
+! stderr '.'
+
+# --indent=16 is valid (upper boundary) — no error on stderr
+exec cfv format --fix --indent=16 --no-config .
+! stderr '.'
+
+# --- Line ending enum ---
+
+# --line-ending=banana is invalid
+! exec cfv format --line-ending=banana --no-config .
+stderr 'must be "lf" or "crlf"'
+
+# --line-ending=auto is invalid
+! exec cfv format --line-ending=auto --no-config .
+stderr 'must be "lf" or "crlf"'
+
+# --line-ending=lf is valid — no error
+exec cfv format --fix --line-ending=lf --no-config .
+! stderr '.'
+
+# --line-ending=crlf is valid — no error
+exec cfv format --fix --line-ending=crlf --no-config .
+! stderr '.'
+
+# --- Quote style enum ---
+
+# --quote-style=banana is invalid
+! exec cfv format --quote-style=banana --no-config .
+stderr 'must be "double", "single", or "preserve"'
+
+# --quote-style=double is valid — no error
+exec cfv format --fix --quote-style=double --no-config .
+! stderr '.'
+
+# --quote-style=single is valid — no error
+exec cfv format --fix --quote-style=single --no-config .
+! stderr '.'
+
+# --quote-style=preserve is valid — no error
+exec cfv format --fix --quote-style=preserve --no-config .
+! stderr '.'
+
+-- test.json --
+{"a": 1}

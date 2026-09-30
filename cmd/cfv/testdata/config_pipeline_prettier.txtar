@@ -1,0 +1,61 @@
+# ============================================================
+# Config pipeline: .prettierrc → cfv check
+# Proves that .prettierrc options flow through to format checking in cfv check.
+# Each scenario uses a separate directory with its own .prettierrc.
+# ============================================================
+
+# tabWidth:4 → 4-space indent passes cfv check
+exec cfv check indent/app.json
+stdout '✓'
+
+# tabWidth:4 → 2-space indent fails cfv check (not formatted per config)
+! exec cfv check indent/wrong.json
+stdout '~'
+
+# singleQuote:true → single-quoted YAML passes
+exec cfv check quote/app.yaml
+stdout '✓'
+
+# useTabs:true → tab-indented JSON passes
+exec cfv check tabs/app.json
+stdout '✓'
+
+# trailingComma:es5 → JSONC with trailing commas passes
+exec cfv check trailing/app.jsonc
+stdout '✓'
+
+# printWidth:40 → short inline (under 40) stays inline and passes
+exec cfv check width/short.json
+stdout '✓'
+
+-- indent/.prettierrc.json --
+{ "tabWidth": 4 }
+-- indent/app.json --
+{
+    "key": "value"
+}
+-- indent/wrong.json --
+{
+  "key": "value"
+}
+-- quote/.prettierrc.json --
+{ "singleQuote": true }
+-- quote/app.yaml --
+key: 'value'
+-- tabs/.prettierrc.json --
+{ "useTabs": true }
+-- tabs/app.json --
+{
+	"key": "value"
+}
+-- trailing/.prettierrc.json --
+{ "trailingComma": "es5" }
+-- trailing/app.jsonc --
+// config
+{
+  "key": "value",
+}
+-- width/.prettierrc.json --
+{ "printWidth": 40 }
+-- width/short.json --
+{ "key": "value" }

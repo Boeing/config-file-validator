@@ -1,16 +1,21 @@
-// Formats that support both Syntax and Schema validation
+// Formats that support Syntax + Schema validation
 export const SCHEMA_FORMATS = [
   'JSON', 'JSONC', 'YAML', 'TOML', 'XML', 'TOON', 'SARIF'
 ];
 
 // Formats that support only Syntax validation
 export const SYNTAX_FORMATS = [
-  'HCL', 'INI', 'HOCON', 'ENV', 'CSV', 'Properties', 
+  'HCL', 'INI', 'HOCON', 'ENV', 'CSV', 'Properties',
   'EDITORCONFIG', 'Justfile', 'KDL', 'CUE', 'PList'
 ];
 
 // Master list of all supported configuration file formats
 export const SUPPORTED_FORMATS = [...SCHEMA_FORMATS, ...SYNTAX_FORMATS];
+
+// Formats that support formatting
+export const FORMAT_FORMATS = [
+  'JSON', 'JSONC', 'YAML', 'TOML', 'HCL', 'XML', 'INI', 'Properties', 'ENV'
+];
 
 // Formats an array of strings into a readable comma-separated list (e.g., "A, B, and C").
 export function formatList(items: string[]): string {

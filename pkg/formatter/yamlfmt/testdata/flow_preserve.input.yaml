@@ -1,0 +1,6 @@
+matrix:
+  include:
+    - {os: ubuntu, go: "1.21"}
+    - {os: macos, go: "1.21"}
+    - {os: windows, go: "1.21"}
+labels: {app: myapp, env: prod}

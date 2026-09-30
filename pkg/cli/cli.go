@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -10,28 +11,52 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 
-	"github.com/Boeing/config-file-validator/v2/pkg/filetype"
-	"github.com/Boeing/config-file-validator/v2/pkg/finder"
-	"github.com/Boeing/config-file-validator/v2/pkg/reporter"
-	"github.com/Boeing/config-file-validator/v2/pkg/schemastore"
-	"github.com/Boeing/config-file-validator/v2/pkg/tools"
-	"github.com/Boeing/config-file-validator/v2/pkg/validator"
+	"github.com/Boeing/config-file-validator/v3/pkg/filetype"
+	"github.com/Boeing/config-file-validator/v3/pkg/finder"
+	"github.com/Boeing/config-file-validator/v3/pkg/fixer"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter"
+	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
+	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
+	"github.com/Boeing/config-file-validator/v3/pkg/tools"
+	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
-// CLI is the main entry point for running config file validation.
-// Use Init with Option functions to configure, then call Run.
+// CLI is the main entry point for running config file validation and formatting.
+// Use Init with Option functions to configure, then call Run (check) or Format.
+// SchemaMapping is a single glob-pattern → schema-path association.
+// Ordered slice preserves user-specified priority (first match wins).
+type SchemaMapping struct {
+	Pattern    string
+	SchemaPath string
+}
+
 type CLI struct {
-	finder        finder.FileFinder
-	reporters     []reporter.Reporter
-	groupOutput   []string
-	quiet         bool
-	requireSchema bool
-	noSchema      bool
-	schemaMap     map[string]string
-	schemaStore   *schemastore.Store
-	stdinData     []byte
-	stdinFileType filetype.FileType
-	errorFound    bool
+	finder         finder.FileFinder
+	reporters      []reporter.Reporter
+	groupOutput    []string
+	quiet          bool
+	requireSchema  bool
+	noSchema       bool
+	schemaMap      []SchemaMapping
+	schemaStore    *schemastore.Store
+	configFilePath string // excluded from format checking
+	stdinData      []byte
+	stdinFileType  filetype.FileType
+	errorFound     bool
+	// fix enables writing formatted output back to disk.
+	// When false, Format reports issues but does not write.
+	fix bool
+	// diff enables unified diff output mode.
+	// When true, Format prints diffs to stdout instead of the normal report.
+	// Mutually exclusive with fix.
+	diff bool
+	// formatOptsFunc resolves format options per file during check.
+	// When non-nil, Run() checks formatting after syntax+schema validation.
+	// When nil, format checking is skipped (backward compatibility).
+	formatOptsFunc FormatOptionsFunc
+	// formatIgnores holds per-format ignore patterns from external tool configs.
+	// When non-nil, files matching ignore patterns are skipped from format checking.
+	formatIgnores *formatter.FormatIgnores
 }
 
 // Option configures a CLI instance.
@@ -73,9 +98,17 @@ func WithNoSchema(noSchema bool) Option {
 	}
 }
 
-func WithSchemaMap(m map[string]string) Option {
+func WithSchemaMap(m []SchemaMapping) Option {
 	return func(c *CLI) {
 		c.schemaMap = m
+	}
+}
+
+// WithConfigFile sets the path to the resolved config file so it can be
+// excluded from format checking (a tool should not format its own config).
+func WithConfigFile(path string) Option {
+	return func(c *CLI) {
+		c.configFilePath = path
 	}
 }
 
@@ -92,10 +125,45 @@ func WithStdinData(data []byte, ft filetype.FileType) Option {
 	}
 }
 
+// WithFix enables writing formatted output back to disk when calling Format.
+// When false (the default), Format reports issues but does not modify files.
+func WithFix(fix bool) Option {
+	return func(c *CLI) {
+		c.fix = fix
+	}
+}
+
+// WithDiff enables unified diff output mode for Format.
+// When true, Format prints diffs instead of the normal pass/fail report.
+func WithDiff(diff bool) Option {
+	return func(c *CLI) {
+		c.diff = diff
+	}
+}
+
+// WithFormatOptions enables format checking in the check pipeline.
+// When set, Run() checks formatting after syntax+schema validation passes.
+// Files that are valid but not canonically formatted are reported as
+// StatusUnformatted. When --fix is also enabled, the formatted output is
+// written back to disk.
+func WithFormatOptions(f FormatOptionsFunc) Option {
+	return func(c *CLI) {
+		c.formatOptsFunc = f
+	}
+}
+
+// WithFormatIgnores sets the format-ignore matcher for the CLI.
+// Files matching ignore patterns are skipped from format checking and formatting.
+func WithFormatIgnores(fi *formatter.FormatIgnores) Option {
+	return func(c *CLI) {
+		c.formatIgnores = fi
+	}
+}
+
 func Init(opts ...Option) *CLI {
 	c := &CLI{
 		finder:    finder.FileSystemFinderInit(),
-		reporters: []reporter.Reporter{reporter.NewStdoutReporter("")},
+		reporters: []reporter.Reporter{reporter.NewStdoutReporter("", false)},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -121,12 +189,13 @@ func (c *CLI) Run() (int, error) {
 		if err != nil {
 			if isBrokenSymlink(f.Path) {
 				report := reporter.Report{
-					FileName:         f.Name,
-					FilePath:         f.Path,
-					IsValid:          false,
-					ValidationError:  errors.New("broken symlink"),
-					ValidationErrors: []string{"broken symlink"},
-					ErrorType:        "other",
+					FileName: f.Name,
+					FilePath: f.Path,
+					Status:   reporter.StatusFail,
+					Issues: []reporter.Issue{{
+						Type:    reporter.IssueTypeSyntax,
+						Message: "broken symlink",
+					}},
 				}
 				c.errorFound = true
 				reports = append(reports, report)
@@ -135,8 +204,30 @@ func (c *CLI) Run() (int, error) {
 			return 2, fmt.Errorf("unable to read file: %w", err)
 		}
 
+		// Strip UTF-8 BOM if present. Many editors (especially on Windows)
+		// add BOM to UTF-8 files. Parsers for JSON, TOML, and JSONC don't
+		// handle it, so we strip it centrally before validation.
+		content = stripBOM(content)
+
 		report := c.validate(content, f.FileType, f.Name, f.Path)
-		if !report.IsValid {
+
+		// When --fix is enabled and there are errors, attempt to fix.
+		if c.fix && report.HasErrors() {
+			fixedReport := c.attemptFix(content, f.FileType, f.Name, f.Path)
+			if fixedReport != nil {
+				report = *fixedReport
+			}
+		}
+
+		// Format checking: only on files that pass all validation (syntax + schema).
+		// If a file has errors, the user should fix those first — format issues
+		// are secondary noise. With --fix, the fixer may resolve errors AND then
+		// formatting is checked on the fixed content.
+		if !report.HasErrors() && c.formatOptsFunc != nil && f.FileType.Formatter != nil {
+			report = c.checkFormatting(report, content, f.FileType, f.Path)
+		}
+
+		if report.HasErrors() || report.Status == reporter.StatusUnformatted {
 			c.errorFound = true
 		}
 		reports = append(reports, report)
@@ -157,46 +248,70 @@ func (c *CLI) validate(content []byte, ft filetype.FileType, name, path string) 
 	isValid, syntaxErr := ft.Validator.ValidateSyntax(content)
 
 	var schemaErr error
-	var warnings []string
+	var schemaWarnings []string
 	if isValid {
-		isValid, warnings, schemaErr = c.validateSchema(ft.Validator, content, path)
+		isValid, schemaWarnings, schemaErr = c.validateSchema(ft.Validator, content, path)
 	}
 
-	err := syntaxErr
-	errorType := ""
+	notes := checkJSONCFallback(syntaxErr, ft, content, name)
+	// Schema warnings become notes (they don't fail the file).
+	notes = append(notes, schemaWarnings...)
+
+	report := reporter.Report{
+		FileName: name,
+		FilePath: path,
+		Notes:    notes,
+	}
+
+	if isValid {
+		report.Status = reporter.StatusPass
+	} else {
+		report.Status = reporter.StatusFail
+	}
+
+	// Convert syntax error to issues.
 	if syntaxErr != nil {
-		errorType = "syntax"
-	}
-	if schemaErr != nil {
-		err = schemaErr
-		errorType = "schema"
+		report.Issues = append(report.Issues, buildIssues(syntaxErr, reporter.IssueTypeSyntax)...)
 	}
 
-	var line, col int
+	// Convert schema error to issues.
+	if schemaErr != nil {
+		report.Issues = append(report.Issues, buildIssues(schemaErr, reporter.IssueTypeSchema)...)
+	}
+
+	return report
+}
+
+// buildIssues converts a validation error into one or more Issue structs.
+func buildIssues(err error, issueType reporter.IssueType) []reporter.Issue {
+	var se *validator.SchemaErrors
+	if errors.As(err, &se) {
+		issues := make([]reporter.Issue, 0, len(se.Errors()))
+		for i, msg := range se.Errors() {
+			issue := reporter.Issue{
+				Type:    issueType,
+				Message: msg,
+			}
+			if i < len(se.Positions) {
+				issue.Line = se.Positions[i].Line
+				issue.Column = se.Positions[i].Column
+			}
+			issues = append(issues, issue)
+		}
+		return issues
+	}
+
+	issue := reporter.Issue{
+		Type:    issueType,
+		Message: err.Error(),
+	}
 	var ve *validator.ValidationError
 	if errors.As(err, &ve) {
-		line = ve.Line
-		col = ve.Column
+		issue.Message = ve.Err.Error()
+		issue.Line = ve.Line
+		issue.Column = ve.Column
 	}
-
-	validationErrors, errLines, errCols := formatErrors(err, line, col)
-	notes := checkJSONCFallback(syntaxErr, ft, content, name)
-
-	return reporter.Report{
-		FileName:         name,
-		FilePath:         path,
-		IsValid:          isValid,
-		ValidationError:  err,
-		ValidationErrors: validationErrors,
-		Notes:            notes,
-		Warnings:         warnings,
-		ErrorType:        errorType,
-		IsQuiet:          c.quiet,
-		StartLine:        line,
-		StartColumn:      col,
-		ErrorLines:       errLines,
-		ErrorColumns:     errCols,
-	}
+	return []reporter.Issue{issue}
 }
 
 // runSingle validates a single piece of content (used for stdin mode).
@@ -207,58 +322,10 @@ func (c *CLI) runSingle(content []byte, ft filetype.FileType, name string) (int,
 		return 2, err
 	}
 
-	if !report.IsValid {
+	if report.HasErrors() {
 		return 1, nil
 	}
 	return 0, nil
-}
-
-func formatErrors(err error, line, col int) (errs []string, lines []int, cols []int) {
-	if err == nil {
-		return nil, nil, nil
-	}
-	var se *validator.SchemaErrors
-	if errors.As(err, &se) {
-		var errs []string
-		var lines, cols []int
-		for i, e := range se.Errors() {
-			var pos validator.SchemaErrorPosition
-			if i < len(se.Positions) {
-				pos = se.Positions[i]
-			}
-			var prefix string
-			switch {
-			case pos.Line > 0 && pos.Column > 0:
-				prefix = fmt.Sprintf("schema: line %d, column %d: ", pos.Line, pos.Column)
-			case pos.Line > 0:
-				prefix = fmt.Sprintf("schema: line %d: ", pos.Line)
-			default:
-				prefix = "schema: "
-			}
-			errs = append(errs, prefix+e)
-			lines = append(lines, pos.Line)
-			cols = append(cols, pos.Column)
-		}
-		return errs, lines, cols
-	}
-
-	msg := err.Error()
-	var ve *validator.ValidationError
-	if errors.As(err, &ve) {
-		msg = ve.Err.Error()
-	}
-
-	var prefix string
-	switch {
-	case line > 0 && col > 0:
-		prefix = fmt.Sprintf("syntax: line %d, column %d: ", line, col)
-	case line > 0:
-		prefix = fmt.Sprintf("syntax: line %d: ", line)
-	default:
-		prefix = "syntax: "
-	}
-
-	return []string{prefix + msg}, []int{line}, []int{col}
 }
 
 // checkJSONCFallback checks if a failed JSON file is valid JSONC and returns a note if so.
@@ -315,6 +382,11 @@ func (c *CLI) validateSchema(v validator.Validator, content []byte, filePath str
 	if hasSV && c.requireSchema {
 		return false, nil, validator.ErrNoSchema
 	}
+	if !hasSV && c.requireSchema {
+		if _, hasJM := v.(validator.JSONMarshaler); hasJM {
+			return false, nil, validator.ErrNoSchema
+		}
+	}
 	return true, nil, nil
 }
 
@@ -323,16 +395,22 @@ func (c *CLI) lookupSchemaMap(filePath string) (string, bool) {
 		return "", false
 	}
 	baseName := filepath.Base(filePath)
-	for pattern, schemaPath := range c.schemaMap {
-		if !tools.IsGlobPattern(pattern) {
-			if pattern == baseName {
-				return schemaPath, true
+	for _, m := range c.schemaMap {
+		if !tools.IsGlobPattern(m.Pattern) {
+			if m.Pattern == baseName {
+				return m.SchemaPath, true
 			}
 			continue
 		}
-		matched, err := doublestar.PathMatch(pattern, filePath)
+		// If pattern has no path separator, match against basename only.
+		// "*.json" matches any JSON file regardless of directory depth.
+		target := filePath
+		if !strings.Contains(m.Pattern, "/") {
+			target = baseName
+		}
+		matched, err := doublestar.PathMatch(m.Pattern, target)
 		if err == nil && matched {
-			return schemaPath, true
+			return m.SchemaPath, true
 		}
 	}
 	return "", false
@@ -391,15 +469,15 @@ func (c *CLI) printReports(reports []reporter.Report) error {
 		return c.printGroup(reports)
 	}
 
+	var errs []error
 	for _, reporterObj := range c.reporters {
-		err := reporterObj.Print(reports)
-		if err != nil {
-			fmt.Println("failed to report:", err)
+		if err := reporterObj.Print(reports); err != nil {
+			errs = append(errs, fmt.Errorf("reporter: %w", err))
 			c.errorFound = true
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (c *CLI) printGroup(reports []reporter.Report) error {
@@ -428,4 +506,176 @@ func isBrokenSymlink(path string) bool {
 	}
 	_, err = os.Stat(path)
 	return os.IsNotExist(err)
+}
+
+// hasBOM returns true if b starts with a UTF-8 byte order mark (0xEF 0xBB 0xBF).
+func hasBOM(b []byte) bool {
+	return len(b) >= 3 && b[0] == 0xef && b[1] == 0xbb && b[2] == 0xbf
+}
+
+// stripBOM removes a UTF-8 BOM prefix if present.
+func stripBOM(b []byte) []byte {
+	if hasBOM(b) {
+		return b[3:]
+	}
+	return b
+}
+
+// defaultFixRules returns the standard set of safe fix rules.
+func defaultFixRules() []fixer.Rule {
+	return []fixer.Rule{
+		fixer.JSONTrailingComma{},
+		fixer.JSONStringToInt{},
+		fixer.JSONStringToBool{},
+	}
+}
+
+// attemptFix runs the fixer on content and writes the result if fixes were applied.
+// Returns a new report reflecting the post-fix state, or nil if no fixes could be applied.
+func (c *CLI) attemptFix(content []byte, ft filetype.FileType, name, path string) *reporter.Report {
+	// Resolve schema bytes for this file (nil if no schema).
+	schemaBytes := c.resolveSchemaBytes(ft.Validator, path)
+
+	f := fixer.New(defaultFixRules()...)
+	result := f.Fix(content, schemaBytes, ft.Name)
+
+	if len(result.Applied) == 0 {
+		return nil // no fixes available
+	}
+
+	// Verify the fixed output is valid before writing.
+	verifyReport := c.validate(result.Fixed, ft, name, path)
+	if verifyReport.HasErrors() {
+		// Fix didn't fully resolve the issue — don't write a partial fix.
+		// Return nil to keep the original error report.
+		return nil
+	}
+
+	// Write the fixed file atomically.
+	if err := writeFileAtomic(path, result.Fixed); err != nil {
+		// Write failed — report as the original error.
+		return nil
+	}
+
+	// Build a pass report with notes about what was fixed.
+	report := reporter.Report{
+		FileName: name,
+		FilePath: path,
+		Status:   reporter.StatusPass,
+	}
+	for _, fix := range result.Applied {
+		report.Notes = append(report.Notes, "fixed: "+fix.Message)
+	}
+
+	return &report
+}
+
+// resolveSchemaBytes returns the raw JSON Schema bytes for a file, or nil
+// if no schema is available. This is used by the fixer to understand what
+// types fields should have.
+func (c *CLI) resolveSchemaBytes(v validator.Validator, filePath string) []byte {
+	if c.noSchema {
+		return nil
+	}
+
+	// Check schema-map first.
+	if schemaPath, ok := c.lookupSchemaMap(filePath); ok {
+		data, err := os.ReadFile(schemaPath)
+		if err == nil {
+			return data
+		}
+	}
+
+	// Check SchemaStore.
+	if c.schemaStore != nil {
+		if schemaPath, ok := c.schemaStore.Resolve(filePath); ok {
+			data, err := os.ReadFile(schemaPath)
+			if err == nil {
+				return data
+			}
+		}
+	}
+
+	// Check inline schema declaration (JSON $schema property).
+	_ = v // validator might declare schema inline — but we'd need to fetch it.
+	// For now, only support explicitly mapped schemas.
+
+	return nil
+}
+
+// checkFormatting checks whether content is canonically formatted and updates
+// the report accordingly. If --fix is enabled and the file is unformatted,
+// the formatted output is written to disk.
+//
+// When the fixer has already written a new version of the file, content will
+// be stale — we re-read from disk in that case (detected by fix notes on the report).
+func (c *CLI) checkFormatting(report reporter.Report, content []byte, ft filetype.FileType, path string) reporter.Report {
+	// Skip the config file itself — a tool should not format-check its own config.
+	if c.configFilePath != "" {
+		absPath, err := filepath.Abs(path)
+		if err == nil && absPath == c.configFilePath {
+			return report
+		}
+	}
+
+	// Skip if file is format-ignored by external tool config.
+	if c.formatIgnores != nil {
+		absPath, err := filepath.Abs(path)
+		if err == nil && c.formatIgnores.ShouldSkipFormat(absPath, ft.Name) {
+			return report
+		}
+	}
+
+	// If the fixer applied changes and wrote a new file, re-read for formatting.
+	if len(report.Notes) > 0 {
+		updated, err := os.ReadFile(path)
+		if err == nil {
+			content = updated
+		}
+	}
+
+	opts := c.formatOptsFunc(ft.Name, path)
+	formatted, err := formatContent(ft.Formatter, content, opts)
+	if err != nil {
+		// Formatter can't parse the file — shouldn't happen since syntax
+		// validation passed, but skip format checking gracefully.
+		return report
+	}
+
+	if bytes.Equal(content, formatted) {
+		// File is already formatted — no change to report.
+		return report
+	}
+
+	// File is valid but not formatted.
+	if c.fix {
+		if err := writeFileAtomic(path, formatted); err == nil {
+			// Successfully formatted — keep report as pass, add a note.
+			report.Notes = append(report.Notes, "fixed: formatting")
+			return report
+		}
+		// Write failed — fall through to report as unformatted.
+	}
+
+	report.Status = reporter.StatusUnformatted
+	report.Issues = append(report.Issues, reporter.Issue{
+		Type:    reporter.IssueTypeFormat,
+		Message: "file is not formatted",
+	})
+	return report
+}
+
+// formatContent invokes the formatter, handling ErrSkipped gracefully.
+func formatContent(fmter formatter.Formatter, content []byte, opts formatter.Options) ([]byte, error) {
+	formatted, err := fmter.Format(content, opts)
+	if err != nil {
+		var skipped *formatter.ErrSkipped
+		if errors.As(err, &skipped) {
+			// Formatter explicitly skipped this file — treat as already
+			// formatted (no issue to report).
+			return content, nil
+		}
+		return nil, err
+	}
+	return formatted, nil
 }

@@ -1,8 +1,7 @@
 package validator
 
 import (
-	"encoding/json"
-	"errors"
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -30,59 +29,11 @@ func (JSONCValidator) ValidateSyntax(b []byte) (bool, error) {
 }
 
 func (JSONCValidator) MarshalToJSON(b []byte) ([]byte, error) {
-	standardized, err := hujson.Standardize(b)
+	standardized, err := hujson.Standardize(bytes.Clone(b))
 	if err != nil {
 		return nil, err
-	}
-	var raw any
-	if err := json.Unmarshal(standardized, &raw); err != nil {
-		return nil, err
-	}
-	if doc, ok := raw.(map[string]any); ok {
-		delete(doc, "$schema")
-		return json.Marshal(doc)
 	}
 	return standardized, nil
-}
-
-func (JSONCValidator) ValidateSchema(b []byte, filePath string) (bool, error) {
-	standardized, err := hujson.Standardize(b)
-	if err != nil {
-		return false, err
-	}
-
-	var raw any
-	if err := json.Unmarshal(standardized, &raw); err != nil {
-		return false, err
-	}
-
-	doc, ok := raw.(map[string]any)
-	if !ok {
-		return true, ErrNoSchema
-	}
-
-	schemaRef, ok := doc["$schema"]
-	if !ok {
-		return true, ErrNoSchema
-	}
-
-	schemaURL, ok := schemaRef.(string)
-	if !ok {
-		return false, fmt.Errorf("$schema must be a string, got %T", schemaRef)
-	}
-	if schemaURL == "" {
-		return false, errors.New("$schema must not be empty")
-	}
-
-	schemaURL = resolveSchemaURL(schemaURL, filePath)
-
-	delete(doc, "$schema")
-	cleanDoc, err := json.Marshal(doc)
-	if err != nil {
-		return false, err
-	}
-
-	return JSONSchemaValidate(schemaURL, cleanDoc)
 }
 
 // parseHujsonError extracts line and column from hujson error messages.

@@ -1,0 +1,24 @@
+# ============================================================
+# Extended functional tests for --watch flag validation
+# ============================================================
+
+# --watch with --fix is accepted (compatible flags)
+# Cannot fully test watch mode (it blocks), so verify the flag combination
+# is not rejected at parse time by confirming the error comes from execution
+# (missing directory), not from flag validation.
+! exec cfv check --watch --fix nonexistent_dir
+stderr 'no such file or directory'
+! stderr 'cannot be used'
+
+# --watch with --gitignore is accepted (compatible flags)
+! exec cfv check --watch --gitignore nonexistent_dir
+stderr 'no such file or directory'
+! stderr 'cannot be used'
+
+# --watch cannot be used with stdin
+stdin valid.json
+! exec cfv check --watch --file-types=json -
+stderr '--watch cannot be used with stdin'
+
+-- valid.json --
+{ "key": "value" }

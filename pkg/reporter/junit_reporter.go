@@ -10,11 +10,13 @@ import (
 
 type JunitReporter struct {
 	outputDest string
+	isQuiet    bool
 }
 
-func NewJunitReporter(outputDest string) *JunitReporter {
+func NewJunitReporter(outputDest string, isQuiet bool) *JunitReporter {
 	return &JunitReporter{
 		outputDest: outputDest,
+		isQuiet:    isQuiet,
 	}
 }
 
@@ -185,17 +187,28 @@ func (jr JunitReporter) Print(reports []Report) error {
 	testErrors := 0
 
 	for _, r := range reports {
-		if strings.Contains(r.FilePath, "\\") {
-			r.FilePath = strings.ReplaceAll(r.FilePath, "\\", "/")
+		filePath := r.FilePath
+		if strings.Contains(filePath, "\\") {
+			filePath = strings.ReplaceAll(filePath, "\\", "/")
 		}
-		tc := Testcase{Name: fmt.Sprintf("%s validation", r.FilePath), File: r.FilePath, ClassName: "config-file-validator"}
-		if !r.IsValid {
+		tc := Testcase{Name: fmt.Sprintf("%s validation", filePath), File: filePath, ClassName: "config-file-validator"}
+		switch r.Status {
+		case StatusFail:
 			testErrors++
 			var escapedErrors []string
-			for _, e := range r.ValidationErrors {
-				escapedErrors = append(escapedErrors, escapeString(e))
+			for _, issue := range r.Issues {
+				escapedErrors = append(escapedErrors, escapeString(formatIssueMessage(issue)))
 			}
 			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: strings.Join(escapedErrors, "\n")}}
+		case StatusUnformatted:
+			testErrors++
+			var escapedIssues []string
+			for _, issue := range r.Issues {
+				escapedIssues = append(escapedIssues, escapeString(issue.Message))
+			}
+			tc.TestcaseFailure = &TestcaseFailure{Message: Message{InnerXML: strings.Join(escapedIssues, "\n")}}
+		default:
+			// StatusPass — no failure element
 		}
 		testcases = append(testcases, tc)
 	}
@@ -214,8 +227,8 @@ func (jr JunitReporter) Print(reports []Report) error {
 		return outputBytesToFile(jr.outputDest, "result", "xml", []byte(results))
 	}
 
-	if len(reports) > 0 && !reports[0].IsQuiet {
-		fmt.Println(results)
+	if !jr.isQuiet {
+		fmt.Print(results)
 	}
 
 	return nil

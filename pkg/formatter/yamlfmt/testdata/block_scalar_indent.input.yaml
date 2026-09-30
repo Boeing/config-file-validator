@@ -1,0 +1,8 @@
+description: |
+    This block scalar has 4-space indent
+    but should be normalized to 2-space
+    (parentIndent + tabWidth)
+nested:
+  readme: |
+      Content with 6-space indent
+      should become parentIndent(2) + tabWidth(2) = 4-space

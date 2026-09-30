@@ -1,0 +1,47 @@
+package filetype
+
+import (
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/envfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/hclfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/inifmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsoncfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/jsonfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/propfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/tomlfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/xmlfmt"
+	"github.com/Boeing/config-file-validator/v3/pkg/formatter/yamlfmt"
+)
+
+// wireFormatters registers formatters with their corresponding FileTypes.
+// Called explicitly from init() in file_type.go after the FileTypes slice is
+// built — no dependency on filename-sorted init() ordering.
+//
+// We update the slice entries directly because FileTypes holds value copies —
+// updating the package-level vars (JSONFileType etc.) has no effect on the
+// already-copied slice.
+func wireFormatters() {
+	for i, ft := range FileTypes {
+		switch ft.Name {
+		case "json":
+			FileTypes[i].Formatter = jsonfmt.Formatter{}
+		case "jsonc":
+			FileTypes[i].Formatter = jsoncfmt.Formatter{}
+		case "yaml":
+			FileTypes[i].Formatter = yamlfmt.Formatter{}
+		case "hcl":
+			FileTypes[i].Formatter = hclfmt.Formatter{}
+		case "xml":
+			FileTypes[i].Formatter = xmlfmt.Formatter{}
+		case "toml":
+			FileTypes[i].Formatter = tomlfmt.Formatter{}
+		case "ini":
+			FileTypes[i].Formatter = inifmt.Formatter{}
+		case "env":
+			FileTypes[i].Formatter = envfmt.Formatter{}
+		case "properties":
+			FileTypes[i].Formatter = propfmt.Formatter{}
+		default:
+			// no formatter registered for this type yet
+		}
+	}
+}
