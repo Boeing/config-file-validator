@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Upgrade the minimum Go version to 1.26.9 and golang.org/x/net to v0.60.0 to resolve stdlib and HTTP/2 vulnerability findings.
+
 ## [3.0.0] - 2026-09-30
 
 ### Added
