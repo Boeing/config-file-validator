@@ -7,7 +7,7 @@ require (
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-billy/v5 v5.9.2
 	github.com/go-git/go-git/v5 v5.19.3
-	github.com/gurkankaymak/hocon v1.3.1
+	github.com/gurkankaymak/hocon v1.4.0
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.25.0
 	github.com/lestrrat-go/helium v0.10.0
