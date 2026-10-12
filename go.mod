@@ -5,19 +5,19 @@ go 1.26.9
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/fatih/color v1.19.0
-	github.com/go-git/go-billy/v5 v5.9.1
-	github.com/go-git/go-git/v5 v5.19.2
+	github.com/go-git/go-billy/v5 v5.9.2
+	github.com/go-git/go-git/v5 v5.19.3
 	github.com/gurkankaymak/hocon v1.3.1
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.25.0
-	github.com/lestrrat-go/helium v0.8.0
+	github.com/lestrrat-go/helium v0.10.0
 	github.com/magiconair/properties v1.18.12
 	github.com/owenrumney/go-sarif/v3 v3.3.1
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/rogpeppe/go-internal v1.16.0
 	github.com/stretchr/testify v1.12.1
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd // pinned: jsoncfmt depends on CST internals
-	github.com/toon-format/toon-go v0.0.0-20251108125615-44b4cd22477f
+	github.com/toon-format/toon-go v1.0.1
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	gopkg.in/ini.v1 v1.67.3
 	gopkg.in/yaml.v3 v3.0.1
