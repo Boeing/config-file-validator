@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Decode Properties Unicode escape sequences using their 16-bit encoding range.
 - Upgrade the minimum Go version to 1.26.9 and golang.org/x/net to v0.60.0 to resolve stdlib and HTTP/2 vulnerability findings.
 - Check for the latest Go 1.26 patch in CI instead of selecting an older cached toolchain that does not satisfy go.mod.
 
