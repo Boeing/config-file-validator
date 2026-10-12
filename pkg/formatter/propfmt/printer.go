@@ -160,8 +160,8 @@ func decodeKey(raw []byte) string {
 			i++
 			if raw[i] == 'u' && i+4 < len(raw) {
 				hex := string(raw[i+1 : i+5])
-				if r, err := strconv.ParseUint(hex, 16, 32); err == nil {
-					b.WriteRune(rune(r)) //nolint:gosec // r is bounded to 32 bits by ParseUint
+				if r, err := strconv.ParseUint(hex, 16, 16); err == nil {
+					b.WriteRune(rune(r))
 					i += 4
 					continue
 				}

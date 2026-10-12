@@ -51,6 +51,22 @@ func Test_Properties_SortKeysAlphabetical(t *testing.T) {
 		"keys must be sorted alphabetically")
 }
 
+// Test_Properties_SortKeysDecodesUnicodeEscapes asserts that Unicode escapes
+// in keys are resolved before alphabetical sorting.
+func Test_Properties_SortKeysDecodesUnicodeEscapes(t *testing.T) {
+	t.Parallel()
+	src := "zebra = 1\n\\u0061lpha = 2\n"
+	opts := propfmt.DefaultOptions()
+	opts.SortKeys = true
+
+	got, err := propfmt.Formatter{}.Format([]byte(src), opts)
+	require.NoError(t, err)
+	out := string(got)
+
+	require.Less(t, strings.Index(out, "\\u0061lpha = 2"), strings.Index(out, "zebra = 1"),
+		"keys must be sorted by their Unicode-decoded values")
+}
+
 // Test_Properties_SortKeysOffByDefault asserts that original key order is
 // preserved when SortKeys is not enabled.
 func Test_Properties_SortKeysOffByDefault(t *testing.T) {
