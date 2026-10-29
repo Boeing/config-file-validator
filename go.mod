@@ -1,6 +1,6 @@
 module github.com/Boeing/config-file-validator/v3
 
-go 1.26.9
+go 1.26.10
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.2
@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.25.0
 	github.com/lestrrat-go/helium v0.10.0
 	github.com/magiconair/properties v1.18.12
-	github.com/owenrumney/go-sarif/v3 v3.3.1
+	github.com/owenrumney/go-sarif/v3 v3.3.2
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/rogpeppe/go-internal v1.16.0
 	github.com/stretchr/testify v1.12.1
