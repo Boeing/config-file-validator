@@ -119,7 +119,7 @@ func resolveImportPath(dir, path string) string {
 			return filepath.Join(home, path[2:])
 		}
 	}
-	if filepath.IsAbs(path) {
+	if filepath.IsAbs(path) || strings.HasPrefix(path, "/") || strings.HasPrefix(path, "\\") {
 		return path
 	}
 	return filepath.Join(dir, path)

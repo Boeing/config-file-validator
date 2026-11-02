@@ -186,7 +186,8 @@ func (s *Store) cachePathForURL(schemaURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(s.cacheDir, parsed.Host, parsed.Path), nil
+	host := strings.ReplaceAll(parsed.Host, ":", "_")
+	return filepath.Join(s.cacheDir, host, parsed.Path), nil
 }
 
 func (s *Store) lookupCache(schemaURL string) (string, bool) {

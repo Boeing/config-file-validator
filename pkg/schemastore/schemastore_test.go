@@ -384,11 +384,15 @@ func TestFetchAndCacheUnwritableDir(t *testing.T) {
 	}))
 	defer srv.Close()
 
+	// Use a regular file as cacheDir so directory creation fails reliably across all OSes.
+	cacheFile := filepath.Join(t.TempDir(), "not-a-dir")
+	require.NoError(t, os.WriteFile(cacheFile, []byte("x"), 0644))
+
 	store := &Store{
 		entries: []catalogEntry{
 			{FileMatch: []string{"config.json"}, URL: srv.URL + "/schema.json"},
 		},
-		cacheDir: "/nonexistent/readonly/path",
+		cacheDir: cacheFile,
 		cacheTTL: defaultCacheTTL,
 		client:   srv.Client(),
 	}
@@ -449,14 +453,14 @@ func TestDefaultCacheDirXDG(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", "/custom/cache")
 	dir, err := defaultCacheDir()
 	require.NoError(t, err)
-	require.Equal(t, "/custom/cache/cfv/schemas", dir)
+	require.Equal(t, filepath.Join("/custom/cache", "cfv", "schemas"), dir)
 }
 
 func TestDefaultCacheDirFallbackToHome(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", "")
 	dir, err := defaultCacheDir()
 	require.NoError(t, err)
-	require.Contains(t, dir, ".cache/cfv/schemas")
+	require.Contains(t, dir, filepath.Join(".cache", "cfv", "schemas"))
 }
 
 func TestFetchAndCacheNilClient(t *testing.T) {

@@ -229,8 +229,9 @@ func TestResolveImportAbsolutePath(t *testing.T) {
 
 func TestResolveImportRelativePath(t *testing.T) {
 	result := resolveImportPath("/some/dir", "relative.just")
-	if result != "/some/dir/relative.just" {
-		t.Errorf("expected joined path, got %q", result)
+	expected := filepath.Join("/some/dir", "relative.just")
+	if result != expected {
+		t.Errorf("expected joined path %q, got %q", expected, result)
 	}
 }
 
