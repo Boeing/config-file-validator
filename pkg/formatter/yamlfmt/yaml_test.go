@@ -174,6 +174,47 @@ func TestInlineNestedSequenceIsIdempotent(t *testing.T) {
 	require.Equal(t, formatted, second)
 }
 
+// TestBlockScalarUnderSequenceMappingKey verifies that block scalar content
+// under a key that follows a sequence dash is indented past the key column.
+// Indenting it relative to the dash produces invalid YAML.
+func TestBlockScalarUnderSequenceMappingKey(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{
+			name: "already formatted",
+			src:  "commands:\n  - sh: |\n      echo hi\n",
+			want: "commands:\n  - sh: |\n      echo hi\n",
+		},
+		{
+			name: "over-indented content",
+			src:  "commands:\n  - sh: |\n          echo hi\n",
+			want: "commands:\n  - sh: |\n      echo hi\n",
+		},
+		{
+			name: "extra space after dash",
+			src:  "commands:\n  -   sh: |\n        echo hi\n",
+			want: "commands:\n  - sh: |\n      echo hi\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			formatted, err := f.Format([]byte(tt.src), defaultOpts)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, string(formatted))
+
+			var before, after any
+			require.NoError(t, yaml.Unmarshal([]byte(tt.src), &before))
+			require.NoError(t, yaml.Unmarshal(formatted, &after), "formatted output must be valid YAML")
+			require.Equal(t, before, after)
+		})
+	}
+}
+
 // TestInvalidYAMLReturnsError verifies that unparseable input returns an error.
 func TestInvalidYAMLReturnsError(t *testing.T) {
 	t.Parallel()

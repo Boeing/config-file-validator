@@ -57,14 +57,15 @@ func reindentTokens(at AnnotatedTokens, targetWidth int, indentSequences bool) {
 		tokens[i].Raw = []byte(strings.Repeat(" ", newIndent))
 
 		// Normalize block scalar content indentation.
-		// Target: parentIndent (newIndent) + targetWidth.
+		// Target: parent node column + targetWidth.
 		for j := i + 1; j < len(tokens); j++ {
 			if tokens[j].Kind == TokNewline {
 				break
 			}
 			if tokens[j].Kind == TokBlockScalar {
 				if !hasExplicitIndentIndicator(tokens[j].Raw) {
-					targetContentIndent := newIndent + targetWidth
+					parentCol := blockScalarParentColumn(tokens, i, j, newIndent)
+					targetContentIndent := parentCol + targetWidth
 					actualContentIndent := detectMinContentIndent(tokens[j].Raw)
 					if actualContentIndent >= 0 && actualContentIndent != targetContentIndent {
 						delta := targetContentIndent - actualContentIndent
@@ -81,6 +82,39 @@ func reindentTokens(at AnnotatedTokens, targetWidth int, indentSequences bool) {
 			}
 		}
 	}
+}
+
+// blockScalarParentColumn returns the output column of the node that owns the
+// block scalar at tokens[scalarIdx]. The line starts at tokens[indentIdx] with
+// the given indent. Content must be indented past this column.
+//
+// Sequence dashes shift the parent node to the right:
+//   - `key: |` has the key's mapping at the line indent.
+//   - `- key: |` has the mapping at the first token after the dash.
+//   - `- - |` has the inner sequence at the last dash.
+//
+// Columns reflect the output layout. Extra spaces after a dash are dropped by
+// normalizeSequenceSpacing, so they're excluded here.
+func blockScalarParentColumn(tokens []Token, indentIdx, scalarIdx, indent int) int {
+	col := indent
+	parentCol := indent
+	afterDash := false
+	for k := indentIdx + 1; k < scalarIdx; k++ {
+		tok := tokens[k]
+		switch {
+		case tok.Kind == TokDash:
+			parentCol = col
+			afterDash = true
+		case tok.Kind == TokSpace && k > 0 && tokens[k-1].Kind == TokDash:
+			continue
+		case afterDash:
+			parentCol = col
+			afterDash = false
+		default:
+		}
+		col += len(tok.Raw)
+	}
+	return parentCol
 }
 
 // shiftBlockScalarIndent adjusts indentation of content lines within a block scalar.
