@@ -57,22 +57,26 @@ func reindentTokens(at AnnotatedTokens, targetWidth int, indentSequences bool) {
 		tokens[i].Raw = []byte(strings.Repeat(" ", newIndent))
 
 		// Normalize block scalar content indentation.
-		// Target: parentIndent (newIndent) + targetWidth.
+		// Target: parent node column + targetWidth.
 		for j := i + 1; j < len(tokens); j++ {
 			if tokens[j].Kind == TokNewline {
 				break
 			}
 			if tokens[j].Kind == TokBlockScalar {
 				if !hasExplicitIndentIndicator(tokens[j].Raw) {
-					targetContentIndent := newIndent + targetWidth
+					offset, _ := blockScalarParentOffset(tokens, i, j)
+					targetContentIndent := newIndent + offset + targetWidth
 					actualContentIndent := detectMinContentIndent(tokens[j].Raw)
 					if actualContentIndent >= 0 && actualContentIndent != targetContentIndent {
 						delta := targetContentIndent - actualContentIndent
 						tokens[j].Raw = shiftBlockScalarIndent(tokens[j].Raw, delta)
 					}
 				} else {
-					// Explicit indicator: just shift by the key's delta.
-					delta := newIndent - oldIndent
+					// Explicit indicator: the content indent is relative to
+					// the parent column. Shift by the same amount the parent
+					// moves so the value doesn't change.
+					_, dropped := blockScalarParentOffset(tokens, i, j)
+					delta := newIndent - oldIndent - dropped
 					if delta != 0 {
 						tokens[j].Raw = shiftBlockScalarIndent(tokens[j].Raw, delta)
 					}
@@ -81,6 +85,41 @@ func reindentTokens(at AnnotatedTokens, targetWidth int, indentSequences bool) {
 			}
 		}
 	}
+}
+
+// blockScalarParentOffset finds the node that owns the block scalar at
+// tokens[scalarIdx] on the line that starts at tokens[indentIdx]. Content must
+// be indented past this node's column.
+//
+// Sequence dashes shift the parent node to the right:
+//   - `key: |` has the key's mapping at the line indent.
+//   - `- key: |` has the mapping at the first token after the dash.
+//   - `- - |` has the inner sequence at the last dash.
+//
+// offset is the parent's output column minus the line indent.
+// normalizeSequenceSpacing later drops extra spaces after a dash. dropped is
+// the number of those spaces before the parent, so the parent's source column
+// is the old line indent + offset + dropped.
+func blockScalarParentOffset(tokens []Token, indentIdx, scalarIdx int) (offset, dropped int) {
+	col, spaces := 0, 0
+	afterDash := false
+	for k := indentIdx + 1; k < scalarIdx; k++ {
+		tok := tokens[k]
+		switch {
+		case tok.Kind == TokDash:
+			offset, dropped = col, spaces
+			afterDash = true
+		case tok.Kind == TokSpace && tokens[k-1].Kind == TokDash:
+			spaces += len(tok.Raw)
+			continue
+		case afterDash:
+			offset, dropped = col, spaces
+			afterDash = false
+		default:
+		}
+		col += len(tok.Raw)
+	}
+	return offset, dropped
 }
 
 // shiftBlockScalarIndent adjusts indentation of content lines within a block scalar.

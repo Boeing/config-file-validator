@@ -1,0 +1,14 @@
+commands:
+  - sh: |
+      echo hi
+  - name: build
+    run: |
+      make build
+  - - |
+      nested sequence
+  - |
+    bare sequence entry
+deep:
+  - steps:
+      - script: |
+          echo deep
