@@ -386,7 +386,7 @@ func TestFetchAndCacheUnwritableDir(t *testing.T) {
 
 	// Use a regular file as cacheDir so directory creation fails reliably across all OSes.
 	cacheFile := filepath.Join(t.TempDir(), "not-a-dir")
-	require.NoError(t, os.WriteFile(cacheFile, []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(cacheFile, []byte("x"), 0600))
 
 	store := &Store{
 		entries: []catalogEntry{
