@@ -1,9 +1,9 @@
 module github.com/Boeing/config-file-validator/v3
 
-go 1.26.9
+go 1.26.11
 
 require (
-	github.com/bmatcuk/doublestar/v4 v4.10.2
+	github.com/bmatcuk/doublestar/v4 v4.10.4
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-billy/v5 v5.9.2
 	github.com/go-git/go-git/v5 v5.19.3
@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/hcl/v2 v2.25.0
 	github.com/lestrrat-go/helium v0.10.0
-	github.com/magiconair/properties v1.18.12
+	github.com/magiconair/properties v1.18.13
 	github.com/owenrumney/go-sarif/v3 v3.3.1
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/rogpeppe/go-internal v1.16.0
@@ -53,10 +53,10 @@ require (
 	github.com/zclconf/go-cty v1.19.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/tools v0.51.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
