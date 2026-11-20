@@ -19,6 +19,7 @@ import (
 	"github.com/Boeing/config-file-validator/v3/pkg/formatter/xmlfmt"
 	"github.com/Boeing/config-file-validator/v3/pkg/reporter"
 	"github.com/Boeing/config-file-validator/v3/pkg/schemastore"
+	"github.com/Boeing/config-file-validator/v3/pkg/tools"
 	"github.com/Boeing/config-file-validator/v3/pkg/validator"
 )
 
@@ -1184,13 +1185,17 @@ func Test_writeFileAtomicRenameFails(t *testing.T) {
 
 func Test_toSchemaURL(t *testing.T) {
 	t.Parallel()
+	absPath, err := filepath.Abs("/tmp/schema.json")
+	require.NoError(t, err)
+	expectedFileURL := tools.FileURL(absPath)
+
 	cases := []struct {
 		name, input, wantPrefix string
 	}{
 		{"https URL passthrough", "https://example.com/schema.json", "https://"},
 		{"http URL passthrough", "http://example.com/schema.json", "http://"},
 		{"relative path becomes file URL", "schemas/my.json", "file://"},
-		{"absolute path becomes file URL", "/tmp/schema.json", "file:///tmp/schema.json"},
+		{"absolute path becomes file URL", "/tmp/schema.json", expectedFileURL},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

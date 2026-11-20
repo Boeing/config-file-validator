@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Decode Properties Unicode escape sequences using their 16-bit encoding range.
 - Fix MegaLinter OSV and Trivy failures by upgrading Go and vulnerable dependencies, enabling compatible Go toolchain selection, and removing obsolete OSV ignores.
 - Check for the latest Go 1.26 patch in CI instead of selecting an older cached toolchain that does not satisfy go.mod.
+- Sanitize cache directory host names and support rooted POSIX-style paths in justfile import resolution for cross-platform compatibility (#722).
 
 ## [3.0.0] - 2026-09-30
 
