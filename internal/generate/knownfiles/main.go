@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	linguistSHA = "d456527fe93355baa28c3c29d542c97282b61bc7" // DevSkim: ignore DS173237 - this is a commit SHA, not a secret
+	linguistSHA = "cfd7a0113aa1efab99faeff38756f0ed4d48add8" // DevSkim: ignore DS173237 - this is a commit SHA, not a secret
 	linguistURL = "https://raw.githubusercontent.com/github-linguist/linguist/" + linguistSHA + "/lib/linguist/languages.yml"
 	outputFile  = "known_files_gen.go"
 )
