@@ -19,7 +19,7 @@ require (
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd // pinned: jsoncfmt depends on CST internals
 	github.com/toon-format/toon-go v1.0.1
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
-	gopkg.in/ini.v1 v1.67.3
+	gopkg.in/ini.v1 v1.68.0
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 )
