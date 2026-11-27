@@ -6,6 +6,7 @@ type Entry struct {
 	Key             Token   // the key token
 	Sep             Token   // the separator token (= or : with whitespace)
 	Value           Token   // the value token (may be empty/zero)
+	Continuation    []Token // continuation lines of a multi-line value
 	Newline         Token   // trailing newline
 	BlankBefore     bool    // blank line preceded this entry
 }
@@ -102,6 +103,22 @@ func parse(tokens []Token) *File {
 			if i < len(tokens) && tokens[i].Kind == TokNewline {
 				e.Newline = tokens[i]
 				i++
+			}
+
+			// Continuation lines, each optionally preceded by whitespace.
+			for {
+				j := i
+				if j < len(tokens) && tokens[j].Kind == TokWhitespace {
+					j++
+				}
+				if j >= len(tokens) || tokens[j].Kind != TokContinuation {
+					break
+				}
+				e.Continuation = append(e.Continuation, tokens[j])
+				i = j + 1
+				if i < len(tokens) && tokens[i].Kind == TokNewline {
+					i++
+				}
 			}
 
 			currentSection.Entries = append(currentSection.Entries, e)
