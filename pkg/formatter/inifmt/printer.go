@@ -54,9 +54,11 @@ func printFormatted(f *File, opts formatter.Options) []byte {
 			}
 
 			// Emit key with indent.
+			keyIndent := ""
 			if indent != "" && len(sec.Header.Raw) > 0 {
-				buf.WriteString(indent)
+				keyIndent = indent
 			}
+			buf.WriteString(keyIndent)
 			buf.Write(e.Key.Raw)
 
 			// Emit separator and value.
@@ -65,9 +67,12 @@ func printFormatted(f *File, opts formatter.Options) []byte {
 			// differently from "key = \"val\"" — introducing whitespace between
 			// = and a quote can change semantics.
 			if len(e.Sep.Raw) > 0 {
-				if valueStartsWithQuote(e.Value.Raw) {
+				switch {
+				case valueStartsWithQuote(e.Value.Raw):
 					buf.Write(e.Sep.Raw)
-				} else {
+				case len(e.Value.Raw) == 0:
+					buf.WriteString(" " + string(findSepChar(e.Sep.Raw)))
+				default:
 					sep := findSepChar(e.Sep.Raw)
 					buf.WriteString(" " + string(sep) + " ")
 				}
@@ -76,6 +81,13 @@ func printFormatted(f *File, opts formatter.Options) []byte {
 			// Emit value verbatim.
 			if len(e.Value.Raw) > 0 {
 				buf.Write(e.Value.Raw)
+			}
+
+			// Continuation lines keep their indentation relative to the key.
+			for _, c := range e.Continuation {
+				buf.WriteByte('\n')
+				buf.WriteString(keyIndent)
+				buf.Write(c.Raw)
 			}
 
 			buf.WriteByte('\n')

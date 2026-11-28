@@ -47,12 +47,12 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 		IgnoreInlineComment:     true,
 		IgnoreContinuation:      true,
 	}
-	if _, err := ini.LoadSources(loadOpts, src); err != nil {
+	tokens := tokenize(src)
+	if _, err := ini.LoadSources(loadOpts, withoutContinuations(tokens)); err != nil {
 		return nil, err
 	}
 
 	// Tokenize → Parse → Print (CST-based pipeline).
-	tokens := tokenize(src)
 	file := parse(tokens)
 	out := printFormatted(file, opts)
 
@@ -60,7 +60,7 @@ func (Formatter) Format(src []byte, opts formatter.Options) ([]byte, error) {
 	// formatter changed something that breaks ini.v1's parser (e.g., adding
 	// a newline after a value with unbalanced quotes). Return an error
 	// rather than silently returning the original (no bail-outs).
-	if _, err := ini.LoadSources(loadOpts, out); err != nil {
+	if _, err := ini.LoadSources(loadOpts, withoutContinuations(tokenize(out))); err != nil {
 		return nil, fmt.Errorf("formatted output is not valid INI: %w", err)
 	}
 

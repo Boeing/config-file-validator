@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Decode Properties Unicode escape sequences using their 16-bit encoding range.
+- Accept indented multi-line INI values (`.flake8`, `.coveragerc`, `pytest.ini`, `tox.ini`) and keep them intact when formatting, instead of reporting a syntax error or splitting continuation lines into new keys.
 - Fix MegaLinter OSV and Trivy failures by upgrading Go and vulnerable dependencies, enabling compatible Go toolchain selection, and removing obsolete OSV ignores.
 - Check for the latest Go 1.26 patch in CI instead of selecting an older cached toolchain that does not satisfy go.mod.
 

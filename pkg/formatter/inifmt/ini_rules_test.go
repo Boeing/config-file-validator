@@ -156,3 +156,27 @@ func Test_INI_DefaultHasFinalNewline(t *testing.T) {
 	require.False(t, strings.HasSuffix(out, "\n\n"),
 		"output must not end with multiple newlines")
 }
+
+// Test_INI_MultilineValuesKept asserts that indented continuation lines stay
+// part of the value above them (Python configparser style).
+func Test_INI_MultilineValuesKept(t *testing.T) {
+	t.Parallel()
+	src := "[report]\nexclude_lines =\n    pragma: no cover\n    if __name__ == .__main__.:\nshow_missing = true\n"
+
+	got, err := inifmt.Formatter{}.Format([]byte(src), inifmt.DefaultOptions())
+	require.NoError(t, err)
+	require.Equal(t, src, string(got))
+}
+
+// Test_INI_MultilineValuesFollowKeyIndent asserts that continuation lines
+// keep their depth relative to the key when keys are re-indented.
+func Test_INI_MultilineValuesFollowKeyIndent(t *testing.T) {
+	t.Parallel()
+	src := "[flake8]\n\textend-ignore = E203,\n\t    W503\n\tmax-line-length = 100\n"
+	opts := inifmt.DefaultOptions()
+	opts.IndentWidth = 2
+
+	got, err := inifmt.Formatter{}.Format([]byte(src), opts)
+	require.NoError(t, err)
+	require.Equal(t, "[flake8]\n  extend-ignore = E203,\n      W503\n  max-line-length = 100\n", string(got))
+}

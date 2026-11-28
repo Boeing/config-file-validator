@@ -140,6 +140,7 @@ var testData = []struct {
 	{"tomlDuplicateKey", []byte("key = 1\nkey = 2\n"), false, TomlValidator{}},
 	{"validIni", []byte(`{[Version]\nCatalog=hidden\n}`), true, IniValidator{}},
 	{"invalidIni", []byte(`\nCatalog hidden\n`), false, IniValidator{}},
+	{"validIniMultilineValue", []byte("[flake8]\nextend-ignore =\n    E203,\n    W503\n"), true, IniValidator{}},
 	{"validProperties", []byte("key=value\nkey2=${key}"), true, PropValidator{}},
 	{"invalidProperties", []byte("key=${key}"), false, PropValidator{}},
 	{"validHcl", []byte(`key = "value"`), true, HclValidator{}},
@@ -849,6 +850,21 @@ func Test_INIDuplicateKeysForbidden(t *testing.T) {
 	valid, err := v.ValidateSyntax([]byte("[section]\nkey=1\nkey=2\n"))
 	require.False(t, valid)
 	require.ErrorContains(t, err, `duplicate key "key"`)
+}
+
+func Test_INIDuplicateKeysForbiddenIndented(t *testing.T) {
+	t.Parallel()
+	v := IniValidator{ForbidDuplicateKeys: true}
+	valid, err := v.ValidateSyntax([]byte("[user]\n\tname = a\n\temail = x@y\n\tname = b\n"))
+	require.False(t, valid)
+	require.ErrorContains(t, err, `duplicate key "name"`)
+}
+
+func Test_INIIndentedLineWithoutDelimiterFails(t *testing.T) {
+	t.Parallel()
+	valid, err := IniValidator{}.ValidateSyntax([]byte("[core]\n\tbare = false\n\tthis is garbage\n"))
+	require.False(t, valid)
+	require.Error(t, err)
 }
 
 func Test_ININoDuplicatesPasses(t *testing.T) {

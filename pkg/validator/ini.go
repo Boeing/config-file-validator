@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"bytes"
 	"fmt"
 
 	"gopkg.in/ini.v1"
@@ -20,7 +21,7 @@ func (v IniValidator) ValidateSyntax(b []byte) (bool, error) {
 		opts.AllowShadows = true
 	}
 
-	f, err := ini.LoadSources(opts, b)
+	f, err := ini.LoadSources(opts, blankINIContinuations(b))
 	if err != nil {
 		return false, err
 	}
@@ -32,6 +33,28 @@ func (v IniValidator) ValidateSyntax(b []byte) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// blankINIContinuations empties lines indented deeper than the key line
+// above them. Python configparser (.flake8, .coveragerc, tox.ini) reads
+// such a line as part of that key's value, not as a key of its own.
+func blankINIContinuations(b []byte) []byte {
+	lines := bytes.SplitAfter(b, []byte("\n"))
+	keyIndent := -1
+	for i, line := range lines {
+		content := bytes.TrimLeft(line, " \t")
+		indent := len(line) - len(content)
+		text := bytes.TrimRight(content, "\r\n")
+		switch {
+		case keyIndent >= 0 && indent > keyIndent && len(text) > 0:
+			lines[i] = content[len(text):]
+		case len(text) == 0 || text[0] == '#' || text[0] == ';' || text[0] == '[':
+			keyIndent = -1
+		default:
+			keyIndent = indent
+		}
+	}
+	return bytes.Join(lines, nil)
 }
 
 func checkINIDuplicateKeys(f *ini.File) error {
